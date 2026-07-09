@@ -1,5 +1,5 @@
 {
-  "name": "moiney",
+  "name": "moikickstarter",
   "version": "1.0.0",
   "main": "expo-router/entry",
   "scripts": {
@@ -9,11 +9,10 @@
     "web": "expo start --web",
     "dev": "expo start",
     "convex:dev": "bunx convex dev",
-    "convex:deploy": "bunx convex deploy"
+    "convex:deploy": "bunx convex deploy",
+    "test": "vitest run"
   },
   "dependencies": {
-    "@auth/core": "0.41.1",
-    "@convex-dev/auth": "^0.0.94",
     "@expo/metro-runtime": "~6.1.2",
     "convex": "^1.42.0",
     "expo": "~54.0.35",
@@ -33,12 +32,17 @@
   },
   "devDependencies": {
     "@expo/ngrok": "^4.1.3",
+    "@testing-library/jest-native": "^5.4.3",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/react-native": "^14.0.1",
     "@types/node": "^26.1.1",
     "@types/react": "~19.1.10",
     "babel-preset-expo": "~54.0.11",
+    "jsdom": "^29.1.1",
     "prettier-plugin-tailwindcss": "^0.6.0",
     "tailwindcss": "^3.4.17",
-    "typescript": "~5.9.2"
+    "typescript": "~5.9.2",
+    "vitest": "^4.1.10"
   },
   "private": true
 }

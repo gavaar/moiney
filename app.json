@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "moiney",
-    "slug": "moiney",
+    "name": "moikickstarter",
+    "slug": "moikickstarter",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "scheme": "moiney",
+    "scheme": "moikickstarter",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
@@ -14,7 +14,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.moiney.app"
+      "bundleIdentifier": "com.moikickstarter.app"
     },
     "android": {
       "adaptiveIcon": {
@@ -23,7 +23,8 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "package": "com.moiney.app"
+      "package": "com.moikickstarter.app",
+      "softwareKeyboardLayoutMode": "pan"
     },
     "web": {
       "bundler": "metro",

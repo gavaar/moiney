@@ -9,10 +9,13 @@
 
 ## Project Structure
 ```
-moiney/
-├── app/              # Expo Router screens
-│   ├── _layout.tsx   # Root layout
-│   └── index.tsx     # Home screen
+moikickstarter/
+├── src/              # Application source code
+│   ├── app/          # Expo Router screens
+│   │   ├── _layout.tsx
+│   │   └── index.tsx
+│   ├── components/   # Reusable UI components
+│   └── lib/          # Shared utilities and hooks
 ├── convex/           # Convex backend
 │   └── schema.ts     # Database schema
 ├── assets/           # Static assets
@@ -35,6 +38,7 @@ moiney/
 2. Copy the `CONVEX_URL` to `.env.local` as `EXPO_PUBLIC_CONVEX_URL`
 
 ## Conventions
-- Use Expo Router file-based routing (`app/` directory)
+- Use Expo Router file-based routing (`src/app/` directory)
 - Style with NativeWind/Tailwind utility classes
+- Use `@/` path alias to import from `src/` (e.g. `@/app/...`, `@/components/...`)
 - Convex schema in `convex/schema.ts`, functions in `convex/`
