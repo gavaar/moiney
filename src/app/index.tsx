@@ -13,7 +13,7 @@ export default function Home() {
       </AuthLoading>
       <Authenticated>
         <View className="flex-1 items-center justify-center bg-background">
-          <Text className="text-3xl font-bold text-text">moikickstarter</Text>
+          <Text className="text-3xl font-bold text-text">moiney</Text>
           <Text className="mt-2 text-base text-secondary">
             Your financial companion
           </Text>

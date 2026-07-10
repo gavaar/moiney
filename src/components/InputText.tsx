@@ -21,7 +21,7 @@ type Props = TextInputProps & {
 const BORDER_STYLES = {
   focused: "border-primary",
   error: "border-error",
-  default: "border-[#D1D5DB]",
+  default: "border-border",
 };
 
 export function InputText({ label, error, className, endIcon, onEndIconPress, status, ...props }: Props) {
@@ -34,7 +34,7 @@ export function InputText({ label, error, className, endIcon, onEndIconPress, st
       <View className="relative">
         <TextInput
           className={cn(
-            "rounded-lg border bg-white px-3 py-2.5 text-base text-text",
+            "rounded-lg border bg-surface px-3 py-2.5 text-base text-text",
             hasTrailing && "pr-10",
             focused ? BORDER_STYLES.focused : error ? BORDER_STYLES.error : BORDER_STYLES.default,
             className,
@@ -51,7 +51,7 @@ export function InputText({ label, error, className, endIcon, onEndIconPress, st
             ) : status === "available" ? (
               <Icon name="check-circle" size={20} color={colors.success} />
             ) : status === "unavailable" ? (
-              <Icon name="x-circle" size={20} color={colors.danger} />
+              <Icon name="x-circle" size={20} color={colors.error} />
             ) : null}
             {endIcon ? (
               <Pressable onPress={onEndIconPress} hitSlop={8}>

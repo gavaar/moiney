@@ -11,7 +11,7 @@ const JWKS = {
       e: "AQAB",
       use: "sig",
       alg: "RS256",
-      kid: "moikickstarter-key-v1",
+      kid: "moiney-key-v1",
     },
   ],
 };

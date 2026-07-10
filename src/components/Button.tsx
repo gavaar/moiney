@@ -8,14 +8,14 @@ import { cn, colors } from "@/lib/styles";
 
 type Props = TouchableOpacityProps & {
   title: string;
-  variant?: "primary" | "secondary" | "danger";
+  variant?: "primary" | "secondary" | "error";
   loading?: boolean;
 };
 
 const VARIANT_STYLES = {
   primary: "bg-primary active:bg-primary/90",
   secondary: "bg-secondary active:bg-secondary/90",
-  danger: "bg-error active:bg-error/90",
+  error: "bg-error active:bg-error/90",
 };
 
 export function Button({

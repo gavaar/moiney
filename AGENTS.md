@@ -9,7 +9,7 @@
 
 ## Project Structure
 ```
-moikickstarter/
+moiney/
 ├── src/              # Application source code
 │   ├── app/          # Expo Router screens
 │   │   ├── _layout.tsx

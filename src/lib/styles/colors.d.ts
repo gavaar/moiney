@@ -1,12 +1,15 @@
 declare const colors: {
-  primary: "#3B82F6";
-  secondary: "#6B7280";
-  warning: "#F59E0B";
-  error: "#EF4444";
-  success: "#16A34A";
-  danger: "#DC2626";
-  background: "#FFFFFF";
-  text: "#111827";
+  primary: "#46AE82";
+  secondary: "#4D94CC";
+  accent: "#A270D4";
+  warning: "#D4A04A";
+  error: "#C05959";
+  success: "#46AE82";
+  background: "#111111";
+  surface: "#1A1B1E";
+  text: "#F8F8F8";
+  mutedForeground: "#9CA3AF";
+  border: "#2C2D31";
 };
 
 export default colors;

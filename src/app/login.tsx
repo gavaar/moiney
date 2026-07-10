@@ -30,7 +30,7 @@ export default function Login() {
   return (
     <AuthScreenLayout
       title="Sign In"
-      subtitle="Welcome back to moikickstarter"
+      subtitle="Welcome back to moiney"
       footer={
         <View className="flex-row justify-center gap-1">
           <Text className="text-sm text-secondary">

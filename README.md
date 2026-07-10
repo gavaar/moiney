@@ -1,4 +1,4 @@
-# 🚀 Moikickstarter
+# 🚀 Moiney
 
 A **kickstarter** for any project that wants to build a React Native app with **Expo** + **Convex**. Comes with a complete custom JWT auth system — sign-up, sign-in, refresh tokens, and sign-out — already wired up and ready to go.
 
@@ -32,7 +32,7 @@ A **kickstarter** for any project that wants to build a React Native app with **
 ## 📁 Project structure
 
 ```
-moikickstarter/
+moiney/
 ├── src/
 │   ├── app/            # 🖥️ Expo Router screens (_layout, index, login, sign-up)
 │   ├── components/     # 🧩 Reusable UI (Button, InputText, Icon, ErrorBoundary, AuthScreenLayout)

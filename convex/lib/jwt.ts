@@ -17,12 +17,12 @@ export function signAccessToken(userId: string, sessionId: string): string {
   const siteUrl = process.env.CONVEX_SITE_URL!;
   const now = Math.floor(Date.now() / 1000);
 
-  const header = { alg: "RS256", typ: "JWT", kid: "moikickstarter-key-v1" };
+  const header = { alg: "RS256", typ: "JWT", kid: "moiney-key-v1" };
   const payload = {
     sub: userId,
     sessionId,
     iss: siteUrl,
-    aud: "moikickstarter",
+    aud: "moiney",
     iat: now,
     exp: now + ACCESS_TTL,
   };
