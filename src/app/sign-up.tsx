@@ -91,7 +91,7 @@ export default function SignUp() {
           <Text className="text-sm text-secondary">
             Already have an account?
           </Text>
-          <Link href="/login" className="text-sm font-medium text-primary">
+          <Link href="/login" replace className="text-sm font-medium text-primary">
             Sign In
           </Link>
         </View>

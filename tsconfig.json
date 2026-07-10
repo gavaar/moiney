@@ -10,7 +10,6 @@
         "./convex/*"
       ]
     },
-    "baseUrl": "."
   },
   "include": [
     "src/**/*.ts",

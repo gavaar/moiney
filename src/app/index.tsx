@@ -1,9 +1,10 @@
 import { Authenticated, AuthLoading, Unauthenticated } from "convex/react";
-import { Redirect } from "expo-router";
+import { Redirect, useRouter } from "expo-router";
 import { Text, TouchableOpacity, View } from "react-native";
 import { useAuth } from "@/lib/auth";
 
 export default function Home() {
+  const router = useRouter();
   const { signOut } = useAuth();
 
   return (
@@ -18,7 +19,10 @@ export default function Home() {
             Your financial companion
           </Text>
           <TouchableOpacity
-            onPress={() => signOut()}
+            onPress={async () => {
+              await signOut();
+              router.replace("/login");
+            }}
             className="mt-8 rounded-lg bg-error px-4 py-2"
           >
             <Text className="font-semibold text-white">Sign Out</Text>

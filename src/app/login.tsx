@@ -36,7 +36,7 @@ export default function Login() {
           <Text className="text-sm text-secondary">
             Don't have an account?
           </Text>
-          <Link href="/sign-up" className="text-sm font-medium text-primary">
+          <Link href="/sign-up" replace className="text-sm font-medium text-primary">
             Sign Up
           </Link>
         </View>

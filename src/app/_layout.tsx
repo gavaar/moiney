@@ -10,7 +10,7 @@ export default function RootLayout() {
   return (
     <ErrorBoundary>
       <ConvexProviderWithAuth client={convexClient} useAuth={useCustomAuth}>
-        <Stack screenOptions={{ headerShown: false }}>
+        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#111111" } }}>
           <Stack.Screen name="index" />
           <Stack.Screen name="login" />
           <Stack.Screen name="sign-up" />
