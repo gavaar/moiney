@@ -4,7 +4,6 @@ import { api } from "@convex/_generated/api";
 import { Button } from "@/components/Button";
 import { InputText } from "@/components/InputText";
 import { useAuth } from "@/lib/auth";
-import { useRedirectOnAuth } from "@/lib/auth";
 import { useForm } from "@/lib/forms";
 import { useDebounce } from "@/lib/hooks";
 import { AuthScreenLayout } from "@/components/AuthScreenLayout";
@@ -14,7 +13,6 @@ import { useState } from "react";
 export default function SignUp() {
   const [showPassword, setShowPassword] = useState(false);
   const [showRepeatPassword, setShowRepeatPassword] = useState(false);
-  const { markLoginAttempted } = useRedirectOnAuth();
   const { signUp } = useAuth();
 
   const { values, setField, errors, loading, handleSubmit, validateField } = useForm({
@@ -37,7 +35,6 @@ export default function SignUp() {
       return e;
     },
     onSubmit: async (v) => {
-      markLoginAttempted();
       await signUp(v.username, v.email, v.password);
     },
   });

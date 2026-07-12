@@ -16,4 +16,3 @@ export {
   removeRefreshToken,
 } from "./storage";
 export { useCustomAuth } from "./useCustomAuth";
-export { useRedirectOnAuth } from "./useRedirectOnAuth";

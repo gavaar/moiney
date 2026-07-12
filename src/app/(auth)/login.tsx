@@ -2,7 +2,6 @@ import { Text, View } from "react-native";
 import { Button } from "@/components/Button";
 import { InputText } from "@/components/InputText";
 import { useAuth } from "@/lib/auth";
-import { useRedirectOnAuth } from "@/lib/auth";
 import { useForm } from "@/lib/forms";
 import { AuthScreenLayout } from "@/components/AuthScreenLayout";
 import { Link } from "expo-router";
@@ -10,7 +9,6 @@ import { useState } from "react";
 
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
-  const { markLoginAttempted } = useRedirectOnAuth();
   const { login } = useAuth();
 
   const { values, setField, errors, loading, handleSubmit } = useForm({
@@ -22,7 +20,6 @@ export default function Login() {
       return e;
     },
     onSubmit: async (v) => {
-      markLoginAttempted();
       await login(v.username, v.password);
     },
   });
