@@ -1,17 +1,20 @@
-import { Redirect, Stack } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import { useConvexAuth } from "convex/react";
+import { useEffect } from "react";
 import { View } from "react-native";
 
 export default function AuthLayout() {
   const { isAuthenticated, isLoading } = useConvexAuth();
+  const router = useRouter();
 
-  if (isLoading) {
-    return <View className="flex-1 bg-background" />;
-  }
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      router.replace("/dashboard");
+    }
+  }, [isAuthenticated, isLoading, router]);
 
-  if (isAuthenticated) {
-    return <Redirect href="/" />;
-  }
+  if (isLoading) return <View className="flex-1 bg-background" />;
+  if (isAuthenticated) return null;
 
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#111111" } }} />
