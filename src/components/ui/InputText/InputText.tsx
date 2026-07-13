@@ -8,7 +8,7 @@ import {
   type TextInputProps,
 } from "react-native";
 import { cn, colors } from "@/lib/styles";
-import { Icon } from "@/components/Icon";
+import { Icon } from "@/components/ui/Icon";
 
 type Props = TextInputProps & {
   label: string;

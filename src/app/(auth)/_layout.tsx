@@ -1,10 +1,10 @@
 import { Stack, useRouter } from "expo-router";
-import { useConvexAuth } from "convex/react";
+import { useAuth } from "@/lib/auth";
 import { useEffect } from "react";
 import { View } from "react-native";
 
 export default function AuthLayout() {
-  const { isAuthenticated, isLoading } = useConvexAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {

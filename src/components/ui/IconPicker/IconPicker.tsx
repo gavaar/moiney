@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { colors } from "@/lib/styles";
-import { Icon, CURATED_ICONS, type IconName } from "@/components/Icon";
+import { Icon, CURATED_ICONS, type IconName } from "@/components/ui/Icon";
 
 type Props = {
   value: IconName | "";
@@ -10,14 +10,9 @@ type Props = {
 
 export function IconPicker({ value, onSelect }: Props) {
   const [search, setSearch] = useState("");
-
-  const filtered = search
-    ? CURATED_ICONS.filter(
-        (icon) =>
-          icon.label.toLowerCase().includes(search.toLowerCase()) ||
-          icon.name.toLowerCase().includes(search.toLowerCase()),
-      )
-    : CURATED_ICONS;
+  const filtered = search ? CURATED_ICONS.filter((icon) => {
+    return icon.name.toLowerCase().includes(search.toLowerCase());
+  }) : CURATED_ICONS;
 
   return (
     <View>

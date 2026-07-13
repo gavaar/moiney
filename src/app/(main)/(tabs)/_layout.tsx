@@ -1,4 +1,4 @@
-import { Icon } from "@/components/Icon";
+import { Icon } from "@/components/ui/Icon";
 import { Tabs } from "expo-router";
 
 export default function TabLayout() {
@@ -12,7 +12,7 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen
-        name="pipes"
+        name="pipes/index"
         options={{
           title: "Pipes",
           tabBarIcon: ({ color, size }) => (

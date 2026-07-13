@@ -1,11 +1,11 @@
-import { Stack, useRouter } from "expo-router";
-import { useConvexAuth } from "convex/react";
+import { Slot, useRouter } from "expo-router";
+import { useAuth } from "@/lib/auth";
 import { useEffect } from "react";
 import { View } from "react-native";
-import { ModalProvider } from "@/components/Modal";
+import { ModalProvider } from "@/components/ui/Modal";
 
 export default function MainLayout() {
-  const { isAuthenticated, isLoading } = useConvexAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -19,7 +19,7 @@ export default function MainLayout() {
 
   return (
     <ModalProvider>
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#111111" } }} />
+      <Slot />
     </ModalProvider>
   );
 }

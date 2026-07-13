@@ -1,9 +1,9 @@
 import { Text, View } from "react-native";
-import { Button } from "@/components/Button";
-import { InputText } from "@/components/InputText";
+import { Button } from "@/components/ui/Button";
+import { InputText } from "@/components/ui/InputText";
 import { useAuth } from "@/lib/auth";
 import { useForm } from "@/lib/forms";
-import { AuthScreenLayout } from "@/components/AuthScreenLayout";
+import { AuthScreenLayout } from "@/components/ui/AuthScreenLayout";
 import { Link } from "expo-router";
 import { useState } from "react";
 
