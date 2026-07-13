@@ -5,11 +5,8 @@ import {
   type ReactNode,
 } from "react-native";
 import { colors } from "@/lib/styles";
-import { Icon } from "./Icon";
-import { ModalContext, useModalState, type ModalContextType } from "./ModalContext";
-
-export type { ModalContextType } from "./ModalContext";
-export { ModalContext, useModal } from "./ModalContext";
+import { Icon } from "../Icon";
+import { ModalContext, useModalState } from "./ModalContext";
 
 export function ModalProvider({ children }: { children: ReactNode }) {
   const { visible, content, open, close } = useModalState();
