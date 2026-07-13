@@ -7,5 +7,5 @@ export default function Index() {
 
   if (isLoading) return <View className="flex-1 bg-background" />;
 
-  return <Redirect href={isAuthenticated ? "/dashboard" : "/login"} />;
+  return <Redirect href={isAuthenticated ? "/pipes" : "/login"} />;
 }

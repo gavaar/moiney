@@ -12,9 +12,9 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen
-        name="dashboard"
+        name="pipes"
         options={{
-          title: "Dashboard",
+          title: "Pipes",
           tabBarIcon: ({ color, size }) => (
             <Icon name="pipe-valve" size={size} color={color} />
           ),

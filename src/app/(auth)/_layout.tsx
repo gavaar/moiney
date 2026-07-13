@@ -9,7 +9,7 @@ export default function AuthLayout() {
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
-      router.replace("/dashboard");
+      router.replace("/pipes");
     }
   }, [isAuthenticated, isLoading, router]);
 
