@@ -1,4 +1,4 @@
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Icon } from "@/components/Icon";
 import { Tabs } from "expo-router";
 
 export default function TabLayout() {
@@ -16,7 +16,7 @@ export default function TabLayout() {
         options={{
           title: "Dashboard",
           tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="pipe-valve" size={size} color={color} />
+            <Icon name="pipe-valve" size={size} color={color} />
           ),
         }}
       />
@@ -25,7 +25,7 @@ export default function TabLayout() {
         options={{
           title: "History",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="reload-outline" size={size} color={color} />
+            <Icon name="reload-outline" size={size} color={color} />
           ),
         }}
       />
@@ -34,7 +34,7 @@ export default function TabLayout() {
         options={{
           title: "Profile",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person-outline" size={size} color={color} />
+            <Icon name="person-outline" size={size} color={color} />
           ),
         }}
       />

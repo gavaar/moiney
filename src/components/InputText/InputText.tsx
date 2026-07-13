@@ -49,9 +49,9 @@ export function InputText({ label, error, className, endIcon, onEndIconPress, st
             {status === "checking" ? (
               <ActivityIndicator size="small" color={colors.secondary} />
             ) : status === "available" ? (
-              <Icon name="check-circle" size={20} color={colors.success} />
+              <Icon name="checkmark-circle" size={20} color={colors.success} />
             ) : status === "unavailable" ? (
-              <Icon name="x-circle" size={20} color={colors.error} />
+              <Icon name="close-circle" size={20} color={colors.error} />
             ) : null}
             {endIcon ? (
               <Pressable onPress={onEndIconPress} hitSlop={8}>

@@ -25,7 +25,7 @@ export function ModalProvider({ children }: { children: ReactNode }) {
           <View className="bg-surface rounded-xl p-4 mx-4 min-w-[300px]">
             <View className="items-end">
               <Pressable onPress={close} testID="modal-close">
-                <Icon name="x" size={16} color={colors.mutedForeground} />
+                <Icon name="close" size={16} color={colors.mutedForeground} />
               </Pressable>
             </View>
             {content}

@@ -1,18 +1,12 @@
-import { colors } from "@/lib/styles";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { type ComponentType } from "react";
 import { type TextStyle } from "react-native";
+import { colors } from "@/lib/styles";
+import { ICON_REGISTRY, type IconFamily, type IconName } from "./icons";
 
-type IconName = "eye" | "eye-off" | "arrow-left" | "check" | "check-circle" | "x" | "x-circle" | "log-out";
-
-const ICON_MAP: Record<IconName, keyof typeof Ionicons.glyphMap> = {
-  eye: "eye",
-  "eye-off": "eye-off",
-  "arrow-left": "arrow-back",
-  check: "checkmark",
-  "check-circle": "checkmark-circle",
-  x: "close",
-  "x-circle": "close-circle",
-  "log-out": "log-out",
+const FAMILY_COMPONENTS: Record<IconFamily, ComponentType<any>> = {
+  Ionicons,
+  MaterialCommunityIcons,
 };
 
 type Props = {
@@ -23,5 +17,7 @@ type Props = {
 };
 
 export function Icon({ name, size = 20, color = colors.text, style }: Props) {
-  return <Ionicons name={ICON_MAP[name]} size={size} color={color} style={style} />;
+  const family = ICON_REGISTRY[name];
+  const Component = FAMILY_COMPONENTS[family];
+  return <Component name={name} size={size} color={color} style={style} />;
 }
