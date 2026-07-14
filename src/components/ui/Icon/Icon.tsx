@@ -14,10 +14,11 @@ type Props = {
   size?: number;
   color?: string;
   style?: TextStyle;
+  testID?: string;
 };
 
-export function Icon({ name, size = 20, color = colors.text, style }: Props) {
+export function Icon({ name, size = 20, color = colors.text, style, testID }: Props) {
   const family = ICON_REGISTRY[name];
   const Component = FAMILY_COMPONENTS[family];
-  return <Component name={name} size={size} color={color} style={style} />;
+  return <Component testID={testID} name={name} size={size} color={color} style={style} />;
 }

@@ -2,8 +2,7 @@ import { useState } from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import { Button } from "@/components/ui/Button";
 import { type IconName } from "@/components/ui/Icon";
-import { IconPicker } from "@/components/ui/IconPicker";
-import { InputText } from "@/components/ui/InputText";
+import { Input } from "@/components/ui/Input";
 import { ModalShell } from "@/components/ui/Modal";
 
 export default function AddFeedButton() {
@@ -12,10 +11,10 @@ export default function AddFeedButton() {
   const [name, setName] = useState("");
   const [icon, setIcon] = useState<IconName | "">("");
   const [description, setDescription] = useState("");
-  const [priority, setPriority] = useState("0");
+  const [priority, setPriority] = useState(0);
 
   const handleSubmit = () => {
-    console.log({ name, icon, description, priority: Number(priority) });
+    console.log({ name, icon, description, priority });
     setVisible(false);
   };
 
@@ -31,14 +30,14 @@ export default function AddFeedButton() {
 
       <ModalShell visible={visible} onClose={() => setVisible(false)}>
         <View className="gap-4">
-          <InputText
+          <Input
             label="Name"
             placeholder="Feed name"
             value={name}
             onChangeText={setName}
           />
-          <IconPicker label="Icon" value={icon} onSelect={setIcon} />
-          <InputText
+          <Input type="icon" label="Icon" value={icon} onSelect={setIcon} />
+          <Input
             label="Description"
             placeholder="Optional description"
             value={description}
@@ -46,12 +45,11 @@ export default function AddFeedButton() {
             multiline
             numberOfLines={3}
           />
-          <InputText
+          <Input
+            type="number"
             label="Priority"
-            placeholder="0"
             value={priority}
-            onChangeText={setPriority}
-            keyboardType="numeric"
+            onChange={setPriority}
           />
           <Button title="Add" onPress={handleSubmit} />
         </View>

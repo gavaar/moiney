@@ -2,7 +2,7 @@ import { Text, View } from "react-native";
 import { useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { Button } from "@/components/ui/Button";
-import { InputText } from "@/components/ui/InputText";
+import { Input } from "@/components/ui/Input";
 import { useAuth } from "@/lib/auth";
 import { useForm } from "@/lib/forms";
 import { useDebounce } from "@/lib/hooks";
@@ -94,7 +94,7 @@ export default function SignUp() {
         </View>
       }
     >
-      <InputText
+      <Input
         label="Username"
         placeholder="Choose a username"
         value={values.username}
@@ -104,7 +104,7 @@ export default function SignUp() {
         error={usernameError}
         status={values.username ? usernameStatus : undefined}
       />
-      <InputText
+      <Input
         label="Email"
         placeholder="Enter your email"
         value={values.email}
@@ -115,7 +115,7 @@ export default function SignUp() {
         keyboardType="email-address"
         error={errors.email}
       />
-      <InputText
+      <Input
         label="Password"
         placeholder="At least 8 characters"
         value={values.password}
@@ -126,7 +126,7 @@ export default function SignUp() {
         onEndIconPress={() => setShowPassword((v) => !v)}
         error={errors.password}
       />
-      <InputText
+      <Input
         label="Repeat Password"
         placeholder="Confirm your password"
         value={values.repeatPassword}

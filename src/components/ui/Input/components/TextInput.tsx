@@ -3,7 +3,7 @@ import {
   ActivityIndicator,
   Pressable,
   Text,
-  TextInput,
+  TextInput as RNTextInput,
   View,
   type TextInputProps,
 } from "react-native";
@@ -24,7 +24,7 @@ const BORDER_STYLES = {
   default: "border-border",
 };
 
-export function InputText({ label, error, className, endIcon, onEndIconPress, status, ...props }: Props) {
+export function TextInput({ label, error, className, endIcon, onEndIconPress, status, ...props }: Props) {
   const [focused, setFocused] = useState(false);
   const hasTrailing = !!(status || endIcon);
 
@@ -32,7 +32,7 @@ export function InputText({ label, error, className, endIcon, onEndIconPress, st
     <View className="gap-1">
       <Text className="text-sm font-medium text-text">{label}</Text>
       <View className="relative">
-        <TextInput
+        <RNTextInput
           className={cn(
             "rounded-lg border bg-surface px-3 py-2.5 text-base text-text",
             hasTrailing && "pr-10",
@@ -47,14 +47,14 @@ export function InputText({ label, error, className, endIcon, onEndIconPress, st
         {hasTrailing ? (
           <View className="absolute right-3 top-0 bottom-0 flex-row items-center gap-1">
             {status === "checking" ? (
-              <ActivityIndicator size="small" color={colors.secondary} />
+              <ActivityIndicator testID="status-checking" size="small" color={colors.secondary} />
             ) : status === "available" ? (
-              <Icon name="checkmark-circle" size={20} color={colors.success} />
+              <Icon testID="status-available" name="checkmark-circle" size={20} color={colors.success} />
             ) : status === "unavailable" ? (
-              <Icon name="close-circle" size={20} color={colors.error} />
+              <Icon testID="status-unavailable" name="close-circle" size={20} color={colors.error} />
             ) : null}
             {endIcon ? (
-              <Pressable onPress={onEndIconPress} hitSlop={8}>
+              <Pressable testID="end-icon-button" onPress={onEndIconPress} hitSlop={8}>
                 <Icon name={endIcon} size={20} color={colors.secondary} />
               </Pressable>
             ) : null}

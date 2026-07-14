@@ -1,6 +1,6 @@
 import { Text, View } from "react-native";
 import { Button } from "@/components/ui/Button";
-import { InputText } from "@/components/ui/InputText";
+import { Input } from "@/components/ui/Input";
 import { useAuth } from "@/lib/auth";
 import { useForm } from "@/lib/forms";
 import { AuthScreenLayout } from "@/components/ui/AuthScreenLayout";
@@ -39,7 +39,7 @@ export default function Login() {
         </View>
       }
     >
-      <InputText
+      <Input
         label="Username"
         placeholder="Enter your username"
         value={values.username}
@@ -47,7 +47,7 @@ export default function Login() {
         autoCapitalize="none"
         autoCorrect={false}
       />
-      <InputText
+      <Input
         label="Password"
         placeholder="Enter your password"
         value={values.password}

@@ -9,7 +9,6 @@ import {
 } from "react-native";
 import { cn, colors } from "@/lib/styles";
 import { Icon, CURATED_ICONS, type IconName } from "@/components/ui/Icon";
-import { filterIcons } from "./filter";
 
 type Props = {
   label: string;
@@ -18,7 +17,15 @@ type Props = {
   error?: string;
 };
 
-export function IconPicker({ label, value, onSelect, error }: Props) {
+function filterIcons(search: string, icons: { name: string }[]) {
+  return search
+    ? icons.filter((icon) =>
+        icon.name.toLowerCase().includes(search.toLowerCase()),
+      )
+    : icons;
+}
+
+export function IconInput({ label, value, onSelect, error }: Props) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
 
