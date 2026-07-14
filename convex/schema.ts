@@ -24,8 +24,8 @@ export default defineSchema({
     priority: v.number(),
     liquid: v.number(),
     // rule
-    quotaCeil: v.number(),
-    quotaCurr: v.number(),
+    quotaCeil: v.optional(v.number()),
+    quotaCurr: v.optional(v.number()),
     resetOn: v.optional(v.union(v.literal("empty"), v.literal("cron"), v.literal("uncapped"))),
     resetCron: v.optional(v.string()),
   }).index("by_userId", ["userId"]),

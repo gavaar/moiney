@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { Text, TouchableOpacity, View } from "react-native";
+import { Alert, Text, TouchableOpacity, View } from "react-native";
+import { useMutation } from "convex/react";
+import { api } from "@convex/_generated/api";
 import { Button } from "@/components/ui/Button";
 import { type IconName } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/Input";
@@ -7,15 +9,39 @@ import { ModalShell } from "@/components/ui/Modal";
 
 export default function AddFeedButton() {
   const [visible, setVisible] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const [name, setName] = useState("");
   const [icon, setIcon] = useState<IconName | "">("");
   const [description, setDescription] = useState("");
-  const [priority, setPriority] = useState(0);
 
-  const handleSubmit = () => {
-    console.log({ name, icon, description, priority });
-    setVisible(false);
+  const addFeed = useMutation(api.pipes.addFeed);
+
+  const resetForm = () => {
+    setName("");
+    setIcon("");
+    setDescription("");
+  };
+
+  const handleSubmit = async () => {
+    setLoading(true);
+    try {
+      await addFeed({
+        name,
+        icon,
+        description: description || undefined,
+      });
+      Alert.alert("Success", "Feed added");
+      setVisible(false);
+      resetForm();
+    } catch (error) {
+      Alert.alert(
+        "Error",
+        error instanceof Error ? error.message : "Something went wrong",
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -45,13 +71,7 @@ export default function AddFeedButton() {
             multiline
             numberOfLines={3}
           />
-          <Input
-            type="number"
-            label="Priority"
-            value={priority}
-            onChange={setPriority}
-          />
-          <Button title="Add" onPress={handleSubmit} />
+          <Button title="Add" onPress={handleSubmit} loading={loading} />
         </View>
       </ModalShell>
     </>
