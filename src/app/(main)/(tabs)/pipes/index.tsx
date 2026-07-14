@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { Text, View } from "react-native";
-import { useModal } from "@/components/ui/Modal";
+import { ModalShell } from "@/components/ui/Modal";
 import AddFeedButton from "@/features/pipes/AddFeedButton";
 
 const FeedDescription = () => <Text className="text-text text-base">
@@ -16,7 +17,7 @@ const FeedDescription = () => <Text className="text-text text-base">
 </Text>;
 
 export default function Pipes() {
-  const { open } = useModal();
+  const [showFeedInfo, setShowFeedInfo] = useState(false);
   const hasFeeds = false;
 
   return (
@@ -26,10 +27,7 @@ export default function Pipes() {
       ) : (
         <Text className="text-mutedForeground text-base">
           Add your first{" "}
-          <Text
-            className="underline"
-            onPress={() => open(<FeedDescription />)}
-          >
+          <Text className="underline" onPress={() => setShowFeedInfo(true)}>
             feed
           </Text>
           .
@@ -37,6 +35,10 @@ export default function Pipes() {
       )}
 
       <AddFeedButton />
+
+      <ModalShell visible={showFeedInfo} onClose={() => setShowFeedInfo(false)}>
+        <FeedDescription />
+      </ModalShell>
     </View>
   );
 }

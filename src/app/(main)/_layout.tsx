@@ -2,7 +2,6 @@ import { Slot, useRouter } from "expo-router";
 import { useAuth } from "@/lib/auth";
 import { useEffect } from "react";
 import { View } from "react-native";
-import { ModalProvider } from "@/components/ui/Modal";
 
 export default function MainLayout() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -17,9 +16,5 @@ export default function MainLayout() {
   if (isLoading) return <View className="flex-1 bg-background" />;
   if (!isAuthenticated) return null;
 
-  return (
-    <ModalProvider>
-      <Slot />
-    </ModalProvider>
-  );
+  return <Slot />;
 }

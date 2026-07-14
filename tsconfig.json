@@ -9,14 +9,14 @@
       "@convex/*": [
         "./convex/*"
       ]
-    },
+    }
   },
   "include": [
     "src/**/*.ts",
     "src/**/*.tsx",
-    "src/nativewind-env.d.ts",
     "convex/**/*.ts",
     "convex/**/*.tsx",
-    "nativewind-env.d.ts"
+    "nativewind-env.d.ts",
+    "vitest.config.ts"
   ]
 }
