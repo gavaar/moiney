@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 import { requireAuth } from "./lib/auth";
 
 export const addFeed = mutation({
@@ -18,7 +18,17 @@ export const addFeed = mutation({
       icon: args.icon,
       description: args.description,
       priority: 0,
-      liquid: 0,
     });
+  },
+});
+
+export const getPipes = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await requireAuth(ctx);
+    return await ctx.db
+      .query("pipes")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .collect();
   },
 });

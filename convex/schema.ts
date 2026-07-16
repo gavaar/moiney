@@ -22,10 +22,10 @@ export default defineSchema({
     icon: v.string(),
     description: v.optional(v.string()),
     priority: v.number(),
-    liquid: v.number(),
+    capacity: v.optional(v.number()),
+    fed: v.optional(v.number()),
+    spent: v.optional(v.number()),
     // rule
-    quotaCeil: v.optional(v.number()),
-    quotaCurr: v.optional(v.number()),
     resetOn: v.optional(v.union(v.literal("empty"), v.literal("cron"), v.literal("uncapped"))),
     resetCron: v.optional(v.string()),
   }).index("by_userId", ["userId"]),

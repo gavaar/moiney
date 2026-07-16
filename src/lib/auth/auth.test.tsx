@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 
 const mocks = vi.hoisted(() => ({
   mockSetAuth: vi.fn(),
@@ -94,7 +94,9 @@ describe("AuthProvider", () => {
     });
 
     const onChange = mocks.mockSetAuth.mock.calls[0][1];
-    onChange(true);
+    await act(async () => {
+      onChange(true);
+    });
 
     await waitFor(() => {
       expect(screen.getByTestId("loading").textContent).toBe("false");

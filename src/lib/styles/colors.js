@@ -1,5 +1,6 @@
 module.exports = {
   primary: "#46AE82",
+  primaryDark: "#3A8C6B",
   secondary: "#4D94CC",
   accent: "#A270D4",
   warning: "#D4A04A",

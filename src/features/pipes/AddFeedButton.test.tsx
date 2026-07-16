@@ -41,7 +41,6 @@ describe("AddFeedButton", () => {
         name: "",
         icon: "wallet-outline",
         description: undefined,
-        priority: 0,
       });
     });
   });
