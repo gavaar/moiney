@@ -14,16 +14,29 @@ export default function AddFeedButton() {
   const [name, setName] = useState("");
   const [icon, setIcon] = useState<IconName | "">("");
   const [description, setDescription] = useState("");
+  const [nameError, setNameError] = useState<string | null>(null);
 
   const addFeed = useMutation(api.pipes.addFeed);
+
+  const validateName = (value: string): string | null => {
+    if (!value.trim()) return "Name is required";
+    if (value.trim().length < 2) return "Name must be at least 2 characters";
+    return null;
+  };
 
   const resetForm = () => {
     setName("");
     setIcon("");
     setDescription("");
+    setNameError(null);
   };
 
   const handleSubmit = async () => {
+    const error = validateName(name);
+    if (error) {
+      setNameError(error);
+      return;
+    }
     setLoading(true);
     try {
       await addFeed({
@@ -60,7 +73,12 @@ export default function AddFeedButton() {
             label="Name"
             placeholder="Feed name"
             value={name}
-            onChangeText={setName}
+            onChangeText={(v) => {
+              setName(v);
+              setNameError(null);
+            }}
+            onBlur={() => setNameError(validateName(name))}
+            error={nameError}
           />
           <Input type="icon" label="Icon" value={icon} onSelect={setIcon} />
           <Input
