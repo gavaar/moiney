@@ -56,7 +56,7 @@ export function FeedAmountModal({ pipeId, feedName }: Props) {
         <Icon name="add-circle-outline" size={24} color="white" />
       </Pressable>
 
-      <ModalShell visible={visible} onClose={() => setVisible(false)}>
+      <ModalShell visible={visible} closeOnBackdropPress={false} onClose={() => setVisible(false)}>
         <View className="gap-4">
           <Text className="text-lg font-semibold text-text">Feed {feedName}</Text>
           <Input
@@ -66,12 +66,22 @@ export function FeedAmountModal({ pipeId, feedName }: Props) {
             value={inputText}
             onChange={setInputText}
           />
-          <Button
-            title="Feed"
-            onPress={handleConfirm}
-            disabled={!canSubmit}
-            loading={loading}
-          />
+          <View className="flex-row gap-2">
+            <Button
+              className="flex-1"
+              title="Cancel"
+              variant="mutedForeground"
+              onPress={() => setVisible(false)}
+              disabled={loading}
+            />
+            <Button
+              className="flex-[2_1_0]"
+              title="Feed"
+              onPress={handleConfirm}
+              disabled={!canSubmit}
+              loading={loading}
+            />
+          </View>
         </View>
       </ModalShell>
     </>

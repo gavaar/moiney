@@ -8,14 +8,22 @@ import { cn, colors } from "@/lib/styles";
 
 type Props = TouchableOpacityProps & {
   title: string;
-  variant?: "primary" | "secondary" | "error";
+  variant?: "primary" | "secondary" | "mutedForeground" | "error";
   loading?: boolean;
 };
 
 const VARIANT_STYLES = {
   primary: "bg-primary active:bg-primary/90",
   secondary: "bg-secondary active:bg-secondary/90",
+  mutedForeground: "bg-transparent active:bg-mutedForeground/90",
   error: "bg-error active:bg-error/90",
+};
+
+const TEXT_VARIANTS = {
+  primary: "text-white font-semibold text-base",
+  secondary: "text-white font-semibold text-base",
+  mutedForeground: "text-mutedForeground",
+  error: "text-white font-semibold text-base",
 };
 
 export function Button({
@@ -40,7 +48,7 @@ export function Button({
       {loading ? (
         <ActivityIndicator color={colors.background} />
       ) : (
-        <Text className="text-white font-semibold text-base">{title}</Text>
+        <Text className={TEXT_VARIANTS[variant]}>{title}</Text>
       )}
     </TouchableOpacity>
   );

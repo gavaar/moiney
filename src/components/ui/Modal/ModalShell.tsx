@@ -4,16 +4,20 @@ import {
   Pressable,
   View,
 } from "react-native";
-import { colors } from "@/lib/styles";
-import { Icon } from "@/components/ui/Icon";
 
 type Props = {
   visible: boolean;
   onClose: () => void;
   children: ReactNode;
+  closeOnBackdropPress?: boolean;
 };
 
-export function ModalShell({ visible, onClose, children }: Props) {
+export function ModalShell({
+  visible,
+  onClose,
+  children,
+  closeOnBackdropPress = true,
+}: Props) {
   return (
     <RNModal
       transparent
@@ -22,13 +26,11 @@ export function ModalShell({ visible, onClose, children }: Props) {
       onRequestClose={onClose}
     >
       <View className="flex-1 justify-center items-center bg-black/50">
-        <Pressable className="absolute inset-0" onPress={onClose} />
-        <View className="bg-surface rounded-xl p-4 mx-4 min-w-[300px]">
-          <View className="items-end">
-            <Pressable onPress={onClose} testID="modal-close">
-              <Icon name="close" size={16} color={colors.mutedForeground} />
-            </Pressable>
-          </View>
+        <Pressable
+          className="absolute inset-0"
+          onPress={closeOnBackdropPress ? onClose : undefined}
+        />
+        <View className="bg-surface rounded-xl p-4 mx-4 min-w-[300px] max-h-[75%]">
           {children}
         </View>
       </View>

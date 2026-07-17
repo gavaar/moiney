@@ -54,7 +54,7 @@ export default function AddFeedButton() {
         <Text className="text-primary text-base">Add new Feed</Text>
       </TouchableOpacity>
 
-      <ModalShell visible={visible} onClose={() => setVisible(false)}>
+      <ModalShell visible={visible} closeOnBackdropPress={false} onClose={() => setVisible(false)}>
         <View className="gap-4">
           <Input
             label="Name"
@@ -71,7 +71,16 @@ export default function AddFeedButton() {
             multiline
             numberOfLines={3}
           />
-          <Button title="Add" onPress={handleSubmit} loading={loading} />
+          <View className="flex-row gap-2">
+            <Button
+              className="flex-1"
+              title="Cancel"
+              variant="mutedForeground"
+              onPress={() => setVisible(false)}
+              disabled={loading}
+            />
+            <Button className="flex-[2_1_0]" title="Add" onPress={handleSubmit} loading={loading} />
+          </View>
         </View>
       </ModalShell>
     </>
