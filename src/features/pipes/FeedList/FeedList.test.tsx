@@ -11,9 +11,15 @@ vi.mock("@/components/ui/FeedBox", () => ({
   ),
 }));
 
+vi.mock("./components/FeedAmountModal", () => ({
+  FeedAmountModal: () => <div data-testid="feed-amount-modal" />,
+}));
+
+import { type Id } from "@convex/_generated/dataModel";
+
 const mockFeeds = [
-  { _id: "1", name: "Groceries", icon: "cart-outline", description: "Food", capacity: 0, fed: 0, spent: 0 },
-  { _id: "2", name: "Salary", icon: "cash-outline", description: undefined, capacity: 0, fed: 0, spent: 0 },
+  { _id: "1" as Id<"pipes">, name: "Groceries", icon: "cart-outline", description: "Food", capacity: 0, fed: 0, spent: 0 },
+  { _id: "2" as Id<"pipes">, name: "Salary", icon: "cash-outline", description: undefined, capacity: 0, fed: 0, spent: 0 },
 ];
 
 describe("FeedList", () => {

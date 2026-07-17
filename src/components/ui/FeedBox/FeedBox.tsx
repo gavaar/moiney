@@ -18,7 +18,7 @@ export function FeedBox({ name, icon, capacity, fed, spent, onPress }: FeedBoxPr
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.7}
-      className="flex-row rounded-md"
+      className="flex-row rounded-md overflow-hidden flex-1"
     >
       <View className="w-20 rounded-bl-md rounded-tl-md border border-border bg-surface items-center justify-center p-2 gap-1">
         <Icon name={icon as IconName} size={20} color={colors.primary} />
@@ -31,7 +31,7 @@ export function FeedBox({ name, icon, capacity, fed, spent, onPress }: FeedBoxPr
         <Text className="text-text font-semibold text-sm">
           {spent.toFixed(1)} / {fed.toFixed(1)}
         </Text> 
-        <Text className="text-mutedForeground text-xs">
+        <Text className="text-text text-xs">
           (goal: {capacity.toFixed(1)})
         </Text> 
       </View>

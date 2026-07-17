@@ -1,5 +1,6 @@
 import type { IconName } from "@/components/ui/Icon";
 import type { TextInputProps } from "react-native";
+import { DecimalInput } from "./components/DecimalInput";
 import { TextInput } from "./components/TextInput";
 import { NumberInput } from "./components/NumberInput";
 import { IconInput } from "./components/IconInput";
@@ -24,6 +25,15 @@ type NumberProps = {
   step?: number;
 };
 
+type DecimalProps = {
+  type: "decimal";
+  label: string;
+  error?: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+};
+
 type IconProps = {
   type: "icon";
   label: string;
@@ -32,12 +42,14 @@ type IconProps = {
   onSelect: (name: IconName) => void;
 };
 
-type Props = TextProps | NumberProps | IconProps;
+type Props = TextProps | NumberProps | DecimalProps | IconProps;
 
 export function Input(props: Props) {
   switch (props.type) {
     case "number":
       return <NumberInput {...props} />;
+    case "decimal":
+      return <DecimalInput {...props} />;
     case "icon":
       return <IconInput {...props} />;
     default:
