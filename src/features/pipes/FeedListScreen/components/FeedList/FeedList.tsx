@@ -1,9 +1,9 @@
 import { ScrollView, View } from "react-native";
 import { type Id } from "@convex/_generated/dataModel";
 import { FeedBox } from "@/components/ui/FeedBox";
-import { FeedAmountModal } from "./components/FeedAmountModal";
+import { FeedAmountModal } from "./components";
 
-type Feed = {
+type Pipe = {
   _id: Id<"pipes">;
   name: string;
   icon: string;
@@ -13,13 +13,14 @@ type Feed = {
 };
 
 type FeedListProps = {
-  feeds: Feed[];
+  pipes: Pipe[];
+  onSelectFeed?: (id: Id<"pipes">) => void;
 };
 
-export function FeedList({ feeds }: FeedListProps) {
+export function FeedList({ pipes, onSelectFeed }: FeedListProps) {
   return (
     <ScrollView contentContainerStyle={{ gap: 8 }}>
-      {feeds.map((item) => (
+      {pipes.map((item) => (
         <View
           key={item._id}
           className="flex-row items-center gap-2"
@@ -30,7 +31,7 @@ export function FeedList({ feeds }: FeedListProps) {
             capacity={item.capacity}
             fed={item.fed}
             spent={item.spent}
-            onPress={() => console.log(item)}
+            onPress={() => onSelectFeed?.(item._id)}
           />
 
           <FeedAmountModal pipeId={item._id} feedName={item.name} />

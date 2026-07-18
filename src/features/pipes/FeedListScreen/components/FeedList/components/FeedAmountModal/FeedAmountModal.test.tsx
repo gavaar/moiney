@@ -39,8 +39,7 @@ describe("FeedAmountModal", () => {
 
     await user.click(screen.getByTestId("feed-amount-trigger"));
 
-    expect(screen.getByText("Groceries")).toBeTruthy();
-    expect(screen.getByText("Feed")).toBeTruthy();
+    expect(screen.getByText("Feed Groceries")).toBeTruthy();
   });
 
   it("does not call feedPipe when confirm is pressed with empty input", async () => {

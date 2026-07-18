@@ -7,28 +7,28 @@ import { type IconName } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/Input";
 import { ModalShell } from "@/components/ui/Modal";
 
-export default function AddFeedButton() {
+export function AddFeedButton() {
   const [visible, setVisible] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const [name, setName] = useState("");
   const [icon, setIcon] = useState<IconName | "">("");
   const [description, setDescription] = useState("");
-  const [nameError, setNameError] = useState<string | null>(null);
+  const [nameError, setNameError] = useState<string | undefined>(undefined);
 
   const addFeed = useMutation(api.pipes.addFeed);
 
-  const validateName = (value: string): string | null => {
+  const validateName = (value: string): string | undefined => {
     if (!value.trim()) return "Name is required";
     if (value.trim().length < 2) return "Name must be at least 2 characters";
-    return null;
+    return undefined;
   };
 
   const resetForm = () => {
     setName("");
     setIcon("");
     setDescription("");
-    setNameError(null);
+    setNameError(undefined);
   };
 
   const handleSubmit = async () => {
@@ -75,7 +75,7 @@ export default function AddFeedButton() {
             value={name}
             onChangeText={(v) => {
               setName(v);
-              setNameError(null);
+              setNameError(undefined);
             }}
             onBlur={() => setNameError(validateName(name))}
             error={nameError}

@@ -3,7 +3,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Alert } from "react-native";
-import AddFeedButton from "./AddFeedButton";
+import { AddFeedButton } from "./AddFeedButton";
 
 const mockAddFeed = vi.fn().mockResolvedValue(undefined);
 
