@@ -7,7 +7,7 @@ export function Breadcrumb() {
 
   const items = selectedPipePath.map((id) => {
     const pipe = allPipes?.find((p) => p._id === id);
-    return { id, name: pipe?.name ?? id };
+    return { id, name: pipe?.name ?? id, icon: pipe?.icon ?? 'pipe' };
   });
 
   return (
@@ -17,7 +17,7 @@ export function Breadcrumb() {
         onPress={() => selectPipe([])}
         className="rounded-full p-1"
       >
-        <Icon name="pipe" size={18} />
+        <Icon name={items[0]?.icon ?? 'pipe'} size={18} />
       </TouchableOpacity>
       {items.map((item, index) => (
         <View key={item.id} className="flex-row items-center gap-2">
