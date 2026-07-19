@@ -48,7 +48,7 @@ export function IconInput({ label, value, onSelect, error }: Props) {
             <Text className="text-base text-text">{value}</Text>
           </>
         ) : (
-          <Text className="text-base text-mutedForeground">---</Text>
+          <Text className="text-base text-muted">---</Text>
         )}
       </Pressable>
       {error ? (
@@ -61,13 +61,13 @@ export function IconInput({ label, value, onSelect, error }: Props) {
       >
         <TextInput
           placeholder="Search icons..."
-          placeholderTextColor={colors.mutedForeground}
+          placeholderTextColor={colors.muted}
           value={search}
           onChangeText={setSearch}
           className="rounded-lg border border-border bg-surface px-3 py-2 text-base text-text mb-3"
         />
         {filtered.length === 0 ? (
-          <Text className="text-center text-sm text-mutedForeground mt-4">
+          <Text className="text-center text-sm text-muted mt-4">
             No icons found
           </Text>
         ) : (
@@ -91,7 +91,7 @@ export function IconInput({ label, value, onSelect, error }: Props) {
                       color={selected ? colors.primary : colors.text}
                     />
                     <Text
-                      className="text-[10px] text-mutedForeground text-center mt-1"
+                      className="text-[10px] text-muted text-center mt-1"
                       numberOfLines={1}
                     >
                       {icon.name}

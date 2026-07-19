@@ -8,21 +8,21 @@ import { cn, colors } from "@/lib/styles";
 
 type Props = TouchableOpacityProps & {
   title: string;
-  variant?: "primary" | "secondary" | "mutedForeground" | "error";
+  variant?: "primary" | "secondary" | "muted" | "error";
   loading?: boolean;
 };
 
 const VARIANT_STYLES = {
   primary: "bg-primary active:bg-primary/90",
   secondary: "bg-secondary active:bg-secondary/90",
-  mutedForeground: "bg-transparent active:bg-mutedForeground/90",
+  muted: "bg-transparent active:bg-muted/90",
   error: "bg-error active:bg-error/90",
 };
 
 const TEXT_VARIANTS = {
   primary: "text-white font-semibold text-base",
   secondary: "text-white font-semibold text-base",
-  mutedForeground: "text-mutedForeground",
+  muted: "text-muted",
   error: "text-white font-semibold text-base",
 };
 

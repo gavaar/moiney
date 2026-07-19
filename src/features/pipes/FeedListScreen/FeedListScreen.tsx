@@ -38,7 +38,7 @@ export function FeedListScreen({
           <FeedList pipes={pipes} onSelectFeed={onSelectFeed} />
         ) : (
           <View className="flex-1 items-center justify-center">
-            <Text className="text-mutedForeground text-base">
+            <Text className="text-muted text-base">
               Add your first{" "}
               <Text className="underline">feed</Text>.
             </Text>

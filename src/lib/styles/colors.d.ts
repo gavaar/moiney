@@ -9,7 +9,7 @@ declare const colors: {
   background: "#111111";
   surface: "#1A1B1E";
   text: "#F8F8F8";
-  mutedForeground: "#9CA3AF";
+  muted: "#9CA3AF";
   border: "#2C2D31";
 };
 

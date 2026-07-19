@@ -85,7 +85,7 @@ export function NumberInput({
             atMin ? "border-border opacity-40" : "border-border",
           )}
         >
-          <Text className={cn("text-xl", atMin ? "text-mutedForeground" : "text-text")}>−</Text>
+          <Text className={cn("text-xl", atMin ? "text-muted" : "text-text")}>−</Text>
         </Pressable>
 
         <TextInput
@@ -110,7 +110,7 @@ export function NumberInput({
             atMax ? "border-border opacity-40" : "border-border",
           )}
         >
-          <Text className={cn("text-xl", atMax ? "text-mutedForeground" : "text-text")}>+</Text>
+          <Text className={cn("text-xl", atMax ? "text-muted" : "text-text")}>+</Text>
         </Pressable>
       </View>
       {error ? (

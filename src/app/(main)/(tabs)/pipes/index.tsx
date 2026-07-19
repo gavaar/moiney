@@ -31,15 +31,14 @@ export default function Pipes() {
 
 function PipesInner() {
   const [showFeedInfo, setShowFeedInfo] = useState(false);
-  const { feeds, isLoading, selectedName, selectPipe, deselectPipe } =
-    usePipeSelection();
+  const { feeds, isLoading, selectedName, selectPipe } = usePipeSelection();
 
   return (
     <SafeAreaView className="flex-1 bg-background px-4">
       <ScreenHeader title="Pipes" />
 
       {selectedName ? (
-        <InnerPipesScreen name={selectedName} onDeselect={deselectPipe} />
+        <InnerPipesScreen />
       ) : (
         <FeedListScreen
           isLoading={isLoading}
@@ -49,7 +48,7 @@ function PipesInner() {
       )}
 
       <View className="flex-1 items-center justify-center">
-        <Text className="text-mutedForeground text-base">history</Text>
+        <Text className="text-muted text-base">history</Text>
       </View>
 
       <ModalShell visible={showFeedInfo} onClose={() => setShowFeedInfo(false)}>

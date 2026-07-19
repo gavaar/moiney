@@ -70,7 +70,7 @@ export function FeedAmountModal({ pipeId, feedName }: Props) {
             <Button
               className="flex-1"
               title="Cancel"
-              variant="mutedForeground"
+              variant="muted"
               onPress={() => setVisible(false)}
               disabled={loading}
             />

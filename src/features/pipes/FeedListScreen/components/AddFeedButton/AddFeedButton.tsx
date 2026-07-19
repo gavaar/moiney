@@ -93,7 +93,7 @@ export function AddFeedButton() {
             <Button
               className="flex-1"
               title="Cancel"
-              variant="mutedForeground"
+              variant="muted"
               onPress={() => setVisible(false)}
               disabled={loading}
             />
