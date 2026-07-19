@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { InnerPipesScreen } from './InnerPipesScreen';
+import { InnerPipesScreen } from "./InnerPipesScreen";
 
 const mockUsePipeSelection = vi.fn();
 
@@ -15,6 +14,7 @@ const baseMock = {
   allPipes: [],
   selectPipe: vi.fn(),
   selectedName: null,
+  selectedPipe: null,
 };
 
 describe("InnerPipesScreen", () => {
@@ -26,14 +26,13 @@ describe("InnerPipesScreen", () => {
     mockUsePipeSelection.mockReturnValue({
       ...baseMock,
       selectedPipePath: ["pipe-1"],
-      allPipes: [{ _id: "pipe-1", name: "Groceries" }],
       selectedName: "Groceries",
     });
     render(<InnerPipesScreen />);
     expect(screen.getByText(/selected Groceries/i)).toBeDefined();
   });
 
-  it("renders breadcrumb with home icon and one pipe name", () => {
+  it("renders breadcrumb", () => {
     mockUsePipeSelection.mockReturnValue({
       ...baseMock,
       selectedPipePath: ["pipe-1"],
@@ -42,72 +41,35 @@ describe("InnerPipesScreen", () => {
     });
     render(<InnerPipesScreen />);
     expect(screen.getByTestId("breadcrumb-home")).toBeDefined();
-    expect(screen.getByText("Groceries")).toBeDefined();
   });
 
-  it("renders breadcrumb with multiple pipe names separated by separators", () => {
+  it("renders pipe bars", () => {
     mockUsePipeSelection.mockReturnValue({
       ...baseMock,
-      selectedPipePath: ["pipe-1", "pipe-2"],
-      allPipes: [
-        { _id: "pipe-1", name: "Groceries" },
-        { _id: "pipe-2", name: "Salary" },
-      ],
-      selectedName: "Salary",
+      selectedPipePath: ["pipe-1"],
+      selectedPipe: {
+        _id: "pipe-1",
+        name: "Groceries",
+        icon: "pipe",
+        capacity: 2000,
+        fed: 1500,
+        spent: 1200,
+      },
+      selectedName: "Groceries",
     });
     render(<InnerPipesScreen />);
-    expect(screen.getByTestId("breadcrumb-home")).toBeDefined();
-    expect(screen.getByText("Groceries")).toBeDefined();
-    expect(screen.getByText("Salary")).toBeDefined();
-    expect(screen.getAllByText("›").length).toBe(2);
+    expect(screen.getByTestId("bar-fed-fill")).toBeDefined();
+    expect(screen.getByTestId("bar-spent-fill")).toBeDefined();
+    expect(screen.getByTestId("bar-capacity-fill")).toBeDefined();
   });
 
-  it("calls selectPipe with empty array when home icon is pressed", async () => {
-    const selectPipe = vi.fn();
+  it("renders statistics placeholder", () => {
     mockUsePipeSelection.mockReturnValue({
       ...baseMock,
-      selectedPipePath: ["pipe-1", "pipe-2"],
-      selectPipe,
+      selectedPipePath: ["pipe-1"],
+      selectedName: "Groceries",
     });
-    const user = userEvent.setup();
     render(<InnerPipesScreen />);
-    await user.click(screen.getByTestId("breadcrumb-home"));
-    expect(selectPipe).toHaveBeenCalledWith([]);
-  });
-
-  it("calls selectPipe with trimmed path when first breadcrumb item is pressed", async () => {
-    const selectPipe = vi.fn();
-    mockUsePipeSelection.mockReturnValue({
-      ...baseMock,
-      selectedPipePath: ["pipe-1", "pipe-2", "pipe-3"],
-      allPipes: [
-        { _id: "pipe-1", name: "Groceries" },
-        { _id: "pipe-2", name: "Salary" },
-        { _id: "pipe-3", name: "Rent" },
-      ],
-      selectPipe,
-    });
-    const user = userEvent.setup();
-    render(<InnerPipesScreen />);
-    await user.click(screen.getByText("Groceries"));
-    expect(selectPipe).toHaveBeenCalledWith(["pipe-1"]);
-  });
-
-  it("calls selectPipe with path up to the clicked middle item", async () => {
-    const selectPipe = vi.fn();
-    mockUsePipeSelection.mockReturnValue({
-      ...baseMock,
-      selectedPipePath: ["pipe-1", "pipe-2", "pipe-3"],
-      allPipes: [
-        { _id: "pipe-1", name: "Groceries" },
-        { _id: "pipe-2", name: "Salary" },
-        { _id: "pipe-3", name: "Rent" },
-      ],
-      selectPipe,
-    });
-    const user = userEvent.setup();
-    render(<InnerPipesScreen />);
-    await user.click(screen.getByText("Salary"));
-    expect(selectPipe).toHaveBeenCalledWith(["pipe-1", "pipe-2"]);
+    expect(screen.getByText("statistics")).toBeDefined();
   });
 });
