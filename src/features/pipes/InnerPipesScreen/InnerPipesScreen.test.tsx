@@ -1,7 +1,21 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { InnerPipesScreen } from "./InnerPipesScreen";
+
+const mockAddPipe = vi.fn();
+
+vi.mock("convex/react", () => ({
+  useMutation: () => mockAddPipe,
+}));
+
+vi.mock("@convex/_generated/api", () => ({
+  api: {
+    pipes: {
+      addPipe: {},
+    },
+  },
+}));
 
 const mockUsePipeSelection = vi.fn();
 
@@ -12,6 +26,8 @@ vi.mock("@/features/pipes/context/PipeSelectionContext", () => ({
 const baseMock = {
   selectedPipePath: [],
   allPipes: [],
+  pipesById: {},
+  childrenByParent: new Map(),
   selectPipe: vi.fn(),
   selectedName: null,
   selectedPipe: null,

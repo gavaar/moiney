@@ -6,21 +6,17 @@ import {
   View,
 } from "react-native";
 import { cn } from "@/lib/styles";
+import { getBorderStyle } from "../../input.config";
 
 type Props = {
   label: string;
   error?: string;
+  disabled?: boolean;
   value: number;
   onChange: (value: number) => void;
   min?: number;
   max?: number;
   step?: number;
-};
-
-const BORDER_STYLES = {
-  focused: "border-primary",
-  error: "border-error",
-  default: "border-border",
 };
 
 function stripNonDigits(input: string): string {
@@ -36,6 +32,7 @@ function parseDigits(input: string): number {
 export function NumberInput({
   label,
   error,
+  disabled,
   value,
   onChange,
   min = 0,
@@ -50,11 +47,13 @@ export function NumberInput({
   );
 
   const handleIncrement = () => {
+    if (disabled) return;
     const next = clamp(value + step);
     if (next !== value) onChange(next);
   };
 
   const handleDecrement = () => {
+    if (disabled) return;
     const next = clamp(value - step);
     if (next !== value) onChange(next);
   };
@@ -72,31 +71,34 @@ export function NumberInput({
   const atMin = value <= min;
   const atMax = value >= max;
 
+  const borderStyle = getBorderStyle(disabled, focused, error);
+
   return (
-    <View className="gap-1">
+    <View className={cn("gap-1", disabled && "opacity-60")}>
       <Text className="text-sm font-medium text-text">{label}</Text>
       <View className="flex-row items-center gap-2">
         <Pressable
           testID="decrement-button"
           onPress={handleDecrement}
-          disabled={atMin}
+          disabled={disabled || atMin}
           className={cn(
             "h-10 w-10 items-center justify-center rounded-lg border",
-            atMin ? "border-border opacity-40" : "border-border",
+            disabled || atMin ? "border-border opacity-40" : "border-border",
           )}
         >
-          <Text className={cn("text-xl", atMin ? "text-muted" : "text-text")}>−</Text>
+          <Text className={cn("text-xl", disabled || atMin ? "text-muted" : "text-text")}>−</Text>
         </Pressable>
 
         <TextInput
           className={cn(
             "flex-1 rounded-lg border bg-surface px-3 py-2.5 text-center text-base text-text",
-            focused ? BORDER_STYLES.focused : error ? BORDER_STYLES.error : BORDER_STYLES.default,
+            borderStyle,
           )}
           keyboardType="numeric"
           value={String(value)}
           onChangeText={handleChangeText}
-          onFocus={() => setFocused(true)}
+          editable={!disabled}
+          onFocus={() => !disabled && setFocused(true)}
           onBlur={handleBlur}
           placeholderTextColor="#9CA3AF"
         />
@@ -104,13 +106,13 @@ export function NumberInput({
         <Pressable
           testID="increment-button"
           onPress={handleIncrement}
-          disabled={atMax}
+          disabled={disabled || atMax}
           className={cn(
             "h-10 w-10 items-center justify-center rounded-lg border",
-            atMax ? "border-border opacity-40" : "border-border",
+            disabled || atMax ? "border-border opacity-40" : "border-border",
           )}
         >
-          <Text className={cn("text-xl", atMax ? "text-muted" : "text-text")}>+</Text>
+          <Text className={cn("text-xl", disabled || atMax ? "text-muted" : "text-text")}>+</Text>
         </Pressable>
       </View>
       {error ? (

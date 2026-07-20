@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { type Id, type Doc } from "@convex/_generated/dataModel";
@@ -17,6 +17,8 @@ type PipeSelectionContextValue = {
   selectPipe: (path: Id<"pipes">[]) => void;
   deselectPipe: () => void;
   allPipes: Doc<"pipes">[] | undefined;
+  pipesById: Record<Id<"pipes">, Doc<"pipes">> | undefined;
+  childrenByParent: Map<Id<"pipes">, Doc<"pipes">[]>;
   isLoading: boolean;
   feeds: Pipe[];
   selectedPipe: Pipe | null;
@@ -28,6 +30,8 @@ const defaultVal: PipeSelectionContextValue = {
   selectPipe: () => {},
   deselectPipe: () => {},
   allPipes: undefined,
+  pipesById: undefined,
+  childrenByParent: new Map(),
   isLoading: true,
   feeds: [],
   selectedPipe: null,
@@ -58,6 +62,24 @@ export function PipeSelectionProvider({ children }: { children: ReactNode }) {
   const isLoading = allPipes === undefined;
 
   const allPipesFlat = allPipes ?? [];
+
+  const pipesById = useMemo(
+    () => Object.fromEntries(allPipesFlat.map((p) => [p._id, p])) as Record<Id<"pipes">, Doc<"pipes">>,
+    [allPipesFlat],
+  );
+
+  const childrenByParent = useMemo(() => {
+    const map = new Map<Id<"pipes">, Doc<"pipes">[]>();
+    for (const pipe of allPipesFlat) {
+      if (pipe.parentId) {
+        const siblings = map.get(pipe.parentId) ?? [];
+        siblings.push(pipe);
+        map.set(pipe.parentId, siblings);
+      }
+    }
+    return map;
+  }, [allPipesFlat]);
+
   const feeds = allPipesFlat
     .filter((p) => p.parentId === undefined)
     .map(toPipe);
@@ -82,6 +104,8 @@ export function PipeSelectionProvider({ children }: { children: ReactNode }) {
         selectPipe,
         deselectPipe,
         allPipes,
+        pipesById,
+        childrenByParent,
         isLoading,
         feeds,
         selectedPipe,

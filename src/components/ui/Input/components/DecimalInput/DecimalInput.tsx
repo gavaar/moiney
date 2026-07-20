@@ -5,19 +5,15 @@ import {
   View,
 } from "react-native";
 import { cn } from "@/lib/styles";
+import { getBorderStyle } from "../../input.config";
 
 type Props = {
   label: string;
   error?: string;
+  disabled?: boolean;
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
-};
-
-const BORDER_STYLES = {
-  focused: "border-primary",
-  error: "border-error",
-  default: "border-border",
 };
 
 function sanitizeDecimal(input: string): string {
@@ -29,8 +25,10 @@ function sanitizeDecimal(input: string): string {
   return allowed;
 }
 
-export function DecimalInput({ label, error, value, onChange, placeholder }: Props) {
+export function DecimalInput({ label, error, disabled, value, onChange, placeholder }: Props) {
   const [focused, setFocused] = useState(false);
+
+  const borderStyle = getBorderStyle(disabled, focused, error);
 
   const handleChangeText = (text: string) => {
     const sanitized = sanitizeDecimal(text);
@@ -47,14 +45,16 @@ export function DecimalInput({ label, error, value, onChange, placeholder }: Pro
       <RNTextInput
         className={cn(
           "rounded-lg border bg-surface px-3 py-2.5 text-base text-text",
-          focused ? BORDER_STYLES.focused : error ? BORDER_STYLES.error : BORDER_STYLES.default,
+          disabled && "opacity-60",
+          borderStyle,
         )}
         keyboardType="decimal-pad"
         value={value}
         onChangeText={handleChangeText}
         placeholder={placeholder}
         placeholderTextColor="#9CA3AF"
-        onFocus={() => setFocused(true)}
+        editable={!disabled}
+        onFocus={() => !disabled && setFocused(true)}
         onBlur={() => setFocused(false)}
       />
       {error ? (

@@ -5,7 +5,7 @@ import { Breadcrumb } from "./components/Breadcrumb";
 import { PipeBars } from "./components/PipeBars";
 
 export function InnerPipesScreen() {
-  const { selectedName, selectedPipe } = usePipeSelection();
+  const { selectedName, selectedPipe, selectedPipePath } = usePipeSelection();
 
   const fed = selectedPipe?.fed ?? 0;
   const spent = selectedPipe?.spent ?? 0;
@@ -18,10 +18,10 @@ export function InnerPipesScreen() {
         <Breadcrumb />
         <PipeBars fed={fed} spent={spent} capacity={capacity} max={max} />
         <Text className="text-muted text-xs pb-3">statistics</Text>
-        <AddPipeButton />
         <View className="border-b border-muted mb-3" />
       </View>
       <Text className="text-text text-xl">selected {selectedName}</Text>
+      <AddPipeButton parentId={selectedPipePath[selectedPipePath.length - 1]} />
     </View>
   );
 }

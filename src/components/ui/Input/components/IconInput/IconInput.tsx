@@ -15,6 +15,7 @@ type Props = {
   value: IconName | "";
   onSelect: (name: IconName) => void;
   error?: string;
+  disabled?: boolean;
 };
 
 function filterIcons(search: string, icons: { name: string }[]) {
@@ -25,18 +26,18 @@ function filterIcons(search: string, icons: { name: string }[]) {
     : icons;
 }
 
-export function IconInput({ label, value, onSelect, error }: Props) {
+export function IconInput({ label, value, onSelect, error, disabled }: Props) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
 
   const filtered = filterIcons(search, CURATED_ICONS);
 
   return (
-    <View className="gap-1">
+    <View className={cn("gap-1", disabled && "opacity-60")}>
       <Text className="text-sm font-medium text-text">{label}</Text>
       <Pressable
         testID="icon-picker-trigger"
-        onPress={() => setOpen(true)}
+        onPress={() => !disabled && setOpen(true)}
         className={cn(
           "rounded-lg border bg-surface px-3 py-2.5 flex-row items-center gap-2",
           error ? "border-error" : "border-border",

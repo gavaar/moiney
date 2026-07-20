@@ -9,23 +9,22 @@ import {
 } from "react-native";
 import { cn, colors } from "@/lib/styles";
 import { Icon } from "@/components/ui/Icon";
+import { getBorderStyle } from "../../input.config";
 
 type Props = TextInputProps & {
   label: string;
   error?: string;
+  disabled?: boolean;
   endIcon?: "eye" | "eye-off";
   onEndIconPress?: () => void;
   status?: "checking" | "available" | "unavailable";
 };
 
-const BORDER_STYLES = {
-  focused: "border-primary",
-  error: "border-error",
-  default: "border-border",
-};
-
-export function TextInput({ label, error, className, endIcon, onEndIconPress, status, ...props }: Props) {
+export function TextInput({ label, error, className, disabled, endIcon, onEndIconPress, status, ...props }: Props) {
   const [focused, setFocused] = useState(false);
+
+  const borderStyle = getBorderStyle(disabled, focused, error);
+
   const hasTrailing = !!(status || endIcon);
 
   return (
@@ -36,11 +35,13 @@ export function TextInput({ label, error, className, endIcon, onEndIconPress, st
           className={cn(
             "rounded-lg border bg-surface px-3 py-2.5 text-base text-text",
             hasTrailing && "pr-10",
-            focused ? BORDER_STYLES.focused : error ? BORDER_STYLES.error : BORDER_STYLES.default,
+            disabled && "opacity-60",
+            borderStyle,
             className,
           )}
           placeholderTextColor="#9CA3AF"
-          onFocus={() => setFocused(true)}
+          editable={!disabled}
+          onFocus={() => !disabled && setFocused(true)}
           onBlur={() => setFocused(false)}
           {...props}
         />

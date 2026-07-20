@@ -1,12 +1,27 @@
 import { useState } from "react";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { useMutation } from "convex/react";
+import { api } from "@convex/_generated/api";
 import { Button } from "@/components/ui/Button";
 import { type IconName } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/Input";
 import { ModalShell } from "@/components/ui/Modal";
+import { type Id } from "@convex/_generated/dataModel";
+import { usePipeSelection } from "@/features/pipes/context/PipeSelectionContext";
 
-export function AddPipeButton() {
+type AddPipeButtonProps = {
+  parentId: Id<"pipes">;
+};
+
+export function AddPipeButton({ parentId }: AddPipeButtonProps) {
+  const { pipesById, childrenByParent } = usePipeSelection();
+  const parentPipe = pipesById?.[parentId];
+  const parentName = parentPipe?.name ?? "";
+  const hasChildren = (childrenByParent.get(parentId)?.length ?? 0) > 0;
+  const showWarning = !hasChildren && ((parentPipe?.capacity ?? 0) > 0 || (parentPipe?.spent ?? 0) > 0);
+
   const [visible, setVisible] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const [name, setName] = useState("");
   const [icon, setIcon] = useState<IconName | "">("pipe");
@@ -14,6 +29,9 @@ export function AddPipeButton() {
   const [priority, setPriority] = useState(0);
   const [capacity, setCapacity] = useState("");
   const [nameError, setNameError] = useState<string | undefined>(undefined);
+  const [submitError, setSubmitError] = useState<string | undefined>(undefined);
+
+  const addPipe = useMutation(api.pipes.addPipe);
 
   const validateName = (value: string): string | undefined => {
     if (!value.trim()) return "Name is required";
@@ -28,23 +46,37 @@ export function AddPipeButton() {
     setPriority(0);
     setCapacity("");
     setNameError(undefined);
+    setSubmitError(undefined);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const error = validateName(name);
     if (error) {
       setNameError(error);
       return;
     }
-    console.log({
-      name: name.trim(),
-      icon: icon || "pipe",
-      description: description || undefined,
-      priority,
-      capacity: capacity ? Number(capacity) : undefined,
-    });
-    setVisible(false);
-    resetForm();
+
+    setLoading(true);
+    setSubmitError(undefined);
+
+    try {
+      await addPipe({
+        name: name.trim(),
+        icon: icon || "pipe",
+        description: description || undefined,
+        priority,
+        capacity: capacity ? Number(capacity) : undefined,
+        parentId,
+      });
+      setVisible(false);
+      resetForm();
+    } catch (e) {
+      setSubmitError(
+        e instanceof Error ? e.message : "Something went wrong",
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -60,6 +92,8 @@ export function AddPipeButton() {
       <ModalShell visible={visible} closeOnBackdropPress={false} onClose={() => setVisible(false)}>
         <ScrollView>
           <View className="gap-4">
+            <Input label="Parent" value={parentName} disabled />
+
             <Input
               label="Name"
               placeholder="Pipe name"
@@ -95,6 +129,18 @@ export function AddPipeButton() {
               onChange={setCapacity}
               placeholder="0.00"
             />
+
+            {showWarning ? (
+              <View className="bg-warning/10 border border-warning/30 rounded-xl px-4 py-3">
+                <Text className="text-warning text-sm">
+                  Creating a child will remove current capacity and spent values.
+                </Text>
+              </View>
+            ) : null}
+
+            {submitError ? (
+              <Text className="text-sm text-error">{submitError}</Text>
+            ) : null}
           </View>
         </ScrollView>
         <View className="flex-row gap-2 mt-4">
@@ -106,8 +152,9 @@ export function AddPipeButton() {
               setVisible(false);
               resetForm();
             }}
+            disabled={loading}
           />
-          <Button className="flex-[2_1_0]" title="Submit" onPress={handleSubmit} />
+          <Button className="flex-[2_1_0]" title="Submit" onPress={handleSubmit} loading={loading} />
         </View>
       </ModalShell>
     </>

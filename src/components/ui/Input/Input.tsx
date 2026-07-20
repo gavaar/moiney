@@ -1,14 +1,12 @@
 import type { IconName } from "@/components/ui/Icon";
 import type { TextInputProps } from "react-native";
-import { DecimalInput } from "./components/DecimalInput";
-import { TextInput } from "./components/TextInput";
-import { NumberInput } from "./components/NumberInput";
-import { IconInput } from "./components/IconInput";
+import { DecimalInput, TextInput, NumberInput, IconInput } from "./components";
 
 type TextProps = TextInputProps & {
   type?: "text";
   label: string;
   error?: string;
+  disabled?: boolean;
   endIcon?: "eye" | "eye-off";
   onEndIconPress?: () => void;
   status?: "checking" | "available" | "unavailable";
@@ -18,6 +16,7 @@ type NumberProps = {
   type: "number";
   label: string;
   error?: string;
+  disabled?: boolean;
   value: number;
   onChange: (value: number) => void;
   min?: number;
@@ -29,6 +28,7 @@ type DecimalProps = {
   type: "decimal";
   label: string;
   error?: string;
+  disabled?: boolean;
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
@@ -38,6 +38,7 @@ type IconProps = {
   type: "icon";
   label: string;
   error?: string;
+  disabled?: boolean;
   value: IconName | "";
   onSelect: (name: IconName) => void;
 };
