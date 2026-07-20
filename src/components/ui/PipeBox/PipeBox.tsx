@@ -6,6 +6,7 @@ import { Liquidity } from './components/Liquidity';
 type PipeBoxProps = {
   name: string;
   icon: string;
+  priority?: number;
   description?: string;
   capacity: number;
   fed: number;
@@ -13,13 +14,16 @@ type PipeBoxProps = {
   onPress?: () => void;
 };
 
-export function PipeBox({ name, icon, capacity, fed, spent, onPress }: PipeBoxProps) {
+export function PipeBox({ name, icon, priority, capacity, fed, spent, onPress }: PipeBoxProps) {
   return (
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.7}
       className="flex-row rounded-md overflow-hidden flex-1"
     >
+      {priority !== undefined && (
+        <Text className="absolute top-1 left-1 text-muted text-[10px] z-10">{priority}</Text>
+      )}
       <View className="w-16 rounded-bl-md rounded-tl-md border border-border bg-surface items-center justify-center p-1 gap-0.5">
         <Icon name={icon as IconName} size={16} color={colors.primary} />
         <Text className="text-text font-medium text-xs text-center" numberOfLines={1} ellipsizeMode="tail">{name}</Text>

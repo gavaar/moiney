@@ -26,12 +26,13 @@ export function InnerPipesScreen() {
         <Breadcrumb />
         <PipeBars fed={fed} spent={spent} capacity={capacity} max={max} />
         <Text className="text-muted text-xs pb-3">statistics</Text>
-        <View className="border-b border-muted mb-3 w-1/2" />
+        <View className="border-b self-center border-muted/50 mb-3 w-3/4" />
       </View>
 
       <View className="flex-1">
         <PipesList
           pipes={children}
+          priority={true}
           onSelectPipe={(id) => selectPipe([...selectedPipePath, id])}
           leading={() => <Icon name="lock-open-outline" size={24} color={colors.text} />}
           footer={<AddPipeButton parentId={selectedPipePath[selectedPipePath.length - 1]} />}

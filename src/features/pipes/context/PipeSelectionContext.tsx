@@ -7,6 +7,7 @@ export type Pipe = {
   _id: Id<"pipes">;
   name: string;
   icon: string;
+  priority: number;
   capacity: number;
   fed: number;
   spent: number;
@@ -49,6 +50,7 @@ export function toPipe(doc: Doc<"pipes">): Pipe {
     _id: doc._id,
     name: doc.name,
     icon: doc.icon,
+    priority: doc.priority,
     capacity: doc.capacity ?? 0,
     fed: doc.fed ?? 0,
     spent: doc.spent ?? 0,
