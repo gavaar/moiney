@@ -3,7 +3,7 @@ import { Icon, type IconName } from "@/components/ui/Icon";
 import { colors } from "@/lib/styles";
 import { Liquidity } from './components/Liquidity';
 
-type FeedBoxProps = {
+type PipeBoxProps = {
   name: string;
   icon: string;
   description?: string;
@@ -13,16 +13,16 @@ type FeedBoxProps = {
   onPress?: () => void;
 };
 
-export function FeedBox({ name, icon, capacity, fed, spent, onPress }: FeedBoxProps) {
+export function PipeBox({ name, icon, capacity, fed, spent, onPress }: PipeBoxProps) {
   return (
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.7}
       className="flex-row rounded-md overflow-hidden flex-1"
     >
-      <View className="w-20 rounded-bl-md rounded-tl-md border border-border bg-surface items-center justify-center p-2 gap-1">
-        <Icon name={icon as IconName} size={20} color={colors.primary} />
-        <Text className="text-text font-medium text-sm text-center">{name}</Text>
+      <View className="w-16 rounded-bl-md rounded-tl-md border border-border bg-surface items-center justify-center p-1 gap-0.5">
+        <Icon name={icon as IconName} size={16} color={colors.primary} />
+        <Text className="text-text font-medium text-xs text-center" numberOfLines={1} ellipsizeMode="tail">{name}</Text>
       </View>
 
       <Liquidity capacity={capacity} fed={fed} spent={spent} />

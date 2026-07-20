@@ -119,6 +119,131 @@ export function computePipeDerivedValues(
   };
 }
 
+// Recursively computes derived values for a tree of pipes, bottom-up.
+// Children are always evaluated before their parents, so parent values correctly
+// aggregate the full subtree.
+export function computePipeTree<T extends string>(
+  pipes: Array<{ _id: T; parentId?: T; capacity?: number; spent?: number; fed?: number }>,
+): Map<T, { capacity?: number; spent: number; fed: number }> {
+  const childrenByParent = new Map<T, typeof pipes>();
+  for (const pipe of pipes) {
+    if (pipe.parentId) {
+      const siblings = childrenByParent.get(pipe.parentId) ?? [];
+      siblings.push(pipe);
+      childrenByParent.set(pipe.parentId, siblings);
+    }
+  }
+
+  const computed = new Map<T, { capacity?: number; spent: number; fed: number }>();
+
+  function computePipe(pipe: (typeof pipes)[number]) {
+    if (computed.has(pipe._id)) return computed.get(pipe._id)!;
+    const children = (childrenByParent.get(pipe._id) ?? []).map(computePipe);
+    const result = computePipeDerivedValues(pipe, children);
+    computed.set(pipe._id, result);
+    return result;
+  }
+
+  for (const pipe of pipes) {
+    computePipe(pipe);
+  }
+
+  return computed;
+}
+
+// Recalculates fed for all pipes in a set by:
+// 1. Summing total fed per subtree (bottom-up via computePipeTree)
+// 2. Distributing from roots down to leaves using calculatePipeAllocations
+// Returns the updated fed values for every pipe.
+export function recalculatePipes<T extends string>(
+  pipes: Array<{
+    _id: T;
+    parentId?: T;
+    priority: number;
+    capacity?: number;
+    fed?: number;
+  }>,
+): Array<{ _id: T; fed: number }> {
+  if (pipes.length === 0) return [];
+
+  // Total fed in each pipe's subtree (preserves total $ in system)
+  const computed = computePipeTree(pipes);
+
+  const fedMap = new Map<T, number>();
+  for (const pipe of pipes) {
+    fedMap.set(pipe._id, 0);
+  }
+
+  // Build children map and find roots
+  const childrenByParent = new Map<T, (typeof pipes)[number][]>();
+  const rootIds: T[] = [];
+  for (const pipe of pipes) {
+    if (pipe.parentId) {
+      const siblings = childrenByParent.get(pipe.parentId) ?? [];
+      siblings.push(pipe);
+      childrenByParent.set(pipe.parentId, siblings);
+    } else {
+      rootIds.push(pipe._id);
+    }
+  }
+
+  // Set each root's fed to the total in its subtree
+  for (const rootId of rootIds) {
+    fedMap.set(rootId, computed.get(rootId)?.fed ?? 0);
+  }
+
+  function distribute(nodeId: T) {
+    const children = childrenByParent.get(nodeId);
+    if (!children || children.length === 0) return;
+
+    const parentFed = fedMap.get(nodeId) ?? 0;
+    const allocations = calculatePipeAllocations(
+      parentFed,
+      children.map((c) => ({
+        id: c._id,
+        priority: c.priority,
+        capacity: c.capacity,
+        fed: 0,
+      })),
+    );
+
+    let totalAllocated = 0;
+    for (const alloc of allocations) {
+      fedMap.set(
+        alloc.childId,
+        (fedMap.get(alloc.childId) ?? 0) + alloc.amount,
+      );
+      totalAllocated += alloc.amount;
+    }
+    fedMap.set(nodeId, parentFed - totalAllocated);
+
+    for (const child of children) {
+      distribute(child._id);
+    }
+  }
+
+  for (const rootId of rootIds) {
+    distribute(rootId);
+  }
+
+  return pipes.map((p) => ({ _id: p._id, fed: fedMap.get(p._id) ?? 0 }));
+}
+
+export async function recascadeTree(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  _pipeId: Id<"pipes">,
+) {
+  const allPipes = await ctx.db
+    .query("pipes")
+    .withIndex("by_userId", (q) => q.eq("userId", userId))
+    .collect();
+
+  const updates = recalculatePipes(allPipes);
+
+  await Promise.all(updates.map((u) => ctx.db.patch(u._id, { fed: u.fed })));
+}
+
 export async function distributeFedToChildren(
   ctx: MutationCtx,
   userId: Id<"users">,

@@ -2,9 +2,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { FeedBox } from "./FeedBox";
+import { PipeBox } from "./PipeBox";
 
-describe("FeedBox", () => {
+describe("PipeBox", () => {
   const baseProps = {
     name: "Groceries",
     icon: "cart-outline",
@@ -15,17 +15,17 @@ describe("FeedBox", () => {
   };
 
   it("renders feed name", () => {
-    render(<FeedBox {...baseProps} />);
+    render(<PipeBox {...baseProps} />);
     expect(screen.getByText("Groceries")).toBeDefined();
   });
 
   it("renders summary text with spent, fed, and capacity", () => {
-    render(<FeedBox {...baseProps} />);
+    render(<PipeBox {...baseProps} />);
     expect(screen.getByText("500.0 / 1000.0")).toBeDefined();
   });
 
   it("renders icon with primary color", () => {
-    render(<FeedBox {...baseProps} />);
+    render(<PipeBox {...baseProps} />);
     const icon = screen.getByTestId("mock-icon");
     expect(icon.getAttribute("color")).toBe("#46AE82");
   });
@@ -33,14 +33,14 @@ describe("FeedBox", () => {
   it("calls onPress when tapped", async () => {
     const user = userEvent.setup();
     const onPress = vi.fn();
-    render(<FeedBox {...baseProps} onPress={onPress} />);
+    render(<PipeBox {...baseProps} onPress={onPress} />);
     await user.click(screen.getByText("Groceries"));
     expect(onPress).toHaveBeenCalledTimes(1);
   });
 
   it("renders with zero capacity, fed, and spent", () => {
     render(
-      <FeedBox
+      <PipeBox
         {...baseProps}
         capacity={0}
         fed={0}

@@ -1,2 +1,2 @@
 export { AddFeedButton } from './AddFeedButton';
-export { FeedList } from './FeedList';
+export { FeedAmountModal } from './FeedAmountModal';

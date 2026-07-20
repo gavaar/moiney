@@ -5,8 +5,8 @@ import { requireAuth } from "./lib/auth";
 import { MAX_PIPES_PER_USER } from "./lib/constants";
 import {
   addFeedToPipe,
-  computePipeDerivedValues,
-  distributeFedToChildren,
+  computePipeTree,
+  recascadeTree,
 } from "./lib/pipes";
 
 async function checkPipeLimit(ctx: MutationCtx, userId: Id<"users">) {
@@ -78,7 +78,7 @@ export const addPipe = mutation({
       }
     }
 
-    await distributeFedToChildren(ctx, userId, args.parentId);
+    await recascadeTree(ctx, userId, args.parentId);
 
     return childId;
   },
@@ -92,7 +92,7 @@ export const feedPipe = mutation({
   handler: async (ctx, args) => {
     const userId = await requireAuth(ctx);
     await addFeedToPipe(ctx, userId, args.pipeId, args.amount);
-    await distributeFedToChildren(ctx, userId, args.pipeId);
+    await recascadeTree(ctx, userId, args.pipeId);
   },
 });
 
@@ -105,18 +105,10 @@ export const getPipes = query({
       .withIndex("by_userId", (q) => q.eq("userId", userId))
       .collect();
 
-    const childrenByParent = new Map<Id<"pipes">, typeof pipes>();
-    for (const pipe of pipes) {
-      if (pipe.parentId) {
-        const siblings = childrenByParent.get(pipe.parentId) ?? [];
-        siblings.push(pipe);
-        childrenByParent.set(pipe.parentId, siblings);
-      }
-    }
+    const computed = computePipeTree(pipes);
 
     return pipes.map((pipe) => {
-      const children = childrenByParent.get(pipe._id) ?? [];
-      const { capacity, spent, fed } = computePipeDerivedValues(pipe, children);
+      const { capacity, spent, fed } = computed.get(pipe._id)!;
       return { ...pipe, capacity, spent, fed };
     });
   },

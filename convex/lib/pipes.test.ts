@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   calculatePipeAllocations,
   computePipeDerivedValues,
+  computePipeTree,
+  recalculatePipes,
   splitEvenly,
 } from "./pipes";
 
@@ -284,5 +286,157 @@ describe("computePipeDerivedValues", () => {
       ],
     );
     expect(result).toEqual({ capacity: 0, spent: 0, fed: 0 });
+  });
+});
+
+describe("computePipeTree", () => {
+  it("aggregates values bottom-up through nested pipe tree", () => {
+    const pipes = [
+      { _id: "a", parentId: undefined as string | undefined, capacity: undefined, spent: undefined, fed: 0 },
+      { _id: "b", parentId: "a" as const, capacity: undefined, spent: undefined, fed: 0 },
+      { _id: "c", parentId: "b" as const, capacity: 300, spent: 10, fed: 100 },
+      { _id: "d", parentId: "b" as const, capacity: 200, spent: 5, fed: 50 },
+    ];
+
+    const computed = computePipeTree(pipes);
+
+    // Leaves (C, D) use their own stored values
+    expect(computed.get("c")).toEqual({ capacity: 300, spent: 10, fed: 100 });
+    expect(computed.get("d")).toEqual({ capacity: 200, spent: 5, fed: 50 });
+
+    // B sums its children C + D
+    expect(computed.get("b")).toEqual({ capacity: 500, spent: 15, fed: 150 });
+
+    // A uses B's computed values (not B's raw undefined values)
+    expect(computed.get("a")).toEqual({ capacity: 500, spent: 15, fed: 150 });
+  });
+
+  it("handles flat list of root pipes (no nesting)", () => {
+    const pipes = [
+      { _id: "x", parentId: undefined, capacity: 100, spent: 10, fed: 50 },
+      { _id: "y", parentId: undefined, capacity: 200, spent: 20, fed: 100 },
+    ];
+
+    const computed = computePipeTree(pipes);
+
+    expect(computed.get("x")).toEqual({ capacity: 100, spent: 10, fed: 50 });
+    expect(computed.get("y")).toEqual({ capacity: 200, spent: 20, fed: 100 });
+  });
+
+  it("includes excess fed from parent pipes", () => {
+    const pipes = [
+      { _id: "a", parentId: undefined as string | undefined, capacity: undefined, spent: undefined, fed: 30 },
+      { _id: "b", parentId: "a" as const, capacity: 100, spent: 0, fed: 50 },
+    ];
+
+    const computed = computePipeTree(pipes);
+
+    // B uses its own stored values (leaf)
+    expect(computed.get("b")).toEqual({ capacity: 100, spent: 0, fed: 50 });
+
+    // A adds its own fed (30) as excess on top of B's fed (50)
+    expect(computed.get("a")).toEqual({ capacity: 100, spent: 0, fed: 80 });
+  });
+});
+
+describe("recalculatePipes", () => {
+  it("returns same fed for single root with no children", () => {
+    const result = recalculatePipes([
+      { _id: "a", parentId: undefined, priority: 0, fed: 500 },
+    ]);
+    expect(result).toEqual([{ _id: "a", fed: 500 }]);
+  });
+
+  it("distributes parent fed to child capped by capacity", () => {
+    const result = recalculatePipes([
+      { _id: "a", parentId: undefined, priority: 0, fed: 1000 },
+      { _id: "b", parentId: "a", priority: 0, capacity: 400, fed: 0 },
+    ]);
+    expect(new Map(result.map((r) => [r._id, r.fed]))).toEqual(
+      new Map([
+        ["a", 600],
+        ["b", 400],
+      ]),
+    );
+  });
+
+  it("recollects children fed and redistributes when new child added", () => {
+    // A(1000) → B(100, cap cleared) → C(900, cap 900), D(0, cap 400)
+    const result = recalculatePipes([
+      { _id: "a", parentId: undefined, priority: 0, fed: 1000 },
+      { _id: "b", parentId: "a", priority: 0, fed: 100 },
+      { _id: "c", parentId: "b", priority: 0, capacity: 900, fed: 900 },
+      { _id: "d", parentId: "b", priority: 0, capacity: 400, fed: 0 },
+    ]);
+    const map = new Map(result.map((r) => [r._id, r.fed]));
+    // A: gives all 2000 to B → 0
+    expect(map.get("a")).toBe(0);
+    // B: receives 2000 from A, collects 900+0 from C/D,
+    // distributes: D gets 400 (cap), C gets 900 (cap), B keeps 700
+    expect(map.get("b")).toBe(700);
+    expect(map.get("c")).toBe(900);
+    expect(map.get("d")).toBe(400);
+    // total conserved
+    expect(Array.from(map.values()).reduce((s, v) => s + v, 0)).toBe(2000);
+  });
+
+  it("splits evenly among same-priority children with no caps", () => {
+    const result = recalculatePipes([
+      { _id: "a", parentId: undefined, priority: 0, fed: 0 },
+      { _id: "b", parentId: "a", priority: 0, fed: 1000 },
+      { _id: "c", parentId: "b", priority: 0, fed: 0 },
+      { _id: "d", parentId: "b", priority: 0, fed: 0 },
+    ]);
+    const map = new Map(result.map((r) => [r._id, r.fed]));
+    expect(map.get("a")).toBe(0);
+    expect(map.get("b")).toBe(0);
+    expect(map.get("c")).toBe(500);
+    expect(map.get("d")).toBe(500);
+    expect(Array.from(map.values()).reduce((s, v) => s + v, 0)).toBe(1000);
+  });
+
+  it("flows fed added to a parent pipe down to children", () => {
+    const result = recalculatePipes([
+      { _id: "a", parentId: undefined, priority: 0, fed: 0 },
+      { _id: "b", parentId: "a", priority: 0, fed: 300 },
+      { _id: "c", parentId: "b", priority: 0, capacity: 1000, fed: 500 },
+    ]);
+    const map = new Map(result.map((r) => [r._id, r.fed]));
+    expect(map.get("a")).toBe(0);
+    expect(map.get("b")).toBe(0);
+    expect(map.get("c")).toBe(800);
+  });
+
+  it("respects priority ordering", () => {
+    const result = recalculatePipes([
+      { _id: "a", parentId: undefined, priority: 0, fed: 1000 },
+      { _id: "b", parentId: "a", priority: 0, capacity: 500, fed: 0 },
+      { _id: "c", parentId: "a", priority: 1, capacity: 500, fed: 0 },
+    ]);
+    const map = new Map(result.map((r) => [r._id, r.fed]));
+    // priority 0 (b): gets 500 (cap), remaining 500
+    // priority 1 (c): gets 500 (cap), a keeps 0
+    expect(map.get("a")).toBe(0);
+    expect(map.get("b")).toBe(500);
+    expect(map.get("c")).toBe(500);
+  });
+
+  it("handles multiple independent trees", () => {
+    const result = recalculatePipes([
+      { _id: "a", parentId: undefined, priority: 0, fed: 300 },
+      { _id: "b", parentId: "a", priority: 0, capacity: 100, fed: 0 },
+      { _id: "z", parentId: undefined, priority: 0, fed: 500 },
+    ]);
+    const map = new Map(result.map((r) => [r._id, r.fed]));
+    // Tree A: gives 100 to B, keeps 200
+    expect(map.get("a")).toBe(200);
+    expect(map.get("b")).toBe(100);
+    // Tree Z: isolated root, keeps 500
+    expect(map.get("z")).toBe(500);
+  });
+
+  it("returns empty for empty input", () => {
+    const result = recalculatePipes([]);
+    expect(result).toEqual([]);
   });
 });

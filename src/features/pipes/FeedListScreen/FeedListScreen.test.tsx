@@ -4,17 +4,22 @@ import { render, screen } from "@testing-library/react";
 import { type Id } from "@convex/_generated/dataModel";
 import { FeedListScreen } from './FeedListScreen';
 
-vi.mock("@/features/pipes/FeedListScreen/components/FeedList", () => ({
-  FeedList: ({ pipes, onSelectFeed }: any) => (
-    <div data-testid="feed-list" data-count={pipes.length}>
+vi.mock("@/features/pipes/components/PipesList", () => ({
+  PipesList: ({ pipes, onSelectPipe, footer }: any) => (
+    <div data-testid="pipes-list" data-count={pipes.length}>
       <button
-        data-testid="select-feed"
-        onClick={() => onSelectFeed?.(pipes[0]._id)}
+        data-testid="select-pipe"
+        onClick={() => onSelectPipe?.(pipes[0]._id)}
       >
         Select {pipes[0].name}
       </button>
+      {footer}
     </div>
   ),
+}));
+
+vi.mock("@/features/pipes/FeedListScreen/components/FeedAmountModal", () => ({
+  FeedAmountModal: () => <div data-testid="feed-amount-modal" />,
 }));
 
 vi.mock("@/features/pipes/FeedListScreen/components/AddFeedButton", () => ({
@@ -35,12 +40,12 @@ describe("FeedListScreen", () => {
         onSelectFeed={vi.fn()}
       />,
     );
-    expect(screen.queryByTestId("feed-list")).toBeNull();
+    expect(screen.queryByTestId("pipes-list")).toBeNull();
     expect(screen.getByTestId("add-feed-button")).toBeDefined();
     expect(container.querySelector("[data-testid=loading-indicator]")).toBeTruthy();
   });
 
-  it("renders FeedList and AddFeedButton when pipes exist", () => {
+  it("renders PipesList and AddFeedButton when pipes exist", () => {
     render(
       <FeedListScreen
         isLoading={false}
@@ -48,7 +53,7 @@ describe("FeedListScreen", () => {
         onSelectFeed={vi.fn()}
       />,
     );
-    expect(screen.getByTestId("feed-list")).toBeDefined();
+    expect(screen.getByTestId("pipes-list")).toBeDefined();
     expect(screen.getByTestId("add-feed-button")).toBeDefined();
   });
 
@@ -60,12 +65,12 @@ describe("FeedListScreen", () => {
         onSelectFeed={vi.fn()}
       />,
     );
-    expect(screen.queryByTestId("feed-list")).toBeNull();
+    expect(screen.queryByTestId("pipes-list")).toBeNull();
     expect(screen.getByTestId("add-feed-button")).toBeDefined();
     expect(screen.getByText(/add your first/i)).toBeDefined();
   });
 
-  it("calls onSelectFeed when a feed is selected from FeedList", async () => {
+  it("calls onSelectFeed when a pipe is selected from PipesList", async () => {
     const userEvent = (await import("@testing-library/user-event")).default;
     const onSelectFeed = vi.fn();
     render(
@@ -75,7 +80,7 @@ describe("FeedListScreen", () => {
         onSelectFeed={onSelectFeed}
       />,
     );
-    await userEvent.click(screen.getByTestId("select-feed"));
+    await userEvent.click(screen.getByTestId("select-pipe"));
     expect(onSelectFeed).toHaveBeenCalledWith("pipe-1");
   });
 });

@@ -44,7 +44,7 @@ export function usePipeSelection() {
   return useContext(PipeSelectionContext);
 }
 
-function toPipe(doc: Doc<"pipes">): Pipe {
+export function toPipe(doc: Doc<"pipes">): Pipe {
   return {
     _id: doc._id,
     name: doc.name,
@@ -77,12 +77,16 @@ export function PipeSelectionProvider({ children }: { children: ReactNode }) {
         map.set(pipe.parentId, siblings);
       }
     }
+    for (const siblings of map.values()) {
+      siblings.sort((a, b) => a.priority - b.priority);
+    }
     return map;
   }, [allPipesFlat]);
 
   const feeds = allPipesFlat
     .filter((p) => p.parentId === undefined)
-    .map(toPipe);
+    .map(toPipe)
+    .sort((a, b) => b.fed - a.fed);
 
   const selectedId =
     selectedPipePath.length > 0

@@ -1,1 +1,0 @@
-export { FeedAmountModal } from './FeedAmountModal';

@@ -38,6 +38,7 @@ const CURATED_ICONS = [
   { name: "home-sharp", family: "Ionicons" as const },
   { name: "laptop-outline", family: "Ionicons" as const },
   { name: "location-outline", family: "Ionicons" as const },
+  { name: "lock-open-outline", family: "Ionicons" as const },
   { name: "lock-closed-outline", family: "Ionicons" as const },
   { name: "log-out", family: "Ionicons" as const },
   { name: "medkit-outline", family: "Ionicons" as const },

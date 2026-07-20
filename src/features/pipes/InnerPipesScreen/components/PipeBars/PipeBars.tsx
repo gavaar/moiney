@@ -13,6 +13,18 @@ export function PipeBars({ fed, spent, capacity, max }: PipeBarsProps) {
   return (
     <View className="gap-1 pb-3">
       <View className="flex-row items-center">
+        <Text className="text-muted text-xs w-12">capacity</Text>
+        <View className="flex-1 flex-row items-center">
+          <View
+            testID="bar-capacity-fill"
+            className="h-0 border-t border-dashed border-primary"
+            style={{ width: pct(capacity) }}
+          />
+        </View>
+        <Text className="text-text text-xs w-16 text-right">{capacity}</Text>
+      </View>
+
+      <View className="flex-row items-center">
         <Text className="text-muted text-xs w-12">fed</Text>
         <View className="flex-1 flex-row items-center">
           <View
@@ -23,6 +35,7 @@ export function PipeBars({ fed, spent, capacity, max }: PipeBarsProps) {
         </View>
         <Text className="text-text text-xs w-16 text-right">{fed}</Text>
       </View>
+
       <View className="flex-row items-center">
         <Text className="text-muted text-xs w-12">spent</Text>
         <View className="flex-1 flex-row items-center">
@@ -33,17 +46,6 @@ export function PipeBars({ fed, spent, capacity, max }: PipeBarsProps) {
           />
         </View>
         <Text className="text-text text-xs w-16 text-right">{spent}</Text>
-      </View>
-      <View className="flex-row items-center">
-        <Text className="text-muted text-xs w-12">capacity</Text>
-        <View className="flex-1 flex-row items-center">
-          <View
-            testID="bar-capacity-fill"
-            className="h-0 border-t border-dashed border-primary"
-            style={{ width: pct(capacity) }}
-          />
-        </View>
-        <Text className="text-text text-xs w-16 text-right">{capacity}</Text>
       </View>
     </View>
   );

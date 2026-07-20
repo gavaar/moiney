@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ModalShell } from "@/components/ui/Modal";
 import { ScreenHeader } from "@/components/ui/ScreenHeader/ScreenHeader";
@@ -37,18 +37,25 @@ function PipesInner() {
     <SafeAreaView className="flex-1 bg-background px-4">
       <ScreenHeader title="Pipes" />
 
-      {selectedName ? (
-        <InnerPipesScreen />
-      ) : (
-        <FeedListScreen
-          isLoading={isLoading}
-          pipes={feeds}
-          onSelectFeed={(id) => selectPipe([id])}
-        />
-      )}
+      <View style={{ flex: 3 }}>
+        {selectedName ? (
+          <InnerPipesScreen />
+        ) : (
+          <FeedListScreen
+            isLoading={isLoading}
+            pipes={feeds}
+            onSelectFeed={(id) => selectPipe([id])}
+          />
+        )}
+      </View>
 
-      <View className="flex-1 items-center justify-center">
-        <Text className="text-muted text-base">history</Text>
+      <View style={{ flex: 2 }}>
+        <ScrollView
+          className="flex-1"
+          contentContainerStyle={{ flexGrow: 1, justifyContent: "center", alignItems: "center" }}
+        >
+          <Text className="text-muted text-base">history</Text>
+        </ScrollView>
       </View>
 
       <ModalShell visible={showFeedInfo} onClose={() => setShowFeedInfo(false)}>
