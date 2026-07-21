@@ -15,6 +15,12 @@ type Props = {
   onChange: (date: Date) => void;
 };
 
+function normalizeToMidday(date: Date): Date {
+  const d = new Date(date);
+  d.setHours(12, 0, 0, 0);
+  return d;
+}
+
 const MONTHS = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
@@ -35,30 +41,53 @@ function formatDate(date: Date): string {
 export function DatetimeInput({ label, error, disabled, value, onChange }: Props) {
   const [focused, setFocused] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
+  const [step, setStep] = useState<"date" | "time">("date");
+  const [pendingDate, setPendingDate] = useState<Date | null>(null);
 
   const borderStyle = getBorderStyle(disabled, focused, error);
+
+  const isIOS = Platform.OS === "ios";
 
   const handleTrigger = () => {
     if (disabled) return;
     setFocused(true);
     setShowPicker(true);
+    setStep("date");
+    setPendingDate(null);
   };
 
-  const isIOS = Platform.OS === "ios";
+  const close = () => {
+    setShowPicker(false);
+    setFocused(false);
+  };
 
-  const handleChange = (_: any, selectedDate?: Date) => {
-    if (!isIOS) {
-      setShowPicker(false);
-      setFocused(false);
-    }
-    if (selectedDate) {
+  const handleDismiss = () => {
+    close();
+  };
+
+  const handleValueChange = (selectedDate: Date) => {
+    if (isIOS) {
       onChange(selectedDate);
+      return;
+    }
+
+    if (step === "date") {
+      const normalized = normalizeToMidday(selectedDate);
+      setPendingDate(normalized);
+      setStep("time");
+      return;
+    }
+
+    if (step === "time" && pendingDate) {
+      const combined = new Date(pendingDate);
+      combined.setHours(selectedDate.getHours(), selectedDate.getMinutes(), 0, 0);
+      onChange(combined);
+      close();
     }
   };
 
   const handleDone = () => {
-    setShowPicker(false);
-    setFocused(false);
+    close();
   };
 
   return (
@@ -95,18 +124,33 @@ export function DatetimeInput({ label, error, disabled, value, onChange }: Props
                 value={value}
                 mode="datetime"
                 display="spinner"
-                onChange={handleChange}
+                onValueChange={handleValueChange}
+                onDismiss={handleDismiss}
               />
               <Button title="Done" onPress={handleDone} />
             </View>
           </ModalShell>
         ) : (
-          <DateTimePicker
-            value={value}
-            mode="datetime"
-            display="default"
-            onChange={handleChange}
-          />
+          <>
+            {step === "date" && (
+              <DateTimePicker
+                value={value}
+                mode="date"
+                display="default"
+                onValueChange={handleValueChange}
+                onDismiss={handleDismiss}
+              />
+            )}
+            {step === "time" && pendingDate && (
+              <DateTimePicker
+                value={pendingDate}
+                mode="time"
+                display="default"
+                onValueChange={handleValueChange}
+                onDismiss={handleDismiss}
+              />
+            )}
+          </>
         )
       ) : null}
     </View>
