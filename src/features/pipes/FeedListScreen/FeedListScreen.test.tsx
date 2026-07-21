@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { type Id } from "@convex/_generated/dataModel";
 import { FeedListScreen } from './FeedListScreen';
+import { Pipe } from '../context/PipeSelectionContext';
 
 vi.mock("@/features/pipes/components/PipesList", () => ({
   PipesList: ({ pipes, onSelectPipe, footer }: any) => (
@@ -29,7 +30,7 @@ vi.mock("@/features/pipes/FeedListScreen/components/AddFeedButton", () => ({
 const mockPipes = [
   { _id: "pipe-1" as Id<"pipes">, name: "Groceries", icon: "cart-outline", capacity: 0, fed: 0, spent: 0 },
   { _id: "pipe-2" as Id<"pipes">, name: "Salary", icon: "cash-outline", capacity: 0, fed: 0, spent: 0 },
-];
+] as Pipe[];
 
 describe("FeedListScreen", () => {
   it("renders loading spinner and AddFeedButton when isLoading is true", () => {

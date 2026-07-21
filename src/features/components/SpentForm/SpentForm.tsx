@@ -10,17 +10,23 @@ import {
 import { useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { type Id } from "@convex/_generated/dataModel";
-import { cn } from "@/lib/styles";
+import { cn, colors } from "@/lib/styles";
 import { Icon } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/Input";
 
 type Props = {
   pipeId: Id<"pipes">;
+  initState?: {
+    pipeIcon: string;
+    pipeName: string;
+    title: string;
+    value: string;
+  };
 };
 
-export function SpentForm({ pipeId }: Props) {
-  const [title, setTitle] = useState("");
-  const [value, setValue] = useState("");
+export function SpentForm({ pipeId, initState }: Props) {
+  const [title, setTitle] = useState(initState?.title ?? "");
+  const [value, setValue] = useState(initState?.value ?? "");
   const [date, setDate] = useState(new Date());
   const [loading, setLoading] = useState(false);
 
@@ -59,38 +65,45 @@ export function SpentForm({ pipeId }: Props) {
 
   return (
     <View className="px-4 py-4 gap-2">
-        <Input
-          type="text"
-          label="Add transaction"
-          value={title}
-          onChangeText={setTitle}
-          maxLength={140}
-          multiline
-          placeholder="What was this for?"
-          disabled={loading}
-        />
-
-        <View className="flex-row gap-4">
-          <View className="flex-1">
-            <Input
-              type="decimal"
-              label="Value"
-              value={value}
-              onChange={setValue}
-              placeholder="0.00"
-              disabled={loading}
-            />
-          </View>
-          <View className="flex-1">
-            <Input
-              type="datetime"
-              label="Date"
-              value={date}
-              onChange={setDate}
-              disabled={loading}
-            />
-          </View>
+      {initState &&
+        <View className="flex-row gap-4 items-center justify-center border-b border-muted/20 p-2">
+          <Icon name={initState.pipeIcon} size={24} color={colors.muted} />
+          <Text className="text-md font-medium text-muted">{initState.pipeName}</Text>
         </View>
+      }
+
+      <Input
+        type="text"
+        label="Add transaction"
+        value={title}
+        onChangeText={setTitle}
+        maxLength={140}
+        multiline
+        placeholder="What was this for?"
+        disabled={loading}
+      />
+
+      <View className="flex-row gap-4">
+        <View className="flex-1">
+          <Input
+            type="decimal"
+            label="Value"
+            value={value}
+            onChange={setValue}
+            placeholder="0.00"
+            disabled={loading}
+          />
+        </View>
+        <View className="flex-1">
+          <Input
+            type="datetime"
+            label="Date"
+            value={date}
+            onChange={setDate}
+            disabled={loading}
+          />
+        </View>
+      </View>
 
       <View className="flex-row items-center justify-between gap-3 pt-2">
         <TouchableOpacity

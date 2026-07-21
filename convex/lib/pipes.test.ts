@@ -246,7 +246,7 @@ describe("computePipeDerivedValues", () => {
     expect(result).toEqual({ capacity: undefined, spent: 10, fed: 20 });
   });
 
-  it("sums children capacities for a parent pipe (undefined → 0)", () => {
+  it("sums children capacities for a parent pipe (undefined → Infinity)", () => {
     const result = computePipeDerivedValues(
       { capacity: 999, spent: 10, fed: 5 },
       [
@@ -255,7 +255,7 @@ describe("computePipeDerivedValues", () => {
         { capacity: undefined, spent: 0, fed: 0 },
       ],
     );
-    expect(result).toEqual({ capacity: 800, spent: 15, fed: 155 });
+    expect(result).toEqual({ capacity: Infinity, spent: 15, fed: 155 });
   });
 
   it("includes parent's own stored fed as excess in total fed", () => {
@@ -277,7 +277,7 @@ describe("computePipeDerivedValues", () => {
     expect(result).toEqual({ capacity: undefined, spent: 0, fed: 0 });
   });
 
-  it("returns 0 capacity for parent when all children have no capacity", () => {
+  it("returns Infinity capacity for parent when all children have no capacity", () => {
     const result = computePipeDerivedValues(
       {},
       [
@@ -285,7 +285,7 @@ describe("computePipeDerivedValues", () => {
         {},
       ],
     );
-    expect(result).toEqual({ capacity: 0, spent: 0, fed: 0 });
+    expect(result).toEqual({ capacity: Infinity, spent: 0, fed: 0 });
   });
 });
 
@@ -369,11 +369,10 @@ describe("recalculatePipes", () => {
       { _id: "d", parentId: "b", priority: 0, capacity: 400, fed: 0 },
     ]);
     const map = new Map(result.map((r) => [r._id, r.fed]));
-    // A: gives all 2000 to B → 0
-    expect(map.get("a")).toBe(0);
-    // B: receives 2000 from A, collects 900+0 from C/D,
-    // distributes: D gets 400 (cap), C gets 900 (cap), B keeps 700
-    expect(map.get("b")).toBe(700);
+    // A: b capacity is calculated as 1300 (c:900 + d:400), a keeps 700
+    expect(map.get("a")).toBe(700);
+    // distributes: D gets 400 (cap), C gets 900 (cap)
+    expect(map.get("b")).toBe(0);
     expect(map.get("c")).toBe(900);
     expect(map.get("d")).toBe(400);
     // total conserved

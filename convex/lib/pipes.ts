@@ -113,7 +113,7 @@ export function computePipeDerivedValues(
   }
 
   return {
-    capacity: children.reduce((s, c) => s + (c.capacity ?? 0), 0),
+    capacity: children.reduce((s, c) => s + (c.capacity ?? Infinity), 0),
     spent: children.reduce((s, c) => s + (c.spent ?? 0), 0),
     fed: children.reduce((s, c) => s + (c.fed ?? 0), 0) + (pipe.fed ?? 0),
   };
@@ -193,18 +193,24 @@ export function recalculatePipes<T extends string>(
   }
 
   function distribute(nodeId: T) {
-    const children = childrenByParent.get(nodeId);
+    const children = childrenByParent.get(nodeId)
+      ?.map(child => {
+        const computedChild = computed.get(child._id);
+        return {
+          id: child._id,
+          priority: child.priority,
+          capacity: computedChild?.capacity ?? child.capacity,
+          fed: 0,
+        };
+      });
+
     if (!children || children.length === 0) return;
 
     const parentFed = fedMap.get(nodeId) ?? 0;
+
     const allocations = calculatePipeAllocations(
       parentFed,
-      children.map((c) => ({
-        id: c._id,
-        priority: c.priority,
-        capacity: c.capacity,
-        fed: 0,
-      })),
+      children,
     );
 
     let totalAllocated = 0;
@@ -218,7 +224,7 @@ export function recalculatePipes<T extends string>(
     fedMap.set(nodeId, parentFed - totalAllocated);
 
     for (const child of children) {
-      distribute(child._id);
+      distribute(child.id);
     }
   }
 

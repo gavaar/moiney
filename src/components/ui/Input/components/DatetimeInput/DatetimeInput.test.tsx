@@ -13,13 +13,13 @@ describe("DatetimeInput", () => {
 
   it("shows formatted date and time", () => {
     render(<DatetimeInput label="Date" value={baseDate} onChange={() => {}} />);
-    expect(screen.getByText("Jul 21, 2026 3:45 PM")).toBeTruthy();
+    expect(screen.getByText("21 Jul 2026")).toBeTruthy();
   });
 
   it("shows different date formatting", () => {
     const date = new Date(2025, 0, 1, 8, 5);
     render(<DatetimeInput label="Date" value={date} onChange={() => {}} />);
-    expect(screen.getByText("Jan 1, 2025 8:05 AM")).toBeTruthy();
+    expect(screen.getByText("1 Jan 2025")).toBeTruthy();
   });
 
   it("shows error message", () => {

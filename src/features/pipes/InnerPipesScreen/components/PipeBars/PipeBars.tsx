@@ -21,7 +21,7 @@ export function PipeBars({ fed, spent, capacity, max }: PipeBarsProps) {
             style={{ width: pct(capacity) }}
           />
         </View>
-        <Text className="text-text text-xs w-16 text-right">{capacity}</Text>
+        <Text className="text-text text-xs w-16 text-right">{capacity.toFixed(2)}</Text>
       </View>
 
       <View className="flex-row items-center">
@@ -33,7 +33,7 @@ export function PipeBars({ fed, spent, capacity, max }: PipeBarsProps) {
             style={{ width: pct(fed) }}
           />
         </View>
-        <Text className="text-text text-xs w-16 text-right">{fed}</Text>
+        <Text className="text-text text-xs w-16 text-right">{fed.toFixed(2)}</Text>
       </View>
 
       <View className="flex-row items-center">
@@ -45,7 +45,7 @@ export function PipeBars({ fed, spent, capacity, max }: PipeBarsProps) {
             style={{ width: pct(spent) }}
           />
         </View>
-        <Text className="text-text text-xs w-16 text-right">{spent}</Text>
+        <Text className="text-text text-xs w-16 text-right">{spent.toFixed(2)}</Text>
       </View>
     </View>
   );

@@ -32,10 +32,10 @@ function formatDate(date: Date): string {
   const year = date.getFullYear();
   const hours = date.getHours();
   const minutes = date.getMinutes();
-  const ampm = hours >= 12 ? "PM" : "AM";
-  const h12 = hours % 12 || 12;
-  const mm = minutes.toString().padStart(2, "0");
-  return `${month} ${day}, ${year} ${h12}:${mm} ${ampm}`;
+  // const ampm = hours >= 12 ? "PM" : "AM";
+  // const h12 = hours % 12 || 12;
+  // const mm = minutes.toString().padStart(2, "0");
+  return `${day} ${month} ${year}`;
 }
 
 export function DatetimeInput({ label, error, disabled, value, onChange }: Props) {
@@ -65,7 +65,7 @@ export function DatetimeInput({ label, error, disabled, value, onChange }: Props
     close();
   };
 
-  const handleValueChange = (selectedDate: Date) => {
+  const handleValueChange = (_: unknown, selectedDate: Date) => {
     if (isIOS) {
       onChange(selectedDate);
       return;
@@ -110,7 +110,7 @@ export function DatetimeInput({ label, error, disabled, value, onChange }: Props
         >
           {formatDate(value)}
         </Text>
-        <Icon name="calendar-outline" size={20} color={disabled ? "#9CA3AF" : "#F8F8F8"} />
+        <Icon name="calendar-outline" size={16} color={disabled ? "#9CA3AF" : "#F8F8F8"} />
       </Pressable>
       {error ? (
         <Text className="text-sm text-error">{error}</Text>

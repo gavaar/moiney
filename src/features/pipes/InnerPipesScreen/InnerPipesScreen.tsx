@@ -9,7 +9,7 @@ import { Breadcrumb } from "./components/Breadcrumb";
 import { PipeBars } from "./components/PipeBars";
 
 export function InnerPipesScreen() {
-  const { selectedName, selectedPipe, selectedPipePath, childrenByParent, selectPipe } = usePipeSelection();
+  const { selectedPipe, selectedPipePath, childrenByParent, selectPipe } = usePipeSelection();
 
   const fed = selectedPipe?.fed ?? 0;
   const spent = selectedPipe?.spent ?? 0;
