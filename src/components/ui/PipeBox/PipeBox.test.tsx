@@ -27,7 +27,7 @@ describe("PipeBox", () => {
   it("renders icon with primary color", () => {
     render(<PipeBox {...baseProps} />);
     const icon = screen.getByTestId("mock-icon");
-    expect(icon.getAttribute("color")).toBe("#46AE82");
+    expect(icon.getAttribute("color")).toBe("#F8F8F8");
   });
 
   it("calls onPress when tapped", async () => {

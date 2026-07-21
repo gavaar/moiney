@@ -1,1 +1,1 @@
-export { PipeBox } from "./PipeBox";
+export { PipeBox, ChildSnapshot } from "./PipeBox";
