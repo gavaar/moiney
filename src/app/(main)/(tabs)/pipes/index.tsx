@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import { BackHandler, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ModalShell } from "@/components/ui/Modal";
 import { ScreenHeader } from "@/components/ui/ScreenHeader/ScreenHeader";
@@ -31,7 +31,19 @@ export default function Pipes() {
 
 function PipesInner() {
   const [showFeedInfo, setShowFeedInfo] = useState(false);
-  const { feeds, isLoading, selectedName, selectPipe } = usePipeSelection();
+  const { feeds, isLoading, selectedName, selectedPipePath, selectPipe } = usePipeSelection();
+
+  useEffect(() => {
+    const onBackPress = () => {
+      if (selectedPipePath.length > 0) {
+        selectPipe(selectedPipePath.slice(0, -1));
+        return true;
+      }
+      return false;
+    };
+    const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress);
+    return () => subscription.remove();
+  }, [selectedPipePath, selectPipe]);
 
   return (
     <SafeAreaView className="flex-1 bg-background px-4">
