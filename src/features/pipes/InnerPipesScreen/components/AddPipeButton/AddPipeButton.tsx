@@ -18,7 +18,7 @@ export function AddPipeButton({ parentId }: AddPipeButtonProps) {
   const parentPipe = pipesById?.[parentId];
   const parentName = parentPipe?.name ?? "";
   const hasChildren = (childrenByParent.get(parentId)?.length ?? 0) > 0;
-  const showWarning = !hasChildren && ((parentPipe?.capacity ?? 0) > 0 || (parentPipe?.spent ?? 0) > 0);
+  const willRemoveSpentCapValuesWarning = !hasChildren && ((parentPipe?.capacity ?? 0) > 0 || (parentPipe?.spent ?? 0) > 0);
 
   const [visible, setVisible] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -140,19 +140,19 @@ export function AddPipeButton({ parentId }: AddPipeButtonProps) {
               numberOfLines={3}
             />
 
-            {showWarning ? (
-              <View className="bg-warning/10 border border-warning/30 rounded-xl px-4 py-3">
-                <Text className="text-warning text-sm">
-                  Creating a child will remove current capacity and spent values.
-                </Text>
-              </View>
-            ) : null}
-
             {submitError ? (
               <Text className="text-sm text-error">{submitError}</Text>
             ) : null}
           </View>
         </ScrollView>
+
+        {willRemoveSpentCapValuesWarning ? (
+          <View className="bg-warning/10 border border-warning/30 rounded-xl px-4 py-3">
+            <Text className="text-warning text-sm">
+              Creating a child will remove current capacity and spent values.
+            </Text>
+          </View>
+        ) : null}
 
         {!hasChildren ? (
           <View className="bg-warning/10 border border-warning/30 rounded-xl px-4 py-3 mx-1 mt-2">

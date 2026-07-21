@@ -46,7 +46,7 @@ function FedBar({ fed, capacity, biggest }: { fed: number; capacity: number; big
 
 function SpentBar({ spent, biggest, fed }: { spent: number; biggest: number; fed: number; }) {
   const spentW = spent / biggest;
-  const spentColor = spent > fed ? colors.error : colors.primaryDark;
+  const spentColor = spent > fed ? colors.error : colors.surface;
 
   return (
     <View testID="spent-bar" className="flex flex-row absolute top-0 left-0 right-0 bottom-0">
@@ -54,7 +54,7 @@ function SpentBar({ spent, biggest, fed }: { spent: number; biggest: number; fed
         testID="spent-bar-filled"
         style={{
           flexGrow: spentW,
-          backgroundColor: `${spentColor}BF`,
+          backgroundColor: `${spentColor}CC`,
         }}
       />
       <View

@@ -22,7 +22,7 @@ export const createTransaction = mutation({
     });
 
     await ctx.db.insert("transactions", {
-      title: args.title,
+      title: args.title.toLowerCase(),
       value: args.value,
       date: args.date,
       pipeId: args.pipeId,

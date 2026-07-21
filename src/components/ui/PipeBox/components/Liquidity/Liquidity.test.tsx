@@ -24,8 +24,8 @@ function hexToRgba(hex: string, alphaHex: string) {
 
 const primaryRgb = hexToRgb(colors.primary);
 const secondaryRgb = hexToRgb(colors.secondary);
-const primaryDarkRgba = hexToRgba(colors.primaryDark, "BF");
-const errorRgba = hexToRgba(colors.error, "BF");
+const surfaceRgba = hexToRgba(colors.surface, "CC");
+const errorRgba = hexToRgba(colors.error, "CC");
 const primaryBgRgba = hexToRgba(colors.primary, "11");
 
 describe("Liquidity", () => {
@@ -95,10 +95,10 @@ describe("Liquidity", () => {
       expect(spentFilled.style.backgroundColor).toBe(errorRgba);
     });
 
-    it("uses primaryDark color when spent <= fed", () => {
+    it("uses surface color when spent <= fed", () => {
       render(<Liquidity fed={100} capacity={200} spent={40} />);
       const spentFilled = screen.getByTestId("spent-bar-filled");
-      expect(spentFilled.style.backgroundColor).toBe(primaryDarkRgba);
+      expect(spentFilled.style.backgroundColor).toBe(surfaceRgba);
     });
   });
 
