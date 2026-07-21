@@ -1,7 +1,22 @@
 import { v } from "convex/values";
-import { mutation } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
+import { paginationOptsValidator } from "convex/server";
 import { requireAuth } from "./lib/auth";
 import { calculateSpentUpdate } from "./lib/transactions";
+
+function transactionsQuery(ctx: any, userId: string, pipeIds: string[] | undefined) {
+  let q = ctx.db
+    .query("transactions")
+    .withIndex("by_userId_date", (q: any) => q.eq("userId", userId));
+
+  if (pipeIds && pipeIds.length > 0) {
+    q = q.filter((fq: any) =>
+      fq.or(...pipeIds.map((id) => fq.eq(fq.field("pipeId"), id))),
+    );
+  }
+
+  return q.order("desc");
+}
 
 export const createTransaction = mutation({
   args: {
@@ -28,5 +43,28 @@ export const createTransaction = mutation({
       pipeId: args.pipeId,
       userId,
     });
+  },
+});
+
+export const listTransactions = query({
+  args: {
+    pipeIds: v.optional(v.array(v.id("pipes"))),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireAuth(ctx);
+    const q = transactionsQuery(ctx, userId, args.pipeIds);
+    return await q.take(12);
+  },
+});
+
+export const listTransactionsPaginated = query({
+  args: {
+    pipeIds: v.optional(v.array(v.id("pipes"))),
+    paginationOpts: paginationOptsValidator,
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireAuth(ctx);
+    const q = transactionsQuery(ctx, userId, args.pipeIds);
+    return await q.paginate(args.paginationOpts);
   },
 });

@@ -3,7 +3,8 @@ import { BackHandler, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ModalShell } from "@/components/ui/Modal";
 import { ScreenHeader } from "@/components/ui/ScreenHeader/ScreenHeader";
-import { PipeSelectionProvider, usePipeSelection } from "@/features/pipes/context/PipeSelectionContext";
+import { usePipeSelection } from "@/features/pipes/context/PipeSelectionContext";
+import { useTransactions } from "@/features/transactions/context/TransactionsContext";
 import { InnerPipesScreen } from '@/features/pipes/InnerPipesScreen';
 import { FeedListScreen } from '@/features/pipes/FeedListScreen';
 
@@ -22,16 +23,9 @@ const FeedDescription = () => (
 );
 
 export default function Pipes() {
-  return (
-    <PipeSelectionProvider>
-      <PipesInner />
-    </PipeSelectionProvider>
-  );
-}
-
-function PipesInner() {
   const [showFeedInfo, setShowFeedInfo] = useState(false);
-  const { feeds, isLoading, selectedName, selectedPipePath, selectPipe } = usePipeSelection();
+  const { feeds, isLoading, selectedName, selectedPipePath, selectPipe, pipesById } = usePipeSelection();
+  const { transactions } = useTransactions();
 
   useEffect(() => {
     const onBackPress = () => {
@@ -62,11 +56,36 @@ function PipesInner() {
       </View>
 
       <View style={{ flex: 2 }}>
-        <ScrollView
-          className="flex-1"
-          contentContainerStyle={{ flexGrow: 1, justifyContent: "center", alignItems: "center" }}
-        >
-          <Text className="text-muted text-base">history</Text>
+        <ScrollView className="flex-1 px-2">
+          {transactions && transactions.length > 0 ? (
+            transactions.map((tx) => {
+              const pipe = pipesById?.[tx.pipeId];
+              return (
+                <View
+                  key={tx._id}
+                  className="flex-row items-center justify-between py-3 border-b border-border"
+                >
+                  <View className="flex-1">
+                    <Text className="text-text font-semibold" numberOfLines={1}>
+                      {tx.title.charAt(0).toUpperCase() + tx.title.slice(1)}
+                    </Text>
+                    <Text className="text-muted text-xs">
+                      {pipe?.name ?? "Unknown"} · {new Date(tx.date).toLocaleDateString()}
+                    </Text>
+                  </View>
+                  <Text
+                    className={`text-base font-bold ${tx.value < 0 ? "text-red" : "text-green"}`}
+                  >
+                    {tx.value.toFixed(2)}
+                  </Text>
+                </View>
+              );
+            })
+          ) : (
+            <View className="flex-1 items-center justify-center">
+              <Text className="text-muted text-base">No transactions yet</Text>
+            </View>
+          )}
         </ScrollView>
       </View>
 

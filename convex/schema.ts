@@ -10,7 +10,8 @@ export default defineSchema({
     userId: v.id("users"),
   })
     .index("by_pipeId", ["pipeId"])
-    .index("by_userId", ["userId"]),
+    .index("by_userId", ["userId"])
+    .index("by_userId_date", ["userId", "date"]),
   users: defineTable({
     username: v.string(),
     email: v.string(),
