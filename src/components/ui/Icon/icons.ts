@@ -25,6 +25,7 @@ const CURATED_ICONS = [
   { name: "close-circle", family: "Ionicons" as const },
   { name: "document-text-outline", family: "Ionicons" as const },
   { name: "download-outline", family: "Ionicons" as const },
+  { name: "eraser", family: "MaterialCommunityIcons" as const },
   { name: "ellipsis-vertical", family: "Ionicons" as const },
   { name: "eye", family: "Ionicons" as const },
   { name: "eye-off", family: "Ionicons" as const },
@@ -62,6 +63,7 @@ const CURATED_ICONS = [
   { name: "trending-down-outline", family: "Ionicons" as const },
   { name: "trending-up-outline", family: "Ionicons" as const },
   { name: "tv-outline", family: "Ionicons" as const },
+  { name: "upload", family: "MaterialCommunityIcons" as const },
   { name: "wallet-outline", family: "Ionicons" as const },
   { name: "water-outline", family: "Ionicons" as const },
 ] satisfies CuratedIcon[];

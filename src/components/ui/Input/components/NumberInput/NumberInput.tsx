@@ -76,14 +76,14 @@ export function NumberInput({
   return (
     <View className={cn("gap-1", disabled && "opacity-60")}>
       <Text className="text-sm font-medium text-text">{label}</Text>
-      <View className="flex-row items-center gap-2">
+      <View className="flex-row items-center gap-1">
         <Pressable
           testID="decrement-button"
           onPress={handleDecrement}
           disabled={disabled || atMin}
           className={cn(
-            "h-10 w-10 items-center justify-center rounded-lg border",
-            disabled || atMin ? "border-border opacity-40" : "border-border",
+            "h-10 w-10 items-center justify-center rounded-lg border border-border",
+            disabled || atMin ? "opacity-40" : "",
           )}
         >
           <Text className={cn("text-xl", disabled || atMin ? "text-muted" : "text-text")}>−</Text>

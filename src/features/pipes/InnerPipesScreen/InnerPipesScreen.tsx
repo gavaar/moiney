@@ -3,6 +3,7 @@ import { usePipeSelection, toPipe } from "@/features/pipes/context/PipeSelection
 import { PipesList } from "@/features/pipes/components/PipesList";
 import { Icon } from "@/components/ui/Icon";
 import { colors } from "@/lib/styles";
+import { SpentForm } from "@/features/components/SpentForm";
 import { AddPipeButton } from "./components/AddPipeButton";
 import { Breadcrumb } from "./components/Breadcrumb";
 import { PipeBars } from "./components/PipeBars";
@@ -30,6 +31,9 @@ export function InnerPipesScreen() {
       </View>
 
       <View className="flex-1">
+        {children.length === 0 && selectedPipe ? (
+          <SpentForm />
+        ) : null}
         <PipesList
           pipes={children}
           priority={true}

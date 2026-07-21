@@ -30,7 +30,7 @@ export function ModalShell({
           className="absolute inset-0"
           onPress={closeOnBackdropPress ? onClose : undefined}
         />
-        <View className="bg-surface rounded-xl p-4 mx-4 min-w-[300px] max-h-[75%]">
+        <View className="bg-surface rounded-xl p-4 mx-4 min-w-[300px] max-h-[75%] max-w-[min(960px,80vw)]">
           {children}
         </View>
       </View>

@@ -28,7 +28,7 @@ export function PipeBox({ name, icon, priority, capacity, fed, spent, children, 
       <TouchableOpacity
         onPress={onPress}
         activeOpacity={0.7}
-        className="flex-row rounded-md overflow-hidden min-h-[64px]"
+        className="flex-row rounded-md overflow-hidden min-h-15"
       >
         {priority !== undefined && (
           <Text className="absolute top-1 left-1 text-muted text-[10px] z-10">{priority}</Text>
@@ -41,7 +41,7 @@ export function PipeBox({ name, icon, priority, capacity, fed, spent, children, 
         <View className="flex-1 relative">
           <Liquidity capacity={capacity} fed={fed} spent={spent} />
           {children && children.length > 0 && (
-            <View className="absolute bottom-0 left-0 right-0 flex-row items-end gap-0.5 px-1" style={{ height: '35%' }}>
+            <View className="absolute bottom-0 left-0 right-0 flex-row items-end gap-0.5 px-1" style={{ height: 20 }}>
               {children.map((child, idx) => (
                 <View key={idx} className="h-full" style={{ aspectRatio: 1 }}>
                   <MiniChildBox {...child} />

@@ -65,6 +65,7 @@ export function FeedAmountModal({ pipeId, feedName }: Props) {
             placeholder="100.53"
             value={inputText}
             onChange={setInputText}
+            allowNegative={false}
           />
           <View className="flex-row gap-2">
             <Button

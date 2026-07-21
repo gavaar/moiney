@@ -62,4 +62,46 @@ describe("DecimalInput", () => {
     );
     expect(screen.getByText("Invalid amount")).toBeTruthy();
   });
+
+  describe("allowNegative", () => {
+    it("defaults to true and preserves minus sign", () => {
+      const onChange = vi.fn();
+      render(<DecimalInput label="Amount" value="" onChange={onChange} />);
+      const input = screen.getByDisplayValue("");
+      fireEvent.change(input, { target: { value: "-42" } });
+      expect(onChange).toHaveBeenCalledWith("-42");
+    });
+
+    it("preserves negative decimal", () => {
+      const onChange = vi.fn();
+      render(<DecimalInput label="Amount" value="" onChange={onChange} />);
+      const input = screen.getByDisplayValue("");
+      fireEvent.change(input, { target: { value: "-10.50" } });
+      expect(onChange).toHaveBeenCalledWith("-10.50");
+    });
+
+    it("strips minus sign when allowNegative is false", () => {
+      const onChange = vi.fn();
+      render(<DecimalInput label="Amount" value="" onChange={onChange} allowNegative={false} />);
+      const input = screen.getByDisplayValue("");
+      fireEvent.change(input, { target: { value: "-42" } });
+      expect(onChange).toHaveBeenCalledWith("42");
+    });
+
+    it("strips non-numeric characters while keeping minus", () => {
+      const onChange = vi.fn();
+      render(<DecimalInput label="Amount" value="" onChange={onChange} />);
+      const input = screen.getByDisplayValue("");
+      fireEvent.change(input, { target: { value: "abc-12.34xyz" } });
+      expect(onChange).toHaveBeenCalledWith("-12.34");
+    });
+
+    it("handles minus sign anywhere in the string as negative", () => {
+      const onChange = vi.fn();
+      render(<DecimalInput label="Amount" value="" onChange={onChange} />);
+      const input = screen.getByDisplayValue("");
+      fireEvent.change(input, { target: { value: "12-34" } });
+      expect(onChange).toHaveBeenCalledWith("-1234");
+    });
+  });
 });

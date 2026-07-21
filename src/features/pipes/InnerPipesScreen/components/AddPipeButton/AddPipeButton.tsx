@@ -105,7 +105,32 @@ export function AddPipeButton({ parentId }: AddPipeButtonProps) {
               onBlur={() => setNameError(validateName(name))}
               error={nameError}
             />
+
+            <View className="flex-row gap-4">
+              <View className="flex-[3]">
+                <Input
+                  type="decimal"
+                  label="Initial capacity?"
+                  value={capacity}
+                  onChange={setCapacity}
+                  placeholder="0.00"
+                  allowNegative={false}
+                />
+              </View>
+              <View className="flex-[2]">
+                <Input
+                  type="number"
+                  label="Priority"
+                  value={priority}
+                  onChange={setPriority}
+                  min={0}
+                  step={1}
+                />
+              </View>
+            </View>
+
             <Input type="icon" label="Icon" value={icon} onSelect={setIcon} />
+
             <Input
               label="Description"
               placeholder="Optional description"
@@ -113,21 +138,6 @@ export function AddPipeButton({ parentId }: AddPipeButtonProps) {
               onChangeText={setDescription}
               multiline
               numberOfLines={3}
-            />
-            <Input
-              type="number"
-              label="Priority"
-              value={priority}
-              onChange={setPriority}
-              min={0}
-              step={1}
-            />
-            <Input
-              type="decimal"
-              label="Initial capacity?"
-              value={capacity}
-              onChange={setCapacity}
-              placeholder="0.00"
             />
 
             {showWarning ? (
@@ -143,6 +153,15 @@ export function AddPipeButton({ parentId }: AddPipeButtonProps) {
             ) : null}
           </View>
         </ScrollView>
+
+        {!hasChildren ? (
+          <View className="bg-warning/10 border border-warning/30 rounded-xl px-4 py-3 mx-1 mt-2">
+            <Text className="text-warning text-sm">
+              Adding a pipe removes the ability to add transactions from this pipe. All transactions should happen from a childless pipe.
+            </Text>
+          </View>
+        ) : null}
+
         <View className="flex-row gap-2 mt-4">
           <Button
             className="flex-1"

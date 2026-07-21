@@ -1,6 +1,6 @@
 import type { IconName } from "@/components/ui/Icon";
 import type { TextInputProps } from "react-native";
-import { DecimalInput, TextInput, NumberInput, IconInput } from "./components";
+import { DatetimeInput, DecimalInput, TextInput, NumberInput, IconInput } from "./components";
 
 type TextProps = TextInputProps & {
   type?: "text";
@@ -10,6 +10,7 @@ type TextProps = TextInputProps & {
   endIcon?: "eye" | "eye-off";
   onEndIconPress?: () => void;
   status?: "checking" | "available" | "unavailable";
+  maxLength?: number;
 };
 
 type NumberProps = {
@@ -32,6 +33,16 @@ type DecimalProps = {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  allowNegative?: boolean;
+};
+
+type DatetimeProps = {
+  type: "datetime";
+  label: string;
+  error?: string;
+  disabled?: boolean;
+  value: Date;
+  onChange: (date: Date) => void;
 };
 
 type IconProps = {
@@ -43,7 +54,7 @@ type IconProps = {
   onSelect: (name: IconName) => void;
 };
 
-type Props = TextProps | NumberProps | DecimalProps | IconProps;
+type Props = TextProps | NumberProps | DecimalProps | DatetimeProps | IconProps;
 
 export function Input(props: Props) {
   switch (props.type) {
@@ -51,6 +62,8 @@ export function Input(props: Props) {
       return <NumberInput {...props} />;
     case "decimal":
       return <DecimalInput {...props} />;
+    case "datetime":
+      return <DatetimeInput {...props} />;
     case "icon":
       return <IconInput {...props} />;
     default:

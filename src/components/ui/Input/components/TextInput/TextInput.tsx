@@ -18,14 +18,16 @@ type Props = TextInputProps & {
   endIcon?: "eye" | "eye-off";
   onEndIconPress?: () => void;
   status?: "checking" | "available" | "unavailable";
+  maxLength?: number;
 };
 
-export function TextInput({ label, error, className, disabled, endIcon, onEndIconPress, status, ...props }: Props) {
+export function TextInput({ label, error, className, disabled, endIcon, onEndIconPress, status, maxLength, ...props }: Props) {
   const [focused, setFocused] = useState(false);
 
   const borderStyle = getBorderStyle(disabled, focused, error);
 
   const hasTrailing = !!(status || endIcon);
+  const currentLength = String(props.value ?? "").length;
 
   return (
     <View className="gap-1">
@@ -64,6 +66,10 @@ export function TextInput({ label, error, className, disabled, endIcon, onEndIco
       </View>
       {error ? (
         <Text className="text-sm text-error">{error}</Text>
+      ) : maxLength !== undefined ? (
+        <Text className={cn("text-sm", currentLength > maxLength ? "text-error" : "text-muted")}>
+          {currentLength} / {maxLength}
+        </Text>
       ) : null}
     </View>
   );

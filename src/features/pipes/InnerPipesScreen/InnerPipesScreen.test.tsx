@@ -40,6 +40,10 @@ vi.mock("@/components/ui/Icon", () => ({
   Icon: ({ name, testID }: any) => <span data-testid={testID ?? "icon"} data-name={name} />,
 }));
 
+vi.mock("@/features/components/SpentForm", () => ({
+  SpentForm: () => <div data-testid="spent-form" />,
+}));
+
 const mockUsePipeSelection = vi.fn();
 
 vi.mock("@/features/pipes/context/PipeSelectionContext", async (importOriginal) => {
@@ -173,5 +177,33 @@ describe("InnerPipesScreen", () => {
 
     render(<InnerPipesScreen />);
     expect(screen.queryByText(/selected Groceries/i)).toBeNull();
+  });
+
+  it("renders SpentForm when pipe has no children", () => {
+    mockUsePipeSelection.mockReturnValue({
+      ...baseMock,
+      selectedPipePath: ["pipe-1"],
+      selectedPipe: { _id: "pipe-1", name: "Groceries", icon: "pipe" },
+      selectedName: "Groceries",
+    });
+
+    render(<InnerPipesScreen />);
+    expect(screen.getByTestId("spent-form")).toBeDefined();
+  });
+
+  it("does not render SpentForm when pipe has children", () => {
+    const childrenByParent = new Map();
+    childrenByParent.set("pipe-1", [childPipe1]);
+
+    mockUsePipeSelection.mockReturnValue({
+      ...baseMock,
+      selectedPipePath: ["pipe-1"],
+      selectedPipe: { _id: "pipe-1", name: "Groceries", icon: "pipe", capacity: 2000, fed: 1500, spent: 1200 },
+      selectedName: "Groceries",
+      childrenByParent,
+    });
+
+    render(<InnerPipesScreen />);
+    expect(screen.queryByTestId("spent-form")).toBeNull();
   });
 });

@@ -14,29 +14,25 @@ type Props = {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  allowNegative?: boolean;
 };
 
-function sanitizeDecimal(input: string): string {
-  const allowed = input.replace(/[^0-9.]/g, "");
-  const parts = allowed.split(".");
-  if (parts.length > 2) {
-    return parts[0] + "." + parts.slice(1).join("");
-  }
-  return allowed;
+function sanitizeDecimal(input: string, allowNegative: boolean): string {
+  const isNegative = allowNegative && input.includes("-");
+  const cleaned = input.replace(/-/g, "").replace(/[^0-9.]/g, "");
+  const parts = cleaned.split(".");
+  const sanitized = parts[0] + (parts.length > 1 ? "." + parts.slice(1).join("") : "");
+  return isNegative ? "-" + sanitized : sanitized;
 }
 
-export function DecimalInput({ label, error, disabled, value, onChange, placeholder }: Props) {
+export function DecimalInput({ label, error, disabled, value, onChange, placeholder, allowNegative = true }: Props) {
   const [focused, setFocused] = useState(false);
 
   const borderStyle = getBorderStyle(disabled, focused, error);
 
   const handleChangeText = (text: string) => {
-    const sanitized = sanitizeDecimal(text);
-    if (sanitized !== text) {
-      onChange(sanitized);
-    } else {
-      onChange(text);
-    }
+    const sanitized = sanitizeDecimal(text, allowNegative);
+    onChange(sanitized);
   };
 
   return (
