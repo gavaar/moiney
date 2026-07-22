@@ -29,7 +29,7 @@ export default function Pipes() {
     <SafeAreaView className="flex-1 bg-background px-4">
       <ScreenHeader title="Pipes" />
 
-      <View style={{ flex: 3 }}>
+      <View style={{ flex: 2 }}>
         {selectedName ? (
           <InnerPipesScreen />
         ) : (
@@ -41,7 +41,7 @@ export default function Pipes() {
         )}
       </View>
 
-      <View style={{ flex: 2 }}>
+      <View style={{ flex: 1 }}>
         <Text className="text-text font-semibold text-base my-2 px-2">Latest transactions</Text>
         <ScrollView className="flex-1 px-2">
           {transactionLoading ? (

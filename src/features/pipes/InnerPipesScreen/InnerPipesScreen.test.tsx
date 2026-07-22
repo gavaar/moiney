@@ -104,14 +104,14 @@ describe("InnerPipesScreen", () => {
     expect(screen.getByTestId("bar-capacity-fill")).toBeDefined();
   });
 
-  it("renders statistics placeholder", () => {
+  it("renders statistics row", () => {
     mockUsePipeSelection.mockReturnValue({
       ...baseMock,
       selectedPipePath: ["pipe-1"],
       selectedName: "Groceries",
     });
     render(<InnerPipesScreen />);
-    expect(screen.getByText("statistics")).toBeDefined();
+    expect(screen.getByText(/L2S: 0\.00/)).toBeDefined();
   });
 
   it("renders children of selected pipe in PipesList", () => {

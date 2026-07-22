@@ -7,6 +7,7 @@ import { SpentForm } from "@/features/components/SpentForm";
 import { AddPipeButton } from "./components/AddPipeButton";
 import { Breadcrumb } from "./components/Breadcrumb";
 import { PipeBars } from "./components/PipeBars";
+import { StatisticsRow } from "./components/StatisticsRow";
 
 export function InnerPipesScreen() {
   const { selectedPipe, selectedPipePath, childrenByParent, selectPipe } = usePipeSelection();
@@ -23,10 +24,10 @@ export function InnerPipesScreen() {
 
   return (
     <View className="flex-1">
-      <View>
+      <View className="flex flex-col">
         <Breadcrumb />
         <PipeBars fed={fed} spent={spent} capacity={capacity} max={max} />
-        <Text className="text-muted text-xs pb-3">statistics</Text>
+        <StatisticsRow fed={fed} spent={spent} />
         <View className="border-b self-center border-muted/50 mb-3 w-3/4" />
       </View>
 
