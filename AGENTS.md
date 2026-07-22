@@ -10,21 +10,42 @@
 ## Project Structure
 ```
 moiney/
-├── src/              # Application source code
-│   ├── app/          # Expo Router screens
+├── src/                  # Application source code
+│   ├── app/              # Expo Router screens (file-based)
 │   │   ├── _layout.tsx
-│   │   └── index.tsx
-│   ├── components/   # Reusable UI components
-│   └── lib/          # Shared utilities and hooks
-├── convex/           # Convex backend
-│   └── schema.ts     # Database schema
-├── assets/           # Static assets
-├── .agents/skills/   # AI agent skills (Expo, Convex, RN)
-├── app.json          # Expo config
+│   │   ├── index.tsx
+│   │   ├── (auth)/       # Auth flow (login, sign-up)
+│   │   └── (main)/       # Main app (tabs: history, pipes, profile)
+│   ├── components/       # Reusable UI primitives
+│   │   └── ui/           # Button, Icon, Input, Modal, PipeBox, ScreenHeader, etc.
+│   ├── features/         # Feature modules (feature-first colocation)
+│   │   ├── components/   # Shared feature-level components (SpentForm)
+│   │   ├── pipes/        # Pipes feature: screens, contexts, sub-components
+│   │   └── transactions/ # Transactions feature: context
+│   ├── lib/              # Shared utilities and hooks
+│   │   ├── auth/         # Auth provider, token storage (platform variants)
+│   │   ├── errors/       # Error handling utilities
+│   │   ├── forms/        # useForm hook
+│   │   ├── hooks/        # useDebounce, useKeyboardHeight
+│   │   ├── styles/       # cn() utility, color tokens
+│   │   └── dates.ts      # Date helpers
+│   ├── global.css
+│   └── globals.d.ts
+├── convex/               # Convex backend
+│   ├── lib/              # Shared backend utilities (auth, jwt, pipes, transactions, etc.)
+│   ├── _generated/       # Auto-generated Convex types
+│   ├── schema.ts         # Database schema
+│   ├── auth.ts / auth.config.ts
+│   ├── http.ts / crons.ts
+│   ├── pipes.ts / transactions.ts / accounts.ts / sessions.ts
+│   └── migrations.ts
+├── assets/               # Static assets
+├── .agents/skills/       # AI agent skills (Expo, Convex, RN)
+├── app.json              # Expo config
 ├── tailwind.config.js
 ├── babel.config.js
 ├── metro.config.js
-└── convex.json       # Convex CLI config
+└── convex.json           # Convex CLI config
 ```
 
 ## Commands
@@ -41,4 +62,8 @@ moiney/
 - Use Expo Router file-based routing (`src/app/` directory)
 - Style with NativeWind/Tailwind utility classes
 - Use `@/` path alias to import from `src/` (e.g. `@/app/...`, `@/components/...`)
-- Convex schema in `convex/schema.ts`, functions in `convex/`
+- Feature colocation: screens, contexts, and sub-components live in `src/features/<feature>/`; shared feature components go in `src/features/components/`
+- Component pattern: each component directory has `ComponentName.tsx`, `ComponentName.test.tsx`, and an `index.ts` barrel file
+- Platform files: use `.native.ts` / `.web.ts` suffixes for platform-specific variants (e.g. `storage.ts`)
+- Convex schema in `convex/schema.ts`, domain functions in `convex/*.ts`, shared helpers in `convex/lib/`
+- For testing use `bun run test` instead of `bun test`
