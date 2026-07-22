@@ -139,4 +139,69 @@ describe("FeedAmountModal", () => {
       expect(Alert.alert).toHaveBeenCalledWith("Error", "Not authorized");
     });
   });
+
+  describe("negative amounts", () => {
+    it("shows Debt button and error variant when amount is negative", async () => {
+      const user = userEvent.setup();
+      render(<FeedAmountModal pipeId={PIPE_ID} feedName="Groceries" />);
+
+      await user.click(screen.getByTestId("feed-amount-trigger"));
+
+      const input = screen.getByPlaceholderText("100.53");
+      fireEvent.change(input, { target: { value: "-50" } });
+
+      expect(screen.getByText("Debt")).toBeTruthy();
+    });
+
+    it("does not call feedPipe for zero input even when negative is allowed", async () => {
+      const user = userEvent.setup();
+      render(<FeedAmountModal pipeId={PIPE_ID} feedName="Groceries" />);
+
+      await user.click(screen.getByTestId("feed-amount-trigger"));
+
+      const input = screen.getByPlaceholderText("100.53");
+      fireEvent.change(input, { target: { value: "0" } });
+
+      await user.click(screen.getByText("Feed"));
+
+      expect(mockFeedPipe).not.toHaveBeenCalled();
+    });
+
+    it("calls feedPipe with negative amount on confirm", async () => {
+      const user = userEvent.setup();
+      render(<FeedAmountModal pipeId={PIPE_ID} feedName="Groceries" />);
+
+      await user.click(screen.getByTestId("feed-amount-trigger"));
+
+      const input = screen.getByPlaceholderText("100.53");
+      fireEvent.change(input, { target: { value: "-50.25" } });
+
+      await user.click(screen.getByText("Debt"));
+
+      await waitFor(() => {
+        expect(mockFeedPipe).toHaveBeenCalledWith({
+          pipeId: PIPE_ID,
+          amount: -50.25,
+        });
+      });
+    });
+
+    it("shows 'Debt added' success alert for negative amounts", async () => {
+      const user = userEvent.setup();
+      render(<FeedAmountModal pipeId={PIPE_ID} feedName="Groceries" />);
+
+      await user.click(screen.getByTestId("feed-amount-trigger"));
+
+      const input = screen.getByPlaceholderText("100.53");
+      fireEvent.change(input, { target: { value: "-30" } });
+
+      await user.click(screen.getByText("Debt"));
+
+      await waitFor(() => {
+        expect(mockFeedPipe).toHaveBeenCalled();
+      });
+
+      expect(Alert.alert).toHaveBeenCalledWith("Success", "Debt added");
+    });
+  });
 });

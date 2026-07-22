@@ -7,7 +7,7 @@ export async function addFeedToPipe(
   pipeId: Id<"pipes">,
   amount: number,
 ) {
-  if (amount <= 0) throw new Error("Amount must be positive");
+  if (amount === 0) throw new Error("Amount must be non-zero");
 
   const pipe = await ctx.db.get(pipeId);
   if (!pipe) throw new Error("Pipe not found");

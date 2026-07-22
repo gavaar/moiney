@@ -438,4 +438,21 @@ describe("recalculatePipes", () => {
     const result = recalculatePipes([]);
     expect(result).toEqual([]);
   });
+
+  it("does not cascade negative fed to children", () => {
+    const result = recalculatePipes([
+      { _id: "a", parentId: undefined, priority: 0, fed: -100 },
+      { _id: "b", parentId: "a", priority: 0, capacity: 500, fed: 0 },
+    ]);
+    const map = new Map(result.map((r) => [r._id, r.fed]));
+    expect(map.get("a")).toBe(-100);
+    expect(map.get("b")).toBe(0);
+  });
+
+  it("preserves negative fed on leaf pipe with no children", () => {
+    const result = recalculatePipes([
+      { _id: "a", parentId: undefined, priority: 0, fed: -50 },
+    ]);
+    expect(result).toEqual([{ _id: "a", fed: -50 }]);
+  });
 });

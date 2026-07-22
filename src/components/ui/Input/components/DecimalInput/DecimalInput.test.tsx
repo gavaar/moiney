@@ -96,12 +96,36 @@ describe("DecimalInput", () => {
       expect(onChange).toHaveBeenCalledWith("-12.34");
     });
 
-    it("handles minus sign anywhere in the string as negative", () => {
+    it("toggles from positive to negative when '-' is typed", () => {
       const onChange = vi.fn();
-      render(<DecimalInput label="Amount" value="" onChange={onChange} />);
-      const input = screen.getByDisplayValue("");
+      render(<DecimalInput label="Amount" value="1234" onChange={onChange} />);
+      const input = screen.getByDisplayValue("1234");
+      fireEvent.change(input, { target: { value: "-1234" } });
+      expect(onChange).toHaveBeenCalledWith("-1234");
+    });
+
+    it("toggles from negative to positive when '-' is typed on negative value", () => {
+      const onChange = vi.fn();
+      render(<DecimalInput label="Amount" value="-1234" onChange={onChange} />);
+      const input = screen.getByDisplayValue("-1234");
+      fireEvent.change(input, { target: { value: "--1234" } });
+      expect(onChange).toHaveBeenCalledWith("1234");
+    });
+
+    it("toggles sign when '-' appears in the middle of the string", () => {
+      const onChange = vi.fn();
+      render(<DecimalInput label="Amount" value="1234" onChange={onChange} />);
+      const input = screen.getByDisplayValue("1234");
       fireEvent.change(input, { target: { value: "12-34" } });
       expect(onChange).toHaveBeenCalledWith("-1234");
+    });
+
+    it("toggles sign when '-' appears in the middle of a negative string", () => {
+      const onChange = vi.fn();
+      render(<DecimalInput label="Amount" value="-1234" onChange={onChange} />);
+      const input = screen.getByDisplayValue("-1234");
+      fireEvent.change(input, { target: { value: "-12-34" } });
+      expect(onChange).toHaveBeenCalledWith("1234");
     });
   });
 });

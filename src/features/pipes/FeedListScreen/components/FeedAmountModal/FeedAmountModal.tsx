@@ -21,7 +21,8 @@ export function FeedAmountModal({ pipeId, feedName }: Props) {
   const feedPipe = useMutation(api.pipes.feedPipe);
 
   const parsedAmount = inputText === "" ? 0 : parseFloat(inputText);
-  const canSubmit = parsedAmount > 0;
+  const isNegative = parsedAmount < 0;
+  const canSubmit = inputText !== "" && parsedAmount !== 0 && !Number.isNaN(parsedAmount);
 
   const reset = () => {
     setInputText("");
@@ -33,7 +34,7 @@ export function FeedAmountModal({ pipeId, feedName }: Props) {
     try {
       const amount = Math.round(parsedAmount * 100) / 100;
       await feedPipe({ pipeId, amount });
-      Alert.alert("Success", "Feed added");
+      Alert.alert("Success", `${isNegative ? "Debt" : "Feed"} added`);
       setVisible(false);
       reset();
     } catch (error) {
@@ -65,7 +66,7 @@ export function FeedAmountModal({ pipeId, feedName }: Props) {
             placeholder="100.53"
             value={inputText}
             onChange={setInputText}
-            allowNegative={false}
+            allowNegative
           />
           <View className="flex-row gap-2">
             <Button
@@ -77,7 +78,8 @@ export function FeedAmountModal({ pipeId, feedName }: Props) {
             />
             <Button
               className="flex-[2_1_0]"
-              title="Feed"
+              title={isNegative ? "Debt" : "Feed"}
+              variant={isNegative ? "error" : "primary"}
               onPress={handleConfirm}
               disabled={!canSubmit}
               loading={loading}
