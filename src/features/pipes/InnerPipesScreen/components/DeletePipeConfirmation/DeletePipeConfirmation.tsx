@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { Alert, ScrollView, Text, View } from "react-native";
+import { useMutation } from "convex/react";
+import { api } from "@convex/_generated/api";
 import { type Id, type Doc } from "@convex/_generated/dataModel";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -12,7 +14,7 @@ type Props = {
   visible: boolean;
   onClose: () => void;
   pipeId: Id<"pipes">;
-  onConfirm: (result: { pipeIds: Id<"pipes">[]; deleteTransactions: boolean }) => void;
+  onDeleted: () => void;
 };
 
 type DescendantNode = {
@@ -36,10 +38,12 @@ function collectDescendants(
   return result;
 }
 
-export function DeletePipeConfirmation({ visible, onClose, pipeId, onConfirm }: Props) {
+export function DeletePipeConfirmation({ visible, onClose, pipeId, onDeleted }: Props) {
   const { pipesById, childrenByParent } = usePipeSelection();
   const [isEnabled, setIsEnabled] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [deleteTransactions, setDeleteTransactions] = useState(false);
+  const deletePipe = useMutation(api.pipes.deletePipe);
 
   useEffect(() => {
     setIsEnabled(false);
@@ -58,10 +62,17 @@ export function DeletePipeConfirmation({ visible, onClose, pipeId, onConfirm }: 
     [pipeId, childrenByParent],
   );
 
-  const allPipeIds = [pipeId, ...descendants.map((d) => d.id)];
-
-  const handleConfirm = () => {
-    onConfirm({ pipeIds: allPipeIds, deleteTransactions });
+  const handleConfirm = async () => {
+    setIsDeleting(true);
+    try {
+      await deletePipe({ pipeId, deleteTransactions });
+      Alert.alert(`Pipe ${pipeId}${descendants.length ? ' and children' : ''} deleted${deleteTransactions ? '. Transactions were also deleted' : ''}`);
+      onDeleted();
+      onClose();
+    } catch (error) {
+      Alert.alert("Error", `${error}`);
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -109,6 +120,7 @@ export function DeletePipeConfirmation({ visible, onClose, pipeId, onConfirm }: 
           variant="error"
           title="Confirm deletion"
           disabled={!isEnabled}
+          loading={isDeleting}
           onPress={handleConfirm}
         />
       </View>

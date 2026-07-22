@@ -2,6 +2,12 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { act, render, screen, fireEvent } from "@testing-library/react";
 
+const mockDeletePipe = vi.fn();
+
+vi.mock("convex/react", () => ({
+  useMutation: () => mockDeletePipe,
+}));
+
 vi.mock("@/features/pipes/context/PipeSelectionContext", () => ({
   usePipeSelection: () => ({
     selectedPipe: { _id: "pipe_root", name: "Root Pipe", icon: "home-outline", priority: 0, capacity: 0, fed: 0, spent: 0 },
@@ -29,6 +35,7 @@ import { DeletePipeConfirmation } from "./DeletePipeConfirmation";
 describe("DeletePipeConfirmation", () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    mockDeletePipe.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -37,7 +44,7 @@ describe("DeletePipeConfirmation", () => {
 
   it("renders pipe name and descendant list", () => {
     render(
-      <DeletePipeConfirmation visible={true} onClose={() => {}} pipeId="pipe_root" onConfirm={() => {}} />,
+      <DeletePipeConfirmation visible={true} onClose={() => {}} pipeId="pipe_root" onDeleted={() => {}} />,
     );
     const rootPipeElements = screen.getAllByText("Root Pipe");
     expect(rootPipeElements.length).toBeGreaterThanOrEqual(2);
@@ -48,51 +55,59 @@ describe("DeletePipeConfirmation", () => {
 
   it("renders warning box", () => {
     render(
-      <DeletePipeConfirmation visible={true} onClose={() => {}} pipeId="pipe_root" onConfirm={() => {}} />,
+      <DeletePipeConfirmation visible={true} onClose={() => {}} pipeId="pipe_root" onDeleted={() => {}} />,
     );
     expect(screen.getByText(/delete this pipe/)).toBeTruthy();
   });
 
   it("renders transactions checkbox", () => {
     render(
-      <DeletePipeConfirmation visible={true} onClose={() => {}} pipeId="pipe_root" onConfirm={() => {}} />,
+      <DeletePipeConfirmation visible={true} onClose={() => {}} pipeId="pipe_root" onDeleted={() => {}} />,
     );
     expect(screen.getByText("Also delete pipe's transactions")).toBeTruthy();
   });
 
   it("disables confirm button for 2 seconds then enables", () => {
     render(
-      <DeletePipeConfirmation visible={true} onClose={() => {}} pipeId="pipe_root" onConfirm={() => {}} />,
+      <DeletePipeConfirmation visible={true} onClose={() => {}} pipeId="pipe_root" onDeleted={() => {}} />,
     );
     const button = screen.getByText("Confirm deletion");
     expect(button).toBeTruthy();
     act(() => { vi.advanceTimersByTime(2000); });
   });
 
-  it("calls onConfirm with all descendant pipe IDs and deleteTransactions state", () => {
-    const onConfirm = vi.fn();
+  it("calls deletePipe mutation on confirm", async () => {
+    const onDeleted = vi.fn();
     render(
-      <DeletePipeConfirmation visible={true} onClose={() => {}} pipeId="pipe_root" onConfirm={onConfirm} />,
+      <DeletePipeConfirmation visible={true} onClose={() => {}} pipeId="pipe_root" onDeleted={onDeleted} />,
     );
     act(() => { vi.advanceTimersByTime(2000); });
     fireEvent.click(screen.getByText("Confirm deletion"));
-    expect(onConfirm).toHaveBeenCalledWith({
-      pipeIds: ["pipe_root", "pipe_child_1", "pipe_gc_1", "pipe_child_2"],
-      deleteTransactions: false,
-    });
+    expect(mockDeletePipe).toHaveBeenCalledWith({ pipeId: "pipe_root", deleteTransactions: false });
   });
 
-  it("toggles checkbox for transaction deletion", () => {
-    const onConfirm = vi.fn();
+  it("calls deletePipe with deleteTransactions when checkbox checked", async () => {
+    const onDeleted = vi.fn();
     render(
-      <DeletePipeConfirmation visible={true} onClose={() => {}} pipeId="pipe_root" onConfirm={onConfirm} />,
+      <DeletePipeConfirmation visible={true} onClose={() => {}} pipeId="pipe_root" onDeleted={onDeleted} />,
     );
     act(() => { vi.advanceTimersByTime(2000); });
     fireEvent.click(screen.getByText("Also delete pipe's transactions"));
     fireEvent.click(screen.getByText("Confirm deletion"));
-    expect(onConfirm).toHaveBeenCalledWith({
-      pipeIds: ["pipe_root", "pipe_child_1", "pipe_gc_1", "pipe_child_2"],
-      deleteTransactions: true,
+    expect(mockDeletePipe).toHaveBeenCalledWith({ pipeId: "pipe_root", deleteTransactions: true });
+  });
+
+  it("calls onDeleted and onClose on successful deletion", async () => {
+    const onDeleted = vi.fn();
+    const onClose = vi.fn();
+    render(
+      <DeletePipeConfirmation visible={true} onClose={onClose} pipeId="pipe_root" onDeleted={onDeleted} />,
+    );
+    act(() => { vi.advanceTimersByTime(2000); });
+    await act(async () => {
+      fireEvent.click(screen.getByText("Confirm deletion"));
     });
+    expect(onDeleted).toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalled();
   });
 });

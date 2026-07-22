@@ -1,5 +1,5 @@
 import { RefObject, useRef, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Alert, Pressable, Text, View } from "react-native";
 import { type Id } from "@convex/_generated/dataModel";
 import { Popover } from "@/components/ui/Popover";
 import { Icon } from "@/components/ui/Icon";
@@ -118,10 +118,7 @@ export function StatisticsRow({ fed, spent }: Props) {
           visible={showDeleteModal}
           onClose={() => setShowDeleteModal(false)}
           pipeId={selectedId as Id<"pipes">}
-          onConfirm={(result) => {
-            console.log(result);
-            setShowDeleteModal(false);
-          }}
+          onDeleted={() => setShowDeleteModal(false)}
         />
       )}
     </>

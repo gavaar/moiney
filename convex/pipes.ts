@@ -96,6 +96,75 @@ export const feedPipe = mutation({
   },
 });
 
+export const deletePipe = mutation({
+  args: {
+    pipeId: v.id("pipes"),
+    deleteTransactions: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireAuth(ctx);
+
+    const pipe = await ctx.db.get(args.pipeId);
+    if (!pipe) throw new Error("Pipe not found");
+    if (pipe.userId !== userId) throw new Error("Not authorized");
+
+    const allPipes = await ctx.db
+      .query("pipes")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .collect();
+
+    const childrenByParent = new Map<Id<"pipes">, Id<"pipes">[]>();
+    for (const p of allPipes) {
+      if (p.parentId) {
+        const siblings = childrenByParent.get(p.parentId) ?? [];
+        siblings.push(p._id);
+        childrenByParent.set(p.parentId, siblings);
+      }
+    }
+
+    // Collect all descendant IDs bottom-up (leaf-first)
+    function collectDescendants(id: Id<"pipes">): Id<"pipes">[] {
+      const ids: Id<"pipes">[] = [];
+      for (const childId of childrenByParent.get(id) ?? []) {
+        ids.push(...collectDescendants(childId));
+        ids.push(childId);
+      }
+      return ids;
+    }
+
+    const descendants = collectDescendants(args.pipeId);
+    const allToDelete = [args.pipeId, ...descendants];
+
+    // Delete transactions in a single batch read if requested
+    if (args.deleteTransactions) {
+      const transactions = await ctx.db
+        .query("transactions")
+        .withIndex("by_userId", (q) => q.eq("userId", userId))
+        .filter((q) =>
+          q.or(...allToDelete.map((id) => q.eq(q.field("pipeId"), id))),
+        )
+        .collect();
+      for (const t of transactions) {
+        await ctx.db.delete(t._id);
+      }
+    }
+
+    // Delete pipes bottom-up (leaf-first), then the root
+    for (const id of descendants) {
+      await ctx.db.delete(id);
+    }
+    await ctx.db.delete(args.pipeId);
+
+    // Recascade remaining tree
+    const remainingPipes = allPipes.filter(
+      (p) => !allToDelete.includes(p._id),
+    );
+    if (remainingPipes.length > 0) {
+      await recascadeTree(ctx, userId, remainingPipes[0]._id);
+    }
+  },
+});
+
 export const getPipes = query({
   args: {},
   handler: async (ctx) => {
