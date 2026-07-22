@@ -9,11 +9,11 @@ vi.mock("@/lib/dates", () => ({
 
 import { StatisticsRow } from "./StatisticsRow";
 
-vi.mock("@/components/ui/Modal", () => ({
-  ModalShell: ({ visible, children, onClose, testID }: any) =>
+vi.mock("@/components/ui/Popover", () => ({
+  Popover: ({ visible, children, onClose, testID }: any) =>
     visible ? (
-      <div data-testid={testID ?? "modal-shell"}>
-        <div data-testid="modal-backdrop" onClick={onClose} />
+      <div data-testid={testID ?? "popover"}>
+        <div data-testid="popover-backdrop" onClick={onClose} />
         {children}
       </div>
     ) : null,
@@ -45,29 +45,44 @@ describe("StatisticsRow", () => {
     expect(optionsIcon).toBeDefined();
   });
 
-  it("opens stat description modal on tap", async () => {
+  it("opens stat description popover on tap", async () => {
     const user = userEvent.setup();
     render(<StatisticsRow fed={1000} spent={400} />);
     await user.click(screen.getByText(/L2S: 600\.00/));
     expect(screen.getByText(/Left to spend \(L2S\):/)).toBeDefined();
   });
 
-  it("closes stat modal on backdrop tap", async () => {
+  it("closes stat popover on backdrop tap", async () => {
     const user = userEvent.setup();
     render(<StatisticsRow fed={1000} spent={400} />);
     await user.click(screen.getByText(/StM: 400\.00/));
     expect(screen.getByText(/Spent this month \(StM\):/)).toBeDefined();
-    await user.click(screen.getByTestId("modal-backdrop"));
+    await user.click(screen.getByTestId("popover-backdrop"));
     expect(screen.queryByText(/Spent this month \(StM\):/)).toBeNull();
   });
 
-  it("opens options modal on options icon tap", async () => {
+  it("opens popover on options icon tap showing edit and delete icons", async () => {
     const user = userEvent.setup();
     render(<StatisticsRow fed={1000} spent={400} />);
     const icons = screen.getAllByTestId("icon");
     const optionsIcon = icons.find((i) => i.getAttribute("data-name") === "ellipsis-vertical")!;
     await user.click(optionsIcon);
-    expect(screen.getByText("options modal")).toBeDefined();
+    const popoverIcons = screen.getAllByTestId("icon");
+    const pencil = popoverIcons.find((i) => i.getAttribute("data-name") === "pencil-outline");
+    const trash = popoverIcons.find((i) => i.getAttribute("data-name") === "trash-bin-outline");
+    expect(pencil).toBeDefined();
+    expect(trash).toBeDefined();
+  });
+
+  it("closes popover on backdrop tap", async () => {
+    const user = userEvent.setup();
+    render(<StatisticsRow fed={1000} spent={400} />);
+    const icons = screen.getAllByTestId("icon");
+    const optionsIcon = icons.find((i) => i.getAttribute("data-name") === "ellipsis-vertical")!;
+    await user.click(optionsIcon);
+    expect(screen.getByTestId("popover")).toBeDefined();
+    await user.click(screen.getByTestId("popover-backdrop"));
+    expect(screen.queryByTestId("popover")).toBeNull();
   });
 
   it("renders separators between stats", () => {
