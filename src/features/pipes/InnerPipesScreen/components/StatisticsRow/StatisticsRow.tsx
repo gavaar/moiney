@@ -1,9 +1,12 @@
 import { RefObject, useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
+import { type Id } from "@convex/_generated/dataModel";
 import { Popover } from "@/components/ui/Popover";
 import { Icon } from "@/components/ui/Icon";
 import { colors } from "@/lib/styles";
 import { getDaysInMonth } from "@/lib/dates";
+import { usePipeSelection } from "@/features/pipes/context/PipeSelectionContext";
+import { DeletePipeConfirmation } from "@/features/pipes/InnerPipesScreen/components/DeletePipeConfirmation";
 
 type StatItem = {
   label: string;
@@ -22,10 +25,17 @@ export function StatisticsRow({ fed, spent }: Props) {
   const daysInMonth = getDaysInMonth();
   const [selectedStatLabel, setSelectedStatLabel] = useState<string | null>(null);
   const [showOptions, setShowOptions] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const ellipsisRef = useRef<View>(null);
   const l2sRef = useRef<View>(null);
   const stmRef = useRef<View>(null);
   const stmpdRef = useRef<View>(null);
+  const { selectedPipePath, pipesById, isLoading } = usePipeSelection();
+
+  const selectedId = selectedPipePath.length > 0
+    ? selectedPipePath[selectedPipePath.length - 1]
+    : null;
+  const currentPipe = selectedId && pipesById ? pipesById[selectedId] : null;
 
   const stats: StatItem[] = [
     {
@@ -55,10 +65,10 @@ export function StatisticsRow({ fed, spent }: Props) {
     <>
       <View className="flex-row self-stretch justify-center gap-1 pb-2 px-5">
         {stats.map((stat, index) => (
-          <>
+          <View key={stat.label}>
             {index > 0 && (<Text className="text-muted/50 text-xs">|</Text>)}
 
-            <View key={stat.label} className="flex-row items-center">
+            <View className="flex-row items-center">
               <Pressable ref={stat.ref} onPress={() => setSelectedStatLabel(stat.label)}>
                 <Text className="text-text text-sm border border-muted/50 px-2 rounded-md">
                   {stat.label}: {stat.value.toFixed(2)}
@@ -75,7 +85,7 @@ export function StatisticsRow({ fed, spent }: Props) {
                 <Text className="text-text text-sm">{stats[index].description}</Text>
               </Popover>
             </View>
-          </>
+          </View>
         ))}
 
         <View className="ml-auto">
@@ -95,10 +105,25 @@ export function StatisticsRow({ fed, spent }: Props) {
           <Icon name="pencil-outline" size={24} color={colors.secondary} />
         </Pressable>
         <View className="h-5" />
-        <Pressable onPress={() => console.log("delete")}>
+        <Pressable onPress={() => {
+          setShowOptions(false);
+          setShowDeleteModal(true);
+        }}>
           <Icon name="trash-bin-outline" size={24} color={colors.error} />
         </Pressable>
       </Popover>
+
+      {selectedId && !isLoading && (
+        <DeletePipeConfirmation
+          visible={showDeleteModal}
+          onClose={() => setShowDeleteModal(false)}
+          pipeId={selectedId as Id<"pipes">}
+          onConfirm={(result) => {
+            console.log(result);
+            setShowDeleteModal(false);
+          }}
+        />
+      )}
     </>
   );
 }

@@ -7,6 +7,21 @@ vi.mock("@/lib/dates", () => ({
   getDaysInMonth: () => 30,
 }));
 
+vi.mock("@/features/pipes/context/PipeSelectionContext", () => ({
+  usePipeSelection: () => ({
+    selectedPipePath: ["test_pipe_id"],
+    pipesById: {
+      test_pipe_id: { _id: "test_pipe_id", name: "Test Pipe", icon: "home-outline" },
+    },
+    isLoading: false,
+  }),
+}));
+
+vi.mock("@/features/pipes/InnerPipesScreen/components/DeletePipeConfirmation", () => ({
+  DeletePipeConfirmation: ({ visible }: any) =>
+    visible ? <div data-testid="delete-confirmation">Delete confirmation</div> : null,
+}));
+
 import { StatisticsRow } from "./StatisticsRow";
 
 vi.mock("@/components/ui/Popover", () => ({
@@ -89,5 +104,17 @@ describe("StatisticsRow", () => {
     render(<StatisticsRow fed={1000} spent={400} />);
     const separators = screen.getAllByText("|");
     expect(separators.length).toBe(2);
+  });
+
+  it("opens delete confirmation modal on trash tap", async () => {
+    const user = userEvent.setup();
+    render(<StatisticsRow fed={1000} spent={400} />);
+    const icons = screen.getAllByTestId("icon");
+    const optionsIcon = icons.find((i) => i.getAttribute("data-name") === "ellipsis-vertical")!;
+    await user.click(optionsIcon);
+    const popoverIcons = screen.getAllByTestId("icon");
+    const trash = popoverIcons.find((i) => i.getAttribute("data-name") === "trash-bin-outline")!;
+    await user.click(trash);
+    expect(screen.getByTestId("delete-confirmation")).toBeDefined();
   });
 });

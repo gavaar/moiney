@@ -1,6 +1,14 @@
 import type { IconName } from "@/components/ui/Icon";
 import type { TextInputProps } from "react-native";
-import { DatetimeInput, DecimalInput, TextInput, NumberInput, IconInput } from "./components";
+import { DatetimeInput, DecimalInput, TextInput, NumberInput, IconInput, CheckboxInput } from "./components";
+
+type CheckboxProps = {
+  type: "checkbox";
+  label: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  disabled?: boolean;
+};
 
 type TextProps = TextInputProps & {
   type?: "text";
@@ -54,7 +62,7 @@ type IconProps = {
   onSelect: (name: IconName) => void;
 };
 
-type Props = TextProps | NumberProps | DecimalProps | DatetimeProps | IconProps;
+type Props = TextProps | NumberProps | DecimalProps | DatetimeProps | IconProps | CheckboxProps;
 
 export function Input(props: Props) {
   switch (props.type) {
@@ -66,6 +74,8 @@ export function Input(props: Props) {
       return <DatetimeInput {...props} />;
     case "icon":
       return <IconInput {...props} />;
+    case "checkbox":
+      return <CheckboxInput {...props} />;
     default:
       return <TextInput {...props} />;
   }
