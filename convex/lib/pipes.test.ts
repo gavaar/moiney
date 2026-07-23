@@ -50,12 +50,26 @@ describe("splitEvenly", () => {
     expect(result).toEqual([]);
   });
 
-  it("gives nothing when budget is negative", () => {
+  it("splits negative budget evenly among children (no lower bound)", () => {
     const result = splitEvenly(
       [{ id: "a", capacity: 1000, fed: 0 }],
       -10,
     );
-    expect(result).toEqual([]);
+    expect(result).toEqual([{ childId: "a", amount: -10 }]);
+  });
+
+  it("splits negative budget evenly among multiple children", () => {
+    const result = splitEvenly(
+      [
+        { id: "a", capacity: 1000, fed: 0 },
+        { id: "b", capacity: 500, fed: 0 },
+      ],
+      -300,
+    );
+    expect(result).toEqual([
+      { childId: "a", amount: -150 },
+      { childId: "b", amount: -150 },
+    ]);
   });
 
   it("returns empty for no children", () => {
@@ -219,6 +233,40 @@ describe("calculatePipeAllocations", () => {
       { childId: "a", amount: 300 },
     ]);
   });
+
+  it("distributes negative budget to highest priority number first (reversed)", () => {
+    const result = calculatePipeAllocations(-300, [
+      { id: "a", priority: 1, capacity: 500, fed: 0 },
+      { id: "b", priority: 2, capacity: 500, fed: 0 },
+    ]);
+    // negative: reversed priority, highest number first
+    // priority 2 (b): gets all -300
+    // priority 1 (a): nothing left
+    expect(result).toEqual([
+      { childId: "b", amount: -300 },
+    ]);
+  });
+
+  it("splits negative budget evenly within same priority group", () => {
+    const result = calculatePipeAllocations(-400, [
+      { id: "a", priority: 2, capacity: 500, fed: 0 },
+      { id: "b", priority: 2, capacity: 500, fed: 0 },
+      { id: "c", priority: 1, capacity: 500, fed: 0 },
+    ]);
+    // priority 2 (a, b): split -400 evenly → -200 each
+    // priority 1 (c): nothing left
+    expect(result).toEqual([
+      { childId: "a", amount: -200 },
+      { childId: "b", amount: -200 },
+    ]);
+  });
+
+  it("returns empty for zero parent fed (negative test)", () => {
+    const result = calculatePipeAllocations(0, [
+      { id: "a", priority: 1, capacity: 500, fed: 0 },
+    ]);
+    expect(result).toEqual([]);
+  });
 });
 
 describe("computePipeDerivedValues", () => {
@@ -369,10 +417,10 @@ describe("recalculatePipes", () => {
       { _id: "d", parentId: "b", priority: 0, capacity: 400, fed: 0 },
     ]);
     const map = new Map(result.map((r) => [r._id, r.fed]));
-    // A: b capacity is calculated as 1300 (c:900 + d:400), a keeps 700
-    expect(map.get("a")).toBe(700);
-    // distributes: D gets 400 (cap), C gets 900 (cap)
-    expect(map.get("b")).toBe(0);
+    // A gives its 1000 to B; D has room (cap 400, at 0) and gets 400.
+    // B keeps remaining (1100 - 400 = 700)
+    expect(map.get("a")).toBe(0);
+    expect(map.get("b")).toBe(700);
     expect(map.get("c")).toBe(900);
     expect(map.get("d")).toBe(400);
     // total conserved
@@ -439,14 +487,15 @@ describe("recalculatePipes", () => {
     expect(result).toEqual([]);
   });
 
-  it("does not cascade negative fed to children", () => {
+  it("cascades negative fed down to children (no lower bound)", () => {
     const result = recalculatePipes([
       { _id: "a", parentId: undefined, priority: 0, fed: -100 },
       { _id: "b", parentId: "a", priority: 0, capacity: 500, fed: 0 },
     ]);
     const map = new Map(result.map((r) => [r._id, r.fed]));
-    expect(map.get("a")).toBe(-100);
-    expect(map.get("b")).toBe(0);
+    expect(map.get("a")).toBe(0);
+    expect(map.get("b")).toBe(-100);
+    expect(Array.from(map.values()).reduce((s, v) => s + v, 0)).toBe(-100);
   });
 
   it("preserves negative fed on leaf pipe with no children", () => {
@@ -487,5 +536,101 @@ describe("recalculatePipes", () => {
     expect(map.get("c")).toBe(500);
     expect(map.get("a")).toBe(500);
     expect(Array.from(map.values()).reduce((s, v) => s + v, 0)).toBe(1500);
+  });
+
+  // ── Debt cascade tests ──
+
+  it("fills child deficit before keeping excess", () => {
+    const result = recalculatePipes([
+      { _id: "a", parentId: undefined, priority: 0, fed: 50 },
+      { _id: "b", parentId: "a", priority: 0, capacity: 0, fed: -100 },
+      { _id: "c", parentId: "a", priority: 1, capacity: 0, fed: -300 },
+    ]);
+    const map = new Map(result.map((r) => [r._id, r.fed]));
+    expect(map.get("a")).toBe(0);
+    expect(map.get("b")).toBe(-50);
+    expect(map.get("c")).toBe(-300);
+    expect(Array.from(map.values()).reduce((s, v) => s + v, 0)).toBe(-350);
+  });
+
+  it("cascades positive feed through multiple levels with deficits", () => {
+    const result = recalculatePipes([
+      { _id: "a", parentId: undefined, priority: 0, fed: 50 },
+      { _id: "b", parentId: "a", priority: 0, capacity: 0, fed: -100 },
+      { _id: "c", parentId: "b", priority: 0, capacity: 0, fed: -150 },
+    ]);
+    const map = new Map(result.map((r) => [r._id, r.fed]));
+    expect(map.get("a")).toBe(0);
+    expect(map.get("b")).toBe(-50);
+    expect(map.get("c")).toBe(-150);
+    expect(Array.from(map.values()).reduce((s, v) => s + v, 0)).toBe(-200);
+  });
+
+  it("cascades negative feed with reversed priority", () => {
+    const result = recalculatePipes([
+      { _id: "a", parentId: undefined, priority: 0, fed: -500 },
+      { _id: "b", parentId: "a", priority: 0, capacity: 0, fed: -100 },
+      { _id: "c", parentId: "a", priority: 1, capacity: 0, fed: -300 },
+    ]);
+    const map = new Map(result.map((r) => [r._id, r.fed]));
+    // reversed priority: C (pri=1) gets debt first
+    expect(map.get("a")).toBe(0);
+    expect(map.get("b")).toBe(-100);
+    expect(map.get("c")).toBe(-800);
+    expect(Array.from(map.values()).reduce((s, v) => s + v, 0)).toBe(-900);
+  });
+
+  it("splits negative feed evenly among children with same priority", () => {
+    const result = recalculatePipes([
+      { _id: "a", parentId: undefined, priority: 0, fed: -600 },
+      { _id: "b", parentId: "a", priority: 0, capacity: 0, fed: -100 },
+      { _id: "c", parentId: "a", priority: 0, capacity: 0, fed: -300 },
+    ]);
+    const map = new Map(result.map((r) => [r._id, r.fed]));
+    // same priority → split evenly: -600 / 2 = -300 each
+    expect(map.get("a")).toBe(0);
+    expect(map.get("b")).toBe(-400);
+    expect(map.get("c")).toBe(-600);
+    expect(Array.from(map.values()).reduce((s, v) => s + v, 0)).toBe(-1000);
+  });
+
+  it("reclaims excess from over-capacity children before positive distribution", () => {
+    const result = recalculatePipes([
+      { _id: "a", parentId: undefined, priority: 0, fed: 500 },
+      { _id: "b", parentId: "a", priority: 0, capacity: 100, fed: 200 },
+    ]);
+    const map = new Map(result.map((r) => [r._id, r.fed]));
+    // B has excess 100 → reclaimed to A, now A has 600
+    // B at cap (100), no shortfall → B gets nothing more
+    expect(map.get("a")).toBe(600);
+    expect(map.get("b")).toBe(100);
+    expect(Array.from(map.values()).reduce((s, v) => s + v, 0)).toBe(700);
+  });
+
+  it("fills sequential feeds incrementally", () => {
+    // Simulate: feed 50 then 250 then 100
+    const feed1 = recalculatePipes([
+      { _id: "a", parentId: undefined, priority: 0, fed: 50 },
+      { _id: "b", parentId: "a", priority: 0, capacity: 0, fed: -100 },
+      { _id: "c", parentId: "a", priority: 1, capacity: 0, fed: -300 },
+    ]);
+    expect(new Map(feed1.map((r) => [r._id, r.fed])).get("b")).toBe(-50);
+
+    // feed 250: use previous result as new state
+    const feed2 = recalculatePipes([
+      { _id: "a", parentId: undefined, priority: 0, fed: 250 },
+      { _id: "b", parentId: "a", priority: 0, capacity: 0, fed: -50 },
+      { _id: "c", parentId: "a", priority: 1, capacity: 0, fed: -300 },
+    ]);
+    expect(new Map(feed2.map((r) => [r._id, r.fed])).get("b")).toBe(0);
+    expect(new Map(feed2.map((r) => [r._id, r.fed])).get("c")).toBe(-100);
+
+    // feed 100: use previous result
+    const feed3 = recalculatePipes([
+      { _id: "a", parentId: undefined, priority: 0, fed: 100 },
+      { _id: "b", parentId: "a", priority: 0, capacity: 0, fed: 0 },
+      { _id: "c", parentId: "a", priority: 1, capacity: 0, fed: -100 },
+    ]);
+    expect(new Map(feed3.map((r) => [r._id, r.fed])).get("c")).toBe(0);
   });
 });

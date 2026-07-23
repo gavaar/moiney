@@ -7,7 +7,12 @@ export function splitEvenly<TPipeId extends string>(
   children: Array<{ id: TPipeId; capacity?: number; fed?: number }>,
   budget: number,
 ): Array<{ childId: TPipeId; amount: number }> {
-  if (budget <= 0 || children.length === 0) return [];
+  if (budget === 0 || children.length === 0) return [];
+
+  if (budget < 0) {
+    const share = budget / children.length;
+    return children.map((c) => ({ childId: c.id, amount: share }));
+  }
 
   const withShortfall = children.map((c) => ({
     id: c.id,
@@ -49,7 +54,7 @@ export function calculatePipeAllocations<TPipeId extends string>(
     fed?: number;
   }>,
 ): Array<{ childId: TPipeId; amount: number }> {
-  if (parentFed <= 0) return [];
+  if (parentFed === 0 || children.length === 0) return [];
 
   const groups = new Map<number, typeof children>();
   for (const child of children) {
@@ -58,12 +63,14 @@ export function calculatePipeAllocations<TPipeId extends string>(
     groups.set(child.priority, group);
   }
 
-  const sortedPriorities = [...groups.keys()].sort((a, b) => a - b);
+  const sortedPriorities = [...groups.keys()].sort((a, b) =>
+    parentFed > 0 ? a - b : b - a,
+  );
   const allocations: Array<{ childId: TPipeId; amount: number }> = [];
   let remaining = parentFed;
 
   for (const priority of sortedPriorities) {
-    if (remaining <= 0) break;
+    if (remaining === 0) break;
     const group = groups.get(priority)!;
     const groupAllocations = splitEvenly(group, remaining);
     for (const alloc of groupAllocations) {
@@ -133,39 +140,67 @@ export function computePipeTree<TPipeId extends string>(
 
 // ── Fed distribution ──
 
-function allocateToChildren<TPipeId extends string>(
+function reconcileNode<TPipeId extends string>(
   nodeId: TPipeId,
   childrenByParent: Map<TPipeId, Array<{ _id: TPipeId; priority: number; capacity?: number }>>,
   computed: Map<TPipeId, { capacity?: number }>,
   fedMap: Map<TPipeId, number>,
+  isRoot?: boolean,
 ): void {
-  const children = childrenByParent.get(nodeId)?.map((child) => {
+  const rawChildren = childrenByParent.get(nodeId);
+  if (!rawChildren || rawChildren.length === 0) return;
+
+  const children = rawChildren.map((child) => {
     const computedChild = computed.get(child._id);
     return {
       id: child._id,
       priority: child.priority,
       capacity: computedChild?.capacity ?? child.capacity,
-      fed: 0,
     };
   });
 
-  if (!children || children.length === 0) return;
-
-  const parentFed = fedMap.get(nodeId) ?? 0;
-  const allocations = calculatePipeAllocations(parentFed, children);
-
-  let totalAllocated = 0;
-  for (const alloc of allocations) {
-    fedMap.set(
-      alloc.childId,
-      (fedMap.get(alloc.childId) ?? 0) + alloc.amount,
-    );
-    totalAllocated += alloc.amount;
-  }
-  fedMap.set(nodeId, parentFed - totalAllocated);
+  let parentFed = fedMap.get(nodeId) ?? 0;
 
   for (const child of children) {
-    allocateToChildren(child.id, childrenByParent, computed, fedMap);
+    const childFed = fedMap.get(child.id) ?? 0;
+    if (child.capacity !== undefined && childFed > child.capacity) {
+      const excess = childFed - child.capacity;
+      fedMap.set(child.id, child.capacity);
+      parentFed += excess;
+    }
+  }
+
+  const childrenCurrent = children.map((c) => ({
+    id: c.id,
+    priority: c.priority,
+    capacity: c.capacity,
+    currentFed: fedMap.get(c.id) ?? 0,
+  }));
+
+  const available = parentFed;
+
+  if (available > 0 || (available < 0 && isRoot)) {
+    const allocations = calculatePipeAllocations(
+      available,
+      childrenCurrent.map((c) => ({
+        id: c.id,
+        priority: c.priority,
+        capacity: c.capacity,
+        fed: c.currentFed,
+      })),
+    );
+
+    let totalAllocated = 0;
+    for (const alloc of allocations) {
+      const child = childrenCurrent.find((c) => c.id === alloc.childId)!;
+      fedMap.set(alloc.childId, child.currentFed + alloc.amount);
+      totalAllocated += alloc.amount;
+    }
+    fedMap.set(nodeId, parentFed - totalAllocated);
+  }
+
+  for (const child of children) {
+    reconcileNode(child.id, childrenByParent, computed, fedMap, false);
   }
 }
 
@@ -187,18 +222,14 @@ export function recalculatePipes<TPipeId extends string>(
   const rootIds: TPipeId[] = [];
 
   for (const pipe of pipes) {
-    fedMap.set(pipe._id, 0);
+    fedMap.set(pipe._id, pipe.fed ?? 0);
     if (!pipe.parentId) {
       rootIds.push(pipe._id);
     }
   }
 
   for (const rootId of rootIds) {
-    fedMap.set(rootId, computed.get(rootId)?.fed ?? 0);
-  }
-
-  for (const rootId of rootIds) {
-    allocateToChildren(rootId, childrenByParent, computed, fedMap);
+    reconcileNode(rootId, childrenByParent, computed, fedMap, true);
   }
 
   return pipes.map((p) => ({ _id: p._id, fed: fedMap.get(p._id) ?? 0 }));

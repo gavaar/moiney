@@ -66,7 +66,7 @@ export function DeletePipeConfirmation({ visible, onClose, pipeId, onDeleted }: 
     setIsDeleting(true);
     try {
       await deletePipe({ pipeId, deleteTransactions });
-      Alert.alert(`Pipe ${pipeId}${descendants.length ? ' and children' : ''} deleted${deleteTransactions ? '. Transactions were also deleted' : ''}`);
+      Alert.alert(`Pipe ${pipe?.name}${descendants.length ? ' and children' : ''} deleted${deleteTransactions ? '. Transactions were also deleted' : ''}`);
       onDeleted();
       onClose();
     } catch (error) {
