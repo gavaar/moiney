@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { Alert, ScrollView, Text, View } from "react-native";
+import { useMutation } from "convex/react";
+import { api } from "@convex/_generated/api";
 import { type IconName, Icon } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/Input";
 import { ModalShell } from "@/components/ui/Modal";
@@ -24,6 +26,8 @@ export function EditPipeModal({ visible, onClose, pipeId }: EditPipeModalProps) 
   const [priority, setPriority] = useState(pipe?.priority ?? 0);
   const [capacity, setCapacity] = useState(pipe?.capacity?.toString() ?? "");
   const [nameError, setNameError] = useState<string | undefined>(undefined);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const updatePipe = useMutation(api.pipes.updatePipe);
 
   const validateName = (value: string): string | undefined => {
     if (!value.trim()) return "Name is required";
@@ -31,23 +35,28 @@ export function EditPipeModal({ visible, onClose, pipeId }: EditPipeModalProps) 
     return undefined;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const error = validateName(name);
     if (error) {
       setNameError(error);
       return;
     }
 
-    console.log({
-      pipeId,
-      name: name.trim(),
-      icon: icon || "pipe",
-      description: description || undefined,
-      priority,
-      capacity: capacity ? Number(capacity) : undefined,
-    });
-
-    onClose();
+    setIsSubmitting(true);
+    try {
+      await updatePipe({
+        pipeId,
+        name: name.trim(),
+        icon: icon || "pipe",
+        description: description || undefined,
+        priority,
+        capacity: capacity ? Number(capacity) : undefined,
+      });
+      onClose();
+    } catch (error) {
+      Alert.alert("Error", `${error}`);
+      setIsSubmitting(false);
+    }
   };
 
   if (!pipe) return null;
@@ -116,7 +125,7 @@ export function EditPipeModal({ visible, onClose, pipeId }: EditPipeModalProps) 
           variant="muted"
           onPress={onClose}
         />
-        <Button className="flex-[2_1_0]" title="Submit" onPress={handleSubmit} />
+        <Button className="flex-[2_1_0]" title="Submit" loading={isSubmitting} onPress={handleSubmit} />
       </View>
     </ModalShell>
   );

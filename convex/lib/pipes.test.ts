@@ -455,4 +455,37 @@ describe("recalculatePipes", () => {
     ]);
     expect(result).toEqual([{ _id: "a", fed: -50 }]);
   });
+
+  it("redistributes fed when a pipe's capacity is reduced (edit scenario)", () => {
+    // A(fed=1000) → B(cap=300, fed=500), C(cap=200, fed=200)
+    // Subtree fed total = 1000 + 500 + 200 = 1700
+    // B capped at 300, C capped at 200, A keeps the rest
+    const result = recalculatePipes([
+      { _id: "a", parentId: undefined, priority: 0, fed: 1000 },
+      { _id: "b", parentId: "a", priority: 0, capacity: 300, fed: 500 },
+      { _id: "c", parentId: "a", priority: 0, capacity: 200, fed: 200 },
+    ]);
+    const map = new Map(result.map((r) => [r._id, r.fed]));
+    expect(map.get("b")).toBe(300);
+    expect(map.get("c")).toBe(200);
+    expect(map.get("a")).toBe(1200);
+    expect(Array.from(map.values()).reduce((s, v) => s + v, 0)).toBe(1700);
+  });
+
+  it("redistributes fed when a pipe's priority is changed (edit scenario)", () => {
+    // A(fed=1000) → B(priority=1, cap=500, fed=500), C(priority=0, cap=500, fed=0)
+    // B's priority changed to 0 (now same as C) → split evenly at same priority
+    // Subtree fed total = 1000 + 500 + 0 = 1500
+    // Both have cap=500, same priority → each gets 500, A keeps 500
+    const result = recalculatePipes([
+      { _id: "a", parentId: undefined, priority: 0, fed: 1000 },
+      { _id: "b", parentId: "a", priority: 0, capacity: 500, fed: 500 },
+      { _id: "c", parentId: "a", priority: 0, capacity: 500, fed: 0 },
+    ]);
+    const map = new Map(result.map((r) => [r._id, r.fed]));
+    expect(map.get("b")).toBe(500);
+    expect(map.get("c")).toBe(500);
+    expect(map.get("a")).toBe(500);
+    expect(Array.from(map.values()).reduce((s, v) => s + v, 0)).toBe(1500);
+  });
 });

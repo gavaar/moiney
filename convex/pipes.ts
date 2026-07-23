@@ -165,6 +165,33 @@ export const deletePipe = mutation({
   },
 });
 
+export const updatePipe = mutation({
+  args: {
+    pipeId: v.id("pipes"),
+    name: v.optional(v.string()),
+    icon: v.optional(v.string()),
+    description: v.optional(v.string()),
+    priority: v.optional(v.number()),
+    capacity: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireAuth(ctx);
+
+    const pipe = await ctx.db.get(args.pipeId);
+    if (!pipe || pipe.userId !== userId) throw new Error("Not found");
+
+    const patch: Record<string, unknown> = {};
+    if (args.name !== undefined) patch.name = args.name;
+    if (args.icon !== undefined) patch.icon = args.icon;
+    if (args.description !== undefined) patch.description = args.description;
+    if (args.priority !== undefined) patch.priority = args.priority;
+    if (args.capacity !== undefined) patch.capacity = args.capacity;
+
+    await ctx.db.patch(args.pipeId, patch);
+    await recascadeTree(ctx, userId, args.pipeId);
+  },
+});
+
 export const getPipes = query({
   args: {},
   handler: async (ctx) => {
