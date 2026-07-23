@@ -19,8 +19,8 @@ vi.mock("@/components/ui/PipeBox", () => ({
 }));
 
 const mockPipes = [
-  { _id: "1" as Id<"pipes">, name: "Groceries", icon: "cart-outline", capacity: 0, fed: 0, spent: 0 },
-  { _id: "2" as Id<"pipes">, name: "Salary", icon: "cash-outline", capacity: 0, fed: 0, spent: 0 },
+  { _id: "1" as Id<"pipes">, name: "Groceries", icon: "cart-outline", priority: 0, capacity: 0, fed: 0, spent: 0 },
+  { _id: "2" as Id<"pipes">, name: "Salary", icon: "cash-outline", priority: 0, capacity: 0, fed: 0, spent: 0 },
 ];
 
 describe("PipesList", () => {

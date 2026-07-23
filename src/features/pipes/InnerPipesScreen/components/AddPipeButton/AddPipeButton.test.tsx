@@ -2,6 +2,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { type Id } from "@convex/_generated/dataModel";
 import { AddPipeButton } from "./AddPipeButton";
 
 const mockAddPipe = vi.fn().mockResolvedValue(undefined);
@@ -18,7 +19,7 @@ vi.mock("@convex/_generated/api", () => ({
   },
 }));
 
-const parentId = "parent-1";
+const parentId = "parent-1" as Id<"pipes">;
 
 describe("AddPipeButton", () => {
   beforeEach(() => {
