@@ -5,6 +5,7 @@ import { requireAuth } from "./lib/auth";
 import { MAX_PIPES_PER_USER } from "./lib/constants";
 import {
   addFeedToPipe,
+  collectDescendants,
   computePipeTree,
   recascadeTree,
 } from "./lib/pipes";
@@ -39,6 +40,7 @@ export const addFeed = mutation({
       description: args.description,
       priority: 0,
       fed: 0,
+      spent: 0,
     });
   },
 });
@@ -78,7 +80,7 @@ export const addPipe = mutation({
       }
     }
 
-    await recascadeTree(ctx, userId, args.parentId);
+    await recascadeTree(ctx, userId);
 
     return childId;
   },
@@ -92,7 +94,7 @@ export const feedPipe = mutation({
   handler: async (ctx, args) => {
     const userId = await requireAuth(ctx);
     await addFeedToPipe(ctx, userId, args.pipeId, args.amount);
-    await recascadeTree(ctx, userId, args.pipeId);
+    await recascadeTree(ctx, userId);
   },
 });
 
@@ -122,20 +124,9 @@ export const deletePipe = mutation({
       }
     }
 
-    // Collect all descendant IDs bottom-up (leaf-first)
-    function collectDescendants(id: Id<"pipes">): Id<"pipes">[] {
-      const ids: Id<"pipes">[] = [];
-      for (const childId of childrenByParent.get(id) ?? []) {
-        ids.push(...collectDescendants(childId));
-        ids.push(childId);
-      }
-      return ids;
-    }
-
-    const descendants = collectDescendants(args.pipeId);
+    const descendants = collectDescendants(args.pipeId, childrenByParent);
     const allToDelete = [args.pipeId, ...descendants];
 
-    // Delete transactions in a single batch read if requested
     if (args.deleteTransactions) {
       const transactions = await ctx.db
         .query("transactions")
@@ -149,18 +140,16 @@ export const deletePipe = mutation({
       }
     }
 
-    // Delete pipes bottom-up (leaf-first), then the root
     for (const id of descendants) {
       await ctx.db.delete(id);
     }
     await ctx.db.delete(args.pipeId);
 
-    // Recascade remaining tree
     const remainingPipes = allPipes.filter(
       (p) => !allToDelete.includes(p._id),
     );
     if (remainingPipes.length > 0) {
-      await recascadeTree(ctx, userId, remainingPipes[0]._id);
+      await recascadeTree(ctx, userId);
     }
   },
 });
@@ -178,7 +167,8 @@ export const updatePipe = mutation({
     const userId = await requireAuth(ctx);
 
     const pipe = await ctx.db.get(args.pipeId);
-    if (!pipe || pipe.userId !== userId) throw new Error("Not found");
+    if (!pipe) throw new Error("Pipe not found");
+    if (pipe.userId !== userId) throw new Error("Not authorized");
 
     const patch: Record<string, unknown> = {};
     if (args.name !== undefined) patch.name = args.name;
@@ -188,7 +178,7 @@ export const updatePipe = mutation({
     if (args.capacity !== undefined) patch.capacity = args.capacity;
 
     await ctx.db.patch(args.pipeId, patch);
-    await recascadeTree(ctx, userId, args.pipeId);
+    await recascadeTree(ctx, userId);
   },
 });
 

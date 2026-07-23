@@ -1,30 +1,12 @@
 import type { Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 
-export async function addFeedToPipe(
-  ctx: MutationCtx,
-  userId: Id<"users">,
-  pipeId: Id<"pipes">,
-  amount: number,
-) {
-  if (amount === 0) throw new Error("Amount must be non-zero");
+// ── Allocation math ──
 
-  const pipe = await ctx.db.get(pipeId);
-  if (!pipe) throw new Error("Pipe not found");
-  if (pipe.userId !== userId) throw new Error("Not authorized");
-
-  await ctx.db.patch(pipeId, {
-    fed: (pipe.fed ?? 0) + amount,
-  });
-}
-
-// Distributes `budget` evenly across same-priority children.
-// Children whose shortfall (capacity - fed) falls below the equal share
-// get their full shortfall first; the remaining children split the rest equally.
-export function splitEvenly<T extends string>(
-  children: Array<{ id: T; capacity?: number; fed?: number }>,
+export function splitEvenly<TPipeId extends string>(
+  children: Array<{ id: TPipeId; capacity?: number; fed?: number }>,
   budget: number,
-): Array<{ childId: T; amount: number }> {
+): Array<{ childId: TPipeId; amount: number }> {
   if (budget <= 0 || children.length === 0) return [];
 
   const withShortfall = children.map((c) => ({
@@ -36,7 +18,7 @@ export function splitEvenly<T extends string>(
   }));
   withShortfall.sort((a, b) => a.shortfall - b.shortfall);
 
-  const allocations: Array<{ childId: T; amount: number }> = [];
+  const allocations: Array<{ childId: TPipeId; amount: number }> = [];
   let remaining = budget;
   const n = withShortfall.length;
 
@@ -58,18 +40,15 @@ export function splitEvenly<T extends string>(
   return allocations;
 }
 
-// Distributes a parent pipe's fed value to its children, ordered by priority (ascending).
-// Within each priority tier, allocation is handled by splitEvenly.
-// Returns the list of per-child allocations (childId + amount).
-export function calculatePipeAllocations<T extends string>(
+export function calculatePipeAllocations<TPipeId extends string>(
   parentFed: number,
   children: Array<{
-    id: T;
+    id: TPipeId;
     priority: number;
     capacity?: number;
     fed?: number;
   }>,
-): Array<{ childId: T; amount: number }> {
+): Array<{ childId: TPipeId; amount: number }> {
   if (parentFed <= 0) return [];
 
   const groups = new Map<number, typeof children>();
@@ -80,7 +59,7 @@ export function calculatePipeAllocations<T extends string>(
   }
 
   const sortedPriorities = [...groups.keys()].sort((a, b) => a - b);
-  const allocations: Array<{ childId: T; amount: number }> = [];
+  const allocations: Array<{ childId: TPipeId; amount: number }> = [];
   let remaining = parentFed;
 
   for (const priority of sortedPriorities) {
@@ -96,10 +75,22 @@ export function calculatePipeAllocations<T extends string>(
   return allocations;
 }
 
-// Returns the effective capacity, spent, and fed for a pipe.
-// If the pipe has no children, its stored values are used directly.
-// If the pipe has children, capacity and spent are summed from children
-// (undefined values treated as 0), and fed is children's sum + pipe's own stored fed (excess).
+// ── Tree computation ──
+
+function buildChildrenMap<TPipe extends { _id: string; parentId?: string }>(
+  pipes: TPipe[],
+): Map<TPipe["_id"], TPipe[]> {
+  const map = new Map<TPipe["_id"], TPipe[]>();
+  for (const pipe of pipes) {
+    if (pipe.parentId) {
+      const siblings = map.get(pipe.parentId) ?? [];
+      siblings.push(pipe);
+      map.set(pipe.parentId, siblings);
+    }
+  }
+  return map;
+}
+
 export function computePipeDerivedValues(
   pipe: { capacity?: number; spent?: number; fed?: number },
   children: Array<{ capacity?: number; spent?: number; fed?: number }>,
@@ -119,22 +110,11 @@ export function computePipeDerivedValues(
   };
 }
 
-// Recursively computes derived values for a tree of pipes, bottom-up.
-// Children are always evaluated before their parents, so parent values correctly
-// aggregate the full subtree.
-export function computePipeTree<T extends string>(
-  pipes: Array<{ _id: T; parentId?: T; capacity?: number; spent?: number; fed?: number }>,
-): Map<T, { capacity?: number; spent: number; fed: number }> {
-  const childrenByParent = new Map<T, typeof pipes>();
-  for (const pipe of pipes) {
-    if (pipe.parentId) {
-      const siblings = childrenByParent.get(pipe.parentId) ?? [];
-      siblings.push(pipe);
-      childrenByParent.set(pipe.parentId, siblings);
-    }
-  }
-
-  const computed = new Map<T, { capacity?: number; spent: number; fed: number }>();
+export function computePipeTree<TPipeId extends string>(
+  pipes: Array<{ _id: TPipeId; parentId?: TPipeId; capacity?: number; spent?: number; fed?: number }>,
+): Map<TPipeId, { capacity?: number; spent: number; fed: number }> {
+  const childrenByParent = buildChildrenMap(pipes);
+  const computed = new Map<TPipeId, { capacity?: number; spent: number; fed: number }>();
 
   function computePipe(pipe: (typeof pipes)[number]) {
     if (computed.has(pipe._id)) return computed.get(pipe._id)!;
@@ -151,94 +131,101 @@ export function computePipeTree<T extends string>(
   return computed;
 }
 
-// Recalculates fed for all pipes in a set by:
-// 1. Summing total fed per subtree (bottom-up via computePipeTree)
-// 2. Distributing from roots down to leaves using calculatePipeAllocations
-// Returns the updated fed values for every pipe.
-export function recalculatePipes<T extends string>(
+// ── Fed distribution ──
+
+function allocateToChildren<TPipeId extends string>(
+  nodeId: TPipeId,
+  childrenByParent: Map<TPipeId, Array<{ _id: TPipeId; priority: number; capacity?: number }>>,
+  computed: Map<TPipeId, { capacity?: number }>,
+  fedMap: Map<TPipeId, number>,
+): void {
+  const children = childrenByParent.get(nodeId)?.map((child) => {
+    const computedChild = computed.get(child._id);
+    return {
+      id: child._id,
+      priority: child.priority,
+      capacity: computedChild?.capacity ?? child.capacity,
+      fed: 0,
+    };
+  });
+
+  if (!children || children.length === 0) return;
+
+  const parentFed = fedMap.get(nodeId) ?? 0;
+  const allocations = calculatePipeAllocations(parentFed, children);
+
+  let totalAllocated = 0;
+  for (const alloc of allocations) {
+    fedMap.set(
+      alloc.childId,
+      (fedMap.get(alloc.childId) ?? 0) + alloc.amount,
+    );
+    totalAllocated += alloc.amount;
+  }
+  fedMap.set(nodeId, parentFed - totalAllocated);
+
+  for (const child of children) {
+    allocateToChildren(child.id, childrenByParent, computed, fedMap);
+  }
+}
+
+export function recalculatePipes<TPipeId extends string>(
   pipes: Array<{
-    _id: T;
-    parentId?: T;
+    _id: TPipeId;
+    parentId?: TPipeId;
     priority: number;
     capacity?: number;
     fed?: number;
   }>,
-): Array<{ _id: T; fed: number }> {
+): Array<{ _id: TPipeId; fed: number }> {
   if (pipes.length === 0) return [];
 
-  // Total fed in each pipe's subtree (preserves total $ in system)
   const computed = computePipeTree(pipes);
+  const childrenByParent = buildChildrenMap(pipes);
 
-  const fedMap = new Map<T, number>();
+  const fedMap = new Map<TPipeId, number>();
+  const rootIds: TPipeId[] = [];
+
   for (const pipe of pipes) {
     fedMap.set(pipe._id, 0);
-  }
-
-  // Build children map and find roots
-  const childrenByParent = new Map<T, (typeof pipes)[number][]>();
-  const rootIds: T[] = [];
-  for (const pipe of pipes) {
-    if (pipe.parentId) {
-      const siblings = childrenByParent.get(pipe.parentId) ?? [];
-      siblings.push(pipe);
-      childrenByParent.set(pipe.parentId, siblings);
-    } else {
+    if (!pipe.parentId) {
       rootIds.push(pipe._id);
     }
   }
 
-  // Set each root's fed to the total in its subtree
   for (const rootId of rootIds) {
     fedMap.set(rootId, computed.get(rootId)?.fed ?? 0);
   }
 
-  function distribute(nodeId: T) {
-    const children = childrenByParent.get(nodeId)
-      ?.map(child => {
-        const computedChild = computed.get(child._id);
-        return {
-          id: child._id,
-          priority: child.priority,
-          capacity: computedChild?.capacity ?? child.capacity,
-          fed: 0,
-        };
-      });
-
-    if (!children || children.length === 0) return;
-
-    const parentFed = fedMap.get(nodeId) ?? 0;
-
-    const allocations = calculatePipeAllocations(
-      parentFed,
-      children,
-    );
-
-    let totalAllocated = 0;
-    for (const alloc of allocations) {
-      fedMap.set(
-        alloc.childId,
-        (fedMap.get(alloc.childId) ?? 0) + alloc.amount,
-      );
-      totalAllocated += alloc.amount;
-    }
-    fedMap.set(nodeId, parentFed - totalAllocated);
-
-    for (const child of children) {
-      distribute(child.id);
-    }
-  }
-
   for (const rootId of rootIds) {
-    distribute(rootId);
+    allocateToChildren(rootId, childrenByParent, computed, fedMap);
   }
 
   return pipes.map((p) => ({ _id: p._id, fed: fedMap.get(p._id) ?? 0 }));
 }
 
+// ── DB operations ──
+
+export async function addFeedToPipe(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  pipeId: Id<"pipes">,
+  amount: number,
+) {
+  if (amount === 0) throw new Error("Amount must be non-zero");
+
+  const pipe = await ctx.db.get(pipeId);
+  if (!pipe) throw new Error("Pipe not found");
+  if (pipe.userId !== userId) throw new Error("Not authorized");
+
+  await ctx.db.patch(pipeId, {
+    fed: (pipe.fed ?? 0) + amount,
+  });
+}
+
 export async function recascadeTree(
   ctx: MutationCtx,
   userId: Id<"users">,
-  _pipeId: Id<"pipes">,
 ) {
   const allPipes = await ctx.db
     .query("pipes")
@@ -250,50 +237,14 @@ export async function recascadeTree(
   await Promise.all(updates.map((u) => ctx.db.patch(u._id, { fed: u.fed })));
 }
 
-export async function distributeFedToChildren(
-  ctx: MutationCtx,
-  userId: Id<"users">,
-  pipeId: Id<"pipes">,
-) {
-  const pipe = await ctx.db.get(pipeId);
-  if (!pipe || pipe.userId !== userId) return;
-
-  const children = await ctx.db
-    .query("pipes")
-    .withIndex("by_userId", (q) => q.eq("userId", userId))
-    .filter((q) => q.eq(q.field("parentId"), pipeId))
-    .collect();
-
-  if (children.length === 0) return;
-
-  const allocations = calculatePipeAllocations(
-    pipe.fed ?? 0,
-    children.map((c) => ({
-      id: c._id,
-      priority: c.priority,
-      capacity: c.capacity,
-      fed: c.fed,
-    })),
-  );
-
-  if (allocations.length === 0) return;
-
-  let totalAllocated = 0;
-  for (const alloc of allocations) {
-    totalAllocated += alloc.amount;
-    const child = children.find((c) => c._id === alloc.childId)!;
-    await ctx.db.patch(alloc.childId, {
-      fed: (child.fed ?? 0) + alloc.amount,
-    });
+export function collectDescendants<TPipeId extends string>(
+  id: TPipeId,
+  childrenByParent: Map<TPipeId, TPipeId[]>,
+): TPipeId[] {
+  const ids: TPipeId[] = [];
+  for (const childId of childrenByParent.get(id) ?? []) {
+    ids.push(...collectDescendants(childId, childrenByParent));
+    ids.push(childId);
   }
-
-  await ctx.db.patch(pipeId, {
-    fed: (pipe.fed ?? 0) - totalAllocated,
-  });
-
-  for (const alloc of allocations) {
-    if (alloc.amount > 0) {
-      await distributeFedToChildren(ctx, userId, alloc.childId);
-    }
-  }
+  return ids;
 }
