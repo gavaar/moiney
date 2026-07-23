@@ -1,4 +1,4 @@
-import { RefObject, useRef, useState } from "react";
+import { Fragment, RefObject, useRef, useState } from "react";
 import { Alert, Pressable, Text, View } from "react-native";
 import { type Id } from "@convex/_generated/dataModel";
 import { Popover } from "@/components/ui/Popover";
@@ -7,6 +7,7 @@ import { colors } from "@/lib/styles";
 import { getDaysInMonth } from "@/lib/dates";
 import { usePipeSelection } from "@/features/pipes/context/PipeSelectionContext";
 import { DeletePipeConfirmation } from "@/features/pipes/InnerPipesScreen/components/DeletePipeConfirmation";
+import { EditPipeModal } from "@/features/pipes/InnerPipesScreen/components/EditPipeModal";
 
 type StatItem = {
   label: string;
@@ -26,6 +27,7 @@ export function StatisticsRow({ fed, spent }: Props) {
   const [selectedStatLabel, setSelectedStatLabel] = useState<string | null>(null);
   const [showOptions, setShowOptions] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const ellipsisRef = useRef<View>(null);
   const l2sRef = useRef<View>(null);
   const stmRef = useRef<View>(null);
@@ -65,7 +67,7 @@ export function StatisticsRow({ fed, spent }: Props) {
     <>
       <View className="flex-row self-stretch justify-center gap-1 pb-2 px-5">
         {stats.map((stat, index) => (
-          <View key={stat.label}>
+          <Fragment key={stat.label}>
             {index > 0 && (<Text className="text-muted/50 text-xs">|</Text>)}
 
             <View className="flex-row items-center">
@@ -85,7 +87,7 @@ export function StatisticsRow({ fed, spent }: Props) {
                 <Text className="text-text text-sm">{stats[index].description}</Text>
               </Popover>
             </View>
-          </View>
+          </Fragment>
         ))}
 
         <View className="ml-auto">
@@ -101,7 +103,10 @@ export function StatisticsRow({ fed, spent }: Props) {
         anchorRef={ellipsisRef as RefObject<View>}
         anchorPosition="left-start"
       >
-        <Pressable onPress={() => console.log("edit")}>
+        <Pressable onPress={() => {
+          setShowOptions(false);
+          setShowEditModal(true);
+        }}>
           <Icon name="pencil-outline" size={24} color={colors.secondary} />
         </Pressable>
         <View className="h-5" />
@@ -119,6 +124,14 @@ export function StatisticsRow({ fed, spent }: Props) {
           onClose={() => setShowDeleteModal(false)}
           pipeId={selectedId as Id<"pipes">}
           onDeleted={() => setShowDeleteModal(false)}
+        />
+      )}
+
+      {selectedId && showEditModal && (
+        <EditPipeModal
+          visible={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          pipeId={selectedId as Id<"pipes">}
         />
       )}
     </>
