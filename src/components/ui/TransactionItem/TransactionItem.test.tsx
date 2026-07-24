@@ -20,13 +20,41 @@ const pipeInfo = {
   name: "Groceries",
 };
 
+const salaryPipe = {
+  _id: "salary-pipe" as Id<"pipes">,
+  icon: "cash-outline",
+  name: "Salary",
+};
+
+const rentPipe = {
+  _id: "rent-pipe" as Id<"pipes">,
+  icon: "home-outline",
+  name: "Rent",
+};
+
+const transferTx = {
+  _id: "tx-transfer" as any,
+  _creationTime: 0,
+  title: "send to rent",
+  value: -50,
+  date: new Date("2024-03-15").getTime(),
+  pipeId: "salary-pipe" as Id<"pipes">,
+  sentToPipeId: "rent-pipe" as Id<"pipes">,
+  userId: "" as Id<"users">,
+};
+
 const mockUsePipeSelection = vi.fn();
 vi.mock("@features/pipes/context/PipeSelectionContext", () => ({
   usePipeSelection: () => mockUsePipeSelection(),
 }));
 
+vi.mock("@ui/Icon", () => ({
+  Icon: ({ name }: any) => <span data-testid="mock-icon" data-name={name} />,
+}));
+
 describe("TransactionItem", () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     mockUsePipeSelection.mockReturnValue({
       pipesById: { [pipeInfo.id]: pipeInfo },
       childrenByParent: new Map(),
@@ -102,5 +130,51 @@ describe("TransactionItem", () => {
     fireEvent.click(screen.getByText("Shopping mall"));
     expect(screen.getByText("Cannot repeat transaction")).toBeDefined();
     expect(screen.getByText(/cannot accept transactions anymore/)).toBeDefined();
+  });
+});
+
+describe("TransactionItem transfer variant", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUsePipeSelection.mockReturnValue({
+      pipesById: {
+        "salary-pipe": salaryPipe,
+        "rent-pipe": rentPipe,
+      },
+      childrenByParent: new Map(),
+    });
+  });
+
+  it("renders source icon, arrow, and destination icon", () => {
+    render(<TransactionItem transaction={transferTx} />);
+    const icons = screen.getAllByTestId("mock-icon");
+    const iconNames = icons.map((i) => i.getAttribute("data-name"));
+    expect(iconNames).toContain("cash-outline");
+    expect(iconNames).toContain("ray-start-arrow");
+    expect(iconNames).toContain("home-outline");
+  });
+
+  it("renders transfer title and date and value", () => {
+    render(<TransactionItem transaction={transferTx} />);
+    expect(screen.getByText("Send to rent")).toBeDefined();
+    expect(screen.getByText("Mar 15, 2024")).toBeDefined();
+    expect(screen.getByText("-50.00")).toBeDefined();
+  });
+
+  it("uses ray-end-arrow for positive value (source receives)", () => {
+    const tx = { ...transferTx, value: 100 };
+    render(<TransactionItem transaction={tx} />);
+    const icons = screen.getAllByTestId("mock-icon");
+    const iconNames = icons.map((i) => i.getAttribute("data-name"));
+    expect(iconNames).toContain("ray-end-arrow");
+    expect(iconNames).not.toContain("ray-start-arrow");
+  });
+
+  it("spend transaction does not render arrow icons", () => {
+    render(<TransactionItem transaction={baseTx} />);
+    const icons = screen.getAllByTestId("mock-icon");
+    const iconNames = icons.map((i) => i.getAttribute("data-name"));
+    expect(iconNames).not.toContain("ray-start-arrow");
+    expect(iconNames).not.toContain("ray-end-arrow");
   });
 });

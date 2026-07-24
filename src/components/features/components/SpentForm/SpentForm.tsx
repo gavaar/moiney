@@ -22,6 +22,7 @@ type Props = {
     pipeName: string;
     title: string;
     value: string;
+    sentToPipeId?: Id<"pipes">;
   };
 };
 
@@ -42,7 +43,9 @@ export function SpentForm({ pipeId, initState }: Props) {
   const [value, setValue] = useState(initState?.value ?? "");
   const [date, setDate] = useState(new Date());
   const [loading, setLoading] = useState(false);
-  const [sentToPipeId, setSentToPipeId] = useState<Id<"pipes"> | null>(null);
+  const [sentToPipeId, setSentToPipeId] = useState<Id<"pipes"> | null>(
+    initState?.sentToPipeId ?? null,
+  );
 
   const showAlert = useAlert();
   const createTransaction = useMutation(api.transactions.createTransaction);

@@ -19,10 +19,14 @@ const DATE_FORMAT: Intl.DateTimeFormatOptions = {
 
 export function TransactionItem({ transaction }: TransactionItemProps) {
   const isNegative = transaction.value < 0;
+  const isTransfer = !!transaction.sentToPipeId;
   const [showForm, setShowForm] = useState(false);
   const [showDisabledInfo, setShowDisabledInfo] = useState(false);
   const { pipesById, childrenByParent } = usePipeSelection();
   const pipe = pipesById?.[transaction.pipeId];
+  const destPipe = transaction.sentToPipeId
+    ? pipesById?.[transaction.sentToPipeId]
+    : undefined;
   const disabled = !pipe || (childrenByParent.get(pipe._id)?.length ?? 0) > 0;
 
   function handlePress() {
@@ -37,11 +41,18 @@ export function TransactionItem({ transaction }: TransactionItemProps) {
     <Pressable
       className={cn(
         "flex-row gap-1 items-center rounded-2xl border border-border px-2 py-2",
-        isNegative ? "bg-error/30" : "bg-primary/30",
+        isTransfer ? "bg-accent/30" : isNegative ? "bg-error/30" : "bg-primary/30",
       )}
       onPress={handlePress}
     >
       <Icon name={pipe?.icon as IconName ?? "pipe"} size={16} color={colors.muted} />
+
+      {isTransfer ? (
+        <>
+          <Icon name={isNegative ? "ray-start-arrow" : "ray-end-arrow"} size={14} color={colors.muted} />
+          <Icon name={destPipe?.icon as IconName ?? "pipe"} size={16} color={colors.muted} />
+        </>
+      ) : null}
 
       <Text
         className={cn(
@@ -74,6 +85,9 @@ export function TransactionItem({ transaction }: TransactionItemProps) {
               pipeName: pipe.name,
               title: transaction.title,
               value: `${transaction.value * -1}`,
+              ...(transaction.sentToPipeId && destPipe
+                ? { sentToPipeId: transaction.sentToPipeId }
+                : {}),
             }}
           />
         )}

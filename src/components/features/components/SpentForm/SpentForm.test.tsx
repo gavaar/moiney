@@ -408,4 +408,22 @@ describe("SpentForm", () => {
     expect(screen.getByTestId("select-item-feed-2")).toBeTruthy(); // Freelance is unrelated
     expect(screen.getByTestId("select-item-")).toBeTruthy(); // None
   });
+
+  it("pre-fills sentToPipeId from initState", () => {
+    render(
+      <SpentForm
+        pipeId={PIPE_ID}
+        initState={{
+          pipeIcon: "cash",
+          pipeName: "Salary",
+          title: "prev title",
+          value: "30",
+          sentToPipeId: "feed-1" as Id<"pipes">,
+        }}
+      />,
+    );
+    expect(screen.getByTestId("select-value-Transfer to").textContent).toBe("Salary");
+    const titleInput = screen.getByPlaceholderText("What was this for?") as HTMLInputElement;
+    expect(titleInput.value).toBe("prev title");
+  });
 });
