@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { Input } from "./Input";
 
 describe("Input", () => {
@@ -22,5 +23,25 @@ describe("Input", () => {
     render(<Input type="icon" label="Icon" value="" onSelect={() => {}} />);
     expect(screen.getByText("Icon")).toBeTruthy();
     expect(screen.getByText("---")).toBeTruthy();
+  });
+
+  it("renders SelectInput for type='select'", async () => {
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
+    const items = [{ id: "1", name: "Groceries" }];
+    render(
+      <Input
+        type="select"
+        label="From"
+        items={items}
+        renderItem={(item) => <>{item.name}</>}
+        value={null}
+        onSelect={onSelect}
+      />,
+    );
+    expect(screen.getByText("From")).toBeTruthy();
+    await user.click(screen.getByTestId("select-trigger"));
+    await user.click(screen.getByText("Groceries"));
+    expect(onSelect).toHaveBeenCalledWith("1");
   });
 });
