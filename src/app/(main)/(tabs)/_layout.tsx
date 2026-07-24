@@ -30,7 +30,7 @@ export default function TabLayout() {
             options={{
               title: "History",
               tabBarIcon: ({ color, size }) => (
-                <Icon name="reload-outline" size={size} color={color} />
+                <Icon name="history" size={size} color={color} />
               ),
             }}
           />

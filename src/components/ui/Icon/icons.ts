@@ -37,6 +37,7 @@ const CURATED_ICONS = [
   { name: "food-apple", family: "MaterialCommunityIcons" as const },
   { name: "game-controller-outline", family: "Ionicons" as const },
   { name: "gift-outline", family: "Ionicons" as const },
+  { name: "history", family: "MaterialCommunityIcons" as const },
   { name: "home-outline", family: "Ionicons" as const },
   { name: "home-sharp", family: "Ionicons" as const },
   { name: "laptop-outline", family: "Ionicons" as const },

@@ -39,7 +39,7 @@ export function InnerPipesScreen() {
           pipes={children}
           priority={true}
           onSelectPipe={(id) => selectPipe([...selectedPipePath, id])}
-          leading={() => <Icon name="lock-open-outline" size={24} color={colors.text} />}
+          leading={() => <Icon name="lock-open-outline" size={16} color={colors.border} />}
           footer={<AddPipeButton parentId={selectedPipePath[selectedPipePath.length - 1]} />}
         />
       </View>
