@@ -1,5 +1,5 @@
 import { View } from "react-native";
-import { Icon, type IconName } from "@/components/ui/Icon";
+import { Icon, type IconName } from "@ui/Icon";
 import { colors } from "@/lib/styles";
 
 export function spentBg(spent: number, fed: number): string {

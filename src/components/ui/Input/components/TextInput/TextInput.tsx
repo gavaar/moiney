@@ -8,7 +8,7 @@ import {
   type TextInputProps,
 } from "react-native";
 import { cn, colors } from "@/lib/styles";
-import { Icon } from "@/components/ui/Icon";
+import { Icon } from "@ui/Icon";
 import { getBorderStyle } from "../../input.config";
 
 type Props = TextInputProps & {

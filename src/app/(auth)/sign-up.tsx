@@ -1,12 +1,12 @@
 import { Text, View } from "react-native";
 import { useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
+import { Button } from "@ui/Button";
+import { Input } from "@ui/Input";
 import { useAuth } from "@/lib/auth";
 import { useForm } from "@/lib/forms";
 import { useDebounce } from "@/lib/hooks";
-import { AuthScreenLayout } from "@/components/ui/AuthScreenLayout";
+import { AuthScreenLayout } from "@ui/AuthScreenLayout";
 import { Link } from "expo-router";
 import { useState } from "react";
 

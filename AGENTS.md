@@ -16,12 +16,12 @@ moiney/
 │   │   ├── index.tsx
 │   │   ├── (auth)/       # Auth flow (login, sign-up)
 │   │   └── (main)/       # Main app (tabs: history, pipes, profile)
-│   ├── components/       # Reusable UI primitives
-│   │   └── ui/           # Button, Icon, Input, Modal, PipeBox, ScreenHeader, etc.
-│   ├── features/         # Feature modules (feature-first colocation)
-│   │   ├── components/   # Shared feature-level components (SpentForm)
-│   │   ├── pipes/        # Pipes feature: screens, contexts, sub-components
-│   │   └── transactions/ # Transactions feature: context
+│   ├── components/       # All components (ui primitives + features)
+│   │   ├── ui/           # Alert, Button, Icon, Input, Modal, PipeBox, ScreenHeader, etc.
+│   │   └── features/     # Feature modules (feature-first colocation)
+│   │       ├── SpentForm/ # Shared feature-level component
+│   │       ├── pipes/     # Pipes feature: screens, contexts, sub-components
+│   │       └── transactions/ # Transactions feature: context
 │   ├── lib/              # Shared utilities and hooks
 │   │   ├── auth/         # Auth provider, token storage (platform variants)
 │   │   ├── errors/       # Error handling utilities
@@ -61,8 +61,11 @@ moiney/
 ## Conventions
 - Use Expo Router file-based routing (`src/app/` directory)
 - Style with NativeWind/Tailwind utility classes
-- Use `@/` path alias to import from `src/` (e.g. `@/app/...`, `@/components/...`)
-- Feature colocation: screens, contexts, and sub-components live in `src/features/<feature>/`; shared feature components go in `src/features/components/`
+- Use `@/` path alias to import from `src/` (e.g. `@/app/...`, `@/lib/...`)
+- Use `@ui/` path alias to import from `src/components/ui/` (e.g. `@ui/Button`, `@ui/Icon`, `@ui/Alert`)
+- Use `@features/` path alias to import from `src/components/features/` (e.g. `@features/pipes/...`)
+- Use `@convex/` path alias to import from `convex/`
+- Feature colocation: screens, contexts, and sub-components live in `src/components/features/<feature>/`; shared feature components sit alongside them
 - Component pattern: each component directory has `ComponentName.tsx`, `ComponentName.test.tsx`, and an `index.ts` barrel file
 - Platform files: use `.native.ts` / `.web.ts` suffixes for platform-specific variants (e.g. `storage.ts`)
 - Convex schema in `convex/schema.ts`, domain functions in `convex/*.ts`, shared helpers in `convex/lib/`

@@ -1,7 +1,7 @@
 import { useRouter } from "expo-router";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ScreenHeader } from "@/components/ui/ScreenHeader/ScreenHeader";
+import { ScreenHeader } from "@ui/ScreenHeader/ScreenHeader";
 import { useAuth } from "@/lib/auth";
 
 export default function Profile() {

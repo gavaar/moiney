@@ -1,12 +1,12 @@
 import { useEffect } from "react";
 import { ActivityIndicator, BackHandler, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ScreenHeader } from "@/components/ui/ScreenHeader/ScreenHeader";
-import { usePipeSelection } from "@/features/pipes/context/PipeSelectionContext";
-import { useTransactions } from "@/features/transactions/context/TransactionsContext";
-import { InnerPipesScreen } from '@/features/pipes/InnerPipesScreen';
-import { FeedListScreen } from '@/features/pipes/FeedListScreen';
-import { TransactionItem } from "@/components/ui/TransactionItem";
+import { ScreenHeader } from "@ui/ScreenHeader/ScreenHeader";
+import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
+import { useTransactions } from "@features/transactions/context/TransactionsContext";
+import { InnerPipesScreen } from '@features/pipes/InnerPipesScreen';
+import { FeedListScreen } from '@features/pipes/FeedListScreen';
+import { TransactionItem } from "@ui/TransactionItem";
 import { colors } from '@/lib/styles';
 
 export default function Pipes() {

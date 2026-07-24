@@ -6,6 +6,8 @@ export default defineConfig({
     alias: {
       "@": path.resolve(__dirname, "./src"),
       "@convex": path.resolve(__dirname, "./convex"),
+      "@ui": path.resolve(__dirname, "./src/components/ui"),
+      "@features": path.resolve(__dirname, "./src/components/features"),
       "react-native": "react-native-web",
     },
   },

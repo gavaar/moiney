@@ -1,4 +1,4 @@
-import type { IconName } from "@/components/ui/Icon";
+import type { IconName } from "@ui/Icon";
 import type { TextInputProps } from "react-native";
 import { DatetimeInput, DecimalInput, TextInput, NumberInput, IconInput, CheckboxInput } from "./components";
 

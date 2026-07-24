@@ -1,11 +1,11 @@
 import { Pressable, Text, View } from "react-native";
-import { Icon, type IconName } from "@/components/ui/Icon";
+import { Icon, type IconName } from "@ui/Icon";
 import { cn, colors } from "@/lib/styles";
 import type { Doc, Id } from "@convex/_generated/dataModel";
 import { ModalShell } from '../Modal';
-import { SpentForm } from '@/features/components/SpentForm';
+import { SpentForm } from '@features/components/SpentForm';
 import { useState } from 'react';
-import { usePipeSelection } from '@/features/pipes/context/PipeSelectionContext';
+import { usePipeSelection } from '@features/pipes/context/PipeSelectionContext';
 
 type TransactionItemProps = {
   transaction: Doc<"transactions">;

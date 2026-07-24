@@ -20,7 +20,7 @@ const pipeInfo = {
   name: "Groceries",
 };
 
-vi.mock("@/features/pipes/context/PipeSelectionContext", () => ({
+vi.mock("@features/pipes/context/PipeSelectionContext", () => ({
   usePipeSelection: () => {
     return {
       pipesById: {

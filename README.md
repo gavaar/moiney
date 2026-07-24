@@ -35,7 +35,9 @@ A **kickstarter** for any project that wants to build a React Native app with **
 moiney/
 ├── src/
 │   ├── app/            # 🖥️ Expo Router screens (_layout, index, login, sign-up)
-│   ├── components/     # 🧩 Reusable UI (Button, InputText, Icon, ErrorBoundary, AuthScreenLayout)
+│   ├── components/     # 🧩 Reusable UI + features
+│   │   ├── ui/         # Alert, Button, Input, Icon, Modal, ErrorBoundary, etc.
+│   │   └── features/   # Feature modules (pipes, transactions, SpentForm)
 │   └── lib/            # 🔧 Hooks, utils, auth state, storage, test files
 ├── convex/
 │   ├── schema.ts       # 🗃️ Database schema (users + sessions tables)

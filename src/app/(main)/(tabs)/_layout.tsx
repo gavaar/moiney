@@ -1,7 +1,7 @@
-import { Icon } from "@/components/ui/Icon";
+import { Icon } from "@ui/Icon";
 import { Tabs } from "expo-router";
-import { PipeSelectionProvider } from "@/features/pipes/context/PipeSelectionContext";
-import { TransactionsProvider } from "@/features/transactions/context/TransactionsContext";
+import { PipeSelectionProvider } from "@features/pipes/context/PipeSelectionContext";
+import { TransactionsProvider } from "@features/transactions/context/TransactionsContext";
 
 export default function TabLayout() {
   return (

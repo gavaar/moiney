@@ -7,8 +7,8 @@ import {
   View,
 } from "react-native";
 import { cn, colors } from "@/lib/styles";
-import { Icon, CURATED_ICONS, type IconName } from "@/components/ui/Icon";
-import { ModalShell } from "@/components/ui/Modal";
+import { Icon, CURATED_ICONS, type IconName } from "@ui/Icon";
+import { ModalShell } from "@ui/Modal";
 
 type Props = {
   label: string;

@@ -2,9 +2,9 @@ import { useState } from "react";
 import { Platform, Pressable, Text, View } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { cn } from "@/lib/styles";
-import { Icon } from "@/components/ui/Icon";
-import { ModalShell } from "@/components/ui/Modal";
-import { Button } from "@/components/ui/Button";
+import { Icon } from "@ui/Icon";
+import { ModalShell } from "@ui/Modal";
+import { Button } from "@ui/Button";
 import { getBorderStyle } from "../../input.config";
 
 type Props = {

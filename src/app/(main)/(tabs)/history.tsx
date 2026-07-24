@@ -2,9 +2,9 @@ import { ActivityIndicator, FlatList, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { usePaginatedQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
-import { ScreenHeader } from "@/components/ui/ScreenHeader/ScreenHeader";
-import { TransactionItem } from "@/components/ui/TransactionItem";
-import { usePipeSelection } from "@/features/pipes/context/PipeSelectionContext";
+import { ScreenHeader } from "@ui/ScreenHeader/ScreenHeader";
+import { TransactionItem } from "@ui/TransactionItem";
+import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
 import { colors } from '@/lib/styles';
 
 export default function History() {

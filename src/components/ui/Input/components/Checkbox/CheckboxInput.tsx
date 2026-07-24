@@ -1,6 +1,6 @@
 import { Pressable, Text, View } from "react-native";
 import { cn, colors } from "@/lib/styles";
-import { Icon } from "@/components/ui/Icon";
+import { Icon } from "@ui/Icon";
 
 type Props = {
   label: string;

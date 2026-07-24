@@ -8,6 +8,12 @@
       ],
       "@convex/*": [
         "./convex/*"
+      ],
+      "@ui/*": [
+        "./src/components/ui/*"
+      ],
+      "@features/*": [
+        "./src/components/features/*"
       ]
     }
   },
