@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
 import { type Id } from "@convex/_generated/dataModel";
-import { SpentForm } from "./SpentForm";
+import { SpentForm, getButtonLabel } from "./SpentForm";
 
 const PIPE_ID = "pipe-1" as Id<"pipes">;
 const mockCreateTransaction = vi.fn().mockResolvedValue(undefined);
@@ -20,8 +20,52 @@ vi.mock("@convex/_generated/api", () => ({
   },
 }));
 
+vi.mock("@features/pipes/context/PipeSelectionContext", () => ({
+  usePipeSelection: () => ({
+    allPipes: [
+      {
+        _id: "feed-1" as Id<"pipes">,
+        _creationTime: 0,
+        userId: "user-1" as Id<"users">,
+        parentId: undefined,
+        name: "Salary",
+        icon: "cash-outline",
+        priority: 0,
+        fed: 500,
+        spent: 200,
+      },
+      {
+        _id: "feed-2" as Id<"pipes">,
+        _creationTime: 0,
+        userId: "user-1" as Id<"users">,
+        parentId: undefined,
+        name: "Freelance",
+        icon: "laptop-outline",
+        priority: 0,
+        fed: 300,
+        spent: 100,
+      },
+      {
+        _id: "child-1" as Id<"pipes">,
+        _creationTime: 0,
+        userId: "user-1" as Id<"users">,
+        parentId: "feed-1" as Id<"pipes">,
+        name: "Rent",
+        icon: "home-outline",
+        priority: 0,
+        capacity: 1000,
+        fed: 500,
+        spent: 300,
+      },
+    ],
+    childrenByParent: new Map(),
+    pipesById: {},
+    isLoading: false,
+  }),
+}));
+
 vi.mock("@ui/Input", () => ({
-  Input: ({ label, type, value, onChangeText, onChange, disabled, placeholder, allowNegative, error, maxLength }: any) => {
+  Input: ({ label, type, value, onChangeText, onChange, disabled, placeholder, allowNegative, error, maxLength, items, onSelect }: any) => {
     if (type === "datetime") {
       return (
         <div data-testid={`input-${label}`}>
@@ -31,6 +75,29 @@ vi.mock("@ui/Input", () => ({
               ? `${value.getMonth() + 1}/${value.getDate()}/${value.getFullYear()}`
               : ""}
           </span>
+        </div>
+      );
+    }
+    if (type === "select") {
+      return (
+        <div data-testid={`input-${label}`}>
+          <span>{label}</span>
+          <span data-testid={`select-value-${label}`}>
+            {value
+              ? items?.find((i: any) => i.id === value)?.name ?? "Unknown"
+              : placeholder ?? "Select..."}
+          </span>
+          <div data-testid={`select-items-${label}`}>
+            {items?.map((item: any) => (
+              <button
+                key={item.id}
+                data-testid={`select-item-${item.id}`}
+                onClick={() => onSelect?.(item.id)}
+              >
+                {item.name}
+              </button>
+            ))}
+          </div>
         </div>
       );
     }
@@ -67,6 +134,24 @@ vi.mock("@ui/Icon", () => ({
   Icon: ({ name, testID }: any) => <span data-testid={testID || "icon"} data-name={name} />,
 }));
 
+describe("getButtonLabel", () => {
+  it('returns "Add expense" when isNegative is false and no destination', () => {
+    expect(getButtonLabel(false, null)).toBe("Add expense");
+  });
+
+  it('returns "Add return" when isNegative is true and no destination', () => {
+    expect(getButtonLabel(true, null)).toBe("Add return");
+  });
+
+  it('returns "Send to {name}" when isNegative is false and destination is set', () => {
+    expect(getButtonLabel(false, "Salary")).toBe("Send to Salary");
+  });
+
+  it('returns "Take from {name}" when isNegative is true and destination is set', () => {
+    expect(getButtonLabel(true, "Freelance")).toBe("Take from Freelance");
+  });
+});
+
 describe("SpentForm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -85,6 +170,11 @@ describe("SpentForm", () => {
   it("renders date field", () => {
     render(<SpentForm pipeId={PIPE_ID} />);
     expect(screen.getByTestId("input-Date")).toBeTruthy();
+  });
+
+  it("renders transfer target select input", () => {
+    render(<SpentForm pipeId={PIPE_ID} />);
+    expect(screen.getByTestId("input-Transfer to")).toBeTruthy();
   });
 
   it("submit button is disabled when form is empty", () => {
@@ -122,6 +212,95 @@ describe("SpentForm", () => {
 
     const btn = screen.getByTestId("submit-button");
     expect(btn.getAttribute("aria-disabled")).toBeNull();
+  });
+
+  it("shows default button label when no transfer destination selected", () => {
+    render(<SpentForm pipeId={PIPE_ID} />);
+    fireEvent.change(screen.getByPlaceholderText("What was this for?"), {
+      target: { value: "Lunch" },
+    });
+    fireEvent.change(screen.getByTestId("input-Value-field"), {
+      target: { value: "12.50" },
+    });
+    expect(screen.getByText("Add expense")).toBeTruthy();
+  });
+
+  it("updates button label when a transfer destination is selected", () => {
+    render(<SpentForm pipeId={PIPE_ID} />);
+    fireEvent.change(screen.getByPlaceholderText("What was this for?"), {
+      target: { value: "Lunch" },
+    });
+    fireEvent.change(screen.getByTestId("input-Value-field"), {
+      target: { value: "12.50" },
+    });
+    fireEvent.click(screen.getByTestId("select-item-feed-1"));
+    expect(screen.getByText("Send to Salary")).toBeTruthy();
+  });
+
+  it("reverts button label when None option is selected", () => {
+    render(<SpentForm pipeId={PIPE_ID} />);
+    fireEvent.change(screen.getByPlaceholderText("What was this for?"), {
+      target: { value: "Lunch" },
+    });
+    fireEvent.change(screen.getByTestId("input-Value-field"), {
+      target: { value: "12.50" },
+    });
+    fireEvent.click(screen.getByTestId("select-item-feed-1"));
+    expect(screen.getByText("Send to Salary")).toBeTruthy();
+    fireEvent.click(screen.getByTestId("select-item-"));
+    expect(screen.getByText("Add expense")).toBeTruthy();
+  });
+
+  it("calls createTransaction with sentToPipeId when destination selected", async () => {
+    const date = new Date(2026, 6, 21, 15, 45);
+    vi.setSystemTime(date);
+
+    render(<SpentForm pipeId={PIPE_ID} />);
+    fireEvent.change(screen.getByPlaceholderText("What was this for?"), {
+      target: { value: "Lunch" },
+    });
+    fireEvent.change(screen.getByTestId("input-Value-field"), {
+      target: { value: "12.50" },
+    });
+    fireEvent.click(screen.getByTestId("select-item-feed-1"));
+    fireEvent.click(screen.getByTestId("submit-button"));
+
+    await waitFor(() => {
+      expect(mockCreateTransaction).toHaveBeenCalledWith({
+        title: "Lunch",
+        value: -12.50,
+        date: date.getTime(),
+        pipeId: PIPE_ID,
+        sentToPipeId: "feed-1",
+      });
+    });
+
+    vi.useRealTimers();
+  });
+
+  it("calls createTransaction without sentToPipeId when no destination selected", async () => {
+    const date = new Date(2026, 6, 21, 15, 45);
+    vi.setSystemTime(date);
+
+    render(<SpentForm pipeId={PIPE_ID} />);
+    fireEvent.change(screen.getByPlaceholderText("What was this for?"), {
+      target: { value: "Lunch" },
+    });
+    fireEvent.change(screen.getByTestId("input-Value-field"), {
+      target: { value: "12.50" },
+    });
+    fireEvent.click(screen.getByTestId("submit-button"));
+
+    await waitFor(() => {
+      expect(mockCreateTransaction).toHaveBeenCalledWith({
+        title: "Lunch",
+        value: -12.50,
+        date: date.getTime(),
+        pipeId: PIPE_ID,
+      });
+    });
+
+    vi.useRealTimers();
   });
 
   it("calls createTransaction with multiplied value and clears form on success", async () => {
@@ -192,10 +371,41 @@ describe("SpentForm", () => {
     expect(valueInput.value).toBe("");
   });
 
+  it("eraser button resets transfer destination", () => {
+    render(<SpentForm pipeId={PIPE_ID} />);
+    fireEvent.change(screen.getByPlaceholderText("What was this for?"), {
+      target: { value: "Lunch" },
+    });
+    fireEvent.change(screen.getByTestId("input-Value-field"), {
+      target: { value: "12.50" },
+    });
+    fireEvent.click(screen.getByTestId("select-item-feed-1"));
+    expect(screen.getByText("Send to Salary")).toBeTruthy();
+    fireEvent.click(screen.getByTestId("eraser-button"));
+    expect(screen.getByText("Add expense")).toBeTruthy();
+  });
+
   it("shows title character count", () => {
     render(<SpentForm pipeId={PIPE_ID} />);
     const titleInput = screen.getByPlaceholderText("What was this for?");
     fireEvent.change(titleInput, { target: { value: "Hello" } });
     expect(screen.getByTestId("input-Add transaction-counter").textContent).toBe("5 / 140");
+  });
+
+  it("shows only feeds in the transfer selector (excludes child pipes)", () => {
+    render(<SpentForm pipeId={PIPE_ID} />);
+    const items = screen.getByTestId("select-items-Transfer to");
+    expect(items).toBeTruthy();
+    expect(screen.getByTestId("select-item-")).toBeTruthy(); // None
+    expect(screen.getByTestId("select-item-feed-1")).toBeTruthy(); // Salary (feed)
+    expect(screen.getByTestId("select-item-feed-2")).toBeTruthy(); // Freelance (feed)
+    expect(screen.queryByTestId("select-item-child-1")).toBeNull(); // Rent (child, excluded)
+  });
+
+  it("excludes the root ancestor of current pipe from feed options", () => {
+    render(<SpentForm pipeId={"child-1" as Id<"pipes">} />);
+    expect(screen.queryByTestId("select-item-feed-1")).toBeNull(); // feed-1 is ancestor of child-1
+    expect(screen.getByTestId("select-item-feed-2")).toBeTruthy(); // Freelance is unrelated
+    expect(screen.getByTestId("select-item-")).toBeTruthy(); // None
   });
 });

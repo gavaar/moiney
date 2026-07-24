@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -10,9 +10,10 @@ import { useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { type Id } from "@convex/_generated/dataModel";
 import { cn, colors } from "@/lib/styles";
-import { Icon } from "@ui/Icon";
+import { Icon, type IconName } from "@ui/Icon";
 import { Input } from "@ui/Input";
 import { useAlert } from "@ui/Alert";
+import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
 
 type Props = {
   pipeId: Id<"pipes">;
@@ -24,22 +25,63 @@ type Props = {
   };
 };
 
+export function getButtonLabel(
+  isNegative: boolean,
+  destinationPipeName: string | null,
+): string {
+  if (destinationPipeName) {
+    return isNegative
+      ? `Take from ${destinationPipeName}`
+      : `Send to ${destinationPipeName}`;
+  }
+  return isNegative ? "Add return" : "Add expense";
+}
+
 export function SpentForm({ pipeId, initState }: Props) {
   const [title, setTitle] = useState(initState?.title ?? "");
   const [value, setValue] = useState(initState?.value ?? "");
   const [date, setDate] = useState(new Date());
   const [loading, setLoading] = useState(false);
+  const [sentToPipeId, setSentToPipeId] = useState<Id<"pipes"> | null>(null);
 
   const showAlert = useAlert();
   const createTransaction = useMutation(api.transactions.createTransaction);
+  const { allPipes } = usePipeSelection();
 
   const isValid = title.trim() !== "" && value !== "";
   const isNegative = value.startsWith("-");
+
+  const pipeItems = useMemo(() => {
+    const allPipesList = allPipes ?? [];
+
+    const ancestorIds = new Set<Id<"pipes">>();
+    let currentId: Id<"pipes"> | undefined = pipeId;
+    while (currentId) {
+      ancestorIds.add(currentId);
+      const pipe = allPipesList.find((p) => p._id === currentId);
+      currentId = pipe?.parentId;
+    }
+
+    const feeds = allPipesList.filter(
+      (p) => !p.parentId && !ancestorIds.has(p._id),
+    );
+    return [
+      { id: "", name: "None", icon: "close-circle" },
+      ...feeds.map((p) => ({ id: p._id, name: p.name, icon: p.icon })),
+    ];
+  }, [allPipes, pipeId]);
+
+  const destinationPipeName = useMemo(() => {
+    if (!sentToPipeId || !allPipes) return null;
+    const pipe = allPipes.find((p) => p._id === sentToPipeId);
+    return pipe?.name ?? null;
+  }, [sentToPipeId, allPipes]);
 
   const resetForm = () => {
     setTitle("");
     setValue("");
     setDate(new Date());
+    setSentToPipeId(null);
   };
 
   const handleSubmit = async () => {
@@ -52,6 +94,7 @@ export function SpentForm({ pipeId, initState }: Props) {
         value: parsedValue,
         date: date.getTime(),
         pipeId,
+        ...(sentToPipeId ? { sentToPipeId } : {}),
       });
       resetForm();
     } catch (error) {
@@ -105,6 +148,21 @@ export function SpentForm({ pipeId, initState }: Props) {
         </View>
       </View>
 
+      <Input
+        type="select"
+        label="Transfer to"
+        value={sentToPipeId}
+        onSelect={(id) => setSentToPipeId(id ? (id as Id<"pipes">) : null)}
+        items={pipeItems}
+        renderItem={(item: any) => (
+          <View className="flex-row items-center gap-2">
+            <Icon name={item.icon as IconName} size={16} color={colors.text} />
+            <Text className="text-text">{item.name}</Text>
+          </View>
+        )}
+        placeholder="None"
+      />
+
       <View className="flex-row items-center justify-between gap-3 pt-2">
         <TouchableOpacity
           testID="eraser-button"
@@ -143,7 +201,7 @@ export function SpentForm({ pipeId, initState }: Props) {
                   isNegative ? "text-success" : "text-error"
                 )}
               >
-                {isNegative ? "Add return" : "Add expense"}
+                {getButtonLabel(isNegative, destinationPipeName)}
               </Text>
             </>
           )}
