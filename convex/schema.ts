@@ -7,6 +7,7 @@ export default defineSchema({
     value: v.number(),
     date: v.number(),
     pipeId: v.id("pipes"),
+    sentToPipeId: v.optional(v.id("pipes")),
     userId: v.id("users"),
   })
     .index("by_pipeId", ["pipeId"])

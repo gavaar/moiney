@@ -3,6 +3,7 @@ import { mutation, query } from "./_generated/server";
 import { paginationOptsValidator } from "convex/server";
 import { requireAuth } from "./lib/auth";
 import { calculateSpentUpdate } from "./lib/transactions";
+import { recascadeTree } from "./lib/pipes";
 
 function transactionsQuery(ctx: any, userId: string, pipeIds: string[] | undefined) {
   let q = ctx.db
@@ -24,6 +25,7 @@ export const createTransaction = mutation({
     value: v.number(),
     date: v.number(),
     pipeId: v.id("pipes"),
+    sentToPipeId: v.optional(v.id("pipes")),
   },
   handler: async (ctx, args) => {
     const userId = await requireAuth(ctx);
@@ -32,15 +34,34 @@ export const createTransaction = mutation({
     if (!pipe) throw new Error("Pipe not found");
     if (pipe.userId !== userId) throw new Error("Not authorized");
 
-    await ctx.db.patch(args.pipeId, {
-      spent: calculateSpentUpdate(pipe.spent, args.value),
-    });
+    if (args.sentToPipeId) {
+      if (args.pipeId === args.sentToPipeId)
+        throw new Error("Cannot transfer to self");
+
+      const destPipe = await ctx.db.get(args.sentToPipeId);
+      if (!destPipe) throw new Error("Destination pipe not found");
+      if (destPipe.userId !== userId) throw new Error("Not authorized");
+
+      await ctx.db.patch(args.pipeId, {
+        fed: (pipe.fed ?? 0) + args.value,
+      });
+      await ctx.db.patch(args.sentToPipeId, {
+        fed: (destPipe.fed ?? 0) - args.value,
+      });
+
+      await recascadeTree(ctx, userId);
+    } else {
+      await ctx.db.patch(args.pipeId, {
+        spent: calculateSpentUpdate(pipe.spent, args.value),
+      });
+    }
 
     await ctx.db.insert("transactions", {
       title: args.title.toLowerCase(),
       value: args.value,
       date: args.date,
       pipeId: args.pipeId,
+      sentToPipeId: args.sentToPipeId,
       userId,
     });
   },
