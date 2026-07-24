@@ -4,11 +4,9 @@ import { usePaginatedQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { ScreenHeader } from "@ui/ScreenHeader/ScreenHeader";
 import { TransactionItem } from "@ui/TransactionItem";
-import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
 import { colors } from '@/lib/styles';
 
 export default function History() {
-  const { pipesById } = usePipeSelection();
   const { results, status, loadMore } = usePaginatedQuery(
     api.transactions.listTransactionsPaginated,
     {},
@@ -34,17 +32,12 @@ export default function History() {
             </View>
           );
         }}
-        renderItem={({ item }) => {
-          const pipe = pipesById?.[item.pipeId];
-          return pipe ? (
-            <TransactionItem
-              key={pipe._id}
-              transaction={item}
-              pipeId={pipe._id}
-            />
-          ) :
-          <Text>Error loading transaction</Text>;
-        }}
+        renderItem={({ item }) => (
+          <TransactionItem
+            key={item._id}
+            transaction={item}
+          />
+        )}
         ListFooterComponent={() =>
           status === "LoadingMore" ? (
             <View className="flex-1 items-center justify-center">

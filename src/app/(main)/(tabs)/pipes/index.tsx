@@ -10,7 +10,7 @@ import { TransactionItem } from "@ui/TransactionItem";
 import { colors } from '@/lib/styles';
 
 export default function Pipes() {
-  const { feeds, isLoading, selectedName, selectedPipePath, selectPipe, pipesById } = usePipeSelection();
+  const { feeds, isLoading, selectedName, selectedPipePath, selectPipe } = usePipeSelection();
   const { transactions, isLoading: transactionLoading } = useTransactions();
 
   useEffect(() => {
@@ -54,17 +54,12 @@ export default function Pipes() {
             </View>
           ) : transactions && transactions.length > 0 ? (
             <View className="gap-1">
-              {transactions.map((tx) => {
-                const pipe = pipesById?.[tx.pipeId];
-                return pipe ? (
-                  <TransactionItem
-                    key={tx._id}
-                    transaction={tx}
-                    pipeId={pipe._id}
-                  />
-                ) : 
-                <Text>Error loading transaction</Text>;
-              })}
+              {transactions.map((tx) => (
+                <TransactionItem
+                  key={tx._id}
+                  transaction={tx}
+                />
+              ))}
             </View>
           ) : (
             <View className="flex-1 items-center justify-center">
