@@ -57,7 +57,6 @@ export function FeedAmountModal({ pipeId, feedName }: Props) {
   };
 
   const parsedAmount = inputText === "" ? 0 : parseFloat(inputText);
-  const isNegative = parsedAmount < 0;
   const canSubmit = isValidAmount(inputText);
 
   const reset = () => {
@@ -80,7 +79,7 @@ export function FeedAmountModal({ pipeId, feedName }: Props) {
     try {
       const amount = toTwoDecimals(parsedAmount);
       await feedPipe({ pipeId, amount });
-      showAlert.success(`${isNegative ? "Debt" : "Feed"} added`);
+      showAlert.success("Feed added");
       setVisible(false);
       reset();
     } catch (error) {
@@ -142,7 +141,6 @@ export function FeedAmountModal({ pipeId, feedName }: Props) {
             placeholder="100.53"
             value={inputText}
             onChange={setInputText}
-            allowNegative
           />
           <View className="flex-row gap-2">
             <Button
@@ -154,8 +152,8 @@ export function FeedAmountModal({ pipeId, feedName }: Props) {
             />
             <Button
               className="flex-[2_1_0]"
-              title={isNegative ? "Debt" : "Feed"}
-              variant={isNegative ? "error" : "primary"}
+              title="Feed"
+              variant="primary"
               onPress={handleConfirm}
               disabled={!canSubmit}
               loading={loading}

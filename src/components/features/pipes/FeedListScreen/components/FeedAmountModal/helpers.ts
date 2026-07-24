@@ -5,5 +5,5 @@ export function toTwoDecimals(n: number): number {
 export function isValidAmount(input: string): boolean {
   if (input === "") return false;
   const n = parseFloat(input);
-  return !Number.isNaN(n) && n !== 0;
+  return !Number.isNaN(n) && n > 0;
 }
