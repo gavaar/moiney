@@ -253,7 +253,7 @@ describe("TransactionsProvider", () => {
     });
 
     const mockTxs = [
-      { _id: "tx1", title: "test", value: -50, date: 1000, pipeId: "a" as Id<"pipes">, userId: "" as Id<"users">, _creationTime: 0 },
+      { _id: "tx1", title: "test", value: -50, date: 1000, from: "a" as Id<"pipes">, userId: "" as Id<"users">, _creationTime: 0 },
     ];
     mockUseQuery.mockReturnValue(mockTxs);
 

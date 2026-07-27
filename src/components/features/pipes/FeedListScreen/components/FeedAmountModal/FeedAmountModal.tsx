@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { type Id } from "@convex/_generated/dataModel";
 import { Button } from "@ui/Button";
@@ -18,16 +18,19 @@ type Props = {
 export function FeedAmountModal({ pipeId, feedName }: Props) {
   const [visible, setVisible] = useState(false);
   const [inputText, setInputText] = useState("");
+  const [title, setTitle] = useState("");
   const [loading, setLoading] = useState(false);
 
   const showAlert = useAlert();
   const feedPipe = useMutation(api.pipes.feedPipe);
+  const recentTitles = useQuery(api.transactions.listRecentTitles, { pipeId });
 
   const parsedAmount = inputText === "" ? 0 : parseFloat(inputText);
-  const canSubmit = isValidAmount(inputText);
+  const canSubmit = title.trim() !== "" && isValidAmount(inputText);
 
   const reset = () => {
     setInputText("");
+    setTitle("");
   };
 
   const handleConfirm = async () => {
@@ -36,7 +39,7 @@ export function FeedAmountModal({ pipeId, feedName }: Props) {
     setLoading(true);
     try {
       const amount = toTwoDecimals(parsedAmount);
-      await feedPipe({ pipeId, amount });
+      await feedPipe({ pipeId, amount, title: title.trim() });
       showAlert.success("Feed added");
       setVisible(false);
       reset();
@@ -62,6 +65,18 @@ export function FeedAmountModal({ pipeId, feedName }: Props) {
       <ModalShell visible={visible} closeOnBackdropPress={false} onClose={() => setVisible(false)}>
         <View className="gap-4">
           <Text className="text-lg font-semibold text-text">Feed {feedName}</Text>
+
+          <Input
+            type="text-select"
+            value={title}
+            onChangeText={setTitle}
+            onOptionSelect={setTitle}
+            options={recentTitles ?? []}
+            maxLength={140}
+            multiline
+            placeholder="What was this for?"
+            disabled={loading}
+          />
 
           <Input
             type="decimal"

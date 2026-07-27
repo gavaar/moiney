@@ -18,16 +18,22 @@ const DATE_FORMAT: Intl.DateTimeFormatOptions = {
 };
 
 export function TransactionItem({ transaction }: TransactionItemProps) {
+  const isFeed = !transaction.from && !!transaction.to;
+  const isTransfer = !!transaction.from && !!transaction.to;
+  const isDrain = !!transaction.from && !transaction.to;
   const isNegative = transaction.value < 0;
-  const isTransfer = !!transaction.sentToPipeId;
   const [showForm, setShowForm] = useState(false);
   const [showDisabledInfo, setShowDisabledInfo] = useState(false);
   const { pipesById, childrenByParent } = usePipeSelection();
-  const pipe = pipesById?.[transaction.pipeId];
-  const destPipe = transaction.sentToPipeId
-    ? pipesById?.[transaction.sentToPipeId]
-    : undefined;
-  const disabled = !pipe || (childrenByParent.get(pipe._id)?.length ?? 0) > 0;
+
+  const sourcePipeId = transaction.from;
+  const destPipeId = transaction.to;
+  const sourcePipe = pipesById?.[sourcePipeId];
+  const destPipe = destPipeId ? pipesById?.[destPipeId] : undefined;
+  const fromValid = !!sourcePipe && (childrenByParent.get(sourcePipe._id)?.length ?? 0) === 0;
+  const toValid = !!destPipe && destPipe.parentId === undefined;
+  const disabled = (!!transaction.from && !fromValid) || (!!transaction.to && !toValid);
+  const primaryPipe = isFeed ? destPipe : sourcePipe;
 
   function handlePress() {
     if (disabled) {
@@ -41,11 +47,11 @@ export function TransactionItem({ transaction }: TransactionItemProps) {
     <Pressable
       className={cn(
         "flex-row gap-1 items-center rounded-2xl border border-border px-2 py-2",
-        isTransfer ? "bg-accent/30" : isNegative ? "bg-error/30" : "bg-primary/30",
+        isFeed ? "bg-secondary/30" : isTransfer ? "bg-accent/30" : isNegative ? "bg-error/30" : "bg-primary/30",
       )}
       onPress={handlePress}
     >
-      <Icon name={pipe?.icon as IconName ?? "pipe"} size={16} color={colors.muted} />
+      <Icon name={(isFeed ? destPipe?.icon : sourcePipe?.icon) as IconName ?? "pipe"} size={16} color={colors.muted} />
 
       {isTransfer ? (
         <>
@@ -77,16 +83,16 @@ export function TransactionItem({ transaction }: TransactionItemProps) {
       </Text>
 
       <ModalShell visible={showForm} closeOnBackdropPress={true} onClose={() => setShowForm(false)}>
-        {pipe && (
+        {primaryPipe && (
           <SpentForm
-            pipeId={transaction.pipeId}
+            pipeId={sourcePipe?._id ?? destPipe?._id!}
             initState={{
-              pipeIcon: pipe.icon,
-              pipeName: pipe.name,
+              pipeIcon: primaryPipe.icon,
+              pipeName: primaryPipe.name,
               title: transaction.title,
               value: `${transaction.value * -1}`,
-              ...(transaction.sentToPipeId && destPipe
-                ? { sentToPipeId: transaction.sentToPipeId }
+              ...(isTransfer && destPipe
+                ? { sentToPipeId: destPipe._id }
                 : {}),
             }}
           />

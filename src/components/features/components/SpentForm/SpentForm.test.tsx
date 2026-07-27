@@ -345,8 +345,8 @@ describe("SpentForm", () => {
         title: "Lunch",
         value: -12.50,
         date: date.getTime(),
-        pipeId: PIPE_ID,
-        sentToPipeId: "feed-1",
+        from: PIPE_ID,
+        to: "feed-1",
       });
     });
 
@@ -371,7 +371,7 @@ describe("SpentForm", () => {
         title: "Lunch",
         value: -12.50,
         date: date.getTime(),
-        pipeId: PIPE_ID,
+        from: PIPE_ID,
       });
     });
 
@@ -395,7 +395,7 @@ describe("SpentForm", () => {
         title: "Lunch",
         value: -12.50,
         date: date.getTime(),
-        pipeId: PIPE_ID,
+        from: PIPE_ID,
       });
     });
 

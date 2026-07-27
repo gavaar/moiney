@@ -9,6 +9,7 @@ import {
   computePipeTree,
   recascadeTree,
 } from "./lib/pipes";
+import { updateOrCreateTitleUsage } from "./lib/transactions";
 
 async function checkPipeLimit(ctx: MutationCtx, userId: Id<"users">) {
   const pipes = await ctx.db
@@ -90,11 +91,31 @@ export const feedPipe = mutation({
   args: {
     pipeId: v.id("pipes"),
     amount: v.number(),
+    title: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const userId = await requireAuth(ctx);
     await addFeedToPipe(ctx, userId, args.pipeId, args.amount);
     await recascadeTree(ctx, userId);
+
+    const title = (args.title ?? "feed").toLowerCase();
+    const date = Date.now();
+
+    await ctx.db.insert("transactions", {
+      title,
+      value: args.amount,
+      date,
+      from: undefined,
+      to: args.pipeId,
+      userId,
+    });
+
+    await updateOrCreateTitleUsage(ctx, {
+      pipeId: args.pipeId,
+      userId,
+      title,
+      date,
+    });
   },
 });
 
@@ -132,7 +153,7 @@ export const deletePipe = mutation({
         .query("transactions")
         .withIndex("by_userId", (q) => q.eq("userId", userId))
         .filter((q) =>
-          q.or(...allToDelete.map((id) => q.eq(q.field("pipeId"), id))),
+          q.or(...allToDelete.map((id) => q.eq(q.field("from"), id))),
         )
         .collect();
       for (const t of transactions) {

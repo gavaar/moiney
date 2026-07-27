@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { paginationOptsValidator } from "convex/server";
 import { requireAuth } from "./lib/auth";
-import { calculateSpentUpdate } from "./lib/transactions";
+import { calculateSpentUpdate, updateOrCreateTitleUsage } from "./lib/transactions";
 import { recascadeTree } from "./lib/pipes";
 
 function transactionsQuery(ctx: any, userId: string, pipeIds: string[] | undefined) {
@@ -12,7 +12,7 @@ function transactionsQuery(ctx: any, userId: string, pipeIds: string[] | undefin
 
   if (pipeIds && pipeIds.length > 0) {
     q = q.filter((fq: any) =>
-      fq.or(...pipeIds.map((id) => fq.eq(fq.field("pipeId"), id))),
+      fq.or(...pipeIds.map((id) => fq.eq(fq.field("from"), id))),
     );
   }
 
@@ -24,34 +24,34 @@ export const createTransaction = mutation({
     title: v.string(),
     value: v.number(),
     date: v.number(),
-    pipeId: v.id("pipes"),
-    sentToPipeId: v.optional(v.id("pipes")),
+    from: v.id("pipes"),
+    to: v.optional(v.id("pipes")),
   },
   handler: async (ctx, args) => {
     const userId = await requireAuth(ctx);
 
-    const pipe = await ctx.db.get(args.pipeId);
+    const pipe = await ctx.db.get(args.from);
     if (!pipe) throw new Error("Pipe not found");
     if (pipe.userId !== userId) throw new Error("Not authorized");
 
-    if (args.sentToPipeId) {
-      if (args.pipeId === args.sentToPipeId)
+    if (args.to) {
+      if (args.from === args.to)
         throw new Error("Cannot transfer to self");
 
-      const destPipe = await ctx.db.get(args.sentToPipeId);
+      const destPipe = await ctx.db.get(args.to);
       if (!destPipe) throw new Error("Destination pipe not found");
       if (destPipe.userId !== userId) throw new Error("Not authorized");
 
-      await ctx.db.patch(args.pipeId, {
+      await ctx.db.patch(args.from, {
         fed: (pipe.fed ?? 0) + args.value,
       });
-      await ctx.db.patch(args.sentToPipeId, {
+      await ctx.db.patch(args.to, {
         fed: (destPipe.fed ?? 0) - args.value,
       });
 
       await recascadeTree(ctx, userId);
     } else {
-      await ctx.db.patch(args.pipeId, {
+      await ctx.db.patch(args.from, {
         spent: calculateSpentUpdate(pipe.spent, args.value),
       });
     }
@@ -60,32 +60,17 @@ export const createTransaction = mutation({
       title: args.title.toLowerCase(),
       value: args.value,
       date: args.date,
-      pipeId: args.pipeId,
-      sentToPipeId: args.sentToPipeId,
+      from: args.from,
+      to: args.to,
       userId,
     });
 
-    const existingTitleUsage = await ctx.db
-      .query("transactionTitleUsage")
-      .withIndex("by_pipeId_userId_title", (q: any) =>
-        q.eq("pipeId", args.pipeId).eq("userId", userId).eq("title", args.title.toLowerCase()),
-      )
-      .first();
-
-    if (existingTitleUsage) {
-      await ctx.db.patch(existingTitleUsage._id, {
-        count: existingTitleUsage.count + 1,
-        lastUsedAt: args.date,
-      });
-    } else {
-      await ctx.db.insert("transactionTitleUsage", {
-        pipeId: args.pipeId,
-        userId,
-        title: args.title.toLowerCase(),
-        count: 1,
-        lastUsedAt: args.date,
-      });
-    }
+    await updateOrCreateTitleUsage(ctx, {
+      pipeId: args.from,
+      userId,
+      title: args.title,
+      date: args.date,
+    });
   },
 });
 

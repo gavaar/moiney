@@ -10,7 +10,7 @@ const baseTx = {
   title: "shopping mall",
   value: -50,
   date: new Date("2024-03-15").getTime(),
-  pipeId: "pipe-1" as Id<"pipes">,
+  from: "pipe-1" as Id<"pipes">,
   userId: "" as Id<"users">,
 };
 
@@ -38,8 +38,26 @@ const transferTx = {
   title: "send to rent",
   value: -50,
   date: new Date("2024-03-15").getTime(),
-  pipeId: "salary-pipe" as Id<"pipes">,
-  sentToPipeId: "rent-pipe" as Id<"pipes">,
+  from: "salary-pipe" as Id<"pipes">,
+  to: "rent-pipe" as Id<"pipes">,
+  userId: "" as Id<"users">,
+};
+
+const feedPipeInfo = {
+  _id: "pipe-1" as Id<"pipes">,
+  icon: "cart-outline",
+  name: "Groceries",
+};
+
+const feedTx = {
+  _id: "tx-feed" as any,
+  _creationTime: 0,
+  title: "weekly salary",
+  value: 1000,
+  date: new Date("2024-03-15").getTime(),
+  pipeId: "pipe-1" as Id<"pipes">,
+  from: undefined,
+  to: "pipe-1" as Id<"pipes">,
   userId: "" as Id<"users">,
 };
 
@@ -176,5 +194,48 @@ describe("TransactionItem transfer variant", () => {
     const iconNames = icons.map((i) => i.getAttribute("data-name"));
     expect(iconNames).not.toContain("ray-start-arrow");
     expect(iconNames).not.toContain("ray-end-arrow");
+  });
+});
+
+describe("TransactionItem feed variant", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUsePipeSelection.mockReturnValue({
+      pipesById: { [feedPipeInfo._id]: feedPipeInfo },
+      childrenByParent: new Map(),
+    });
+  });
+
+  it("renders the destination (fed) pipe icon", () => {
+    render(<TransactionItem transaction={feedTx} />);
+    const icons = screen.getAllByTestId("mock-icon");
+    const iconNames = icons.map((i) => i.getAttribute("data-name"));
+    expect(iconNames).toContain("cart-outline");
+  });
+
+  it("does not render arrow icons", () => {
+    render(<TransactionItem transaction={feedTx} />);
+    const icons = screen.getAllByTestId("mock-icon");
+    const iconNames = icons.map((i) => i.getAttribute("data-name"));
+    expect(iconNames).not.toContain("ray-start-arrow");
+    expect(iconNames).not.toContain("ray-end-arrow");
+  });
+
+  it("renders feed title and date and value", () => {
+    render(<TransactionItem transaction={feedTx} />);
+    expect(screen.getByText("Weekly salary")).toBeDefined();
+    expect(screen.getByText("Mar 15, 2024")).toBeDefined();
+    expect(screen.getByText("1000.00")).toBeDefined();
+  });
+
+  it("shows disabled info modal when fed pipe does not exist", () => {
+    mockUsePipeSelection.mockReturnValue({
+      pipesById: {},
+      childrenByParent: new Map(),
+    });
+
+    render(<TransactionItem transaction={feedTx} />);
+    fireEvent.click(screen.getByText("Weekly salary"));
+    expect(screen.getByText("Cannot repeat transaction")).toBeDefined();
   });
 });

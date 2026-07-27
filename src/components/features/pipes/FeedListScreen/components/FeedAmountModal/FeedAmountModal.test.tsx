@@ -9,9 +9,11 @@ import { FeedAmountModal } from "./FeedAmountModal";
 const PIPE_ID = "pipe-1" as Id<"pipes">;
 
 const mockFeedPipe = vi.fn().mockResolvedValue(undefined);
+const mockListRecentTitles = vi.fn().mockReturnValue([]);
 
 vi.mock("convex/react", () => ({
   useMutation: () => mockFeedPipe,
+  useQuery: () => mockListRecentTitles(),
 }));
 
 const mockShowAlert = { success: vi.fn(), error: vi.fn() };
@@ -24,12 +26,31 @@ vi.mock("@convex/_generated/api", () => ({
     pipes: {
       feedPipe: {},
     },
+    transactions: {
+      listRecentTitles: {},
+    },
+  },
+}));
+
+vi.mock("@ui/Input", () => ({
+  Input: ({ type, value, onChangeText, onChange, placeholder, ...props }: any) => {
+    const handleChange = onChangeText || onChange;
+    return (
+      <input
+        data-testid={`mock-input-${type}`}
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => handleChange?.(e.target.value)}
+        {...props}
+      />
+    );
   },
 }));
 
 describe("FeedAmountModal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockListRecentTitles.mockReturnValue([]);
   });
 
   it("renders the add icon trigger", () => {
@@ -46,11 +67,25 @@ describe("FeedAmountModal", () => {
     expect(screen.getByText("Feed Groceries")).toBeTruthy();
   });
 
-  it("does not call feedPipe when confirm is pressed with empty input", async () => {
+  it("renders title input and amount input in modal", async () => {
     const user = userEvent.setup();
     render(<FeedAmountModal pipeId={PIPE_ID} feedName="Groceries" />);
 
     await user.click(screen.getByTestId("feed-amount-trigger"));
+
+    expect(screen.getByPlaceholderText("What was this for?")).toBeTruthy();
+    expect(screen.getByPlaceholderText("100.53")).toBeTruthy();
+  });
+
+  it("does not call feedPipe when confirm is pressed with empty title", async () => {
+    const user = userEvent.setup();
+    render(<FeedAmountModal pipeId={PIPE_ID} feedName="Groceries" />);
+
+    await user.click(screen.getByTestId("feed-amount-trigger"));
+
+    const amountInput = screen.getByPlaceholderText("100.53");
+    fireEvent.change(amountInput, { target: { value: "50" } });
+
     await user.click(screen.getByText("Feed"));
 
     expect(mockFeedPipe).not.toHaveBeenCalled();
@@ -62,22 +97,28 @@ describe("FeedAmountModal", () => {
 
     await user.click(screen.getByTestId("feed-amount-trigger"));
 
-    const input = screen.getByPlaceholderText("100.53");
-    fireEvent.change(input, { target: { value: "0" } });
+    const titleInput = screen.getByPlaceholderText("What was this for?");
+    fireEvent.change(titleInput, { target: { value: "groceries" } });
+
+    const amountInput = screen.getByPlaceholderText("100.53");
+    fireEvent.change(amountInput, { target: { value: "0" } });
 
     await user.click(screen.getByText("Feed"));
 
     expect(mockFeedPipe).not.toHaveBeenCalled();
   });
 
-  it("calls feedPipe with pipeId and amount on confirm", async () => {
+  it("calls feedPipe with pipeId, amount and title on confirm", async () => {
     const user = userEvent.setup();
     render(<FeedAmountModal pipeId={PIPE_ID} feedName="Groceries" />);
 
     await user.click(screen.getByTestId("feed-amount-trigger"));
 
-    const input = screen.getByPlaceholderText("100.53");
-    fireEvent.change(input, { target: { value: "100.53" } });
+    const titleInput = screen.getByPlaceholderText("What was this for?");
+    fireEvent.change(titleInput, { target: { value: "groceries" } });
+
+    const amountInput = screen.getByPlaceholderText("100.53");
+    fireEvent.change(amountInput, { target: { value: "100.53" } });
 
     await user.click(screen.getByText("Feed"));
 
@@ -85,6 +126,7 @@ describe("FeedAmountModal", () => {
       expect(mockFeedPipe).toHaveBeenCalledWith({
         pipeId: PIPE_ID,
         amount: 100.53,
+        title: "groceries",
       });
     });
   });
@@ -95,8 +137,11 @@ describe("FeedAmountModal", () => {
 
     await user.click(screen.getByTestId("feed-amount-trigger"));
 
-    const input = screen.getByPlaceholderText("100.53");
-    fireEvent.change(input, { target: { value: "100.536" } });
+    const titleInput = screen.getByPlaceholderText("What was this for?");
+    fireEvent.change(titleInput, { target: { value: "groceries" } });
+
+    const amountInput = screen.getByPlaceholderText("100.53");
+    fireEvent.change(amountInput, { target: { value: "100.536" } });
 
     await user.click(screen.getByText("Feed"));
 
@@ -104,6 +149,7 @@ describe("FeedAmountModal", () => {
       expect(mockFeedPipe).toHaveBeenCalledWith({
         pipeId: PIPE_ID,
         amount: 100.54,
+        title: "groceries",
       });
     });
   });
@@ -114,8 +160,11 @@ describe("FeedAmountModal", () => {
 
     await user.click(screen.getByTestId("feed-amount-trigger"));
 
-    const input = screen.getByPlaceholderText("100.53");
-    fireEvent.change(input, { target: { value: "50" } });
+    const titleInput = screen.getByPlaceholderText("What was this for?");
+    fireEvent.change(titleInput, { target: { value: "groceries" } });
+
+    const amountInput = screen.getByPlaceholderText("100.53");
+    fireEvent.change(amountInput, { target: { value: "50" } });
 
     await user.click(screen.getByText("Feed"));
 
@@ -134,8 +183,11 @@ describe("FeedAmountModal", () => {
 
     await user.click(screen.getByTestId("feed-amount-trigger"));
 
-    const input = screen.getByPlaceholderText("100.53");
-    fireEvent.change(input, { target: { value: "50" } });
+    const titleInput = screen.getByPlaceholderText("What was this for?");
+    fireEvent.change(titleInput, { target: { value: "groceries" } });
+
+    const amountInput = screen.getByPlaceholderText("100.53");
+    fireEvent.change(amountInput, { target: { value: "50" } });
 
     await user.click(screen.getByText("Feed"));
 
@@ -143,6 +195,4 @@ describe("FeedAmountModal", () => {
       expect(mockShowAlert.error).toHaveBeenCalledWith("Not authorized");
     });
   });
-
-
 });

@@ -6,11 +6,11 @@ export default defineSchema({
     title: v.string(),
     value: v.number(),
     date: v.number(),
-    pipeId: v.id("pipes"),
-    sentToPipeId: v.optional(v.id("pipes")),
+    from: v.optional(v.id("pipes")),
+    to: v.optional(v.id("pipes")),
     userId: v.id("users"),
   })
-    .index("by_pipeId", ["pipeId"])
+    .index("by_from", ["from"])
     .index("by_userId", ["userId"])
     .index("by_userId_date", ["userId", "date"]),
   users: defineTable({

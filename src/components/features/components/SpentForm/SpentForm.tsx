@@ -109,8 +109,8 @@ export function SpentForm({ pipeId, initState }: Props) {
         title,
         value: parsedValue,
         date: date.getTime(),
-        pipeId,
-        ...(mode === "transfer" && sentToPipeId ? { sentToPipeId } : {}),
+        from: pipeId,
+        ...(mode === "transfer" && sentToPipeId ? { to: sentToPipeId } : {}),
       });
       resetForm();
     } catch (error) {
