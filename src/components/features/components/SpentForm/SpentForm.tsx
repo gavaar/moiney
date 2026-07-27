@@ -12,6 +12,7 @@ import { type Id } from "@convex/_generated/dataModel";
 import { cn, colors } from "@/lib/styles";
 import { Icon, type IconName } from "@ui/Icon";
 import { Input } from "@ui/Input";
+import { SlideToggle } from "@ui/SlideToggle";
 import { useAlert } from "@ui/Alert";
 import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
 
@@ -29,11 +30,11 @@ type Props = {
 export function getButtonLabel(
   isNegative: boolean,
   destinationPipeName: string | null,
+  mode: "upload" | "transfer",
 ): string {
-  if (destinationPipeName) {
-    return isNegative
-      ? `Take from ${destinationPipeName}`
-      : `Send to ${destinationPipeName}`;
+  if (mode === "transfer" || destinationPipeName) {
+    const name = destinationPipeName ?? "...";
+    return isNegative ? `Take from ${name}` : `Send to ${name}`;
   }
   return isNegative ? "Add return" : "Add expense";
 }
@@ -46,13 +47,23 @@ export function SpentForm({ pipeId, initState }: Props) {
   const [sentToPipeId, setSentToPipeId] = useState<Id<"pipes"> | null>(
     initState?.sentToPipeId ?? null,
   );
+  const [mode, setMode] = useState<"upload" | "transfer">(
+    initState?.sentToPipeId ? "transfer" : "upload",
+  );
+
+  const handleModeChange = (newMode: string) => {
+    setMode(newMode as "upload" | "transfer");
+    if (newMode === "upload") {
+      setSentToPipeId(null);
+    }
+  };
 
   const showAlert = useAlert();
   const createTransaction = useMutation(api.transactions.createTransaction);
   const { allPipes } = usePipeSelection();
   const recentTitles = useQuery(api.transactions.listRecentTitles, { pipeId });
 
-  const isValid = title.trim() !== "" && value !== "";
+  const isValid = title.trim() !== "" && value !== "" && (mode !== "transfer" || sentToPipeId !== null);
   const isNegative = value.startsWith("-");
 
   const pipeItems = useMemo(() => {
@@ -86,6 +97,7 @@ export function SpentForm({ pipeId, initState }: Props) {
     setValue("");
     setDate(new Date());
     setSentToPipeId(null);
+    setMode("upload");
   };
 
   const handleSubmit = async () => {
@@ -98,7 +110,7 @@ export function SpentForm({ pipeId, initState }: Props) {
         value: parsedValue,
         date: date.getTime(),
         pipeId,
-        ...(sentToPipeId ? { sentToPipeId } : {}),
+        ...(mode === "transfer" && sentToPipeId ? { sentToPipeId } : {}),
       });
       resetForm();
     } catch (error) {
@@ -119,9 +131,22 @@ export function SpentForm({ pipeId, initState }: Props) {
         </View>
       }
 
+      <View className="flex-row items-center justify-between">
+        <Text className="text-sm text-text">
+          {mode === "upload" ? "Add transaction" : "Transfer"}
+        </Text>
+        <SlideToggle
+          options={[
+            { value: "upload", icon: "upload" },
+            { value: "transfer", icon: "repeat" },
+          ]}
+          value={mode}
+          onChange={handleModeChange}
+        />
+      </View>
+
       <Input
         type="text-select"
-        label="Add transaction"
         value={title}
         onChangeText={setTitle}
         onOptionSelect={setTitle}
@@ -154,20 +179,22 @@ export function SpentForm({ pipeId, initState }: Props) {
         </View>
       </View>
 
-      <Input
-        type="select"
-        label="Transfer to"
-        value={sentToPipeId}
-        onSelect={(id) => setSentToPipeId(id ? (id as Id<"pipes">) : null)}
-        items={pipeItems}
-        renderItem={(item: any) => (
-          <View className="flex-row items-center gap-2">
-            <Icon name={item.icon as IconName} size={16} color={colors.text} />
-            <Text className="text-text">{item.name}</Text>
-          </View>
-        )}
-        placeholder="None"
-      />
+      {mode === "transfer" && (
+        <Input
+          type="select"
+          label="Transfer to"
+          value={sentToPipeId}
+          onSelect={(id) => setSentToPipeId(id ? (id as Id<"pipes">) : null)}
+          items={pipeItems}
+          renderItem={(item: any) => (
+            <View className="flex-row items-center gap-2">
+              <Icon name={item.icon as IconName} size={16} color={colors.text} />
+              <Text className="text-text">{item.name}</Text>
+            </View>
+          )}
+          placeholder="None"
+        />
+      )}
 
       <View className="flex-row items-center justify-between gap-3 pt-2">
         <TouchableOpacity
@@ -197,7 +224,7 @@ export function SpentForm({ pipeId, initState }: Props) {
           ) : (
             <>
               <Icon
-                name="upload"
+                name={mode === "upload" ? "upload" : "repeat"}
                 size={20}
                 color={isNegative ? "#46AE82" : "#C05959"}
               />
@@ -207,7 +234,7 @@ export function SpentForm({ pipeId, initState }: Props) {
                   isNegative ? "text-success" : "text-error"
                 )}
               >
-                {getButtonLabel(isNegative, destinationPipeName)}
+                {getButtonLabel(isNegative, destinationPipeName, mode)}
               </Text>
             </>
           )}

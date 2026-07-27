@@ -77,7 +77,7 @@ type SelectProps = {
 
 type TextSelectProps = {
   type: "text-select";
-  label: string;
+  label?: string;
   value: string;
   onChangeText: (text: string) => void;
   onOptionSelect: (value: string) => void;

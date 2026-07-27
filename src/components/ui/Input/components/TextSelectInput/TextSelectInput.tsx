@@ -4,7 +4,7 @@ import { cn } from "@/lib/styles";
 import { getBorderStyle } from "../../input.config";
 
 type Props = {
-  label: string;
+  label?: string;
   value: string;
   onChangeText: (text: string) => void;
   onOptionSelect: (value: string) => void;
@@ -44,7 +44,7 @@ export function TextSelectInput({
 
   return (
     <View className="gap-1">
-      <Text className="text-sm font-medium text-text">{label}</Text>
+      {label ? <Text className="text-sm font-medium text-text">{label}</Text> : null}
       <View className="relative">
         <RNTextInput
           ref={inputRef}

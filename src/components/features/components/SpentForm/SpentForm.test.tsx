@@ -105,18 +105,19 @@ vi.mock("@ui/Input", () => ({
       );
     }
     if (type === "text-select") {
+      const labelKey = label ?? "";
       return (
-        <div data-testid={`input-${label}`}>
+        <div data-testid={`input-${labelKey}`}>
           <span>{label}</span>
           <input
-            data-testid={`input-${label}-field`}
+            data-testid={`input-${labelKey}-field`}
             value={value}
             onChange={(e) => onChangeText?.(e.target.value)}
             disabled={disabled}
             placeholder={placeholder}
           />
           {options?.length > 0 && (
-            <div data-testid={`text-select-options-${label}`}>
+            <div data-testid={`text-select-options-${labelKey}`}>
               {options.map((opt: string) => (
                 <button
                   key={opt}
@@ -129,7 +130,7 @@ vi.mock("@ui/Input", () => ({
             </div>
           )}
           {maxLength !== undefined && (
-            <span data-testid={`input-${label}-counter`}>
+            <span data-testid={`input-${labelKey}-counter`}>
               {String(value ?? "").length} / {maxLength}
             </span>
           )}
@@ -170,20 +171,40 @@ vi.mock("@ui/Icon", () => ({
 }));
 
 describe("getButtonLabel", () => {
-  it('returns "Add expense" when isNegative is false and no destination', () => {
-    expect(getButtonLabel(false, null)).toBe("Add expense");
+  describe("upload mode", () => {
+    it('returns "Add expense" when isNegative is false and no destination', () => {
+      expect(getButtonLabel(false, null, "upload")).toBe("Add expense");
+    });
+
+    it('returns "Add return" when isNegative is true and no destination', () => {
+      expect(getButtonLabel(true, null, "upload")).toBe("Add return");
+    });
+
+    it('returns "Send to {name}" when isNegative is false and destination is set', () => {
+      expect(getButtonLabel(false, "Salary", "upload")).toBe("Send to Salary");
+    });
+
+    it('returns "Take from {name}" when isNegative is true and destination is set', () => {
+      expect(getButtonLabel(true, "Freelance", "upload")).toBe("Take from Freelance");
+    });
   });
 
-  it('returns "Add return" when isNegative is true and no destination', () => {
-    expect(getButtonLabel(true, null)).toBe("Add return");
-  });
+  describe("transfer mode", () => {
+    it('returns "Send to ..." when isNegative is false and no destination', () => {
+      expect(getButtonLabel(false, null, "transfer")).toBe("Send to ...");
+    });
 
-  it('returns "Send to {name}" when isNegative is false and destination is set', () => {
-    expect(getButtonLabel(false, "Salary")).toBe("Send to Salary");
-  });
+    it('returns "Take from ..." when isNegative is true and no destination', () => {
+      expect(getButtonLabel(true, null, "transfer")).toBe("Take from ...");
+    });
 
-  it('returns "Take from {name}" when isNegative is true and destination is set', () => {
-    expect(getButtonLabel(true, "Freelance")).toBe("Take from Freelance");
+    it('returns "Send to {name}" when isNegative is false and destination is set', () => {
+      expect(getButtonLabel(false, "Salary", "transfer")).toBe("Send to Salary");
+    });
+
+    it('returns "Take from {name}" when isNegative is true and destination is set', () => {
+      expect(getButtonLabel(true, "Freelance", "transfer")).toBe("Take from Freelance");
+    });
   });
 });
 
@@ -208,8 +229,10 @@ describe("SpentForm", () => {
     expect(screen.getByTestId("input-Date")).toBeTruthy();
   });
 
-  it("renders transfer target select input", () => {
+  it("renders transfer target select input only in transfer mode", () => {
     render(<SpentForm pipeId={PIPE_ID} />);
+    expect(screen.queryByTestId("input-Transfer to")).toBeNull();
+    fireEvent.click(screen.getByTestId("slide-toggle-transfer"));
     expect(screen.getByTestId("input-Transfer to")).toBeTruthy();
   });
 
@@ -250,6 +273,19 @@ describe("SpentForm", () => {
     expect(btn.getAttribute("aria-disabled")).toBeNull();
   });
 
+  it("submit button is disabled in transfer mode when no destination selected", () => {
+    render(<SpentForm pipeId={PIPE_ID} />);
+    fireEvent.change(screen.getByPlaceholderText("What was this for?"), {
+      target: { value: "Lunch" },
+    });
+    fireEvent.change(screen.getByTestId("input-Value-field"), {
+      target: { value: "12.50" },
+    });
+    fireEvent.click(screen.getByTestId("slide-toggle-transfer"));
+    const btn = screen.getByTestId("submit-button");
+    expect(btn.getAttribute("aria-disabled")).toBe("true");
+  });
+
   it("shows default button label when no transfer destination selected", () => {
     render(<SpentForm pipeId={PIPE_ID} />);
     fireEvent.change(screen.getByPlaceholderText("What was this for?"), {
@@ -269,6 +305,7 @@ describe("SpentForm", () => {
     fireEvent.change(screen.getByTestId("input-Value-field"), {
       target: { value: "12.50" },
     });
+    fireEvent.click(screen.getByTestId("slide-toggle-transfer"));
     fireEvent.click(screen.getByTestId("select-item-feed-1"));
     expect(screen.getByText("Send to Salary")).toBeTruthy();
   });
@@ -281,10 +318,11 @@ describe("SpentForm", () => {
     fireEvent.change(screen.getByTestId("input-Value-field"), {
       target: { value: "12.50" },
     });
+    fireEvent.click(screen.getByTestId("slide-toggle-transfer"));
     fireEvent.click(screen.getByTestId("select-item-feed-1"));
     expect(screen.getByText("Send to Salary")).toBeTruthy();
     fireEvent.click(screen.getByTestId("select-item-"));
-    expect(screen.getByText("Add expense")).toBeTruthy();
+    expect(screen.getByText("Send to ...")).toBeTruthy();
   });
 
   it("calls createTransaction with sentToPipeId when destination selected", async () => {
@@ -298,6 +336,7 @@ describe("SpentForm", () => {
     fireEvent.change(screen.getByTestId("input-Value-field"), {
       target: { value: "12.50" },
     });
+    fireEvent.click(screen.getByTestId("slide-toggle-transfer"));
     fireEvent.click(screen.getByTestId("select-item-feed-1"));
     fireEvent.click(screen.getByTestId("submit-button"));
 
@@ -415,6 +454,7 @@ describe("SpentForm", () => {
     fireEvent.change(screen.getByTestId("input-Value-field"), {
       target: { value: "12.50" },
     });
+    fireEvent.click(screen.getByTestId("slide-toggle-transfer"));
     fireEvent.click(screen.getByTestId("select-item-feed-1"));
     expect(screen.getByText("Send to Salary")).toBeTruthy();
     fireEvent.click(screen.getByTestId("eraser-button"));
@@ -425,11 +465,12 @@ describe("SpentForm", () => {
     render(<SpentForm pipeId={PIPE_ID} />);
     const titleInput = screen.getByPlaceholderText("What was this for?");
     fireEvent.change(titleInput, { target: { value: "Hello" } });
-    expect(screen.getByTestId("input-Add transaction-counter").textContent).toBe("5 / 140");
+    expect(screen.getByText("5 / 140")).toBeTruthy();
   });
 
   it("shows only feeds in the transfer selector (excludes child pipes)", () => {
     render(<SpentForm pipeId={PIPE_ID} />);
+    fireEvent.click(screen.getByTestId("slide-toggle-transfer"));
     const items = screen.getByTestId("select-items-Transfer to");
     expect(items).toBeTruthy();
     expect(screen.getByTestId("select-item-")).toBeTruthy(); // None
@@ -440,6 +481,7 @@ describe("SpentForm", () => {
 
   it("excludes the root ancestor of current pipe from feed options", () => {
     render(<SpentForm pipeId={"child-1" as Id<"pipes">} />);
+    fireEvent.click(screen.getByTestId("slide-toggle-transfer"));
     expect(screen.queryByTestId("select-item-feed-1")).toBeNull(); // feed-1 is ancestor of child-1
     expect(screen.getByTestId("select-item-feed-2")).toBeTruthy(); // Freelance is unrelated
     expect(screen.getByTestId("select-item-")).toBeTruthy(); // None
@@ -450,7 +492,7 @@ describe("SpentForm", () => {
     mockRecentTitles.push("groceries", "gas", "rent");
 
     render(<SpentForm pipeId={PIPE_ID} />);
-    const options = screen.getByTestId("text-select-options-Add transaction");
+    const options = screen.getByTestId("text-select-options-");
     expect(options.children).toHaveLength(3);
     expect(screen.getByTestId("text-select-option-groceries")).toBeTruthy();
     expect(screen.getByTestId("text-select-option-gas")).toBeTruthy();
@@ -461,7 +503,7 @@ describe("SpentForm", () => {
     mockRecentTitles.length = 0;
 
     render(<SpentForm pipeId={PIPE_ID} />);
-    expect(screen.queryByTestId("text-select-options-Add transaction")).toBeNull();
+    expect(screen.queryByTestId("text-select-options-")).toBeNull();
   });
 
   it("selecting a recent title option populates the input", () => {
@@ -490,5 +532,41 @@ describe("SpentForm", () => {
     expect(screen.getByTestId("select-value-Transfer to").textContent).toBe("Salary");
     const titleInput = screen.getByPlaceholderText("What was this for?") as HTMLInputElement;
     expect(titleInput.value).toBe("prev title");
+  });
+
+  it("renders mode toggle with upload and repeat icons", () => {
+    render(<SpentForm pipeId={PIPE_ID} />);
+    expect(screen.getByTestId("slide-toggle-upload")).toBeTruthy();
+    expect(screen.getByTestId("slide-toggle-transfer")).toBeTruthy();
+  });
+
+  it("default mode is upload with correct header text", () => {
+    render(<SpentForm pipeId={PIPE_ID} />);
+    expect(screen.getByText("Add transaction")).toBeTruthy();
+    expect(screen.queryByText("Transfer")).toBeNull();
+  });
+
+  it("toggling to transfer mode changes header text", () => {
+    render(<SpentForm pipeId={PIPE_ID} />);
+    fireEvent.click(screen.getByTestId("slide-toggle-transfer"));
+    expect(screen.getByText("Transfer")).toBeTruthy();
+    expect(screen.queryByText("Add transaction")).toBeNull();
+  });
+
+  it("toggling back to upload hides transfer to field", () => {
+    render(<SpentForm pipeId={PIPE_ID} />);
+    fireEvent.click(screen.getByTestId("slide-toggle-transfer"));
+    expect(screen.getByTestId("input-Transfer to")).toBeTruthy();
+    fireEvent.click(screen.getByTestId("slide-toggle-upload"));
+    expect(screen.queryByTestId("input-Transfer to")).toBeNull();
+  });
+
+  it("eraser resets mode back to upload", () => {
+    render(<SpentForm pipeId={PIPE_ID} />);
+    fireEvent.click(screen.getByTestId("slide-toggle-transfer"));
+    expect(screen.getByText("Transfer")).toBeTruthy();
+    fireEvent.click(screen.getByTestId("eraser-button"));
+    expect(screen.getByText("Add transaction")).toBeTruthy();
+    expect(screen.queryByTestId("input-Transfer to")).toBeNull();
   });
 });
