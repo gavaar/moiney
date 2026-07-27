@@ -8,14 +8,17 @@ import { SpentForm, getButtonLabel } from "./SpentForm";
 const PIPE_ID = "pipe-1" as Id<"pipes">;
 const mockCreateTransaction = vi.fn().mockResolvedValue(undefined);
 
+const mockRecentTitles: string[] = [];
 vi.mock("convex/react", () => ({
   useMutation: () => mockCreateTransaction,
+  useQuery: () => mockRecentTitles,
 }));
 
 vi.mock("@convex/_generated/api", () => ({
   api: {
     transactions: {
       createTransaction: {},
+      listRecentTitles: {},
     },
   },
 }));
@@ -65,7 +68,7 @@ vi.mock("@features/pipes/context/PipeSelectionContext", () => ({
 }));
 
 vi.mock("@ui/Input", () => ({
-  Input: ({ label, type, value, onChangeText, onChange, disabled, placeholder, allowNegative, error, maxLength, items, onSelect }: any) => {
+  Input: ({ label, type, value, onChangeText, onChange, disabled, placeholder, allowNegative, error, maxLength, items, onSelect, options, onOptionSelect }: any) => {
     if (type === "datetime") {
       return (
         <div data-testid={`input-${label}`}>
@@ -98,6 +101,38 @@ vi.mock("@ui/Input", () => ({
               </button>
             ))}
           </div>
+        </div>
+      );
+    }
+    if (type === "text-select") {
+      return (
+        <div data-testid={`input-${label}`}>
+          <span>{label}</span>
+          <input
+            data-testid={`input-${label}-field`}
+            value={value}
+            onChange={(e) => onChangeText?.(e.target.value)}
+            disabled={disabled}
+            placeholder={placeholder}
+          />
+          {options?.length > 0 && (
+            <div data-testid={`text-select-options-${label}`}>
+              {options.map((opt: string) => (
+                <button
+                  key={opt}
+                  data-testid={`text-select-option-${opt}`}
+                  onClick={() => onOptionSelect?.(opt)}
+                >
+                  {opt}
+                </button>
+              ))}
+            </div>
+          )}
+          {maxLength !== undefined && (
+            <span data-testid={`input-${label}-counter`}>
+              {String(value ?? "").length} / {maxLength}
+            </span>
+          )}
         </div>
       );
     }
@@ -155,6 +190,7 @@ describe("getButtonLabel", () => {
 describe("SpentForm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockRecentTitles.length = 0;
   });
 
   it("renders title label", () => {
@@ -407,6 +443,35 @@ describe("SpentForm", () => {
     expect(screen.queryByTestId("select-item-feed-1")).toBeNull(); // feed-1 is ancestor of child-1
     expect(screen.getByTestId("select-item-feed-2")).toBeTruthy(); // Freelance is unrelated
     expect(screen.getByTestId("select-item-")).toBeTruthy(); // None
+  });
+
+  it("renders recent title options when available", () => {
+    mockRecentTitles.length = 0;
+    mockRecentTitles.push("groceries", "gas", "rent");
+
+    render(<SpentForm pipeId={PIPE_ID} />);
+    const options = screen.getByTestId("text-select-options-Add transaction");
+    expect(options.children).toHaveLength(3);
+    expect(screen.getByTestId("text-select-option-groceries")).toBeTruthy();
+    expect(screen.getByTestId("text-select-option-gas")).toBeTruthy();
+    expect(screen.getByTestId("text-select-option-rent")).toBeTruthy();
+  });
+
+  it("does not render recent title options when empty", () => {
+    mockRecentTitles.length = 0;
+
+    render(<SpentForm pipeId={PIPE_ID} />);
+    expect(screen.queryByTestId("text-select-options-Add transaction")).toBeNull();
+  });
+
+  it("selecting a recent title option populates the input", () => {
+    mockRecentTitles.length = 0;
+    mockRecentTitles.push("groceries");
+
+    render(<SpentForm pipeId={PIPE_ID} />);
+    fireEvent.click(screen.getByTestId("text-select-option-groceries"));
+    const titleInput = screen.getByPlaceholderText("What was this for?") as HTMLInputElement;
+    expect(titleInput.value).toBe("groceries");
   });
 
   it("pre-fills sentToPipeId from initState", () => {

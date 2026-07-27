@@ -5,3 +5,4 @@ export { IconInput } from "./IconInput";
 export { DatetimeInput } from "./DatetimeInput";
 export { CheckboxInput } from "./Checkbox";
 export { SelectInput } from "./SelectInput";
+export { TextSelectInput } from "./TextSelectInput";

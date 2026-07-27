@@ -26,6 +26,20 @@ export default defineSchema({
   })
     .index("by_userId", ["userId"])
     .index("by_refreshTokenHash", ["refreshTokenHash"]),
+  transactionTitleUsage: defineTable({
+    pipeId: v.id("pipes"),
+    userId: v.id("users"),
+    title: v.string(),
+    count: v.number(),
+    lastUsedAt: v.number(),
+  })
+    .index("by_pipeId_userId_title", ["pipeId", "userId", "title"])
+    .index("by_pipeId_userId_count_lastUsedAt", [
+      "pipeId",
+      "userId",
+      "count",
+      "lastUsedAt",
+    ]),
   pipes: defineTable({
     userId: v.id("users"),
     parentId: v.optional(v.id("pipes")),

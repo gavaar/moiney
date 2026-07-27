@@ -64,6 +64,28 @@ export const createTransaction = mutation({
       sentToPipeId: args.sentToPipeId,
       userId,
     });
+
+    const existingTitleUsage = await ctx.db
+      .query("transactionTitleUsage")
+      .withIndex("by_pipeId_userId_title", (q: any) =>
+        q.eq("pipeId", args.pipeId).eq("userId", userId).eq("title", args.title.toLowerCase()),
+      )
+      .first();
+
+    if (existingTitleUsage) {
+      await ctx.db.patch(existingTitleUsage._id, {
+        count: existingTitleUsage.count + 1,
+        lastUsedAt: args.date,
+      });
+    } else {
+      await ctx.db.insert("transactionTitleUsage", {
+        pipeId: args.pipeId,
+        userId,
+        title: args.title.toLowerCase(),
+        count: 1,
+        lastUsedAt: args.date,
+      });
+    }
   },
 });
 
@@ -75,6 +97,25 @@ export const listTransactions = query({
     const userId = await requireAuth(ctx);
     const q = transactionsQuery(ctx, userId, args.pipeIds);
     return await q.take(12);
+  },
+});
+
+export const listRecentTitles = query({
+  args: {
+    pipeId: v.id("pipes"),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireAuth(ctx);
+
+    const rows = await ctx.db
+      .query("transactionTitleUsage")
+      .withIndex("by_pipeId_userId_count_lastUsedAt", (q: any) =>
+        q.eq("pipeId", args.pipeId).eq("userId", userId),
+      )
+      .order("desc")
+      .take(10);
+
+    return rows.map((r) => r.title);
   },
 });
 

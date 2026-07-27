@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { type Id } from "@convex/_generated/dataModel";
 import { cn, colors } from "@/lib/styles";
@@ -50,6 +50,7 @@ export function SpentForm({ pipeId, initState }: Props) {
   const showAlert = useAlert();
   const createTransaction = useMutation(api.transactions.createTransaction);
   const { allPipes } = usePipeSelection();
+  const recentTitles = useQuery(api.transactions.listRecentTitles, { pipeId });
 
   const isValid = title.trim() !== "" && value !== "";
   const isNegative = value.startsWith("-");
@@ -119,10 +120,12 @@ export function SpentForm({ pipeId, initState }: Props) {
       }
 
       <Input
-        type="text"
+        type="text-select"
         label="Add transaction"
         value={title}
         onChangeText={setTitle}
+        onOptionSelect={setTitle}
+        options={recentTitles ?? []}
         maxLength={140}
         multiline
         placeholder="What was this for?"
