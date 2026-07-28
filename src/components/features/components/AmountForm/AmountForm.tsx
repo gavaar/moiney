@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useCallback, useState, useMemo } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -15,6 +15,11 @@ import { Input } from "@ui/Input";
 import { SlideToggle } from "@ui/SlideToggle";
 import { useAlert } from "@ui/Alert";
 import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
+import {
+  buildPipeItems,
+  getButtonLabel,
+  getDestinationPipeName,
+} from "./helpers";
 
 type SpentMode = "upload" | "transfer";
 
@@ -26,23 +31,10 @@ type Props = {
     pipeName: string;
     title: string;
     value: string;
-    sentToPipeId?: Id<"pipes">;
+    to?: Id<"pipes">;
   };
   onSuccess?: () => void;
 };
-
-export function getButtonLabel(
-  mode: "feed" | "spend",
-  isNegative: boolean,
-  destinationPipeName: string | null,
-  spendMode: SpentMode,
-): string {
-  if (mode === "feed") return "Feed";
-  if (destinationPipeName) {
-    return isNegative ? `Send to ${destinationPipeName}` : `Take from ${destinationPipeName}`;
-  }
-  return isNegative ? "Add expense" : "Add return";
-}
 
 export function AmountForm({ pipeId, mode = "spend", initState, onSuccess }: Props) {
   const [title, setTitle] = useState(initState?.title ?? "");
@@ -50,10 +42,10 @@ export function AmountForm({ pipeId, mode = "spend", initState, onSuccess }: Pro
   const [date, setDate] = useState(new Date());
   const [loading, setLoading] = useState(false);
   const [sentToPipeId, setSentToPipeId] = useState<Id<"pipes"> | null>(
-    initState?.sentToPipeId ?? null,
+    initState?.to ?? null,
   );
   const [spendMode, setSpendMode] = useState<SpentMode>(
-    initState?.sentToPipeId ? "transfer" : "upload",
+    initState?.to ? "transfer" : "upload",
   );
 
   const showAlert = useAlert();
@@ -78,56 +70,51 @@ export function AmountForm({ pipeId, mode = "spend", initState, onSuccess }: Pro
 
   const isNegative = value === "" ? !isFeed : value.startsWith("-");
 
-  const handleModeChange = (newMode: string) => {
+  const renderPipeItem = useCallback(
+    (item: any) => (
+      <View className="flex-row items-center gap-2">
+        <Icon name={item.icon as IconName} size={16} color={colors.text} />
+        <Text className="text-text">{item.name}</Text>
+      </View>
+    ),
+    [],
+  );
+
+  const handleModeChange = useCallback((newMode: string) => {
     setSpendMode(newMode as SpentMode);
     if (newMode === "upload") {
       setSentToPipeId(null);
     }
-  };
+  }, []);
 
-  const handleValueChange = (text: string) => {
-    if (!isFeed && value === "" && text !== "" && !text.startsWith("-")) {
-      setValue("-" + text);
-    } else {
-      setValue(text);
-    }
-  };
+  const handleValueChange = useCallback((text: string) => {
+    setValue((prev) => {
+      if (!isFeed && prev === "" && text !== "" && !text.startsWith("-")) {
+        return "-" + text;
+      }
+      return text;
+    });
+  }, [isFeed]);
 
-  const pipeItems = useMemo(() => {
-    const allPipesList = allPipes ?? [];
+  const pipeItems = useMemo(
+    () => buildPipeItems(allPipes, pipeId),
+    [allPipes, pipeId],
+  );
 
-    const ancestorIds = new Set<Id<"pipes">>();
-    let currentId: Id<"pipes"> | undefined = pipeId;
-    while (currentId) {
-      ancestorIds.add(currentId);
-      const pipe = allPipesList.find((p) => p._id === currentId);
-      currentId = pipe?.parentId;
-    }
+  const destinationPipeName = useMemo(
+    () => getDestinationPipeName(allPipes, sentToPipeId),
+    [allPipes, sentToPipeId],
+  );
 
-    const feeds = allPipesList.filter(
-      (p) => !p.parentId && !ancestorIds.has(p._id),
-    );
-    return [
-      { id: "", name: "None", icon: "close-circle" },
-      ...feeds.map((p) => ({ id: p._id, name: p.name, icon: p.icon })),
-    ];
-  }, [allPipes, pipeId]);
-
-  const destinationPipeName = useMemo(() => {
-    if (!sentToPipeId || !allPipes) return null;
-    const pipe = allPipes.find((p) => p._id === sentToPipeId);
-    return pipe?.name ?? null;
-  }, [sentToPipeId, allPipes]);
-
-  const resetForm = () => {
+  const resetForm = useCallback(() => {
     setTitle("");
     setValue("");
     setDate(new Date());
     setSentToPipeId(null);
     setSpendMode("upload");
-  };
+  }, []);
 
-  const handleSubmit = async () => {
+  const handleSubmit = useCallback(async () => {
     if (!isValid || loading) return;
     setLoading(true);
     try {
@@ -157,7 +144,22 @@ export function AmountForm({ pipeId, mode = "spend", initState, onSuccess }: Pro
     } finally {
       setLoading(false);
     }
-  };
+  }, [
+    isValid,
+    loading,
+    isFeed,
+    value,
+    title,
+    date,
+    spendMode,
+    sentToPipeId,
+    pipeId,
+    onSuccess,
+    feedPipeMutation,
+    createTransaction,
+    showAlert,
+    resetForm,
+  ]);
 
   return (
     <View className="px-4 py-4 gap-2">
@@ -226,12 +228,7 @@ export function AmountForm({ pipeId, mode = "spend", initState, onSuccess }: Pro
           value={sentToPipeId}
           onSelect={(id) => setSentToPipeId(id ? (id as Id<"pipes">) : null)}
           items={pipeItems}
-          renderItem={(item: any) => (
-            <View className="flex-row items-center gap-2">
-              <Icon name={item.icon as IconName} size={16} color={colors.text} />
-              <Text className="text-text">{item.name}</Text>
-            </View>
-          )}
+          renderItem={renderPipeItem}
           placeholder="None"
         />
       )}
@@ -246,7 +243,7 @@ export function AmountForm({ pipeId, mode = "spend", initState, onSuccess }: Pro
             loading && "opacity-50",
           )}
         >
-          <Icon name="eraser" size={20} color="#9CA3AF" />
+          <Icon name="eraser" size={20} color={colors.muted} />
         </TouchableOpacity>
 
         <Pressable
@@ -260,13 +257,13 @@ export function AmountForm({ pipeId, mode = "spend", initState, onSuccess }: Pro
           )}
         >
           {loading ? (
-            <ActivityIndicator color={isNegative ? "#C05959" : "#46AE82"} />
+            <ActivityIndicator color={isNegative ? colors.error : colors.primary} />
           ) : (
             <>
               <Icon
                 name={isFeed ? "add-circle-outline" : spendMode === "upload" ? "upload" : "repeat"}
                 size={20}
-                color={isNegative ? "#C05959" : "#46AE82"}
+                color={isNegative ? colors.error : colors.success}
               />
               <Text
                 className={cn(
@@ -274,7 +271,7 @@ export function AmountForm({ pipeId, mode = "spend", initState, onSuccess }: Pro
                   isNegative ? "text-error" : "text-success",
                 )}
               >
-                {getButtonLabel(mode, isNegative, destinationPipeName, spendMode)}
+                {getButtonLabel(mode, isNegative, destinationPipeName)}
               </Text>
             </>
           )}

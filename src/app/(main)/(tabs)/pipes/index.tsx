@@ -1,13 +1,12 @@
 import { useEffect } from "react";
-import { ActivityIndicator, BackHandler, ScrollView, Text, View } from "react-native";
+import { BackHandler, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ScreenHeader } from "@ui/ScreenHeader/ScreenHeader";
 import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
 import { useTransactions } from "@features/transactions/context/TransactionsContext";
 import { InnerPipesScreen } from '@features/pipes/InnerPipesScreen';
 import { FeedListScreen } from '@features/pipes/FeedListScreen';
-import { TransactionItem } from "@ui/TransactionItem";
-import { colors } from '@/lib/styles';
+import { TransactionList } from "@ui/TransactionList";
 
 export default function Pipes() {
   const { feeds, isLoading, selectedName, selectedPipePath, selectPipe } = usePipeSelection();
@@ -43,30 +42,10 @@ export default function Pipes() {
 
       <View style={{ flex: 1 }}>
         <Text className="text-text font-semibold text-base my-2 px-2">Latest transactions</Text>
-        <ScrollView className="flex-1 px-2">
-          {transactionLoading ? (
-            <View className="flex-1 items-center justify-center">
-              <ActivityIndicator
-                testID="loading-indicator"
-                size="small"
-                color={colors.primary}
-              />
-            </View>
-          ) : transactions && transactions.length > 0 ? (
-            <View className="gap-1">
-              {transactions.map((tx) => (
-                <TransactionItem
-                  key={tx._id}
-                  transaction={tx}
-                />
-              ))}
-            </View>
-          ) : (
-            <View className="flex-1 items-center justify-center">
-              <Text className="text-muted text-base">No transactions yet</Text>
-            </View>
-          )}
-        </ScrollView>
+        <TransactionList
+          transactions={transactions}
+          isLoading={transactionLoading}
+        />
       </View>
     </SafeAreaView>
   );

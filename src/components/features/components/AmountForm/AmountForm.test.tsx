@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
 import { type Id } from "@convex/_generated/dataModel";
-import { AmountForm, getButtonLabel } from "./AmountForm";
+import { AmountForm } from "./AmountForm";
+import { getButtonLabel, buildPipeItems, getDestinationPipeName } from "./helpers";
 
 const PIPE_ID = "pipe-1" as Id<"pipes">;
 const mockCreateTransaction = vi.fn().mockResolvedValue(undefined);
@@ -176,25 +177,85 @@ vi.mock("@ui/Icon", () => ({
 
 describe("getButtonLabel", () => {
   it('returns "Feed" for feed mode', () => {
-    expect(getButtonLabel("feed", false, null, "upload")).toBe("Feed");
+    expect(getButtonLabel("feed", false, null)).toBe("Feed");
   });
 
   describe("spend mode", () => {
     it('returns "Add expense" when negative and no destination', () => {
-      expect(getButtonLabel("spend", true, null, "upload")).toBe("Add expense");
+      expect(getButtonLabel("spend", true, null)).toBe("Add expense");
     });
 
     it('returns "Add return" when positive and no destination', () => {
-      expect(getButtonLabel("spend", false, null, "upload")).toBe("Add return");
+      expect(getButtonLabel("spend", false, null)).toBe("Add return");
     });
 
     it('returns "Send to {name}" when negative and destination set', () => {
-      expect(getButtonLabel("spend", true, "Salary", "upload")).toBe("Send to Salary");
+      expect(getButtonLabel("spend", true, "Salary")).toBe("Send to Salary");
     });
 
     it('returns "Take from {name}" when positive and destination set', () => {
-      expect(getButtonLabel("spend", false, "Freelance", "upload")).toBe("Take from Freelance");
+      expect(getButtonLabel("spend", false, "Freelance")).toBe("Take from Freelance");
     });
+  });
+});
+
+describe("buildPipeItems", () => {
+  const allPipes = [
+    { _id: "feed-1" as Id<"pipes">, parentId: undefined as Id<"pipes"> | undefined, name: "Salary", icon: "cash-outline" },
+    { _id: "feed-2" as Id<"pipes">, parentId: undefined as Id<"pipes"> | undefined, name: "Freelance", icon: "laptop-outline" },
+    { _id: "child-1" as Id<"pipes">, parentId: "feed-1" as Id<"pipes">, name: "Rent", icon: "home-outline" },
+  ];
+
+  it("returns None option and all feeds when pipeId has no root ancestor", () => {
+    const result = buildPipeItems(allPipes, "pipe-1" as Id<"pipes">);
+    expect(result).toHaveLength(3);
+    expect(result[0]).toEqual({ id: "", name: "None", icon: "close-circle" });
+    expect(result[1].name).toBe("Salary");
+    expect(result[2].name).toBe("Freelance");
+  });
+
+  it("excludes the current pipe's root ancestor from feed options", () => {
+    const result = buildPipeItems(allPipes, "child-1" as Id<"pipes">);
+    expect(result).toHaveLength(2);
+    expect(result[1].name).toBe("Freelance");
+  });
+
+  it("excludes non-root pipes from feed options", () => {
+    const result = buildPipeItems(allPipes, "pipe-1" as Id<"pipes">);
+    result.forEach((item) => {
+      if (item.id) {
+        expect(item.id).not.toBe("child-1");
+      }
+    });
+  });
+
+  it("handles null allPipes gracefully", () => {
+    const result = buildPipeItems(null, "pipe-1" as Id<"pipes">);
+    expect(result).toHaveLength(1);
+    expect(result[0].name).toBe("None");
+  });
+});
+
+describe("getDestinationPipeName", () => {
+  const allPipes = [
+    { _id: "feed-1" as Id<"pipes">, name: "Salary" },
+    { _id: "feed-2" as Id<"pipes">, name: "Freelance" },
+  ];
+
+  it("returns null when sentToPipeId is null", () => {
+    expect(getDestinationPipeName(allPipes, null)).toBeNull();
+  });
+
+  it("returns pipe name when match found", () => {
+    expect(getDestinationPipeName(allPipes, "feed-1" as Id<"pipes">)).toBe("Salary");
+  });
+
+  it("returns null when no match found", () => {
+    expect(getDestinationPipeName(allPipes, "nonexistent" as Id<"pipes">)).toBeNull();
+  });
+
+  it("returns null when allPipes is null", () => {
+    expect(getDestinationPipeName(null, "feed-1" as Id<"pipes">)).toBeNull();
   });
 });
 
@@ -638,7 +699,7 @@ describe("AmountForm", () => {
             pipeName: "Salary",
             title: "prev title",
             value: "30",
-            sentToPipeId: "feed-1" as Id<"pipes">,
+            to: "feed-1" as Id<"pipes">,
           }}
         />,
       );
