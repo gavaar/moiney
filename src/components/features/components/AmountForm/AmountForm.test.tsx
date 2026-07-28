@@ -423,7 +423,7 @@ describe("AmountForm", () => {
 
     it("renders mode toggle", () => {
       render(<AmountForm pipeId={PIPE_ID} mode="spend" />);
-      expect(screen.getByTestId("slide-toggle-upload")).toBeTruthy();
+      expect(screen.getByTestId("slide-toggle-spend")).toBeTruthy();
       expect(screen.getByTestId("slide-toggle-transfer")).toBeTruthy();
     });
 
@@ -634,11 +634,11 @@ describe("AmountForm", () => {
       expect(screen.getByText("Transfer")).toBeTruthy();
     });
 
-    it("toggling back to upload hides transfer to field", () => {
+    it("toggling back to spend hides transfer to field", () => {
       render(<AmountForm pipeId={PIPE_ID} mode="spend" />);
       fireEvent.click(screen.getByTestId("slide-toggle-transfer"));
       expect(screen.getByTestId("input-Transfer to")).toBeTruthy();
-      fireEvent.click(screen.getByTestId("slide-toggle-upload"));
+      fireEvent.click(screen.getByTestId("slide-toggle-spend"));
       expect(screen.queryByTestId("input-Transfer to")).toBeNull();
     });
 
@@ -723,7 +723,7 @@ describe("AmountForm", () => {
       expect(screen.queryByText("Send to Salary")).toBeNull();
     });
 
-    it("eraser resets mode back to upload", () => {
+    it("eraser resets mode back to spend", () => {
       render(<AmountForm pipeId={PIPE_ID} mode="spend" />);
       fireEvent.click(screen.getByTestId("slide-toggle-transfer"));
       expect(screen.getByText("Transfer")).toBeTruthy();

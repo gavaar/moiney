@@ -21,7 +21,7 @@ import {
   getDestinationPipeName,
 } from "./helpers";
 
-type SpentMode = "upload" | "transfer";
+type SpentMode = "spend" | "transfer";
 
 type Props = {
   pipeId: Id<"pipes">;
@@ -45,7 +45,7 @@ export function AmountForm({ pipeId, mode = "spend", initState, onSuccess }: Pro
     initState?.to ?? null,
   );
   const [spendMode, setSpendMode] = useState<SpentMode>(
-    initState?.to ? "transfer" : "upload",
+    initState?.to ? "transfer" : "spend",
   );
 
   const showAlert = useAlert();
@@ -82,7 +82,7 @@ export function AmountForm({ pipeId, mode = "spend", initState, onSuccess }: Pro
 
   const handleModeChange = useCallback((newMode: string) => {
     setSpendMode(newMode as SpentMode);
-    if (newMode === "upload") {
+    if (newMode === "spend") {
       setSentToPipeId(null);
     }
   }, []);
@@ -111,7 +111,7 @@ export function AmountForm({ pipeId, mode = "spend", initState, onSuccess }: Pro
     setValue("");
     setDate(new Date());
     setSentToPipeId(null);
-    setSpendMode("upload");
+    setSpendMode("spend");
   }, []);
 
   const handleSubmit = useCallback(async () => {
@@ -173,11 +173,11 @@ export function AmountForm({ pipeId, mode = "spend", initState, onSuccess }: Pro
       {!isFeed && (
         <View className="flex-row items-center justify-between">
           <Text className="text-sm text-text">
-            {spendMode === "upload" ? "Add transaction" : "Transfer"}
+            {spendMode === "spend" ? "Add transaction" : "Transfer"}
           </Text>
           <SlideToggle
             options={[
-              { value: "upload", icon: "upload" },
+              { value: "spend", icon: "upload" },
               { value: "transfer", icon: "repeat" },
             ]}
             value={spendMode}
@@ -261,7 +261,7 @@ export function AmountForm({ pipeId, mode = "spend", initState, onSuccess }: Pro
           ) : (
             <>
               <Icon
-                name={isFeed ? "add-circle-outline" : spendMode === "upload" ? "upload" : "repeat"}
+                name={isFeed ? "add-circle-outline" : spendMode === "spend" ? "upload" : "repeat"}
                 size={20}
                 color={isNegative ? colors.error : colors.success}
               />
