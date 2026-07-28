@@ -45,8 +45,8 @@ vi.mock("@ui/Alert", () => ({
   useAlert: () => mockShowAlert,
 }));
 
-vi.mock("@features/components/SpentForm", () => ({
-  SpentForm: () => <div data-testid="spent-form" />,
+vi.mock("@features/components/AmountForm", () => ({
+  AmountForm: () => <div data-testid="spent-form" />,
 }));
 
 const mockUsePipeSelection = vi.fn();
@@ -184,7 +184,7 @@ describe("InnerPipesScreen", () => {
     expect(screen.queryByText(/selected Groceries/i)).toBeNull();
   });
 
-  it("renders SpentForm when pipe has no children", () => {
+  it("renders AmountForm when pipe has no children", () => {
     mockUsePipeSelection.mockReturnValue({
       ...baseMock,
       selectedPipePath: ["pipe-1"],
@@ -196,7 +196,7 @@ describe("InnerPipesScreen", () => {
     expect(screen.getByTestId("spent-form")).toBeDefined();
   });
 
-  it("does not render SpentForm when pipe has children", () => {
+  it("does not render AmountForm when pipe has children", () => {
     const childrenByParent = new Map();
     childrenByParent.set("pipe-1", [childPipe1]);
 

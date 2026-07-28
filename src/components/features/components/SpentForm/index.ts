@@ -1,1 +1,2 @@
-export { SpentForm } from "./SpentForm";
+export { AmountForm, getButtonLabel } from "../AmountForm";
+

@@ -1,9 +1,9 @@
 import { Pressable, Text, View } from "react-native";
-import { Icon, type IconName } from "@ui/Icon";
+import { Icon, safeIconName } from "@ui/Icon";
 import { cn, colors } from "@/lib/styles";
-import type { Doc, Id } from "@convex/_generated/dataModel";
+import type { Doc } from "@convex/_generated/dataModel";
 import { ModalShell } from '../Modal';
-import { SpentForm } from '@features/components/SpentForm';
+import { AmountForm } from '@features/components/AmountForm';
 import { useState } from 'react';
 import { usePipeSelection } from '@features/pipes/context/PipeSelectionContext';
 
@@ -26,14 +26,21 @@ export function TransactionItem({ transaction }: TransactionItemProps) {
   const [showDisabledInfo, setShowDisabledInfo] = useState(false);
   const { pipesById, childrenByParent } = usePipeSelection();
 
-  const sourcePipeId = transaction.from;
-  const destPipeId = transaction.to;
-  const sourcePipe = pipesById?.[sourcePipeId];
-  const destPipe = destPipeId ? pipesById?.[destPipeId] : undefined;
+  const sourcePipe = transaction.from ? pipesById?.[transaction.from] : undefined;
+  const destPipe = transaction.to ? pipesById?.[transaction.to] : undefined;
   const fromValid = !!sourcePipe && (childrenByParent.get(sourcePipe._id)?.length ?? 0) === 0;
   const toValid = !!destPipe && destPipe.parentId === undefined;
   const disabled = (!!transaction.from && !fromValid) || (!!transaction.to && !toValid);
   const primaryPipe = isFeed ? destPipe : sourcePipe;
+  const bgClass = isFeed ? "bg-secondary/30" : isTransfer ? "bg-accent/30" : isNegative ? "bg-error/30" : "bg-primary/30";
+  const amountFormMode = isFeed ? "feed" : undefined;
+  const amountFormInitState = primaryPipe ? {
+    pipeIcon: primaryPipe.icon,
+    pipeName: primaryPipe.name,
+    title: transaction.title,
+    value: `${transaction.value}`,
+    ...(isTransfer && destPipe ? { sentToPipeId: destPipe._id } : {}),
+  } : undefined;
 
   function handlePress() {
     if (disabled) {
@@ -47,16 +54,16 @@ export function TransactionItem({ transaction }: TransactionItemProps) {
     <Pressable
       className={cn(
         "flex-row gap-1 items-center rounded-2xl border border-border px-2 py-2",
-        isFeed ? "bg-secondary/30" : isTransfer ? "bg-accent/30" : isNegative ? "bg-error/30" : "bg-primary/30",
+        bgClass,
       )}
       onPress={handlePress}
     >
-      <Icon name={(isFeed ? destPipe?.icon : sourcePipe?.icon) as IconName ?? "pipe"} size={16} color={colors.muted} />
+      <Icon name={safeIconName(isFeed ? destPipe?.icon : sourcePipe?.icon)} size={16} color={colors.muted} />
 
       {isTransfer ? (
         <>
           <Icon name={isNegative ? "ray-start-arrow" : "ray-end-arrow"} size={14} color={colors.muted} />
-          <Icon name={destPipe?.icon as IconName ?? "pipe"} size={16} color={colors.muted} />
+          <Icon name={safeIconName(destPipe?.icon)} size={16} color={colors.muted} />
         </>
       ) : null}
 
@@ -74,29 +81,15 @@ export function TransactionItem({ transaction }: TransactionItemProps) {
       </Text>
       <Text
         className={cn(
-          "text-sm font-bold w-16 mr-2",
+          "text-sm font-bold w-16 mr-2 text-right",
           disabled ? "text-muted" : "text-white",
         )}
-        style={{ textAlign: 'right' }}
       >
         {transaction.value.toFixed(2)}
       </Text>
 
       <ModalShell visible={showForm} closeOnBackdropPress={true} onClose={() => setShowForm(false)}>
-        {primaryPipe && (
-          <SpentForm
-            pipeId={sourcePipe?._id ?? destPipe?._id!}
-            initState={{
-              pipeIcon: primaryPipe.icon,
-              pipeName: primaryPipe.name,
-              title: transaction.title,
-              value: `${transaction.value * -1}`,
-              ...(isTransfer && destPipe
-                ? { sentToPipeId: destPipe._id }
-                : {}),
-            }}
-          />
-        )}
+        {primaryPipe && <AmountForm mode={amountFormMode} pipeId={primaryPipe._id} initState={amountFormInitState} />}
       </ModalShell>
 
       <ModalShell visible={showDisabledInfo} closeOnBackdropPress={true} onClose={() => setShowDisabledInfo(false)}>

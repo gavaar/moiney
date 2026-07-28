@@ -1,9 +1,9 @@
-import { Text, View } from "react-native";
+import { View } from "react-native";
 import { usePipeSelection, toPipe } from "@features/pipes/context/PipeSelectionContext";
 import { PipesList } from "@features/pipes/components/PipesList";
 import { Icon } from "@ui/Icon";
 import { colors } from "@/lib/styles";
-import { SpentForm } from "@features/components/SpentForm";
+import { AmountForm } from "@features/components/AmountForm";
 import { AddPipeButton } from "./components/AddPipeButton";
 import { Breadcrumb } from "./components/Breadcrumb";
 import { PipeBars } from "./components/PipeBars";
@@ -33,7 +33,7 @@ export function InnerPipesScreen() {
 
       <View className="flex-1">
         {children.length === 0 && selectedPipe ? (
-          <SpentForm pipeId={selectedPipe._id} />
+          <AmountForm pipeId={selectedPipe._id} />
         ) : null}
         <PipesList
           pipes={children}

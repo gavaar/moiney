@@ -37,7 +37,7 @@ moiney/
 │   ├── app/            # 🖥️ Expo Router screens (_layout, index, login, sign-up)
 │   ├── components/     # 🧩 Reusable UI + features
 │   │   ├── ui/         # Alert, Button, Input, Icon, Modal, ErrorBoundary, etc.
-│   │   └── features/   # Feature modules (pipes, transactions, SpentForm)
+│   │   └── features/   # Feature modules (pipes, transactions, AmountForm)
 │   └── lib/            # 🔧 Hooks, utils, auth state, storage, test files
 ├── convex/
 │   ├── schema.ts       # 🗃️ Database schema (users + sessions tables)

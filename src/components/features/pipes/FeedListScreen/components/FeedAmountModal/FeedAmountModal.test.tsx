@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { type Id } from "@convex/_generated/dataModel";
@@ -8,12 +8,14 @@ import { FeedAmountModal } from "./FeedAmountModal";
 
 const PIPE_ID = "pipe-1" as Id<"pipes">;
 
-const mockFeedPipe = vi.fn().mockResolvedValue(undefined);
-const mockListRecentTitles = vi.fn().mockReturnValue([]);
+const mockOnSuccess = vi.fn();
+let capturedOnSuccess: (() => void) | null = null;
 
-vi.mock("convex/react", () => ({
-  useMutation: () => mockFeedPipe,
-  useQuery: () => mockListRecentTitles(),
+vi.mock("@features/components/AmountForm", () => ({
+  AmountForm: ({ onSuccess, mode }: any) => {
+    capturedOnSuccess = onSuccess;
+    return <div data-testid="amount-form" data-mode={mode} />;
+  },
 }));
 
 const mockShowAlert = { success: vi.fn(), error: vi.fn() };
@@ -21,36 +23,10 @@ vi.mock("@ui/Alert", () => ({
   useAlert: () => mockShowAlert,
 }));
 
-vi.mock("@convex/_generated/api", () => ({
-  api: {
-    pipes: {
-      feedPipe: {},
-    },
-    transactions: {
-      listRecentTitles: {},
-    },
-  },
-}));
-
-vi.mock("@ui/Input", () => ({
-  Input: ({ type, value, onChangeText, onChange, placeholder, ...props }: any) => {
-    const handleChange = onChangeText || onChange;
-    return (
-      <input
-        data-testid={`mock-input-${type}`}
-        placeholder={placeholder}
-        value={value}
-        onChange={(e) => handleChange?.(e.target.value)}
-        {...props}
-      />
-    );
-  },
-}));
-
 describe("FeedAmountModal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockListRecentTitles.mockReturnValue([]);
+    capturedOnSuccess = null;
   });
 
   it("renders the add icon trigger", () => {
@@ -67,132 +43,26 @@ describe("FeedAmountModal", () => {
     expect(screen.getByText("Feed Groceries")).toBeTruthy();
   });
 
-  it("renders title input and amount input in modal", async () => {
+  it("renders AmountForm with feed mode inside modal", async () => {
     const user = userEvent.setup();
     render(<FeedAmountModal pipeId={PIPE_ID} feedName="Groceries" />);
 
     await user.click(screen.getByTestId("feed-amount-trigger"));
 
-    expect(screen.getByPlaceholderText("What was this for?")).toBeTruthy();
-    expect(screen.getByPlaceholderText("100.53")).toBeTruthy();
+    const form = screen.getByTestId("amount-form");
+    expect(form).toBeTruthy();
+    expect(form.getAttribute("data-mode")).toBe("feed");
   });
 
-  it("does not call feedPipe when confirm is pressed with empty title", async () => {
+  it("shows success alert and closes modal when AmountForm succeeds", async () => {
     const user = userEvent.setup();
     render(<FeedAmountModal pipeId={PIPE_ID} feedName="Groceries" />);
 
     await user.click(screen.getByTestId("feed-amount-trigger"));
 
-    const amountInput = screen.getByPlaceholderText("100.53");
-    fireEvent.change(amountInput, { target: { value: "50" } });
-
-    await user.click(screen.getByText("Feed"));
-
-    expect(mockFeedPipe).not.toHaveBeenCalled();
-  });
-
-  it("does not call feedPipe when amount is 0", async () => {
-    const user = userEvent.setup();
-    render(<FeedAmountModal pipeId={PIPE_ID} feedName="Groceries" />);
-
-    await user.click(screen.getByTestId("feed-amount-trigger"));
-
-    const titleInput = screen.getByPlaceholderText("What was this for?");
-    fireEvent.change(titleInput, { target: { value: "groceries" } });
-
-    const amountInput = screen.getByPlaceholderText("100.53");
-    fireEvent.change(amountInput, { target: { value: "0" } });
-
-    await user.click(screen.getByText("Feed"));
-
-    expect(mockFeedPipe).not.toHaveBeenCalled();
-  });
-
-  it("calls feedPipe with pipeId, amount and title on confirm", async () => {
-    const user = userEvent.setup();
-    render(<FeedAmountModal pipeId={PIPE_ID} feedName="Groceries" />);
-
-    await user.click(screen.getByTestId("feed-amount-trigger"));
-
-    const titleInput = screen.getByPlaceholderText("What was this for?");
-    fireEvent.change(titleInput, { target: { value: "groceries" } });
-
-    const amountInput = screen.getByPlaceholderText("100.53");
-    fireEvent.change(amountInput, { target: { value: "100.53" } });
-
-    await user.click(screen.getByText("Feed"));
-
-    await waitFor(() => {
-      expect(mockFeedPipe).toHaveBeenCalledWith({
-        pipeId: PIPE_ID,
-        amount: 100.53,
-        title: "groceries",
-      });
-    });
-  });
-
-  it("rounds amount to 2 decimal places", async () => {
-    const user = userEvent.setup();
-    render(<FeedAmountModal pipeId={PIPE_ID} feedName="Groceries" />);
-
-    await user.click(screen.getByTestId("feed-amount-trigger"));
-
-    const titleInput = screen.getByPlaceholderText("What was this for?");
-    fireEvent.change(titleInput, { target: { value: "groceries" } });
-
-    const amountInput = screen.getByPlaceholderText("100.53");
-    fireEvent.change(amountInput, { target: { value: "100.536" } });
-
-    await user.click(screen.getByText("Feed"));
-
-    await waitFor(() => {
-      expect(mockFeedPipe).toHaveBeenCalledWith({
-        pipeId: PIPE_ID,
-        amount: 100.54,
-        title: "groceries",
-      });
-    });
-  });
-
-  it("shows success alert and closes modal on successful submit", async () => {
-    const user = userEvent.setup();
-    render(<FeedAmountModal pipeId={PIPE_ID} feedName="Groceries" />);
-
-    await user.click(screen.getByTestId("feed-amount-trigger"));
-
-    const titleInput = screen.getByPlaceholderText("What was this for?");
-    fireEvent.change(titleInput, { target: { value: "groceries" } });
-
-    const amountInput = screen.getByPlaceholderText("100.53");
-    fireEvent.change(amountInput, { target: { value: "50" } });
-
-    await user.click(screen.getByText("Feed"));
-
-    await waitFor(() => {
-      expect(mockFeedPipe).toHaveBeenCalled();
-    });
+    expect(capturedOnSuccess).not.toBeNull();
+    capturedOnSuccess!();
 
     expect(mockShowAlert.success).toHaveBeenCalledWith("Feed added");
-  });
-
-  it("shows error alert and keeps modal open on mutation failure", async () => {
-    mockFeedPipe.mockRejectedValueOnce(new Error("Not authorized"));
-
-    const user = userEvent.setup();
-    render(<FeedAmountModal pipeId={PIPE_ID} feedName="Groceries" />);
-
-    await user.click(screen.getByTestId("feed-amount-trigger"));
-
-    const titleInput = screen.getByPlaceholderText("What was this for?");
-    fireEvent.change(titleInput, { target: { value: "groceries" } });
-
-    const amountInput = screen.getByPlaceholderText("100.53");
-    fireEvent.change(amountInput, { target: { value: "50" } });
-
-    await user.click(screen.getByText("Feed"));
-
-    await waitFor(() => {
-      expect(mockShowAlert.error).toHaveBeenCalledWith("Not authorized");
-    });
   });
 });

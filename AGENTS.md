@@ -19,7 +19,7 @@ moiney/
 │   ├── components/       # All components (ui primitives + features)
 │   │   ├── ui/           # Alert, Button, Icon, Input, Modal, PipeBox, ScreenHeader, etc.
 │   │   └── features/     # Feature modules (feature-first colocation)
-│   │       ├── SpentForm/ # Shared feature-level component
+│   │       ├── AmountForm/ # Shared feature-level component
 │   │       ├── pipes/     # Pipes feature: screens, contexts, sub-components
 │   │       └── transactions/ # Transactions feature: context
 │   ├── lib/              # Shared utilities and hooks

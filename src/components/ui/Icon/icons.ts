@@ -82,5 +82,12 @@ for (const icon of CURATED_ICONS) {
   ICON_REGISTRY[icon.name] = icon.family;
 }
 
+export function safeIconName(
+  name: string | undefined | null,
+  fallback: IconName = "pipe",
+): IconName {
+  return name && name in ICON_REGISTRY ? (name as IconName) : fallback;
+}
+
 export { CURATED_ICONS, ICON_REGISTRY };
 export type { IconFamily, IconName };

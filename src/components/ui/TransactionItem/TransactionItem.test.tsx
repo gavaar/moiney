@@ -68,6 +68,7 @@ vi.mock("@features/pipes/context/PipeSelectionContext", () => ({
 
 vi.mock("@ui/Icon", () => ({
   Icon: ({ name }: any) => <span data-testid="mock-icon" data-name={name} />,
+  safeIconName: (name: string | undefined | null): string => name ?? "pipe",
 }));
 
 describe("TransactionItem", () => {

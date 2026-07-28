@@ -92,6 +92,7 @@ export const feedPipe = mutation({
     pipeId: v.id("pipes"),
     amount: v.number(),
     title: v.optional(v.string()),
+    date: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const userId = await requireAuth(ctx);
@@ -99,7 +100,7 @@ export const feedPipe = mutation({
     await recascadeTree(ctx, userId);
 
     const title = (args.title ?? "feed").toLowerCase();
-    const date = Date.now();
+    const date = args.date ?? Date.now();
 
     await ctx.db.insert("transactions", {
       title,
