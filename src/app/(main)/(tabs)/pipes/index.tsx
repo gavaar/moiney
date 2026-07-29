@@ -1,15 +1,18 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { BackHandler, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ScreenHeader } from "@ui/ScreenHeader/ScreenHeader";
+import { SlideToggle } from "@ui/SlideToggle";
 import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
 import { useTransactions } from "@features/transactions/context/TransactionsContext";
-import { InnerPipesScreen } from '@features/pipes/InnerPipesScreen';
-import { FeedListScreen } from '@features/pipes/FeedListScreen';
+import { InnerPipesScreen } from "@features/pipes/InnerPipesScreen";
+import { PipeTreeView } from "@features/pipes/PipeTreeView";
+import { FeedListScreen } from "@features/pipes/FeedListScreen";
 import { TransactionList } from "@ui/TransactionList";
 
 export default function Pipes() {
-  const { feeds, isLoading, selectedName, selectedPipePath, selectPipe } = usePipeSelection();
+  const [treeMode, setTreeMode] = useState(false);
+  const { feeds, isLoading, selectedName, selectedPipePath, selectPipe, deselectPipe } = usePipeSelection();
   const { transactions, isLoading: transactionLoading } = useTransactions();
 
   useEffect(() => {
@@ -26,10 +29,32 @@ export default function Pipes() {
 
   return (
     <SafeAreaView className="flex-1 bg-background px-4">
-      <ScreenHeader title="Pipes" />
+      <ScreenHeader
+        title="Pipes"
+        right={
+          <SlideToggle
+            options={[
+              { value: "bar", icon: "align-horizontal-left" },
+              { value: "tree", icon: "file-tree" },
+            ]}
+            value={treeMode ? "tree" : "bar"}
+            onChange={(v) => {
+              setTreeMode(v === "tree");
+              if (v === "tree") deselectPipe();
+            }}
+          />
+        }
+      />
 
       <View style={{ flex: 2 }}>
-        {selectedName ? (
+        {treeMode ? (
+          <PipeTreeView
+            onSelectPipe={(path) => {
+              selectPipe(path);
+              setTreeMode(false);
+            }}
+          />
+        ) : selectedName ? (
           <InnerPipesScreen />
         ) : (
           <FeedListScreen

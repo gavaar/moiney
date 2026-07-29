@@ -8,6 +8,7 @@ type CuratedIcon = {
 const CURATED_ICONS = [
   { name: "add-circle-outline", family: "Ionicons" as const },
   { name: "airplane-outline", family: "Ionicons" as const },
+  { name: "align-horizontal-left", family: "MaterialCommunityIcons" as const },
   { name: "arrow-back", family: "Ionicons" as const },
   { name: "bank", family: "MaterialCommunityIcons" as const },
   { name: "bar-chart-outline", family: "Ionicons" as const },
@@ -31,6 +32,7 @@ const CURATED_ICONS = [
   { name: "eye", family: "Ionicons" as const },
   { name: "eye-off", family: "Ionicons" as const },
   { name: "film-outline", family: "Ionicons" as const },
+  { name: "file-tree", family: "MaterialCommunityIcons" as const },
   { name: "filter", family: "Ionicons" as const },
   { name: "fitness-outline", family: "Ionicons" as const },
   { name: "flash-outline", family: "Ionicons" as const },

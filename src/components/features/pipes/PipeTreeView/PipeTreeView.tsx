@@ -1,0 +1,177 @@
+import { useMemo } from "react";
+import { Pressable, ScrollView, Text, View } from "react-native";
+import { Icon } from "@ui/Icon";
+import { usePipeSelection, toPipe, type Pipe } from "@features/pipes/context/PipeSelectionContext";
+import { colors } from "@/lib/styles";
+import { type Id } from "@convex/_generated/dataModel";
+
+const BAR_WIDTH = 100;
+const MONO_W = 8.4;
+const NAME_W = 9.6;
+
+type TreeRowData = {
+  id: Id<"pipes">;
+  depth: number;
+  prefix: string;
+  pipe: Pipe;
+  groupMax: number;
+  path: Id<"pipes">[];
+  isLeaf: boolean;
+};
+
+function buildPrefix(depth: number, hasMoreSiblings: boolean[], isLastChild: boolean): string {
+  if (depth === 0) return "";
+  let s = "";
+  for (let i = 1; i < depth; i++) {
+    s += hasMoreSiblings[i] ? "\u2502   " : "    ";
+  }
+  s += isLastChild ? "\u2514\u2500\u2500 " : "\u251C\u2500\u2500 ";
+  return s;
+}
+
+function buildTreeRows(
+  feeds: Pipe[],
+  childrenByParent: Map<Id<"pipes">, Pipe[]>,
+): TreeRowData[] {
+  const rows: TreeRowData[] = [];
+
+  function groupMax(pipes: Pipe[]): number {
+    let m = 0;
+    for (const p of pipes) {
+      const childPipes = childrenByParent.get(p._id);
+      if (childPipes === undefined || childPipes.length === 0) {
+        m = Math.max(m, p.fed, p.spent, p.capacity);
+      }
+    }
+    return m || 1;
+  }
+
+  function sortSiblings(pipes: Pipe[]): Pipe[] {
+    return [...pipes].sort((a, b) => {
+      const aLeaf = !childrenByParent.has(a._id) || (childrenByParent.get(a._id)?.length ?? 0) === 0;
+      const bLeaf = !childrenByParent.has(b._id) || (childrenByParent.get(b._id)?.length ?? 0) === 0;
+      if (aLeaf && !bLeaf) return -1;
+      if (!aLeaf && bLeaf) return 1;
+      if (aLeaf && bLeaf) return Math.max(b.fed, b.spent) - Math.max(a.fed, a.spent);
+      return 0;
+    });
+  }
+
+  function dfs(pipes: Pipe[], depth: number, hasMoreSiblings: boolean[], gMax: number, parentPath: Id<"pipes">[]) {
+    const sorted = sortSiblings(pipes);
+    for (let i = 0; i < sorted.length; i++) {
+      const pipe = sorted[i];
+      const isLastChild = i === sorted.length - 1;
+      const path = [...parentPath, pipe._id];
+
+      const children = childrenByParent.get(pipe._id);
+      const hasChildren = children !== undefined && children.length > 0;
+
+      rows.push({
+        id: pipe._id,
+        depth,
+        prefix: buildPrefix(depth, hasMoreSiblings, isLastChild),
+        pipe,
+        groupMax: gMax,
+        path,
+        isLeaf: !hasChildren,
+      });
+
+      if (hasChildren) {
+        dfs(children, depth + 1, [...hasMoreSiblings, !isLastChild], groupMax(children), path);
+      }
+    }
+  }
+
+  dfs(feeds, 0, [], groupMax(feeds), []);
+  return rows;
+}
+
+function maxLeftWidth(rows: TreeRowData[]): number {
+  let max = 0;
+  for (const row of rows) {
+    const w = row.prefix.length * MONO_W + 18 + row.pipe.name.length * NAME_W + 4;
+    if (w > max) max = w;
+  }
+  return max;
+}
+
+type PipeTreeViewProps = {
+  onSelectPipe: (path: Id<"pipes">[]) => void;
+};
+
+export function PipeTreeView({ onSelectPipe }: PipeTreeViewProps) {
+  const { feeds, childrenByParent } = usePipeSelection();
+
+  const childPipesById = useMemo(() => {
+    const map = new Map<Id<"pipes">, Pipe[]>();
+    for (const [parentId, docs] of childrenByParent) {
+      map.set(parentId, docs.map(toPipe));
+    }
+    return map;
+  }, [childrenByParent]);
+
+  const { rows, leftWidth } = useMemo(() => {
+    const rows = buildTreeRows(feeds, childPipesById);
+    const leftWidth = maxLeftWidth(rows);
+    return { rows, leftWidth };
+  }, [feeds, childPipesById]);
+
+  return (
+    <ScrollView className="flex-1">
+      {rows.map((row) => (
+        <TreeRow key={row.id} row={row} leftWidth={leftWidth} onPress={() => onSelectPipe(row.path)} />
+      ))}
+    </ScrollView>
+  );
+}
+
+function TreeRow({ row, leftWidth, onPress }: { row: TreeRowData; leftWidth: number; onPress: () => void }) {
+  const { prefix, pipe, groupMax, isLeaf } = row;
+
+  return (
+    <Pressable onPress={onPress} className="flex-row items-center py-1">
+      <View className="flex-row items-center" style={{ width: leftWidth }}>
+        <Text className="text-muted font-mono text-sm">{prefix}</Text>
+        <Icon name={pipe.icon as any} size={18} />
+        <Text className="text-text text-base ml-1 shrink" numberOfLines={1}>
+          {pipe.name}
+        </Text>
+      </View>
+      {isLeaf && <MiniBar fed={pipe.fed} spent={pipe.spent} capacity={pipe.capacity} maxVal={groupMax} />}
+    </Pressable>
+  );
+}
+
+function MiniBar({
+  fed,
+  spent,
+  capacity,
+  maxVal,
+}: {
+  fed: number;
+  spent: number;
+  capacity: number;
+  maxVal: number;
+}) {
+  const sw = (spent / maxVal) * 100;
+  const rw = (Math.max(0, fed - spent) / maxVal) * 100;
+  const hw = (Math.max(0, capacity - fed) / maxVal) * 100;
+
+  return (
+    <View
+      className="flex-row rounded-sm overflow-hidden"
+      style={{ width: BAR_WIDTH, height: 8 }}
+    >
+      {sw > 0 && (
+        <View style={{ width: `${sw}%`, backgroundColor: colors.error }} />
+      )}
+      {rw > 0 && (
+        <View style={{ width: `${rw}%`, backgroundColor: colors.success }} />
+      )}
+      {hw > 0 && (
+        <View style={{ width: `${hw}%`, backgroundColor: "#413f3f" }} />
+      )}
+    </View>
+  );
+}
