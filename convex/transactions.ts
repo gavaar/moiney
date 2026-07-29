@@ -24,25 +24,61 @@ export const createTransaction = mutation({
     title: v.string(),
     value: v.number(),
     date: v.number(),
-    from: v.id("pipes"),
+    from: v.optional(v.id("pipes")),
     to: v.optional(v.id("pipes")),
   },
   handler: async (ctx, args) => {
     const userId = await requireAuth(ctx);
 
-    const pipe = await ctx.db.get(args.from);
+    if (!args.from && !args.to) {
+      throw new Error("Either 'from' or 'to' must be provided");
+    }
+
+    // Feed: no source pipe — money flows into `to`
+    if (!args.from && args.to) {
+      const destPipe = await ctx.db.get(args.to);
+      if (!destPipe) throw new Error("Pipe not found");
+      if (destPipe.userId !== userId) throw new Error("Not authorized");
+
+      await ctx.db.patch(args.to, {
+        fed: (destPipe.fed ?? 0) + args.value,
+      });
+
+      await ctx.db.insert("transactions", {
+        title: args.title.toLowerCase(),
+        value: args.value,
+        date: args.date,
+        from: undefined,
+        to: args.to,
+        userId,
+      });
+
+      await updateOrCreateTitleUsage(ctx, {
+        pipeId: args.to,
+        userId,
+        title: args.title,
+        date: args.date,
+      });
+
+      await recascadeTree(ctx, userId);
+      return;
+    }
+
+    // Spend or Transfer: source pipe required
+    const pipeId = args.from!;
+    const pipe = await ctx.db.get(pipeId);
     if (!pipe) throw new Error("Pipe not found");
     if (pipe.userId !== userId) throw new Error("Not authorized");
 
     if (args.to) {
-      if (args.from === args.to)
+      if (pipeId === args.to)
         throw new Error("Cannot transfer to self");
 
       const destPipe = await ctx.db.get(args.to);
       if (!destPipe) throw new Error("Destination pipe not found");
       if (destPipe.userId !== userId) throw new Error("Not authorized");
 
-      await ctx.db.patch(args.from, {
+      await ctx.db.patch(pipeId, {
         fed: (pipe.fed ?? 0) + args.value,
       });
       await ctx.db.patch(args.to, {
@@ -51,7 +87,7 @@ export const createTransaction = mutation({
 
       await recascadeTree(ctx, userId);
     } else {
-      await ctx.db.patch(args.from, {
+      await ctx.db.patch(pipeId, {
         spent: calculateSpentUpdate(pipe.spent, args.value),
       });
     }
@@ -60,13 +96,69 @@ export const createTransaction = mutation({
       title: args.title.toLowerCase(),
       value: args.value,
       date: args.date,
-      from: args.from,
+      from: pipeId,
       to: args.to,
       userId,
     });
 
     await updateOrCreateTitleUsage(ctx, {
-      pipeId: args.from,
+      pipeId,
+      userId,
+      title: args.title,
+      date: args.date,
+    });
+  },
+});
+
+export const editTransaction = mutation({
+  args: {
+    transactionId: v.id("transactions"),
+    title: v.string(),
+    value: v.number(),
+    date: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireAuth(ctx);
+
+    const tx = await ctx.db.get(args.transactionId);
+    if (!tx) throw new Error("Transaction not found");
+    if (tx.userId !== userId) throw new Error("Not authorized");
+
+    const valueDiff = args.value - tx.value;
+
+    if (valueDiff !== 0) {
+      if (tx.from && tx.to) {
+        const src = await ctx.db.get(tx.from);
+        const dst = await ctx.db.get(tx.to);
+        if (!src || !dst) throw new Error("Pipe not found");
+
+        await ctx.db.patch(tx.from, { fed: (src.fed ?? 0) + valueDiff });
+        await ctx.db.patch(tx.to, { fed: (dst.fed ?? 0) - valueDiff });
+        await recascadeTree(ctx, userId);
+      } else if (tx.from) {
+        const pipe = await ctx.db.get(tx.from);
+        if (!pipe) throw new Error("Pipe not found");
+
+        await ctx.db.patch(tx.from, {
+          spent: calculateSpentUpdate(pipe.spent, valueDiff),
+        });
+      } else if (tx.to) {
+        const pipe = await ctx.db.get(tx.to);
+        if (!pipe) throw new Error("Pipe not found");
+
+        await ctx.db.patch(tx.to, { fed: (pipe.fed ?? 0) + valueDiff });
+        await recascadeTree(ctx, userId);
+      }
+    }
+
+    await ctx.db.patch(args.transactionId, {
+      title: args.title.toLowerCase(),
+      value: args.value,
+      date: args.date,
+    });
+
+    await updateOrCreateTitleUsage(ctx, {
+      pipeId: tx.from ?? tx.to!,
       userId,
       title: args.title,
       date: args.date,

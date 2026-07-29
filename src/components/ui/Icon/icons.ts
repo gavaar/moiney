@@ -61,6 +61,7 @@ const CURATED_ICONS = [
   { name: "ray-start-arrow", family: "MaterialCommunityIcons" as const },
   { name: "reload-outline", family: "Ionicons" as const },
   { name: "repeat", family: "Ionicons" as const },
+  { name: "repeat-once", family: "MaterialCommunityIcons" as const },
   { name: "restaurant-outline", family: "Ionicons" as const },
   { name: "school-outline", family: "Ionicons" as const },
   { name: "search", family: "Ionicons" as const },

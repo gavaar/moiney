@@ -4,26 +4,28 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
 import { type Id } from "@convex/_generated/dataModel";
 import { AmountForm } from "./AmountForm";
-import { getButtonLabel, buildPipeItems, getDestinationPipeName } from "./helpers";
+import { getButtonIcon, getButtonLabel, getButtonStyle, buildPipeItems, getDestinationPipeName } from "./helpers";
 
 const PIPE_ID = "pipe-1" as Id<"pipes">;
 const mockCreateTransaction = vi.fn().mockResolvedValue(undefined);
-const mockFeedPipe = vi.fn().mockResolvedValue(undefined);
+const mockEditTransactionFn = vi.fn().mockResolvedValue(undefined);
 
 const mockRecentTitles: string[] = [];
 vi.mock("convex/react", () => ({
   useMutation: (api: any) => {
-    if (api === "feedPipe") return mockFeedPipe;
-    return mockCreateTransaction;
+    if (api === "createTransaction") return mockCreateTransaction;
+    if (api === "editTransaction") return mockEditTransactionFn;
+    return vi.fn();
   },
   useQuery: () => mockRecentTitles,
 }));
 
 vi.mock("@convex/_generated/api", () => ({
   api: {
-    pipes: { feedPipe: "feedPipe" },
+    pipes: {},
     transactions: {
       createTransaction: "createTransaction",
+      editTransaction: "editTransaction",
       listRecentTitles: "listRecentTitles",
     },
   },
@@ -259,47 +261,85 @@ describe("getDestinationPipeName", () => {
   });
 });
 
+describe("getButtonStyle", () => {
+  it('returns primary styling for edit intent', () => {
+    const style = getButtonStyle("edit", true);
+    expect(style.border).toBe("border-primary");
+    expect(style.textColor).toBe("text-primary");
+  });
+
+  it('returns error styling for negative values in repeat mode', () => {
+    const style = getButtonStyle("repeat", true);
+    expect(style.border).toBe("border-error");
+    expect(style.textColor).toBe("text-error");
+  });
+
+  it('returns success styling for positive values in repeat mode', () => {
+    const style = getButtonStyle("repeat", false);
+    expect(style.border).toBe("border-success");
+    expect(style.textColor).toBe("text-success");
+  });
+});
+
+describe("getButtonIcon", () => {
+  it('returns checkmark for edit intent', () => {
+    expect(getButtonIcon("edit", false, "spend")).toBe("checkmark");
+  });
+
+  it('returns add-circle-outline for feed mode', () => {
+    expect(getButtonIcon("repeat", true, "spend")).toBe("add-circle-outline");
+  });
+
+  it('returns upload for spend mode', () => {
+    expect(getButtonIcon("repeat", false, "spend")).toBe("upload");
+  });
+
+  it('returns repeat for transfer mode', () => {
+    expect(getButtonIcon("repeat", false, "transfer")).toBe("repeat");
+  });
+});
+
 describe("AmountForm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockRecentTitles.length = 0;
   });
 
-  describe("feed mode", () => {
+  describe("variant='feed'", () => {
     it("renders Amount label instead of Value", () => {
-      render(<AmountForm pipeId={PIPE_ID} mode="feed" />);
+      render(<AmountForm pipeId={PIPE_ID} variant="feed" />);
       expect(screen.getByText("Amount")).toBeTruthy();
     });
 
     it("renders date field", () => {
-      render(<AmountForm pipeId={PIPE_ID} mode="feed" />);
+      render(<AmountForm pipeId={PIPE_ID} variant="feed" />);
       expect(screen.getByTestId("input-Date")).toBeTruthy();
     });
 
     it("renders eraser button", () => {
-      render(<AmountForm pipeId={PIPE_ID} mode="feed" />);
+      render(<AmountForm pipeId={PIPE_ID} variant="feed" />);
       expect(screen.getByTestId("eraser-button")).toBeTruthy();
     });
 
     it("does not render mode toggle", () => {
-      render(<AmountForm pipeId={PIPE_ID} mode="feed" />);
+      render(<AmountForm pipeId={PIPE_ID} variant="feed" />);
       expect(screen.queryByTestId("slide-toggle-upload")).toBeNull();
     });
 
     it("does not render header with Add transaction/Transfer text", () => {
-      render(<AmountForm pipeId={PIPE_ID} mode="feed" />);
+      render(<AmountForm pipeId={PIPE_ID} variant="feed" />);
       expect(screen.queryByText("Add transaction")).toBeNull();
       expect(screen.queryByText("Transfer")).toBeNull();
     });
 
     it("submit button is disabled when form is empty", () => {
-      render(<AmountForm pipeId={PIPE_ID} mode="feed" />);
+      render(<AmountForm pipeId={PIPE_ID} variant="feed" />);
       const btn = screen.getByTestId("submit-button");
       expect(btn.getAttribute("aria-disabled")).toBe("true");
     });
 
     it("submit button is disabled when amount is zero", () => {
-      render(<AmountForm pipeId={PIPE_ID} mode="feed" />);
+      render(<AmountForm pipeId={PIPE_ID} variant="feed" />);
       const titleInput = screen.getByPlaceholderText("What was this for?");
       fireEvent.change(titleInput, { target: { value: "groceries" } });
       fireEvent.change(screen.getByTestId("input-Amount-field"), {
@@ -310,7 +350,7 @@ describe("AmountForm", () => {
     });
 
     it("submit button is enabled when title and amount are filled", () => {
-      render(<AmountForm pipeId={PIPE_ID} mode="feed" />);
+      render(<AmountForm pipeId={PIPE_ID} variant="feed" />);
       const titleInput = screen.getByPlaceholderText("What was this for?");
       fireEvent.change(titleInput, { target: { value: "groceries" } });
       fireEvent.change(screen.getByTestId("input-Amount-field"), {
@@ -321,7 +361,7 @@ describe("AmountForm", () => {
     });
 
     it("submit button shows Feed label", () => {
-      render(<AmountForm pipeId={PIPE_ID} mode="feed" />);
+      render(<AmountForm pipeId={PIPE_ID} variant="feed" />);
       const titleInput = screen.getByPlaceholderText("What was this for?");
       fireEvent.change(titleInput, { target: { value: "groceries" } });
       fireEvent.change(screen.getByTestId("input-Amount-field"), {
@@ -330,11 +370,11 @@ describe("AmountForm", () => {
       expect(screen.getByText("Feed")).toBeTruthy();
     });
 
-    it("calls feedPipe with pipeId, amount, title and date on submit", async () => {
+    it("calls createTransaction with to: pipeId on submit", async () => {
       const date = new Date(2026, 6, 21, 15, 45);
       vi.setSystemTime(date);
 
-      render(<AmountForm pipeId={PIPE_ID} mode="feed" />);
+      render(<AmountForm pipeId={PIPE_ID} variant="feed" />);
       const titleInput = screen.getByPlaceholderText("What was this for?");
       fireEvent.change(titleInput, { target: { value: "groceries" } });
       fireEvent.change(screen.getByTestId("input-Amount-field"), {
@@ -343,11 +383,11 @@ describe("AmountForm", () => {
       fireEvent.click(screen.getByTestId("submit-button"));
 
       await waitFor(() => {
-        expect(mockFeedPipe).toHaveBeenCalledWith({
-          pipeId: PIPE_ID,
-          amount: 100.50,
+        expect(mockCreateTransaction).toHaveBeenCalledWith({
           title: "groceries",
+          value: 100.50,
           date: date.getTime(),
+          to: PIPE_ID,
         });
       });
 
@@ -357,7 +397,7 @@ describe("AmountForm", () => {
     it("calls onSuccess after successful submit", async () => {
       const onSuccess = vi.fn();
 
-      render(<AmountForm pipeId={PIPE_ID} mode="feed" onSuccess={onSuccess} />);
+      render(<AmountForm pipeId={PIPE_ID} variant="feed" onSuccess={onSuccess} />);
       fireEvent.change(screen.getByPlaceholderText("What was this for?"), {
         target: { value: "groceries" },
       });
@@ -372,9 +412,9 @@ describe("AmountForm", () => {
     });
 
     it("shows error alert on mutation failure", async () => {
-      mockFeedPipe.mockRejectedValueOnce(new Error("Not authorized"));
+      mockCreateTransaction.mockRejectedValueOnce(new Error("Not authorized"));
 
-      render(<AmountForm pipeId={PIPE_ID} mode="feed" />);
+      render(<AmountForm pipeId={PIPE_ID} variant="feed" />);
       fireEvent.change(screen.getByPlaceholderText("What was this for?"), {
         target: { value: "groceries" },
       });
@@ -389,7 +429,7 @@ describe("AmountForm", () => {
     });
 
     it("eraser resets form fields", () => {
-      render(<AmountForm pipeId={PIPE_ID} mode="feed" />);
+      render(<AmountForm pipeId={PIPE_ID} variant="feed" />);
       fireEvent.change(screen.getByPlaceholderText("What was this for?"), {
         target: { value: "groceries" },
       });
@@ -405,43 +445,43 @@ describe("AmountForm", () => {
     });
   });
 
-  describe("spend mode", () => {
+  describe("variant='spend'", () => {
     it("renders Value label", () => {
-      render(<AmountForm pipeId={PIPE_ID} mode="spend" />);
+      render(<AmountForm pipeId={PIPE_ID} variant="spend" />);
       expect(screen.getByText("Value")).toBeTruthy();
     });
 
     it("renders date field", () => {
-      render(<AmountForm pipeId={PIPE_ID} mode="spend" />);
+      render(<AmountForm pipeId={PIPE_ID} variant="spend" />);
       expect(screen.getByTestId("input-Date")).toBeTruthy();
     });
 
     it("renders eraser button", () => {
-      render(<AmountForm pipeId={PIPE_ID} mode="spend" />);
+      render(<AmountForm pipeId={PIPE_ID} variant="spend" />);
       expect(screen.getByTestId("eraser-button")).toBeTruthy();
     });
 
     it("renders mode toggle", () => {
-      render(<AmountForm pipeId={PIPE_ID} mode="spend" />);
+      render(<AmountForm pipeId={PIPE_ID} variant="spend" />);
       expect(screen.getByTestId("slide-toggle-spend")).toBeTruthy();
       expect(screen.getByTestId("slide-toggle-transfer")).toBeTruthy();
     });
 
     it("defaults to Add transaction header", () => {
-      render(<AmountForm pipeId={PIPE_ID} mode="spend" />);
+      render(<AmountForm pipeId={PIPE_ID} variant="spend" />);
       expect(screen.getByText("Add transaction")).toBeTruthy();
       expect(screen.queryByText("Transfer")).toBeNull();
     });
 
     it("auto-prepends minus on first keystroke", () => {
-      render(<AmountForm pipeId={PIPE_ID} mode="spend" />);
+      render(<AmountForm pipeId={PIPE_ID} variant="spend" />);
       const valueInput = screen.getByTestId("input-Value-field") as HTMLInputElement;
       fireEvent.change(valueInput, { target: { value: "5" } });
       expect(valueInput.value).toBe("-5");
     });
 
     it("does not auto-prepend minus on subsequent keystrokes", () => {
-      render(<AmountForm pipeId={PIPE_ID} mode="spend" />);
+      render(<AmountForm pipeId={PIPE_ID} variant="spend" />);
       const valueInput = screen.getByTestId("input-Value-field") as HTMLInputElement;
       fireEvent.change(valueInput, { target: { value: "-5" } });
       fireEvent.change(valueInput, { target: { value: "-50" } });
@@ -449,20 +489,20 @@ describe("AmountForm", () => {
     });
 
     it("does not auto-prepend minus when user types minus explicitly", () => {
-      render(<AmountForm pipeId={PIPE_ID} mode="spend" />);
+      render(<AmountForm pipeId={PIPE_ID} variant="spend" />);
       const valueInput = screen.getByTestId("input-Value-field") as HTMLInputElement;
       fireEvent.change(valueInput, { target: { value: "-" } });
       expect(valueInput.value).toBe("-");
     });
 
     it("submit button disabled when form empty", () => {
-      render(<AmountForm pipeId={PIPE_ID} mode="spend" />);
+      render(<AmountForm pipeId={PIPE_ID} variant="spend" />);
       const btn = screen.getByTestId("submit-button");
       expect(btn.getAttribute("aria-disabled")).toBe("true");
     });
 
     it("submit button disabled when only title filled", () => {
-      render(<AmountForm pipeId={PIPE_ID} mode="spend" />);
+      render(<AmountForm pipeId={PIPE_ID} variant="spend" />);
       const titleInput = screen.getByPlaceholderText("What was this for?");
       fireEvent.change(titleInput, { target: { value: "Lunch" } });
       const btn = screen.getByTestId("submit-button");
@@ -470,7 +510,7 @@ describe("AmountForm", () => {
     });
 
     it("submit button disabled when only value filled", () => {
-      render(<AmountForm pipeId={PIPE_ID} mode="spend" />);
+      render(<AmountForm pipeId={PIPE_ID} variant="spend" />);
       fireEvent.change(screen.getByTestId("input-Value-field"), {
         target: { value: "10.50" },
       });
@@ -479,7 +519,7 @@ describe("AmountForm", () => {
     });
 
     it("submit button enabled when title and value filled", () => {
-      render(<AmountForm pipeId={PIPE_ID} mode="spend" />);
+      render(<AmountForm pipeId={PIPE_ID} variant="spend" />);
       fireEvent.change(screen.getByPlaceholderText("What was this for?"), {
         target: { value: "Lunch" },
       });
@@ -491,7 +531,7 @@ describe("AmountForm", () => {
     });
 
     it("submit button disabled in transfer mode with no destination", () => {
-      render(<AmountForm pipeId={PIPE_ID} mode="spend" />);
+      render(<AmountForm pipeId={PIPE_ID} variant="spend" />);
       fireEvent.change(screen.getByPlaceholderText("What was this for?"), {
         target: { value: "Lunch" },
       });
@@ -504,7 +544,7 @@ describe("AmountForm", () => {
     });
 
     it("shows Add expense label with negative value", () => {
-      render(<AmountForm pipeId={PIPE_ID} mode="spend" />);
+      render(<AmountForm pipeId={PIPE_ID} variant="spend" />);
       fireEvent.change(screen.getByPlaceholderText("What was this for?"), {
         target: { value: "Lunch" },
       });
@@ -515,14 +555,13 @@ describe("AmountForm", () => {
     });
 
     it("shows Add return label with positive value", () => {
-      render(<AmountForm pipeId={PIPE_ID} mode="spend" />);
+      render(<AmountForm pipeId={PIPE_ID} variant="spend" />);
       fireEvent.change(screen.getByPlaceholderText("What was this for?"), {
         target: { value: "Lunch" },
       });
       fireEvent.change(screen.getByTestId("input-Value-field"), {
         target: { value: "12.50" },
       });
-      // remove minus to make it positive
       const valueInput = screen.getByTestId("input-Value-field") as HTMLInputElement;
       fireEvent.change(valueInput, { target: { value: "12.50" } });
       expect(screen.getByText("Add return")).toBeTruthy();
@@ -532,7 +571,7 @@ describe("AmountForm", () => {
       const date = new Date(2026, 6, 21, 15, 45);
       vi.setSystemTime(date);
 
-      render(<AmountForm pipeId={PIPE_ID} mode="spend" />);
+      render(<AmountForm pipeId={PIPE_ID} variant="spend" />);
       fireEvent.change(screen.getByPlaceholderText("What was this for?"), {
         target: { value: "Lunch" },
       });
@@ -557,7 +596,7 @@ describe("AmountForm", () => {
       const date = new Date(2026, 6, 21, 15, 45);
       vi.setSystemTime(date);
 
-      render(<AmountForm pipeId={PIPE_ID} mode="spend" />);
+      render(<AmountForm pipeId={PIPE_ID} variant="spend" />);
       fireEvent.change(screen.getByPlaceholderText("What was this for?"), {
         target: { value: "Lunch" },
       });
@@ -585,7 +624,7 @@ describe("AmountForm", () => {
       const date = new Date(2026, 6, 21, 15, 45);
       vi.setSystemTime(date);
 
-      render(<AmountForm pipeId={PIPE_ID} mode="spend" />);
+      render(<AmountForm pipeId={PIPE_ID} variant="spend" />);
       const titleInput = screen.getByPlaceholderText("What was this for?");
       fireEvent.change(titleInput, { target: { value: "Lunch" } });
       fireEvent.change(screen.getByTestId("input-Value-field"), {
@@ -606,7 +645,7 @@ describe("AmountForm", () => {
     it("shows error alert on mutation failure", async () => {
       mockCreateTransaction.mockRejectedValueOnce(new Error("Not authorized"));
 
-      render(<AmountForm pipeId={PIPE_ID} mode="spend" />);
+      render(<AmountForm pipeId={PIPE_ID} variant="spend" />);
       fireEvent.change(screen.getByPlaceholderText("What was this for?"), {
         target: { value: "Lunch" },
       });
@@ -621,21 +660,21 @@ describe("AmountForm", () => {
     });
 
     it("renders transfer target select only in transfer mode", () => {
-      render(<AmountForm pipeId={PIPE_ID} mode="spend" />);
+      render(<AmountForm pipeId={PIPE_ID} variant="spend" />);
       expect(screen.queryByTestId("input-Transfer to")).toBeNull();
       fireEvent.click(screen.getByTestId("slide-toggle-transfer"));
       expect(screen.getByTestId("input-Transfer to")).toBeTruthy();
     });
 
     it("toggling to transfer changes header text", () => {
-      render(<AmountForm pipeId={PIPE_ID} mode="spend" />);
+      render(<AmountForm pipeId={PIPE_ID} variant="spend" />);
       expect(screen.getByText("Add transaction")).toBeTruthy();
       fireEvent.click(screen.getByTestId("slide-toggle-transfer"));
       expect(screen.getByText("Transfer")).toBeTruthy();
     });
 
     it("toggling back to spend hides transfer to field", () => {
-      render(<AmountForm pipeId={PIPE_ID} mode="spend" />);
+      render(<AmountForm pipeId={PIPE_ID} variant="spend" />);
       fireEvent.click(screen.getByTestId("slide-toggle-transfer"));
       expect(screen.getByTestId("input-Transfer to")).toBeTruthy();
       fireEvent.click(screen.getByTestId("slide-toggle-spend"));
@@ -643,7 +682,7 @@ describe("AmountForm", () => {
     });
 
     it("shows Send to {name} when transfer destination selected", () => {
-      render(<AmountForm pipeId={PIPE_ID} mode="spend" />);
+      render(<AmountForm pipeId={PIPE_ID} variant="spend" />);
       fireEvent.change(screen.getByPlaceholderText("What was this for?"), {
         target: { value: "Lunch" },
       });
@@ -656,7 +695,7 @@ describe("AmountForm", () => {
     });
 
     it("shows only feeds in transfer selector (excludes child pipes)", () => {
-      render(<AmountForm pipeId={PIPE_ID} mode="spend" />);
+      render(<AmountForm pipeId={PIPE_ID} variant="spend" />);
       fireEvent.click(screen.getByTestId("slide-toggle-transfer"));
       expect(screen.getByTestId("select-item-")).toBeTruthy();
       expect(screen.getByTestId("select-item-feed-1")).toBeTruthy();
@@ -665,7 +704,7 @@ describe("AmountForm", () => {
     });
 
     it("excludes root ancestor of current pipe from feed options", () => {
-      render(<AmountForm pipeId={"child-1" as Id<"pipes">} mode="spend" />);
+      render(<AmountForm pipeId={"child-1" as Id<"pipes">} variant="spend" />);
       fireEvent.click(screen.getByTestId("slide-toggle-transfer"));
       expect(screen.queryByTestId("select-item-feed-1")).toBeNull();
       expect(screen.getByTestId("select-item-feed-2")).toBeTruthy();
@@ -673,7 +712,7 @@ describe("AmountForm", () => {
 
     it("renders recent title options when available", () => {
       mockRecentTitles.push("groceries", "gas", "rent");
-      render(<AmountForm pipeId={PIPE_ID} mode="spend" />);
+      render(<AmountForm pipeId={PIPE_ID} variant="spend" />);
       const options = screen.getByTestId("text-select-options-");
       expect(options.children).toHaveLength(3);
       expect(screen.getByTestId("text-select-option-groceries")).toBeTruthy();
@@ -683,7 +722,7 @@ describe("AmountForm", () => {
 
     it("selecting recent title populates the input", () => {
       mockRecentTitles.push("groceries");
-      render(<AmountForm pipeId={PIPE_ID} mode="spend" />);
+      render(<AmountForm pipeId={PIPE_ID} variant="spend" />);
       fireEvent.click(screen.getByTestId("text-select-option-groceries"));
       const titleInput = screen.getByPlaceholderText("What was this for?") as HTMLInputElement;
       expect(titleInput.value).toBe("groceries");
@@ -693,7 +732,7 @@ describe("AmountForm", () => {
       render(
         <AmountForm
           pipeId={PIPE_ID}
-          mode="spend"
+          variant="spend"
           initState={{
             pipeIcon: "cash",
             pipeName: "Salary",
@@ -709,7 +748,7 @@ describe("AmountForm", () => {
     });
 
     it("eraser resets fields", () => {
-      render(<AmountForm pipeId={PIPE_ID} mode="spend" />);
+      render(<AmountForm pipeId={PIPE_ID} variant="spend" />);
       fireEvent.change(screen.getByPlaceholderText("What was this for?"), {
         target: { value: "Lunch" },
       });
@@ -724,11 +763,234 @@ describe("AmountForm", () => {
     });
 
     it("eraser resets mode back to spend", () => {
-      render(<AmountForm pipeId={PIPE_ID} mode="spend" />);
+      render(<AmountForm pipeId={PIPE_ID} variant="spend" />);
       fireEvent.click(screen.getByTestId("slide-toggle-transfer"));
       expect(screen.getByText("Transfer")).toBeTruthy();
       fireEvent.click(screen.getByTestId("eraser-button"));
       expect(screen.getByText("Add transaction")).toBeTruthy();
+    });
+  });
+
+  describe("variant='transaction'", () => {
+    it("renders repeat/edit toggle instead of spend/transfer toggle", () => {
+      render(<AmountForm pipeId={PIPE_ID} variant="transaction" />);
+      expect(screen.getByTestId("slide-toggle-repeat")).toBeTruthy();
+      expect(screen.getByTestId("slide-toggle-edit")).toBeTruthy();
+      expect(screen.queryByTestId("slide-toggle-spend")).toBeNull();
+      expect(screen.queryByTestId("slide-toggle-transfer")).toBeNull();
+    });
+
+    it("shows the repeat/edit toggle even for feed-type transactions", () => {
+      render(
+        <AmountForm
+          pipeId={PIPE_ID}
+          variant="transaction"
+          initState={{ pipeIcon: "cash", pipeName: "Salary", title: "pay", value: "1000", isFeed: true }}
+        />,
+      );
+      expect(screen.getByTestId("slide-toggle-repeat")).toBeTruthy();
+      expect(screen.getByTestId("slide-toggle-edit")).toBeTruthy();
+    });
+
+    it("defaults to repeat intent", () => {
+      render(<AmountForm pipeId={PIPE_ID} variant="transaction" />);
+      const activeToggle = screen.getByTestId("slide-toggle-repeat");
+      expect(activeToggle).toBeTruthy();
+    });
+
+    describe("repeat mode", () => {
+      it("calls createTransaction with to: pipeId when isFeed=true", async () => {
+        const date = new Date(2026, 6, 21, 15, 45);
+        vi.setSystemTime(date);
+
+        render(
+          <AmountForm
+            pipeId={PIPE_ID}
+            variant="transaction"
+            initState={{ pipeIcon: "cash", pipeName: "Salary", title: "salary", value: "1000", isFeed: true }}
+          />,
+        );
+
+        fireEvent.change(screen.getByTestId("input-Amount-field"), {
+          target: { value: "1000" },
+        });
+        fireEvent.click(screen.getByTestId("submit-button"));
+
+        await waitFor(() => {
+          expect(mockCreateTransaction).toHaveBeenCalledWith({
+            title: "salary",
+            value: 1000,
+            date: date.getTime(),
+            to: PIPE_ID,
+          });
+        });
+
+        vi.useRealTimers();
+      });
+
+      it("calls createTransaction with from: pipeId when isFeed is false", async () => {
+        const date = new Date(2026, 6, 21, 15, 45);
+        vi.setSystemTime(date);
+
+        render(
+          <AmountForm
+            pipeId={PIPE_ID}
+            variant="transaction"
+            initState={{ pipeIcon: "cart", pipeName: "Groceries", title: "lunch", value: "-15", isFeed: false }}
+          />,
+        );
+
+        fireEvent.change(screen.getByPlaceholderText("What was this for?"), {
+          target: { value: "lunch" },
+        });
+        fireEvent.change(screen.getByTestId("input-Value-field"), {
+          target: { value: "15.50" },
+        });
+        fireEvent.click(screen.getByTestId("submit-button"));
+
+        await waitFor(() => {
+          expect(mockCreateTransaction).toHaveBeenCalledWith({
+            title: "lunch",
+            value: 15.50,
+            date: date.getTime(),
+            from: PIPE_ID,
+          });
+        });
+
+        vi.useRealTimers();
+      });
+
+      it("includes to field in createTransaction call when initState.to is set", async () => {
+        const date = new Date(2026, 6, 21, 15, 45);
+        vi.setSystemTime(date);
+
+        render(
+          <AmountForm
+            pipeId={PIPE_ID}
+            variant="transaction"
+            initState={{
+              pipeIcon: "cash",
+              pipeName: "Salary",
+              title: "transfer",
+              value: "-50",
+              to: "feed-1" as Id<"pipes">,
+              isFeed: false,
+            }}
+          />,
+        );
+
+        fireEvent.change(screen.getByPlaceholderText("What was this for?"), {
+          target: { value: "transfer" },
+        });
+        fireEvent.click(screen.getByTestId("submit-button"));
+
+        await waitFor(() => {
+          expect(mockCreateTransaction).toHaveBeenCalledWith({
+            title: "transfer",
+            value: -50,
+            date: date.getTime(),
+            from: PIPE_ID,
+            to: "feed-1",
+          });
+        });
+
+        vi.useRealTimers();
+      });
+    });
+
+    describe("edit mode", () => {
+      it("shows checkmark icon and Update transaction text on submit button", () => {
+        render(<AmountForm pipeId={PIPE_ID} variant="transaction" />);
+        fireEvent.click(screen.getByTestId("slide-toggle-edit"));
+        const submitBtn = screen.getByTestId("submit-button");
+
+        expect(screen.getByText("Update transaction")).toBeTruthy();
+        expect(submitBtn).toBeTruthy();
+      });
+
+      it("calls editTransaction with form values when submitted", async () => {
+        const date = new Date(2026, 6, 21, 15, 45);
+        vi.setSystemTime(date);
+
+        render(
+          <AmountForm
+            pipeId={PIPE_ID}
+            variant="transaction"
+            initState={{ pipeIcon: "cart", pipeName: "Groceries", title: "lunch", value: "-15", isFeed: false, transactionId: "tx-1" as any }}
+          />,
+        );
+
+        fireEvent.change(screen.getByPlaceholderText("What was this for?"), {
+          target: { value: "new lunch" },
+        });
+        fireEvent.change(screen.getByTestId("input-Value-field"), {
+          target: { value: "20" },
+        });
+        fireEvent.click(screen.getByTestId("slide-toggle-edit"));
+
+        await waitFor(() => {
+          expect(mockCreateTransaction).not.toHaveBeenCalled();
+        });
+
+        fireEvent.click(screen.getByTestId("submit-button"));
+
+        await waitFor(() => {
+          expect(mockEditTransactionFn).toHaveBeenCalledWith({
+            transactionId: "tx-1",
+            title: "new lunch",
+            value: 20,
+            date: date.getTime(),
+          });
+        });
+
+        vi.useRealTimers();
+      });
+
+      it("does not call createTransaction in edit mode", async () => {
+        render(
+          <AmountForm
+            pipeId={PIPE_ID}
+            variant="transaction"
+            initState={{ pipeIcon: "cart", pipeName: "Groceries", title: "lunch", value: "-15", transactionId: "tx-1" as any }}
+          />,
+        );
+
+        fireEvent.change(screen.getByPlaceholderText("What was this for?"), {
+          target: { value: "lunch" },
+        });
+        fireEvent.click(screen.getByTestId("slide-toggle-edit"));
+        fireEvent.click(screen.getByTestId("submit-button"));
+
+        await waitFor(() => {
+          expect(mockCreateTransaction).not.toHaveBeenCalled();
+          expect(mockEditTransactionFn).toHaveBeenCalled();
+        });
+      });
+
+      it("keeps form filled and shows error alert on edit mutation failure", async () => {
+        mockEditTransactionFn.mockRejectedValueOnce(new Error("Edit failed"));
+
+        render(
+          <AmountForm
+            pipeId={PIPE_ID}
+            variant="transaction"
+            initState={{ pipeIcon: "cart", pipeName: "Groceries", title: "lunch", value: "-15", isFeed: false, transactionId: "tx-1" as any }}
+          />,
+        );
+
+        fireEvent.change(screen.getByPlaceholderText("What was this for?"), {
+          target: { value: "updated title" },
+        });
+        fireEvent.click(screen.getByTestId("slide-toggle-edit"));
+        fireEvent.click(screen.getByTestId("submit-button"));
+
+        await waitFor(() => {
+          expect(mockShowAlert.error).toHaveBeenCalledWith("Edit failed");
+        });
+
+        const titleInput = screen.getByPlaceholderText("What was this for?") as HTMLInputElement;
+        expect(titleInput.value).toBe("updated title");
+      });
     });
   });
 });

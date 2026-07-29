@@ -85,7 +85,6 @@ export function StackedTransactionItem({
   const disabled =
     (!!group.from && !fromValid) || (!!group.to && !toValid);
   const primaryPipe = sourcePipe || destPipe;
-  const amountFormMode = type === TransactionType.Feed ? "feed" : undefined;
   const firstTx = group.transactions[0];
   const amountFormInitState = primaryPipe
     ? {
@@ -94,6 +93,9 @@ export function StackedTransactionItem({
         title: firstTx.title,
         value: `${firstTx.value}`,
         ...(type === TransactionType.Transfer && destPipe ? { to: destPipe._id } : {}),
+        isFeed: type === TransactionType.Feed,
+        transactionId: firstTx._id,
+        date: firstTx.date,
       }
     : undefined;
 
@@ -176,7 +178,7 @@ export function StackedTransactionItem({
 
       <ModalShell visible={showForm} closeOnBackdropPress={true} onClose={() => setShowForm(false)}>
         {primaryPipe && (
-          <AmountForm mode={amountFormMode} pipeId={primaryPipe._id} initState={amountFormInitState} />
+          <AmountForm variant="transaction" pipeId={primaryPipe._id} initState={amountFormInitState} />
         )}
       </ModalShell>
     </>

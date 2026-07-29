@@ -1,4 +1,26 @@
 import { type Id } from "@convex/_generated/dataModel";
+import { colors } from "@/lib/styles";
+
+export function getButtonStyle(intent: "repeat" | "edit", isNegative: boolean) {
+  if (intent === "edit") {
+    return {
+      border: "border-primary",
+      iconColor: colors.primary,
+      textColor: "text-primary",
+    } as const;
+  }
+  return {
+    border: (isNegative ? "border-error" : "border-success"),
+    iconColor: isNegative ? colors.error : colors.success,
+    textColor: (isNegative ? "text-error" : "text-success"),
+  } as const;
+}
+
+export function getButtonIcon(intent: "repeat" | "edit", isFeed: boolean, spendMode: string) {
+  if (intent === "edit") return "checkmark";
+  if (isFeed) return "add-circle-outline";
+  return spendMode === "spend" ? "upload" : "repeat";
+}
 
 export function getButtonLabel(
   mode: "feed" | "spend",

@@ -33,7 +33,7 @@ export function InnerPipesScreen() {
 
       <View className="flex-1">
         {children.length === 0 && selectedPipe ? (
-          <AmountForm pipeId={selectedPipe._id} />
+          <AmountForm pipeId={selectedPipe._id} variant="spend" />
         ) : null}
         <PipesList
           pipes={children}

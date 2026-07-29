@@ -33,13 +33,15 @@ export function TransactionItem({ transaction }: TransactionItemProps) {
   const disabled = (!!transaction.from && !fromValid) || (!!transaction.to && !toValid);
   const primaryPipe = isFeed ? destPipe : sourcePipe;
   const bgClass = isFeed ? "bg-secondary/30" : isTransfer ? "bg-accent/30" : isNegative ? "bg-error/30" : "bg-primary/30";
-  const amountFormMode = isFeed ? "feed" : undefined;
   const amountFormInitState = primaryPipe ? {
     pipeIcon: primaryPipe.icon,
     pipeName: primaryPipe.name,
     title: transaction.title,
     value: `${transaction.value}`,
-    ...(isTransfer && destPipe ? { sentToPipeId: destPipe._id } : {}),
+    ...(isTransfer && destPipe ? { to: destPipe._id } : {}),
+    isFeed,
+    transactionId: transaction._id,
+    date: transaction.date,
   } : undefined;
 
   function handlePress() {
@@ -89,7 +91,7 @@ export function TransactionItem({ transaction }: TransactionItemProps) {
       </Text>
 
       <ModalShell visible={showForm} closeOnBackdropPress={true} onClose={() => setShowForm(false)}>
-        {primaryPipe && <AmountForm mode={amountFormMode} pipeId={primaryPipe._id} initState={amountFormInitState} />}
+        {primaryPipe && <AmountForm variant="transaction" pipeId={primaryPipe._id} initState={amountFormInitState} />}
       </ModalShell>
 
       <ModalShell visible={showDisabledInfo} closeOnBackdropPress={true} onClose={() => setShowDisabledInfo(false)}>

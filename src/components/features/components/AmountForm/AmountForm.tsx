@@ -17,7 +17,9 @@ import { useAlert } from "@ui/Alert";
 import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
 import {
   buildPipeItems,
+  getButtonIcon,
   getButtonLabel,
+  getButtonStyle,
   getDestinationPipeName,
 } from "./helpers";
 
@@ -25,18 +27,21 @@ type SpentMode = "spend" | "transfer";
 
 type Props = {
   pipeId: Id<"pipes">;
-  mode?: "spend" | "feed";
+  variant?: "feed" | "spend" | "transaction";
   initState?: {
     pipeIcon: string;
     pipeName: string;
     title: string;
     value: string;
     to?: Id<"pipes">;
+    isFeed?: boolean;
+    transactionId?: Id<"transactions">;
+    date?: number;
   };
   onSuccess?: () => void;
 };
 
-export function AmountForm({ pipeId, mode = "spend", initState, onSuccess }: Props) {
+export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: Props) {
   const [title, setTitle] = useState(initState?.title ?? "");
   const [value, setValue] = useState(initState?.value ?? "");
   const [date, setDate] = useState(new Date());
@@ -47,14 +52,15 @@ export function AmountForm({ pipeId, mode = "spend", initState, onSuccess }: Pro
   const [spendMode, setSpendMode] = useState<SpentMode>(
     initState?.to ? "transfer" : "spend",
   );
+  const [intent, setIntent] = useState<"repeat" | "edit">("repeat");
 
   const showAlert = useAlert();
   const createTransaction = useMutation(api.transactions.createTransaction);
-  const feedPipeMutation = useMutation(api.pipes.feedPipe);
   const { allPipes } = usePipeSelection();
   const recentTitles = useQuery(api.transactions.listRecentTitles, { pipeId });
 
-  const isFeed = mode === "feed";
+  const isFeed = variant === "feed" || (variant === "transaction" && initState?.isFeed === true);
+  const isTransactionVariant = variant === "transaction";
 
   const isValidAmount = useMemo(() => {
     if (value === "" || value === "-") return false;
@@ -66,9 +72,12 @@ export function AmountForm({ pipeId, mode = "spend", initState, onSuccess }: Pro
   const isValid =
     title.trim() !== "" &&
     isValidAmount &&
-    (isFeed || spendMode !== "transfer" || sentToPipeId !== null);
+    (isFeed || isTransactionVariant || spendMode !== "transfer" || sentToPipeId !== null);
 
   const isNegative = value === "" ? !isFeed : value.startsWith("-");
+
+  const buttonStyle = useMemo(() => getButtonStyle(intent, isNegative), [intent, isNegative]);
+  const buttonIcon = useMemo(() => getButtonIcon(intent, isFeed, spendMode), [intent, isFeed, spendMode]);
 
   const renderPipeItem = useCallback(
     (item: any) => (
@@ -86,6 +95,15 @@ export function AmountForm({ pipeId, mode = "spend", initState, onSuccess }: Pro
       setSentToPipeId(null);
     }
   }, []);
+
+  const handleIntentChange = useCallback((newIntent: string) => {
+    setIntent(newIntent as "repeat" | "edit");
+    if (newIntent === "edit" && initState?.date) {
+      setDate(new Date(initState.date));
+    } else if (newIntent === "repeat") {
+      setDate(new Date());
+    }
+  }, [initState?.date]);
 
   const handleValueChange = useCallback((text: string) => {
     setValue((prev) => {
@@ -112,31 +130,54 @@ export function AmountForm({ pipeId, mode = "spend", initState, onSuccess }: Pro
     setDate(new Date());
     setSentToPipeId(null);
     setSpendMode("spend");
+    setIntent("repeat");
   }, []);
+
+  const editTransaction = useMutation(api.transactions.editTransaction);
+
+  const handleEditSubmit = useCallback(async () => {
+    const parsedValue = parseFloat(value);
+    await editTransaction({
+      transactionId: initState?.transactionId!,
+      title,
+      value: parsedValue,
+      date: date.getTime(),
+    });
+    resetForm();
+    onSuccess?.();
+  }, [title, value, date, initState?.transactionId, onSuccess, resetForm, editTransaction]);
+
+  const handleRepeatSubmit = useCallback(async () => {
+    const parsedValue = parseFloat(value);
+    if (isFeed) {
+      await createTransaction({
+        title: title.trim(),
+        value: parsedValue,
+        date: date.getTime(),
+        to: pipeId,
+      });
+    } else {
+      await createTransaction({
+        title,
+        value: parsedValue,
+        date: date.getTime(),
+        from: pipeId,
+        ...(spendMode === "transfer" && sentToPipeId ? { to: sentToPipeId } : {}),
+      });
+    }
+    resetForm();
+    onSuccess?.();
+  }, [isFeed, value, title, date, pipeId, spendMode, sentToPipeId, onSuccess, resetForm, createTransaction]);
 
   const handleSubmit = useCallback(async () => {
     if (!isValid || loading) return;
     setLoading(true);
     try {
-      const parsedValue = parseFloat(value);
-      if (isFeed) {
-        await feedPipeMutation({
-          pipeId,
-          amount: parsedValue,
-          title: title.trim(),
-          date: date.getTime(),
-        });
+      if (intent === "edit") {
+        await handleEditSubmit();
       } else {
-        await createTransaction({
-          title,
-          value: parsedValue,
-          date: date.getTime(),
-          from: pipeId,
-          ...(spendMode === "transfer" && sentToPipeId ? { to: sentToPipeId } : {}),
-        });
+        await handleRepeatSubmit();
       }
-      resetForm();
-      onSuccess?.();
     } catch (error) {
       showAlert.error(
         error instanceof Error ? error.message : "Something went wrong",
@@ -144,33 +185,43 @@ export function AmountForm({ pipeId, mode = "spend", initState, onSuccess }: Pro
     } finally {
       setLoading(false);
     }
-  }, [
-    isValid,
-    loading,
-    isFeed,
-    value,
-    title,
-    date,
-    spendMode,
-    sentToPipeId,
-    pipeId,
-    onSuccess,
-    feedPipeMutation,
-    createTransaction,
-    showAlert,
-    resetForm,
-  ]);
+  }, [isValid, loading, intent, handleEditSubmit, handleRepeatSubmit, showAlert]);
 
   return (
     <View className="px-4 py-4 gap-2">
       {initState && (
-        <View className="flex-row gap-4 items-center justify-center border-b border-muted/20 p-2">
-          <Icon name={initState.pipeIcon} size={24} color={colors.muted} />
-          <Text className="text-md font-medium text-muted">{initState.pipeName}</Text>
+        <View className="flex-row items-center border-b border-muted/20 p-2">
+          <View className="flex-row gap-4 items-center flex-1">
+            <Icon name={initState.pipeIcon} size={24} color={colors.muted} />
+            <Text className="text-md font-medium text-muted">{initState.pipeName}</Text>
+          </View>
+          {isTransactionVariant && (
+            <SlideToggle
+              options={[
+                { value: "repeat", icon: "repeat-once" },
+                { value: "edit", icon: "pencil-outline" },
+              ]}
+              value={intent}
+              onChange={handleIntentChange}
+            />
+          )}
         </View>
       )}
 
-      {!isFeed && (
+      {isTransactionVariant && !initState ? (
+        <View className="flex-row items-center justify-center pt-2">
+          <SlideToggle
+            options={[
+              { value: "repeat", icon: "repeat-once" },
+              { value: "edit", icon: "pencil-outline" },
+            ]}
+            value={intent}
+            onChange={handleIntentChange}
+          />
+        </View>
+      ) : null}
+
+      {!isTransactionVariant && !isFeed ? (
         <View className="flex-row items-center justify-between">
           <Text className="text-sm text-text">
             {spendMode === "spend" ? "Add transaction" : "Transfer"}
@@ -184,7 +235,7 @@ export function AmountForm({ pipeId, mode = "spend", initState, onSuccess }: Pro
             onChange={handleModeChange}
           />
         </View>
-      )}
+      ) : null}
 
       <Input
         type="text-select"
@@ -221,7 +272,7 @@ export function AmountForm({ pipeId, mode = "spend", initState, onSuccess }: Pro
         </View>
       </View>
 
-      {!isFeed && spendMode === "transfer" && (
+      {!isFeed && !isTransactionVariant && spendMode === "transfer" && (
         <Input
           type="select"
           label="Transfer to"
@@ -253,25 +304,25 @@ export function AmountForm({ pipeId, mode = "spend", initState, onSuccess }: Pro
           className={cn(
             "rounded-lg border px-5 py-3 flex-row items-center gap-2",
             isValid && !loading ? "" : "opacity-50",
-            isNegative ? "border-error" : "border-success",
+            buttonStyle.border,
           )}
         >
           {loading ? (
-            <ActivityIndicator color={isNegative ? colors.error : colors.primary} />
+            <ActivityIndicator color={buttonStyle.iconColor} />
           ) : (
             <>
               <Icon
-                name={isFeed ? "add-circle-outline" : spendMode === "spend" ? "upload" : "repeat"}
+                name={buttonIcon as IconName}
                 size={20}
-                color={isNegative ? colors.error : colors.success}
+                color={buttonStyle.iconColor}
               />
               <Text
                 className={cn(
                   "font-semibold text-base",
-                  isNegative ? "text-error" : "text-success",
+                  buttonStyle.textColor,
                 )}
               >
-                {getButtonLabel(mode, isNegative, destinationPipeName)}
+                {intent === "edit" ? "Update transaction" : getButtonLabel(isFeed ? "feed" : "spend", isNegative, destinationPipeName)}
               </Text>
             </>
           )}

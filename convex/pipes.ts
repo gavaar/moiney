@@ -4,12 +4,10 @@ import type { Id } from "./_generated/dataModel";
 import { requireAuth } from "./lib/auth";
 import { MAX_PIPES_PER_USER } from "./lib/constants";
 import {
-  addFeedToPipe,
   collectDescendants,
   computePipeTree,
   recascadeTree,
 } from "./lib/pipes";
-import { updateOrCreateTitleUsage } from "./lib/transactions";
 
 async function checkPipeLimit(ctx: MutationCtx, userId: Id<"users">) {
   const pipes = await ctx.db
@@ -84,39 +82,6 @@ export const addPipe = mutation({
     await recascadeTree(ctx, userId);
 
     return childId;
-  },
-});
-
-export const feedPipe = mutation({
-  args: {
-    pipeId: v.id("pipes"),
-    amount: v.number(),
-    title: v.optional(v.string()),
-    date: v.optional(v.number()),
-  },
-  handler: async (ctx, args) => {
-    const userId = await requireAuth(ctx);
-    await addFeedToPipe(ctx, userId, args.pipeId, args.amount);
-    await recascadeTree(ctx, userId);
-
-    const title = (args.title ?? "feed").toLowerCase();
-    const date = args.date ?? Date.now();
-
-    await ctx.db.insert("transactions", {
-      title,
-      value: args.amount,
-      date,
-      from: undefined,
-      to: args.pipeId,
-      userId,
-    });
-
-    await updateOrCreateTitleUsage(ctx, {
-      pipeId: args.pipeId,
-      userId,
-      title,
-      date,
-    });
   },
 });
 
