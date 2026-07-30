@@ -9,9 +9,9 @@ describe("PipeBars", () => {
     expect(screen.getByText("fed")).toBeDefined();
     expect(screen.getByText("spent")).toBeDefined();
     expect(screen.getByText("capacity")).toBeDefined();
-    expect(screen.getByText("1500.00")).toBeDefined();
-    expect(screen.getByText("1200.00")).toBeDefined();
-    expect(screen.getByText("2000.00")).toBeDefined();
+    expect(screen.getByText("1,500.00")).toBeDefined();
+    expect(screen.getByText("1,200.00")).toBeDefined();
+    expect(screen.getByText("2,000.00")).toBeDefined();
   });
 
   it("renders fed bar with green fill", () => {

@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { DimensionValue, Pressable, ScrollView, Text, View } from "react-native";
 import { Icon } from "@ui/Icon";
 import { usePipeSelection, toPipe, type Pipe } from "@features/pipes/context/PipeSelectionContext";
 import { colors } from "@/lib/styles";
@@ -40,7 +40,7 @@ function buildTreeRows(
     for (const p of pipes) {
       const childPipes = childrenByParent.get(p._id);
       if (childPipes === undefined || childPipes.length === 0) {
-        m = Math.max(m, p.fed, p.spent, p.capacity);
+        m = Math.max(m, Math.abs(p.fed), Math.abs(p.spent), Math.abs(p.capacity));
       }
     }
     return m || 1;
@@ -52,7 +52,7 @@ function buildTreeRows(
       const bLeaf = !childrenByParent.has(b._id) || (childrenByParent.get(b._id)?.length ?? 0) === 0;
       if (aLeaf && !bLeaf) return -1;
       if (!aLeaf && bLeaf) return 1;
-      if (aLeaf && bLeaf) return Math.max(b.fed, b.spent) - Math.max(a.fed, a.spent);
+      if (aLeaf && bLeaf) return Math.max(Math.abs(b.fed), Math.abs(b.spent)) - Math.max(Math.abs(a.fed), Math.abs(a.spent));
       return 0;
     });
   }
@@ -154,23 +154,82 @@ function MiniBar({
   capacity: number;
   maxVal: number;
 }) {
-  const sw = (spent / maxVal) * 100;
-  const rw = (Math.max(0, fed - spent) / maxVal) * 100;
-  const hw = (Math.max(0, capacity - fed) / maxVal) * 100;
+  const hasNegative = fed < 0 || capacity < 0;
+  const hasPositive = fed > 0 || capacity > 0 || spent > 0;
+
+  const pHalf = (v: number) => `${(v / maxVal) * 100}%` as DimensionValue;
 
   return (
     <View
       className="flex-row rounded-sm overflow-hidden"
       style={{ width: BAR_WIDTH, height: 8 }}
     >
-      {sw > 0 && (
-        <View style={{ width: `${sw}%`, backgroundColor: colors.error }} />
+      {hasNegative && (
+        <View
+          className="relative overflow-hidden"
+          style={{ flex: 1, flexDirection: "row-reverse" }}
+        >
+          {capacity < 0 && (
+            <View
+              style={{
+                width: pHalf(Math.abs(capacity)),
+                backgroundColor: colors.errorDark,
+                height: 8,
+              }}
+            />
+          )}
+          {fed < 0 && (
+            <View
+              style={{
+                position: "absolute", right: 0, top: 0,
+                width: pHalf(Math.abs(fed)),
+                backgroundColor: colors.error,
+                height: 8,
+              }}
+            />
+          )}
+          {fed < 0 && spent > 0 && (
+            <View
+              style={{
+                position: "absolute", right: 0, top: 0,
+                width: pHalf(spent),
+                backgroundColor: `${colors.errorBright}CC`,
+                height: 8,
+              }}
+            />
+          )}
+        </View>
       )}
-      {rw > 0 && (
-        <View style={{ width: `${rw}%`, backgroundColor: colors.success }} />
-      )}
-      {hw > 0 && (
-        <View style={{ width: `${hw}%`, backgroundColor: "#413f3f" }} />
+
+      <View style={{ width: 1, backgroundColor: colors.text }} />
+
+      {hasPositive && (
+        <View
+          className="flex-row overflow-hidden"
+          style={{ flex: 1 }}
+        >
+          {spent > 0 && (
+            <View style={{ width: pHalf(spent), backgroundColor: colors.error, height: 8 }} />
+          )}
+          {fed >= 0 && (
+            <View
+              style={{
+                width: pHalf(Math.max(0, fed - spent)),
+                backgroundColor: colors.success,
+                height: 8,
+              }}
+            />
+          )}
+          {capacity > 0 && (
+            <View
+              style={{
+                width: pHalf(Math.max(0, capacity - fed)),
+                backgroundColor: "#413f3f",
+                height: 8,
+              }}
+            />
+          )}
+        </View>
       )}
     </View>
   );

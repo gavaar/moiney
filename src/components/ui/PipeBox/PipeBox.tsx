@@ -1,6 +1,7 @@
 import { Text, TouchableOpacity, View } from "react-native";
 import { Icon, type IconName } from "@ui/Icon";
 import { colors } from "@/lib/styles";
+import { formatAmount } from "@/lib/format";
 import { Liquidity, MiniChildBox } from './components';
 
 export type ChildSnapshot = {
@@ -52,12 +53,12 @@ export function PipeBox({ name, icon, priority, capacity, fed, spent, children, 
         </View>
 
         <View className="absolute flex right-1 top-1 p-1 items-end justify-center rounded-md">
-          <Text className="text-text font-semibold text-sm">
-            {spent.toFixed(1)} / {fed.toFixed(1)}
-          </Text> 
-          <Text className="text-text text-xs">
-            (goal: {capacity.toFixed(1)})
-          </Text> 
+          <Text className={`font-semibold text-sm ${fed < 0 ? "text-errorDark" : "text-text"}`}>
+            {formatAmount(spent)} / {formatAmount(fed)}
+          </Text>
+          <Text className={`text-xs ${capacity < 0 ? "text-errorDark" : "text-text"}`}>
+            ({capacity < 0 ? "debt cap" : "goal"}: {formatAmount(capacity)})
+          </Text>
         </View>
       </TouchableOpacity>
     </View>

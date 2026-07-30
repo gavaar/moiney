@@ -197,6 +197,8 @@ function reconcileNode<TPipeId extends string>(
       totalAllocated += alloc.amount;
     }
     fedMap.set(nodeId, parentFed - totalAllocated);
+  } else {
+    fedMap.set(nodeId, parentFed);
   }
 
   for (const child of children) {

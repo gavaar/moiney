@@ -12,9 +12,9 @@ const mockOnSuccess = vi.fn();
 let capturedOnSuccess: (() => void) | null = null;
 
 vi.mock("@features/components/AmountForm", () => ({
-  AmountForm: ({ onSuccess, mode }: any) => {
+  AmountForm: ({ onSuccess, variant }: any) => {
     capturedOnSuccess = onSuccess;
-    return <div data-testid="amount-form" data-mode={mode} />;
+    return <div data-testid="amount-form" data-mode={variant} />;
   },
 }));
 

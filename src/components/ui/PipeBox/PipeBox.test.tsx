@@ -21,7 +21,7 @@ describe("PipeBox", () => {
 
   it("renders summary text with spent, fed, and capacity", () => {
     render(<PipeBox {...baseProps} />);
-    expect(screen.getByText("500.0 / 1000.0")).toBeDefined();
+    expect(screen.getByText("500.00 / 1,000.00")).toBeDefined();
   });
 
   it("renders icon with primary color", () => {
@@ -47,6 +47,6 @@ describe("PipeBox", () => {
         spent={0}
       />,
     );
-    expect(screen.getByText("0.0 / 0.0")).toBeDefined();
+    expect(screen.getByText("0.00 / 0.00")).toBeDefined();
   });
 });

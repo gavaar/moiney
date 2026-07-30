@@ -88,11 +88,11 @@ export function EditPipeModal({ visible, onClose, pipeId }: EditPipeModalProps) 
             <View className="flex-1">
               <Input
                 type="decimal"
-                label="capacity"
+                label={Number(capacity) < 0 ? "Debt" : "Capacity"}
                 value={capacity}
                 onChange={setCapacity}
                 placeholder="0.00"
-                allowNegative={false}
+                allowNegative={true}
               />
             </View>
             <View className="flex-1">

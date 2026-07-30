@@ -4,6 +4,7 @@ import { type Id } from "@convex/_generated/dataModel";
 import { Popover } from "@ui/Popover";
 import { Icon } from "@ui/Icon";
 import { colors } from "@/lib/styles";
+import { formatAmount } from "@/lib/format";
 import { getDaysInMonth } from "@/lib/dates";
 import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
 import { DeletePipeConfirmation } from "@features/pipes/InnerPipesScreen/components/DeletePipeConfirmation";
@@ -72,8 +73,10 @@ export function StatisticsRow({ fed, spent }: Props) {
 
             <View className="flex-row items-center">
               <Pressable ref={stat.ref} onPress={() => setSelectedStatLabel(stat.label)}>
-                <Text className="text-text text-sm border border-muted/50 px-2 rounded-md">
-                  {stat.label}: {stat.value.toFixed(2)}
+                <Text className={`text-sm border px-2 rounded-md ${
+                  stat.value < 0 ? "text-error border-error/50" : "text-text border-muted/50"
+                }`}>
+                  {stat.label}: {formatAmount(stat.value)}
                 </Text>
               </Pressable>
 

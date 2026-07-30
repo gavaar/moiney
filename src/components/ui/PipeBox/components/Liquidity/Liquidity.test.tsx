@@ -77,13 +77,12 @@ describe("Liquidity", () => {
 
     it("does not render visible overfed segment when fed <= capacity", () => {
       render(<Liquidity fed={50} capacity={100} spent={30} />);
-      const overfed = screen.getByTestId("fed-bar-overfed");
-      expect(overfed.style.flexGrow).toBe("0");
+      expect(screen.queryByTestId("fed-bar-overfed")).toBeNull();
     });
 
     it("renders fed-filled with primary color", () => {
       render(<Liquidity fed={100} capacity={80} spent={30} />);
-      const filled = screen.getByTestId("fed-bar-filled");
+      const filled = screen.getByTestId("fed-bar");
       expect(filled.style.backgroundColor).toBe(primaryRgb);
     });
   });
@@ -91,27 +90,27 @@ describe("Liquidity", () => {
   describe("SpentBar color logic", () => {
     it("uses error color when spent exceeds fed", () => {
       render(<Liquidity fed={50} capacity={200} spent={100} />);
-      const spentFilled = screen.getByTestId("spent-bar-filled");
-      expect(spentFilled.style.backgroundColor).toBe(errorRgba);
+      const spentBar = screen.getByTestId("spent-bar");
+      expect(spentBar.style.backgroundColor).toBe(errorRgba);
     });
 
     it("uses surface color when spent <= fed", () => {
       render(<Liquidity fed={100} capacity={200} spent={40} />);
-      const spentFilled = screen.getByTestId("spent-bar-filled");
-      expect(spentFilled.style.backgroundColor).toBe(surfaceRgba);
+      const spentBar = screen.getByTestId("spent-bar");
+      expect(spentBar.style.backgroundColor).toBe(surfaceRgba);
     });
   });
 
   describe("CapacityBar styling", () => {
     it("renders with dashed border and primary-tinted background", () => {
       render(<Liquidity fed={50} capacity={100} spent={30} />);
-      const capFilled = screen.getByTestId("capacity-bar-filled");
-      expect(capFilled.style.borderTopStyle).toBe("dashed");
-      expect(capFilled.style.borderRightStyle).toBe("dashed");
-      expect(capFilled.style.borderBottomStyle).toBe("dashed");
-      expect(capFilled.style.borderLeftStyle).toBe("dashed");
-      expect(capFilled.style.borderRightWidth).toBe("2px");
-      expect(capFilled.style.backgroundColor).toBe(primaryBgRgba);
+      const capBar = screen.getByTestId("capacity-bar");
+      expect(capBar.style.borderTopStyle).toBe("dashed");
+      expect(capBar.style.borderRightStyle).toBe("dashed");
+      expect(capBar.style.borderBottomStyle).toBe("dashed");
+      expect(capBar.style.borderLeftStyle).toBe("dashed");
+      expect(capBar.style.borderRightWidth).toBe("2px");
+      expect(capBar.style.backgroundColor).toBe(primaryBgRgba);
     });
   });
 
@@ -119,37 +118,37 @@ describe("Liquidity", () => {
     it("scales bars relative to biggest value", () => {
       render(<Liquidity fed={100} capacity={150} spent={50} />);
       const biggest = 150;
-      const fedFilled = screen.getByTestId("fed-bar-filled");
-      const spentFilled = screen.getByTestId("spent-bar-filled");
-      const capFilled = screen.getByTestId("capacity-bar-filled");
+      const fedBar = screen.getByTestId("fed-bar");
+      const spentBar = screen.getByTestId("spent-bar");
+      const capBar = screen.getByTestId("capacity-bar");
 
-      expect(capFilled.style.flexGrow).toBe(String(150 / biggest));
-      expect(fedFilled.style.flexGrow).toBe(String(100 / biggest));
-      expect(spentFilled.style.flexGrow).toBe(String(50 / biggest));
+      expect(capBar.style.width).toBe(`${(150 / biggest) * 100}%`);
+      expect(fedBar.style.width).toBe(`${(100 / biggest) * 100}%`);
+      expect(spentBar.style.width).toBe(`${(50 / biggest) * 100}%`);
     });
 
     it("uses spent as biggest when it exceeds fed and capacity", () => {
       render(<Liquidity fed={30} capacity={50} spent={100} />);
       const biggest = 100;
-      const spentFilled = screen.getByTestId("spent-bar-filled");
-      const fedFilled = screen.getByTestId("fed-bar-filled");
-      const capFilled = screen.getByTestId("capacity-bar-filled");
+      const spentBar = screen.getByTestId("spent-bar");
+      const fedBar = screen.getByTestId("fed-bar");
+      const capBar = screen.getByTestId("capacity-bar");
 
-      expect(spentFilled.style.flexGrow).toBe(String(100 / biggest));
-      expect(fedFilled.style.flexGrow).toBe(String(30 / biggest));
-      expect(capFilled.style.flexGrow).toBe(String(50 / biggest));
+      expect(spentBar.style.width).toBe(`${(100 / biggest) * 100}%`);
+      expect(fedBar.style.width).toBe(`${(30 / biggest) * 100}%`);
+      expect(capBar.style.width).toBe(`${(50 / biggest) * 100}%`);
     });
 
     it("uses capacity as biggest when it exceeds fed and spent", () => {
       render(<Liquidity fed={30} capacity={100} spent={50} />);
       const biggest = 100;
-      const capFilled = screen.getByTestId("capacity-bar-filled");
-      const fedFilled = screen.getByTestId("fed-bar-filled");
-      const spentFilled = screen.getByTestId("spent-bar-filled");
+      const capBar = screen.getByTestId("capacity-bar");
+      const fedBar = screen.getByTestId("fed-bar");
+      const spentBar = screen.getByTestId("spent-bar");
 
-      expect(capFilled.style.flexGrow).toBe(String(100 / biggest));
-      expect(fedFilled.style.flexGrow).toBe(String(30 / biggest));
-      expect(spentFilled.style.flexGrow).toBe(String(50 / biggest));
+      expect(capBar.style.width).toBe(`${(100 / biggest) * 100}%`);
+      expect(fedBar.style.width).toBe(`${(30 / biggest) * 100}%`);
+      expect(spentBar.style.width).toBe(`${(50 / biggest) * 100}%`);
     });
   });
 
@@ -157,11 +156,11 @@ describe("Liquidity", () => {
     it("shows overfed segment in secondary color and spent bar in error color", () => {
       render(<Liquidity fed={100} capacity={60} spent={120} />);
       const overfed = screen.getByTestId("fed-bar-overfed");
-      const spentFilled = screen.getByTestId("spent-bar-filled");
+      const spentBar = screen.getByTestId("spent-bar");
 
-      expect(overfed.style.flexGrow).not.toBe("0");
+      expect(overfed.style.width).not.toBe("0%");
       expect(overfed.style.backgroundColor).toBe(secondaryRgb);
-      expect(spentFilled.style.backgroundColor).toBe(errorRgba);
+      expect(spentBar.style.backgroundColor).toBe(errorRgba);
     });
   });
 });

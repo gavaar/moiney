@@ -1,109 +1,112 @@
-/**
- * Show the liquidity values in a bar ux.
- * It receives fed, capacity and spent.
- * The bar will take as a 100% the biggest of these three values.
- * 
- * If fed is bigger than capacity, it will fill the capacity bar with a color, and then the overfed value will be in light blue.
- * If spent is bigger than fed, it will change its color to red. The fed bar has opacity.
- * All three bars are positioned overlaying one another. If any of these values is 0, that bar is not shown.
- */
-
 import { colors } from '@/lib/styles';
 import { View } from 'react-native';
 
-function FedBar({ fed, capacity, biggest }: { fed: number; capacity: number; biggest: number }) {
-  const overfed = Math.max(0, fed - capacity);
-  const limitedFed = Math.min(fed, capacity);
-  const overfedW = overfed / biggest;
-  const limitedFedW = limitedFed / biggest;
-  const fedW = limitedFedW + overfedW;
+export function Liquidity({ fed, capacity, spent }: { fed: number; capacity: number; spent: number }) {
+  const biggest = Math.max(1, Math.abs(fed), Math.abs(capacity), Math.abs(spent));
+  const hasNegative = fed < 0 || capacity < 0;
+  const hasPositive = fed > 0 || capacity > 0;
 
   return (
-    <View testID="fed-bar" className="flex flex-row absolute top-0 left-0 right-0 bottom-0">
-      <View
-        testID="fed-bar-filled"
-        style={{
-          flexGrow: limitedFedW,
-          backgroundColor: colors.primary,
-        }}
-      />
-      <View
-        testID="fed-bar-overfed"
-        style={{
-          flexGrow: overfedW,
-          backgroundColor: colors.secondary,
-        }}
-      />
-      <View
-        style={{
-          flexGrow: 1 - fedW,
-          backgroundColor: "transparent",
-        }}
-      />
-    </View>
-  );
-};
+    <View testID="liquidity" className="flex-1 relative">
+      <View className="flex-row flex-1">
+        {hasNegative && (
+          <View
+            testID="liquidity-left"
+            className="flex-1 overflow-hidden relative"
+            style={{ flex: hasPositive ? 1 : undefined }}
+          >
+            {capacity < 0 && (
+              <View
+                testID="debt-cap-bar"
+                style={{
+                  position: 'absolute', right: 0, top: 0, bottom: 0,
+                  width: `${(Math.abs(capacity) / biggest) * 100}%`,
+                  borderColor: colors.errorDark,
+                  borderStyle: 'dashed',
+                  borderLeftWidth: 2,
+                  backgroundColor: `${colors.errorDark}11`,
+                }}
+              />
+            )}
+            {fed < 0 && (
+              <View
+                testID="debt-bar"
+                style={{
+                  position: 'absolute', right: 0, top: 0, bottom: 0,
+                  width: `${(Math.abs(fed) / biggest) * 100}%`,
+                  backgroundColor: colors.error,
+                }}
+              />
+            )}
+            {fed < 0 && spent > 0 && (
+              <View
+                testID="debt-spent-bar"
+                style={{
+                  position: 'absolute', right: 0, top: 0, bottom: 0,
+                  width: `${(spent / biggest) * 100}%`,
+                  backgroundColor: `${colors.errorBright}CC`,
+                }}
+              />
+            )}
+          </View>
+        )}
 
-function SpentBar({ spent, biggest, fed }: { spent: number; biggest: number; fed: number; }) {
-  const spentW = spent / biggest;
-  const spentColor = spent > fed ? colors.error : colors.surface;
+        {hasNegative && hasPositive && (
+          <View style={{ width: 1, backgroundColor: colors.text }} />
+        )}
 
-  return (
-    <View testID="spent-bar" className="flex flex-row absolute top-0 left-0 right-0 bottom-0">
-      <View
-        testID="spent-bar-filled"
-        style={{
-          flexGrow: spentW,
-          backgroundColor: `${spentColor}CC`,
-        }}
-      />
-      <View
-        style={{
-          flexGrow: 1 - spentW,
-          backgroundColor: "transparent",
-        }}
-      />
-    </View>
-  );
-};
-
-function CapacityBar({ capacity, biggest }: { capacity: number; biggest: number }) {
-  const capacityW = capacity / biggest;
-
-  return (
-    <View testID="capacity-bar" className="flex flex-row absolute top-0 left-0 right-0 bottom-0">
-      <View
-        testID="capacity-bar-filled"
-        style={{
-          flexGrow: capacityW,
-          borderColor: `${colors.primary}`,
-          borderStyle: "dashed",
-          borderRightWidth: 2,
-          backgroundColor: `${colors.primary}11`,
-        }}
-      />
-      <View
-        style={{
-          flexGrow: 1 - capacityW,
-          backgroundColor: "transparent",
-        }}
-      />
+        {hasPositive && (
+          <View
+            testID="liquidity-right"
+            className="flex-1 overflow-hidden relative"
+            style={{ flex: hasNegative ? 1 : undefined }}
+          >
+            {capacity > 0 && (
+              <View
+                testID="capacity-bar"
+                style={{
+                  position: 'absolute', left: 0, top: 0, bottom: 0,
+                  width: `${(capacity / biggest) * 100}%`,
+                  borderColor: colors.primary,
+                  borderStyle: 'dashed',
+                  borderRightWidth: 2,
+                  backgroundColor: `${colors.primary}11`,
+                }}
+              />
+            )}
+            {fed > 0 && capacity > 0 && fed > capacity && (
+              <View
+                testID="fed-bar-overfed"
+                style={{
+                  position: 'absolute', left: `${(capacity / biggest) * 100}%`, top: 0, bottom: 0,
+                  width: `${((fed - capacity) / biggest) * 100}%`,
+                  backgroundColor: colors.secondary,
+                }}
+              />
+            )}
+            {fed > 0 && (
+              <View
+                testID="fed-bar"
+                style={{
+                  position: 'absolute', left: 0, top: 0, bottom: 0,
+                  width: `${(Math.min(fed, capacity > 0 ? capacity : fed) / biggest) * 100}%`,
+                  backgroundColor: colors.primary,
+                }}
+              />
+            )}
+            {spent > 0 && fed >= 0 && (
+              <View
+                testID="spent-bar"
+                style={{
+                  position: 'absolute', left: 0, top: 0, bottom: 0,
+                  width: `${(spent / biggest) * 100}%`,
+                  backgroundColor: `${spent > Math.max(fed, 0) ? colors.error : colors.surface}CC`,
+                }}
+              />
+            )}
+          </View>
+        )}
+      </View>
     </View>
   );
 }
-
-export function Liquidity({ fed, capacity, spent }: { fed: number; capacity: number; spent: number }) {
-  const biggest = Math.max(fed, capacity, spent);
-
-  return <View testID="liquidity" className="flex-1 relative">
-    {fed !== 0 &&
-      <FedBar fed={fed} capacity={capacity} biggest={biggest} />
-    }
-    {spent !== 0 &&
-      <SpentBar spent={spent} biggest={biggest} fed={fed} />
-    }
-    {capacity !== 0 &&
-      <CapacityBar capacity={capacity} biggest={biggest} />
-    }
-  </View>;
-};

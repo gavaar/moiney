@@ -29,7 +29,7 @@ export function FeedAmountModal({ pipeId, feedName }: Props) {
         <View className="gap-4">
           <Text className="text-lg font-semibold text-text">Feed {feedName}</Text>
           <AmountForm
-            mode="feed"
+            variant="feed"
             pipeId={pipeId}
             onSuccess={() => {
               showAlert.success("Feed added");

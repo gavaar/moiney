@@ -110,11 +110,11 @@ export function AddPipeButton({ parentId }: AddPipeButtonProps) {
               <View className="flex-[3]">
                 <Input
                   type="decimal"
-                  label="Initial capacity?"
+                  label={Number(capacity) < 0 ? "Debt" : "Initial capacity?"}
                   value={capacity}
                   onChange={setCapacity}
                   placeholder="0.00"
-                  allowNegative={false}
+                  allowNegative={true}
                 />
               </View>
               <View className="flex-[2]">

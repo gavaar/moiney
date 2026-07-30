@@ -5,6 +5,8 @@ declare const colors: {
   accent: "#A270D4";
   warning: "#D4A04A";
   error: "#C05959";
+  errorDark: "#8B3D3D";
+  errorBright: "#E07070";
   success: "#46AE82";
   background: "#111111";
   surface: "#1A1B1E";
