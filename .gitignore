@@ -12,4 +12,3 @@ web-build/
 .env
 .env.local
 .env.development
-convex/_generated/
