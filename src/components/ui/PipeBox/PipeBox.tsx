@@ -24,7 +24,7 @@ export function PipeBox({ name, icon, priority, capacity, fed, spent, showPriori
       <TouchableOpacity
         onPress={onPress}
         activeOpacity={0.7}
-        className="flex-row rounded-md overflow-hidden min-h-15"
+        className="flex-row rounded-md overflow-hidden min-h-16"
       >
         {showPriority && (
           <Text className="absolute top-1 left-1 text-muted text-[10px] z-10">{priority}</Text>

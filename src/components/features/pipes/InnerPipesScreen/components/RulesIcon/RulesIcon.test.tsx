@@ -127,6 +127,20 @@ describe("RulesIcon", () => {
     expect(screen.queryByTestId("rule-modal")).toBeNull();
   });
 
+  it("wraps the disabled placeholder in the same-sized box as the enabled icon", () => {
+    render(<RulesIcon pipeId={pId("pipe-1")} disabled fed={0} capacity={100} />);
+    const box = screen.getByTestId("rules-icon-box");
+    const icon = screen.getByTestId("rules-icon-placeholder");
+    expect(box.contains(icon)).toBe(true);
+  });
+
+  it("wraps the rule icon in the same-sized box", () => {
+    render(<RulesIcon pipeId={pId("pipe-1")} rule="cron" fed={0} capacity={100} />);
+    const box = screen.getByTestId("rules-icon-box");
+    const icon = screen.getByTestId("icon");
+    expect(box.contains(icon)).toBe(true);
+  });
+
   it("renders a ring for spend_overflow reflecting spent/capacity", () => {
     render(
       <RulesIcon
