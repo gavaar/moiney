@@ -2,14 +2,17 @@ import {
   ActivityIndicator,
   Text,
   TouchableOpacity,
+  View,
   type TouchableOpacityProps,
 } from "react-native";
 import { cn, colors } from "@/lib/styles";
+import { Icon, type IconName } from "@ui/Icon";
 
 type Props = TouchableOpacityProps & {
   title: string;
   variant?: "primary" | "secondary" | "muted" | "error";
   loading?: boolean;
+  icon?: IconName;
 };
 
 const VARIANT_STYLES = {
@@ -26,11 +29,19 @@ const TEXT_VARIANTS = {
   error: "text-white font-semibold text-base",
 };
 
+const ICON_COLORS: Record<NonNullable<Props["variant"]>, string> = {
+  primary: colors.text,
+  secondary: colors.text,
+  muted: colors.muted,
+  error: colors.text,
+};
+
 export function Button({
   title,
   variant = "primary",
   loading = false,
   disabled,
+  icon,
   className,
   ...props
 }: Props) {
@@ -48,7 +59,10 @@ export function Button({
       {loading ? (
         <ActivityIndicator color={colors.background} />
       ) : (
-        <Text className={TEXT_VARIANTS[variant]}>{title}</Text>
+        <View className="flex-row items-center gap-2">
+          {icon ? <Icon name={icon} size={16} color={ICON_COLORS[variant]} /> : null}
+          <Text className={TEXT_VARIANTS[variant]}>{title}</Text>
+        </View>
       )}
     </TouchableOpacity>
   );

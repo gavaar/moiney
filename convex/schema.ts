@@ -58,5 +58,7 @@ export default defineSchema({
       interval: v.number(),
       unit: v.union(v.literal("days"), v.literal("months"), v.literal("years")),
     })),
-  }).index("by_userId", ["userId"]),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_rule_cronNextDate", ["rule", "cronNextDate"]),
 });

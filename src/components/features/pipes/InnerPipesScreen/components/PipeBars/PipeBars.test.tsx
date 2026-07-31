@@ -2,10 +2,16 @@
 import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { PipeBars } from "./PipeBars";
+import { colors } from "@/lib/styles";
+
+const toRgb = (hex: string) => {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgb(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255})`;
+};
 
 describe("PipeBars", () => {
   it("renders labels and values", () => {
-    render(<PipeBars fed={1500} spent={1200} capacity={2000} max={2000} />);
+    render(<PipeBars fed={1500} spent={1200} capacity={2000} />);
     expect(screen.getByText("fed")).toBeDefined();
     expect(screen.getByText("spent")).toBeDefined();
     expect(screen.getByText("capacity")).toBeDefined();
@@ -15,17 +21,24 @@ describe("PipeBars", () => {
   });
 
   it("renders fed bar with green fill", () => {
-    render(<PipeBars fed={1500} spent={1200} capacity={2000} max={2000} />);
+    render(<PipeBars fed={1500} spent={1200} capacity={2000} />);
     expect(screen.getByTestId("bar-fed-fill")).toBeDefined();
   });
 
-  it("renders spent bar with red fill", () => {
-    render(<PipeBars fed={1500} spent={1200} capacity={2000} max={2000} />);
-    expect(screen.getByTestId("bar-spent-fill")).toBeDefined();
+  it("renders spent bar with red fill when positive", () => {
+    render(<PipeBars fed={1500} spent={1200} capacity={2000} />);
+    const fill = screen.getByTestId("bar-spent-fill");
+    expect(fill.style.backgroundColor).toBe(toRgb(colors.error));
   });
 
-  it("renders capacity bar with dashed line", () => {
-    render(<PipeBars fed={1500} spent={1200} capacity={2000} max={2000} />);
-    expect(screen.getByTestId("bar-capacity-fill")).toBeDefined();
+  it("renders spent bar with green fill when negative", () => {
+    render(<PipeBars fed={100} spent={-500} capacity={2000} />);
+    const fill = screen.getByTestId("bar-spent-fill");
+    expect(fill.style.backgroundColor).toBe(toRgb(colors.primary));
+  });
+
+  it("renders capacity bar with a dashed line", () => {
+    render(<PipeBars fed={1500} spent={1200} capacity={2000} />);
+    expect(screen.getByTestId("bar-capacity-fill").style.borderTopStyle).toBe("dashed");
   });
 });

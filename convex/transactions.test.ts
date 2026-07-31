@@ -112,6 +112,74 @@ describe("createTransaction", () => {
     });
   });
 
+  describe("rule execution", () => {
+    it("executes any_spend rule after a spend", async () => {
+      const ctx = mockCtx();
+      ctx.db.get.mockResolvedValue({ ...A_PIPE, rule: "any_spend" });
+
+      await (createTransaction as any)._handler(ctx, {
+        title: "groceries",
+        value: -30,
+        date: 1000,
+        from: "pipe-1",
+      });
+
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", { spent: 130 });
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", { fed: 400, spent: 0 });
+    });
+
+    it("executes any_spend rule on the source after a transfer", async () => {
+      const ctx = mockCtx();
+      ctx.db.get.mockImplementation((id: string) => {
+        if (id === "pipe-1") return { ...A_PIPE, rule: "any_spend" };
+        if (id === "pipe-2") return B_PIPE;
+        return null;
+      });
+
+      await (createTransaction as any)._handler(ctx, {
+        title: "transfer",
+        value: -50,
+        date: 2000,
+        from: "pipe-1",
+        to: "pipe-2",
+      });
+
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", { fed: 450 });
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-2", { fed: 250 });
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", { fed: 400, spent: 0 });
+    });
+
+    it("executes spend_overflow rule when the new spent reaches capacity", async () => {
+      const ctx = mockCtx();
+      ctx.db.get.mockResolvedValue({ ...A_PIPE, rule: "spend_overflow", capacity: 100 });
+
+      await (createTransaction as any)._handler(ctx, {
+        title: "groceries",
+        value: -30,
+        date: 1000,
+        from: "pipe-1",
+      });
+
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", { spent: 130 });
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", { fed: 400, spent: 0 });
+    });
+
+    it("does not execute spend_overflow rule when the new spent is below capacity", async () => {
+      const ctx = mockCtx();
+      ctx.db.get.mockResolvedValue({ ...A_PIPE, rule: "spend_overflow", capacity: 200 });
+
+      await (createTransaction as any)._handler(ctx, {
+        title: "groceries",
+        value: -30,
+        date: 1000,
+        from: "pipe-1",
+      });
+
+      expect(ctx.db.patch).toHaveBeenCalledTimes(1);
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", { spent: 130 });
+    });
+  });
+
   describe("validation", () => {
     it("throws when neither from nor to is provided", async () => {
       const ctx = mockCtx();

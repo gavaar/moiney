@@ -14,7 +14,6 @@ export function InnerPipesScreen() {
   const fed = selectedPipe?.fed ?? 0;
   const spent = selectedPipe?.spent ?? 0;
   const capacity = selectedPipe?.capacity ?? 0;
-  const max = Math.max(fed, spent, capacity);
 
   const selectedId = selectedPipePath[selectedPipePath.length - 1];
   const children = childrenByParent.get(selectedId) ?? [];
@@ -23,7 +22,7 @@ export function InnerPipesScreen() {
     <View className="flex-1">
       <View className="flex flex-col">
         <Breadcrumb />
-        <PipeBars fed={fed} spent={spent} capacity={capacity} max={max} />
+        <PipeBars fed={fed} spent={spent} capacity={capacity} />
         <StatisticsRow fed={fed} spent={spent} />
         <View className="border-b self-center border-muted/50 mb-3 w-3/4" />
       </View>
@@ -36,7 +35,15 @@ export function InnerPipesScreen() {
           pipes={children}
           priority={true}
           onSelectPipe={(id) => selectPipe([...selectedPipePath, id])}
-          leading={(pipe) => <RulesIcon rule={pipe.rule} fed={pipe.fed} capacity={pipe.capacity ?? 0} />}
+          leading={(pipe) => (
+            <RulesIcon
+              pipeId={pipe._id}
+              rule={pipe.rule}
+              fed={pipe.fed}
+              capacity={pipe.capacity}
+              disabled={(childrenByParent.get(pipe._id)?.length ?? 0) > 0}
+            />
+          )}
           footer={<AddPipeButton parentId={selectedPipePath[selectedPipePath.length - 1]} />}
         />
       </View>

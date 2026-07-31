@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import type { IconName } from "@ui/Icon";
 import type { TextInputProps } from "react-native";
-import { DatetimeInput, DecimalInput, TextInput, NumberInput, IconInput, CheckboxInput, SelectInput, TextSelectInput } from "./components";
+import { DatetimeInput, DecimalInput, TextInput, NumberInput, IconInput, CheckboxInput, SelectInput, TextSelectInput, type DatetimeMode } from "./components";
 
 type CheckboxProps = {
   type: "checkbox";
@@ -52,6 +52,7 @@ type DatetimeProps = {
   disabled?: boolean;
   value: Date;
   onChange: (date: Date) => void;
+  mode?: DatetimeMode;
 };
 
 type IconProps = {

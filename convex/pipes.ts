@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation, query, type MutationCtx } from "./_generated/server";
+import { internalMutation, mutation, query, type MutationCtx } from "./_generated/server";
 import type { Id, Doc } from "./_generated/dataModel";
 import { requireAuth } from "./lib/auth";
 import { MAX_PIPES_PER_USER } from "./lib/constants";
@@ -8,6 +8,7 @@ import {
   computeCronNextDate,
   computeElapsedIntervals,
   computePipeTree,
+  executePipeRule,
   recascadeTree,
 } from "./lib/pipes";
 
@@ -74,7 +75,14 @@ export const addPipe = mutation({
 
     const parent = await ctx.db.get(args.parentId);
     if (parent) {
-      await ctx.db.patch(parent._id, { capacity: 0, spent: 0 });
+      await ctx.db.patch(parent._id, {
+        capacity: 0,
+        spent: 0,
+        rule: undefined,
+        capUpdateValue: undefined,
+        cronNextDate: undefined,
+        cronInterval: undefined,
+      });
     }
 
     await recascadeTree(ctx, userId);
@@ -221,6 +229,48 @@ export const updatePipeRule = mutation({
     }
 
     await ctx.db.patch(args.pipeId, patch);
+  },
+});
+
+export const executePipeRuleNow = mutation({
+  args: {
+    pipeId: v.id("pipes"),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireAuth(ctx);
+
+    const pipe = await ctx.db.get(args.pipeId);
+    if (!pipe) throw new Error("Pipe not found");
+    if (pipe.userId !== userId) throw new Error("Not authorized");
+
+    await executePipeRule(ctx, args.pipeId, { pipe });
+  },
+});
+
+export const runDueCronRules = internalMutation({
+  args: {
+    now: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const now = args.now ?? Date.now();
+    const today = new Date(now);
+    const startOfToday = Date.UTC(
+      today.getUTCFullYear(),
+      today.getUTCMonth(),
+      today.getUTCDate(),
+    );
+    const endOfToday = startOfToday + 24 * 60 * 60 * 1000;
+
+    const pipes = await ctx.db
+      .query("pipes")
+      .withIndex("by_rule_cronNextDate", (q) =>
+        q.eq("rule", "cron").lt("cronNextDate", endOfToday),
+      )
+      .collect();
+
+    for (const pipe of pipes) {
+      await executePipeRule(ctx, pipe._id, { now, pipe });
+    }
   },
 });
 

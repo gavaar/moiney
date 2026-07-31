@@ -1,4 +1,4 @@
-import type { Id } from "../_generated/dataModel";
+import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 
 export type CronUnit = "days" | "months" | "years";
@@ -33,8 +33,10 @@ export function computeElapsedIntervals(
 export async function executePipeRule(
   ctx: MutationCtx,
   pipeId: Id<"pipes">,
+  opts: { now?: number; pipe?: Doc<"pipes"> } = {},
 ) {
-  const pipe = await ctx.db.get(pipeId);
+  const { now = Date.now(), pipe: cachedPipe } = opts;
+  const pipe = cachedPipe ?? (await ctx.db.get(pipeId));
   if (!pipe) throw new Error("Pipe not found");
 
   const leftoverFed = pipe.fed - pipe.spent;
@@ -52,6 +54,7 @@ export async function executePipeRule(
       pipe.cronNextDate,
       pipe.cronInterval.interval,
       pipe.cronInterval.unit,
+      now,
     );
   }
 

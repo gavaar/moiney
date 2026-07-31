@@ -7,15 +7,24 @@ import { ModalShell } from "@ui/Modal";
 import { Button } from "@ui/Button";
 import { getBorderStyle } from "../../input.config";
 
+export type DatetimeMode = "date" | "datetime";
+
 type Props = {
   label: string;
   error?: string;
   disabled?: boolean;
   value: Date;
   onChange: (date: Date) => void;
+  mode?: DatetimeMode;
 };
 
-function normalizeToMidday(date: Date): Date {
+function toUtcMidday(date: Date): Date {
+  return new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 12),
+  );
+}
+
+function toLocalMidday(date: Date): Date {
   const d = new Date(date);
   d.setHours(12, 0, 0, 0);
   return d;
@@ -26,19 +35,15 @@ const MONTHS = [
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
 
-function formatDate(date: Date): string {
-  const month = MONTHS[date.getMonth()];
-  const day = date.getDate();
-  const year = date.getFullYear();
-  const hours = date.getHours();
-  const minutes = date.getMinutes();
-  // const ampm = hours >= 12 ? "PM" : "AM";
-  // const h12 = hours % 12 || 12;
-  // const mm = minutes.toString().padStart(2, "0");
+function formatDate(date: Date, mode: DatetimeMode): string {
+  const utc = mode === "date";
+  const month = MONTHS[utc ? date.getUTCMonth() : date.getMonth()];
+  const day = utc ? date.getUTCDate() : date.getDate();
+  const year = utc ? date.getUTCFullYear() : date.getFullYear();
   return `${day} ${month} ${year}`;
 }
 
-export function DatetimeInput({ label, error, disabled, value, onChange }: Props) {
+export function DatetimeInput({ label, error, disabled, value, onChange, mode = "datetime" }: Props) {
   const [focused, setFocused] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
   const [step, setStep] = useState<"date" | "time">("date");
@@ -67,13 +72,19 @@ export function DatetimeInput({ label, error, disabled, value, onChange }: Props
 
   const handleValueChange = (_: unknown, selectedDate: Date) => {
     if (isIOS) {
-      onChange(selectedDate);
+      const next = mode === "date" ? toUtcMidday(selectedDate) : selectedDate;
+      onChange(next);
+      if (mode === "date") close();
       return;
     }
 
     if (step === "date") {
-      const normalized = normalizeToMidday(selectedDate);
-      setPendingDate(normalized);
+      if (mode === "date") {
+        onChange(toUtcMidday(selectedDate));
+        close();
+        return;
+      }
+      setPendingDate(toLocalMidday(selectedDate));
       setStep("time");
       return;
     }
@@ -108,7 +119,7 @@ export function DatetimeInput({ label, error, disabled, value, onChange }: Props
             disabled ? "text-muted" : "text-text",
           )}
         >
-          {formatDate(value)}
+          {formatDate(value, mode)}
         </Text>
         <Icon name="calendar-outline" size={16} color={disabled ? "#9CA3AF" : "#F8F8F8"} />
       </Pressable>
@@ -122,7 +133,7 @@ export function DatetimeInput({ label, error, disabled, value, onChange }: Props
             <View className="gap-4">
               <DateTimePicker
                 value={value}
-                mode="datetime"
+                mode={mode}
                 display="spinner"
                 onValueChange={handleValueChange}
                 onDismiss={handleDismiss}

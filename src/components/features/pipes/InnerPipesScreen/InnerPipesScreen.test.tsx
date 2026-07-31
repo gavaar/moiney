@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { InnerPipesScreen } from "./InnerPipesScreen";
 
@@ -72,6 +72,7 @@ const baseMock = {
 
 const childPipe1 = { _id: "child-1", name: "Rent", icon: "home-outline", capacity: 1000, fed: 800, spent: 600 };
 const childPipe2 = { _id: "child-2", name: "Food", icon: "restaurant-outline", capacity: 500, fed: 400, spent: 300 };
+const grandchildPipe = { _id: "grand-1", name: "Sub", icon: "pipe", capacity: 100, fed: 0, spent: 0 };
 
 describe("InnerPipesScreen", () => {
   beforeEach(() => {
@@ -151,6 +152,25 @@ describe("InnerPipesScreen", () => {
     render(<InnerPipesScreen />);
     const icons = screen.getAllByTestId("icon");
     expect(icons.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("renders a muted pipe icon for pipes with children and rule icon for leaf pipes", () => {
+    const childrenByParent = new Map();
+    childrenByParent.set("pipe-1", [childPipe1, childPipe2]);
+    childrenByParent.set("child-1", [grandchildPipe]);
+
+    mockUsePipeSelection.mockReturnValue({
+      ...baseMock,
+      selectedPipePath: ["pipe-1"],
+      selectedPipe: { _id: "pipe-1", name: "Groceries", icon: "pipe", capacity: 2000, fed: 1500, spent: 1200 },
+      selectedName: "Groceries",
+      childrenByParent,
+    });
+
+    render(<InnerPipesScreen />);
+    const rows = screen.getAllByTestId("pipe-row");
+    expect(within(rows[0]).getByTestId("rules-icon-placeholder")).toBeDefined();
+    expect(within(rows[1]).getByTestId("icon").getAttribute("data-name")).toBe("lock-open-outline");
   });
 
   it("calls selectPipe with extended path when a child is tapped", async () => {

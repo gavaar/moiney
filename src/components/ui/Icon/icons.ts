@@ -56,6 +56,8 @@ const CURATED_ICONS = [
   { name: "phone-portrait-outline", family: "Ionicons" as const },
   { name: "piggy-bank", family: "MaterialCommunityIcons" as const },
   { name: "pipe", family: "MaterialCommunityIcons" as const },
+  { name: "pipe-disconnected", family: "MaterialCommunityIcons" as const },
+  { name: "pipe-leak", family: "MaterialCommunityIcons" as const },
   { name: "pipe-valve", family: "MaterialCommunityIcons" as const },
   { name: "ray-end-arrow", family: "MaterialCommunityIcons" as const },
   { name: "ray-start-arrow", family: "MaterialCommunityIcons" as const },

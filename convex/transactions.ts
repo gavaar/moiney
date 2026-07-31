@@ -3,7 +3,7 @@ import { mutation, query } from "./_generated/server";
 import { paginationOptsValidator } from "convex/server";
 import { requireAuth } from "./lib/auth";
 import { calculateSpentUpdate, updateOrCreateTitleUsage } from "./lib/transactions";
-import { recascadeTree } from "./lib/pipes";
+import { executePipeRule, recascadeTree } from "./lib/pipes";
 
 function transactionsQuery(ctx: any, userId: string, pipeIds: string[] | undefined) {
   let q = ctx.db
@@ -85,11 +85,23 @@ export const createTransaction = mutation({
         fed: destPipe.fed - args.value,
       });
 
+      if (pipe.rule === "any_spend") {
+        await executePipeRule(ctx, pipeId);
+      }
+
       await recascadeTree(ctx, userId);
     } else {
+      const newSpent = calculateSpentUpdate(pipe.spent, args.value);
       await ctx.db.patch(pipeId, {
-        spent: calculateSpentUpdate(pipe.spent, args.value),
+        spent: newSpent,
       });
+
+      const shouldRunRule =
+        pipe.rule === "any_spend" ||
+        (pipe.rule === "spend_overflow" && newSpent >= pipe.capacity);
+      if (shouldRunRule) {
+        await executePipeRule(ctx, pipeId);
+      }
     }
 
     await ctx.db.insert("transactions", {

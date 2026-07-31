@@ -6,7 +6,6 @@ type PipeBarsProps = {
   fed: number;
   spent: number;
   capacity: number;
-  max: number;
 };
 
 function BarRow({
@@ -14,11 +13,13 @@ function BarRow({
   value,
   maxAbs,
   color,
+  dashed,
 }: {
   label: string;
   value: number;
   maxAbs: number;
   color: string;
+  dashed?: boolean;
 }) {
   const w = `${(Math.abs(value) / maxAbs) * 100}%` as DimensionValue;
   const anchorClass = value < 0 ? "right-0" : "left-0";
@@ -29,15 +30,27 @@ function BarRow({
       <View className="flex-1 relative h-1">
         <View
           testID={`bar-${label}-fill`}
-          className={`absolute top-0 bottom-0 ${anchorClass}`}
-          style={{
-            width: w,
-            backgroundColor: color,
-            borderRadius: 1,
-          }}
+          className={`absolute ${anchorClass}`}
+          style={
+            dashed
+              ? {
+                  width: w,
+                  top: 1.5,
+                  borderTopWidth: 1,
+                  borderStyle: "dashed",
+                  borderColor: color,
+                }
+              : {
+                  width: w,
+                  top: 0,
+                  bottom: 0,
+                  backgroundColor: color,
+                  borderRadius: 1,
+                }
+          }
         />
       </View>
-      <Text className={`text-xs w-16 text-right ${value < 0 ? "text-error" : "text-text"}`}>
+      <Text className="text-xs w-16 text-right text-text">
         {formatAmount(value)}
       </Text>
     </View>
@@ -53,6 +66,7 @@ export function PipeBars({ fed, spent, capacity }: PipeBarsProps) {
         value={capacity}
         maxAbs={maxAbs}
         color={capacity < 0 ? colors.errorDark : colors.primary}
+        dashed
       />
       <BarRow
         label="fed"
@@ -64,7 +78,7 @@ export function PipeBars({ fed, spent, capacity }: PipeBarsProps) {
         label="spent"
         value={spent}
         maxAbs={maxAbs}
-        color={spent > Math.max(fed, 0) ? colors.error : (fed < 0 ? colors.errorBright : colors.surface)}
+        color={spent < 0 ? colors.primary : colors.error}
       />
     </View>
   );

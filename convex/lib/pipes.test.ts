@@ -845,4 +845,26 @@ describe("executePipeRule", () => {
       cronNextDate: Date.UTC(2099, 0, 1, 12),
     });
   });
+
+  it("advances cronNextDate relative to the provided now", async () => {
+    const ctx = mockCtx({
+      _id: "pipe-1",
+      fed: 500,
+      spent: 200,
+      capacity: 1000,
+      rule: "cron",
+      cronInterval: { interval: 1, unit: "days" },
+      cronNextDate: Date.UTC(2026, 5, 15, 12),
+    });
+
+    await executePipeRule(ctx, "pipe-1" as any, {
+      now: Date.UTC(2026, 5, 15, 13),
+    });
+
+    expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+      fed: 300,
+      spent: 0,
+      cronNextDate: Date.UTC(2026, 5, 16, 12),
+    });
+  });
 });

@@ -73,9 +73,7 @@ export function StatisticsRow({ fed, spent }: Props) {
 
             <View className="flex-row items-center">
               <Pressable ref={stat.ref} onPress={() => setSelectedStatLabel(stat.label)}>
-                <Text className={`text-sm border px-2 rounded-md ${
-                  stat.value < 0 ? "text-error border-error/50" : "text-text border-muted/50"
-                }`}>
+                <Text className="text-sm border px-2 rounded-md border-muted/50 text-text">
                   {stat.label}: {formatAmount(stat.value)}
                 </Text>
               </Pressable>
