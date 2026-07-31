@@ -52,7 +52,6 @@ export default defineSchema({
     spent: v.number(),
     rule: v.optional(v.union(v.literal("spend_overflow"), v.literal("any_spend"), v.literal("cron"))),
     // rule options
-    capUpdateMode: v.optional(v.union(v.literal("dynamic"), v.literal("static"))),
     capUpdateValue: v.optional(v.number()),
     cronNextDate: v.optional(v.number()),
     cronInterval: v.optional(v.object({

@@ -5,6 +5,7 @@ import { requireAuth } from "./lib/auth";
 import { MAX_PIPES_PER_USER } from "./lib/constants";
 import {
   collectDescendants,
+  computeCronNextDate,
   computePipeTree,
   recascadeTree,
 } from "./lib/pipes";
@@ -162,6 +163,59 @@ export const updatePipe = mutation({
 
     await ctx.db.patch(args.pipeId, patch);
     await recascadeTree(ctx, userId);
+  },
+});
+
+export const updatePipeRule = mutation({
+  args: {
+    pipeId: v.id("pipes"),
+    rule: v.optional(
+      v.union(
+        v.null(),
+        v.literal("spend_overflow"),
+        v.literal("any_spend"),
+        v.literal("cron"),
+      ),
+    ),
+    interval: v.optional(v.number()),
+    unit: v.optional(
+      v.union(v.literal("days"), v.literal("months"), v.literal("years")),
+    ),
+    starting: v.optional(v.number()),
+    capUpdateValue: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireAuth(ctx);
+
+    const pipe = await ctx.db.get(args.pipeId);
+    if (!pipe) throw new Error("Pipe not found");
+    if (pipe.userId !== userId) throw new Error("Not authorized");
+
+    const patch: Record<string, unknown> = {
+      rule: args.rule ?? undefined,
+      capUpdateValue: undefined,
+      cronNextDate: undefined,
+      cronInterval: undefined,
+    };
+
+    if (args.rule === "cron") {
+      if (
+        args.interval === undefined ||
+        args.unit === undefined ||
+        args.starting === undefined
+      ) {
+        throw new Error("Cron rule requires interval, unit, and starting");
+      }
+      patch.capUpdateValue = args.capUpdateValue;
+      patch.cronInterval = { interval: args.interval, unit: args.unit };
+      patch.cronNextDate = computeCronNextDate(
+        args.starting,
+        args.interval,
+        args.unit,
+      );
+    }
+
+    await ctx.db.patch(args.pipeId, patch);
   },
 });
 

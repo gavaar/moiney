@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   calculatePipeAllocations,
+  computeCronNextDate,
   computePipeDerivedValues,
   computePipeTree,
   recalculatePipes,
@@ -632,5 +633,79 @@ describe("recalculatePipes", () => {
       { _id: "c", parentId: "a", priority: 1, capacity: 0, fed: -100 },
     ]);
     expect(new Map(feed3.map((r) => [r._id, r.fed])).get("c")).toBe(0);
+  });
+});
+
+describe("computeCronNextDate", () => {
+  it("returns the starting date at UTC noon when it is still in the future", () => {
+    const starting = Date.UTC(2099, 8, 15, 8, 30);
+    const now = Date.UTC(2099, 8, 1);
+
+    expect(computeCronNextDate(starting, 1, "months", now)).toBe(
+      Date.UTC(2099, 8, 15, 12),
+    );
+  });
+
+  it("rolls forward to the next scheduled day when the anchor is in the past", () => {
+    const starting = Date.UTC(2026, 6, 1, 0, 0);
+    const now = Date.UTC(2026, 6, 10, 12, 0);
+
+    expect(computeCronNextDate(starting, 7, "days", now)).toBe(
+      Date.UTC(2026, 6, 15, 12),
+    );
+  });
+
+  it("rolls forward when the anchor noon has already passed today", () => {
+    const starting = Date.UTC(2026, 6, 10, 0, 0);
+    const now = Date.UTC(2026, 6, 10, 15, 0);
+
+    expect(computeCronNextDate(starting, 7, "days", now)).toBe(
+      Date.UTC(2026, 6, 17, 12),
+    );
+  });
+
+  it("returns the next interval when now equals the anchor noon exactly", () => {
+    const starting = Date.UTC(2026, 6, 10, 12, 0);
+    const now = Date.UTC(2026, 6, 10, 12, 0);
+
+    expect(computeCronNextDate(starting, 30, "days", now)).toBe(
+      Date.UTC(2026, 7, 9, 12),
+    );
+  });
+
+  it("clamps to the last day of the month when adding months", () => {
+    const starting = Date.UTC(2026, 0, 31, 0, 0);
+    const now = Date.UTC(2026, 1, 1);
+
+    expect(computeCronNextDate(starting, 1, "months", now)).toBe(
+      Date.UTC(2026, 1, 28, 12),
+    );
+  });
+
+  it("keeps the original day-of-month across clamp months", () => {
+    const starting = Date.UTC(2026, 0, 31, 0, 0);
+    const now = Date.UTC(2026, 2, 1);
+
+    expect(computeCronNextDate(starting, 1, "months", now)).toBe(
+      Date.UTC(2026, 2, 31, 12),
+    );
+  });
+
+  it("clamps when the target month has fewer days", () => {
+    const starting = Date.UTC(2026, 2, 31, 0, 0);
+    const now = Date.UTC(2026, 3, 1);
+
+    expect(computeCronNextDate(starting, 1, "months", now)).toBe(
+      Date.UTC(2026, 3, 30, 12),
+    );
+  });
+
+  it("clamps leap-day starting dates when adding years", () => {
+    const starting = Date.UTC(2024, 1, 29, 0, 0);
+    const now = Date.UTC(2024, 5, 1);
+
+    expect(computeCronNextDate(starting, 1, "years", now)).toBe(
+      Date.UTC(2025, 1, 28, 12),
+    );
   });
 });
