@@ -1,0 +1,16 @@
+{
+  "cli": {
+    "version": ">= 16.0.1"
+  },
+  "build": {
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_CONVEX_URL": "https://giant-mosquito-763.convex.cloud"
+      }
+    }
+  }
+}
