@@ -21,3 +21,14 @@ vi.mock("@expo/vector-icons", () => {
     MaterialCommunityIcons: MockIcon,
   };
 });
+
+vi.mock("react-native-svg", () => {
+  const Svg = ({ children, ...props }: any) =>
+    React.createElement("div", { "data-testid": "svg", ...props }, children);
+  const Circle = ({ children, ...props }: any) =>
+    React.createElement("span", {
+      "data-testid": "svg-circle",
+      "data-props": JSON.stringify(props),
+    });
+  return { default: Svg, Svg, Circle };
+});

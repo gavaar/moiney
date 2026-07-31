@@ -6,6 +6,7 @@ type PipeBarsProps = {
   fed: number;
   spent: number;
   capacity: number;
+  rule?: "spend_overflow" | "any_spend" | "cron";
 };
 
 function BarRow({
@@ -57,7 +58,7 @@ function BarRow({
   );
 }
 
-export function PipeBars({ fed, spent, capacity }: PipeBarsProps) {
+export function PipeBars({ fed, spent, capacity, rule }: PipeBarsProps) {
   const maxAbs = Math.max(1, Math.abs(fed), Math.abs(capacity), Math.abs(spent));
   return (
     <View className="gap-1 pb-3">
@@ -74,12 +75,14 @@ export function PipeBars({ fed, spent, capacity }: PipeBarsProps) {
         maxAbs={maxAbs}
         color={fed < 0 ? colors.error : colors.primary}
       />
-      <BarRow
-        label="spent"
-        value={spent}
-        maxAbs={maxAbs}
-        color={spent < 0 ? colors.primary : colors.error}
-      />
+      {rule !== "any_spend" ? (
+        <BarRow
+          label="spent"
+          value={spent}
+          maxAbs={maxAbs}
+          color={spent < 0 ? colors.primary : colors.error}
+        />
+      ) : null}
     </View>
   );
 }

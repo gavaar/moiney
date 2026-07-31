@@ -111,6 +111,31 @@ export function computeCronNextDate(
   return next;
 }
 
+export function computeCronIntervalProgress(
+  cronNextDate: number,
+  interval: number,
+  unit: CronUnit,
+  now: number,
+): number {
+  if (interval <= 0) return 0;
+
+  const next = new Date(cronNextDate);
+  const anchor: CronAnchor = {
+    year: next.getUTCFullYear(),
+    month: next.getUTCMonth(),
+    day: next.getUTCDate(),
+  };
+
+  const stepDuration =
+    unit === "days"
+      ? interval * 24 * 60 * 60 * 1000
+      : cronNextDate -
+        occurrenceAt(anchor, unit === "years" ? interval * 12 : interval, -1);
+
+  const startOfInterval = cronNextDate - stepDuration;
+  return Math.min(1, Math.max(0, (now - startOfInterval) / stepDuration));
+}
+
 // ── Allocation math ──
 
 export function splitEvenly<TPipeId extends string>(

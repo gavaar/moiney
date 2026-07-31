@@ -131,7 +131,7 @@ export function RuleModal({ visible, onClose, pipeId }: Props) {
 
   return (
     <ModalShell visible={visible} onClose={onClose}>
-      <ScrollView>
+      <ScrollView style={{ flexGrow: 0 }}>
         <View className="gap-4">
           <View className="flex-row items-center gap-2">
             {pipe ? (

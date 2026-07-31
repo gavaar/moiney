@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   calculatePipeAllocations,
+  computeCronIntervalProgress,
   computeCronNextDate,
   computeElapsedIntervals,
   computePipeDerivedValues,
@@ -774,6 +775,84 @@ describe("computeElapsedIntervals", () => {
         Date.UTC(2026, 2, 1),
       ),
     ).toBe(2);
+  });
+});
+
+describe("computeCronIntervalProgress", () => {
+  it("returns 0 at the start of a day interval", () => {
+    const cronNextDate = Date.UTC(2026, 6, 10, 12);
+    const startOfInterval = cronNextDate - 7 * 24 * 60 * 60 * 1000;
+
+    expect(
+      computeCronIntervalProgress(cronNextDate, 7, "days", startOfInterval),
+    ).toBe(0);
+  });
+
+  it("returns the fraction of a day interval elapsed", () => {
+    const cronNextDate = Date.UTC(2026, 6, 10, 12);
+    const now = Date.UTC(2026, 6, 6, 12);
+
+    expect(computeCronIntervalProgress(cronNextDate, 7, "days", now)).toBeCloseTo(
+      3 / 7,
+      5,
+    );
+  });
+
+  it("returns 1 exactly at cronNextDate for a day interval", () => {
+    const cronNextDate = Date.UTC(2026, 6, 10, 12);
+
+    expect(computeCronIntervalProgress(cronNextDate, 7, "days", cronNextDate)).toBe(1);
+  });
+
+  it("clamps to 1 once now has passed cronNextDate", () => {
+    const cronNextDate = Date.UTC(2026, 6, 10, 12);
+    const now = Date.UTC(2026, 6, 11, 12);
+
+    expect(computeCronIntervalProgress(cronNextDate, 7, "days", now)).toBe(1);
+  });
+
+  it("returns the fraction of a monthly interval elapsed", () => {
+    const cronNextDate = Date.UTC(2026, 6, 15, 12);
+    const now = Date.UTC(2026, 6, 1, 12);
+
+    // interval start = June 15, duration = 30 days, elapsed = 16 days
+    expect(
+      computeCronIntervalProgress(cronNextDate, 1, "months", now),
+    ).toBeCloseTo(16 / 30, 5);
+  });
+
+  it("uses the calendar-accurate previous occurrence (variable month lengths)", () => {
+    // next occurrence Mar 31, previous occurrence Feb 28 (Feb has 28 days)
+    const cronNextDate = Date.UTC(2026, 2, 31, 12);
+    const now = Date.UTC(2026, 2, 14, 12);
+
+    // interval start = Feb 28, duration = 31 days, elapsed = 14 days
+    expect(
+      computeCronIntervalProgress(cronNextDate, 1, "months", now),
+    ).toBeCloseTo(14 / 31, 5);
+  });
+
+  it("returns the fraction of a yearly interval elapsed", () => {
+    const cronNextDate = Date.UTC(2027, 0, 1, 12);
+    const now = Date.UTC(2026, 6, 2, 12);
+
+    // interval start = Jan 1 2026, duration = 365 days, elapsed = 182 days
+    expect(
+      computeCronIntervalProgress(cronNextDate, 1, "years", now),
+    ).toBeCloseTo(182 / 365, 5);
+  });
+
+  it("clamps to 0 before the start of the interval", () => {
+    const cronNextDate = Date.UTC(2026, 6, 15, 12);
+    const now = Date.UTC(2026, 5, 14, 12);
+
+    expect(computeCronIntervalProgress(cronNextDate, 1, "months", now)).toBe(0);
+  });
+
+  it("returns 0 for a non-positive interval", () => {
+    expect(
+      computeCronIntervalProgress(Date.UTC(2026, 6, 15, 12), 0, "months", Date.UTC(2026, 6, 1)),
+    ).toBe(0);
   });
 });
 

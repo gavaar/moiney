@@ -41,4 +41,17 @@ describe("PipeBars", () => {
     render(<PipeBars fed={1500} spent={1200} capacity={2000} />);
     expect(screen.getByTestId("bar-capacity-fill").style.borderTopStyle).toBe("dashed");
   });
+
+  it("hides the spent bar when rule is any_spend", () => {
+    render(<PipeBars fed={1500} spent={0} capacity={2000} rule="any_spend" />);
+    expect(screen.queryByText("spent")).toBeNull();
+    expect(screen.queryByTestId("bar-spent-fill")).toBeNull();
+    expect(screen.getByTestId("bar-fed-fill")).toBeDefined();
+    expect(screen.getByTestId("bar-capacity-fill")).toBeDefined();
+  });
+
+  it("shows the spent bar when rule is spend_overflow", () => {
+    render(<PipeBars fed={1500} spent={1200} capacity={2000} rule="spend_overflow" />);
+    expect(screen.getByTestId("bar-spent-fill")).toBeDefined();
+  });
 });

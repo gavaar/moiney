@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { type Id } from "@convex/_generated/dataModel";
@@ -18,6 +18,14 @@ vi.mock("./RuleModal", () => ({
   },
 }));
 
+let lastRingProps: any;
+vi.mock("@ui/ProgressRing", () => ({
+  ProgressRing: (props: any) => {
+    lastRingProps = props;
+    return <span data-testid="progress-ring" />;
+  },
+}));
+
 import { RulesIcon } from "./RulesIcon";
 
 const pId = (id: string) => id as Id<"pipes">;
@@ -26,6 +34,11 @@ describe("RulesIcon", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     lastRuleModalProps = undefined;
+    lastRingProps = undefined;
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("renders timer-outline when rule is cron", () => {
@@ -112,6 +125,94 @@ describe("RulesIcon", () => {
     expect(icon.getAttribute("data-name")).toBe("pipe");
     expect(icon.getAttribute("data-color")).toBe("#9CA3AF");
     expect(screen.queryByTestId("rule-modal")).toBeNull();
+  });
+
+  it("renders a ring for spend_overflow reflecting spent/capacity", () => {
+    render(
+      <RulesIcon
+        pipeId={pId("pipe-1")}
+        rule="spend_overflow"
+        fed={50}
+        capacity={100}
+        spent={50}
+      />,
+    );
+    expect(screen.getByTestId("progress-ring")).toBeTruthy();
+    expect(lastRingProps.progress).toBeCloseTo(0.5, 5);
+  });
+
+  it("clamps the spend_overflow ring to full once spent exceeds capacity", () => {
+    render(
+      <RulesIcon
+        pipeId={pId("pipe-1")}
+        rule="spend_overflow"
+        fed={50}
+        capacity={100}
+        spent={150}
+      />,
+    );
+    expect(lastRingProps.progress).toBe(1);
+  });
+
+  it("renders a ring for cron showing time elapsed in the interval", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(Date.UTC(2026, 6, 6, 12));
+
+    render(
+      <RulesIcon
+        pipeId={pId("pipe-1")}
+        rule="cron"
+        fed={0}
+        capacity={100}
+        cronNextDate={Date.UTC(2026, 6, 10, 12)}
+        cronInterval={{ interval: 7, unit: "days" }}
+      />,
+    );
+    expect(screen.getByTestId("progress-ring")).toBeTruthy();
+    expect(lastRingProps.progress).toBeCloseTo(3 / 7, 5);
+  });
+
+  it("renders no ring for any_spend", () => {
+    render(
+      <RulesIcon pipeId={pId("pipe-1")} rule="any_spend" fed={50} capacity={100} />,
+    );
+    expect(screen.queryByTestId("progress-ring")).toBeNull();
+  });
+
+  it("renders no ring when there is no rule", () => {
+    render(<RulesIcon pipeId={pId("pipe-1")} fed={50} capacity={100} />);
+    expect(screen.queryByTestId("progress-ring")).toBeNull();
+  });
+
+  it("renders no ring for spend_overflow when capacity is not positive", () => {
+    render(
+      <RulesIcon
+        pipeId={pId("pipe-1")}
+        rule="spend_overflow"
+        fed={0}
+        capacity={0}
+        spent={50}
+      />,
+    );
+    expect(screen.queryByTestId("progress-ring")).toBeNull();
+  });
+
+  it("renders no ring for cron when cronNextDate is missing", () => {
+    render(<RulesIcon pipeId={pId("pipe-1")} rule="cron" fed={0} capacity={100} />);
+    expect(screen.queryByTestId("progress-ring")).toBeNull();
+  });
+
+  it("tints the ring with the icon color", () => {
+    render(
+      <RulesIcon
+        pipeId={pId("pipe-1")}
+        rule="spend_overflow"
+        fed={100}
+        capacity={100}
+        spent={50}
+      />,
+    );
+    expect(lastRingProps.color).toBe("#4D94CC");
   });
 
   it("does not open the rule modal when a disabled icon is tapped", async () => {

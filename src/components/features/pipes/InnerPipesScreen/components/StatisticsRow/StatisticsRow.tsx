@@ -2,7 +2,7 @@ import { Fragment, RefObject, useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { type Id } from "@convex/_generated/dataModel";
 import { Popover } from "@ui/Popover";
-import { Icon } from "@ui/Icon";
+import { Icon, type IconName } from "@ui/Icon";
 import { colors } from "@/lib/styles";
 import { formatAmount } from "@/lib/format";
 import { getDaysInMonth } from "@/lib/dates";
@@ -10,12 +10,15 @@ import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
 import { DeletePipeConfirmation } from "@features/pipes/InnerPipesScreen/components/DeletePipeConfirmation";
 import { EditPipeModal } from "@features/pipes/InnerPipesScreen/components/EditPipeModal";
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 type StatItem = {
   label: string;
   value: number;
   title: string;
   description: string;
   ref: RefObject<View | null>;
+  icon?: IconName;
 };
 
 type Props = {
@@ -33,12 +36,18 @@ export function StatisticsRow({ fed, spent }: Props) {
   const l2sRef = useRef<View>(null);
   const stmRef = useRef<View>(null);
   const stmpdRef = useRef<View>(null);
+  const cronRef = useRef<View>(null);
   const { selectedPipePath, pipesById, isLoading } = usePipeSelection();
 
   const selectedId = selectedPipePath.length > 0
     ? selectedPipePath[selectedPipePath.length - 1]
     : null;
   const currentPipe = selectedId && pipesById ? pipesById[selectedId] : null;
+
+  const daysLeft =
+    currentPipe?.rule === "cron" && currentPipe.cronNextDate != null
+      ? Math.max(0, Math.ceil((currentPipe.cronNextDate - Date.now()) / DAY_MS))
+      : null;
 
   const stats: StatItem[] = [
     {
@@ -62,6 +71,18 @@ export function StatisticsRow({ fed, spent }: Props) {
       description: "An average of how much was spent per day in this pipe, this month",
       ref: stmpdRef,
     },
+    ...(daysLeft != null
+      ? [
+          {
+            label: "DL",
+            value: daysLeft,
+            title: "Days left (DL)",
+            description: "Days left until this pipe resets",
+            icon: "timer-outline" as IconName,
+            ref: cronRef,
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -74,7 +95,16 @@ export function StatisticsRow({ fed, spent }: Props) {
             <View className="flex-row items-center">
               <Pressable ref={stat.ref} onPress={() => setSelectedStatLabel(stat.label)}>
                 <Text className="text-sm border px-2 rounded-md border-muted/50 text-text">
-                  {stat.label}: {formatAmount(stat.value)}
+                  {stat.icon ? (
+                    <>
+                      <Icon name={stat.icon} size={14} color={colors.text} />
+                      <Text> {stat.value}</Text>
+                    </>
+                  ) : (
+                    <>
+                      {stat.label}: {formatAmount(stat.value)}
+                    </>
+                  )}
                 </Text>
               </Pressable>
 

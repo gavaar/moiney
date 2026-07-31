@@ -110,6 +110,27 @@ describe("InnerPipesScreen", () => {
     expect(screen.getByTestId("bar-capacity-fill")).toBeDefined();
   });
 
+  it("hides the spent bar when the selected pipe rule is any_spend", () => {
+    mockUsePipeSelection.mockReturnValue({
+      ...baseMock,
+      selectedPipePath: ["pipe-1"],
+      selectedPipe: {
+        _id: "pipe-1",
+        name: "Groceries",
+        icon: "pipe",
+        capacity: 2000,
+        fed: 1500,
+        spent: 0,
+        rule: "any_spend",
+      },
+      selectedName: "Groceries",
+    });
+    render(<InnerPipesScreen />);
+    expect(screen.queryByTestId("bar-spent-fill")).toBeNull();
+    expect(screen.getByTestId("bar-fed-fill")).toBeDefined();
+    expect(screen.getByTestId("bar-capacity-fill")).toBeDefined();
+  });
+
   it("renders statistics row", () => {
     mockUsePipeSelection.mockReturnValue({
       ...baseMock,

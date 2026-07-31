@@ -22,7 +22,7 @@ export function InnerPipesScreen() {
     <View className="flex-1">
       <View className="flex flex-col">
         <Breadcrumb />
-        <PipeBars fed={fed} spent={spent} capacity={capacity} />
+        <PipeBars fed={fed} spent={spent} capacity={capacity} rule={selectedPipe?.rule} />
         <StatisticsRow fed={fed} spent={spent} />
         <View className="border-b self-center border-muted/50 mb-3 w-3/4" />
       </View>
@@ -41,6 +41,9 @@ export function InnerPipesScreen() {
               rule={pipe.rule}
               fed={pipe.fed}
               capacity={pipe.capacity}
+              spent={pipe.spent}
+              cronNextDate={pipe.cronNextDate}
+              cronInterval={pipe.cronInterval}
               disabled={(childrenByParent.get(pipe._id)?.length ?? 0) > 0}
             />
           )}

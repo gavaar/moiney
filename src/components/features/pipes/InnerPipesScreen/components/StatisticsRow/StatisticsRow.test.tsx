@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
@@ -7,12 +7,12 @@ vi.mock("@/lib/dates", () => ({
   getDaysInMonth: () => 30,
 }));
 
+let mockPipesById: any;
+
 vi.mock("@features/pipes/context/PipeSelectionContext", () => ({
   usePipeSelection: () => ({
     selectedPipePath: ["test_pipe_id"],
-    pipesById: {
-      test_pipe_id: { _id: "test_pipe_id", name: "Test Pipe", icon: "home-outline" },
-    },
+    pipesById: mockPipesById,
     isLoading: false,
   }),
 }));
@@ -39,6 +39,13 @@ vi.mock("@ui/Icon", () => ({
 }));
 
 describe("StatisticsRow", () => {
+  beforeEach(() => {
+    mockPipesById = {
+      test_pipe_id: { _id: "test_pipe_id", name: "Test Pipe", icon: "home-outline" },
+    };
+    vi.useRealTimers();
+  });
+
   it("renders all three stat labels", () => {
     render(<StatisticsRow fed={1000} spent={400} />);
     expect(screen.getByText(/L2S:/)).toBeDefined();
@@ -116,5 +123,54 @@ describe("StatisticsRow", () => {
     const trash = popoverIcons.find((i) => i.getAttribute("data-name") === "trash-bin-outline")!;
     await user.click(trash);
     expect(screen.getByTestId("delete-confirmation")).toBeDefined();
+  });
+
+  it("renders days left with a timer-outline icon for cron pipes", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(Date.UTC(2026, 6, 6, 12));
+    mockPipesById = {
+      test_pipe_id: {
+        _id: "test_pipe_id",
+        name: "Test Pipe",
+        icon: "home-outline",
+        rule: "cron",
+        cronNextDate: Date.UTC(2026, 6, 13, 12),
+      },
+    };
+
+    render(<StatisticsRow fed={1000} spent={400} />);
+
+    const timerIcon = screen
+      .getAllByTestId("icon")
+      .find((i) => i.getAttribute("data-name") === "timer-outline");
+    expect(timerIcon).toBeDefined();
+    expect(screen.getByText("7")).toBeDefined();
+  });
+
+  it("renders 0 days left when the cron reset is in the past", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(Date.UTC(2026, 6, 6, 12));
+    mockPipesById = {
+      test_pipe_id: {
+        _id: "test_pipe_id",
+        name: "Test Pipe",
+        icon: "home-outline",
+        rule: "cron",
+        cronNextDate: Date.UTC(2026, 6, 1, 12),
+      },
+    };
+
+    render(<StatisticsRow fed={1000} spent={400} />);
+
+    expect(screen.getByText("0")).toBeDefined();
+  });
+
+  it("renders no timer-outline chip for non-cron pipes", () => {
+    render(<StatisticsRow fed={1000} spent={400} />);
+
+    const timerIcon = screen
+      .getAllByTestId("icon")
+      .find((i) => i.getAttribute("data-name") === "timer-outline");
+    expect(timerIcon).toBeUndefined();
   });
 });

@@ -13,6 +13,8 @@ type Pipe = {
   fed: number;
   spent: number;
   rule?: "spend_overflow" | "any_spend" | "cron";
+  cronNextDate?: number;
+  cronInterval?: { interval: number; unit: "days" | "months" | "years" };
 };
 
 type PipesListProps = {

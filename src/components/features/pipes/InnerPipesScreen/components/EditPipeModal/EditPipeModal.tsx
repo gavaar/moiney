@@ -65,7 +65,7 @@ export function EditPipeModal({ visible, onClose, pipeId }: EditPipeModalProps) 
 
   return (
     <ModalShell visible={visible} closeOnBackdropPress={false} onClose={onClose}>
-      <ScrollView>
+      <ScrollView style={{ flexGrow: 0 }}>
         <View className="gap-4">
           <View className="flex-row items-center gap-2">
             <Icon name={pipe.icon as IconName} size={20} color={colors.muted} />
