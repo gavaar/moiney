@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { DimensionValue, Pressable, ScrollView, Text, View } from "react-native";
 import { Icon } from "@ui/Icon";
-import { usePipeSelection, toPipe, type Pipe } from "@features/pipes/context/PipeSelectionContext";
+import { usePipeSelection, type Pipe } from "@features/pipes/context/PipeSelectionContext";
 import { colors } from "@/lib/styles";
 import { type Id } from "@convex/_generated/dataModel";
 
@@ -106,7 +106,7 @@ export function PipeTreeView({ onSelectPipe }: PipeTreeViewProps) {
   const childPipesById = useMemo(() => {
     const map = new Map<Id<"pipes">, Pipe[]>();
     for (const [parentId, docs] of childrenByParent) {
-      map.set(parentId, docs.map(toPipe));
+      map.set(parentId, docs);
     }
     return map;
   }, [childrenByParent]);

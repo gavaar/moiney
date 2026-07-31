@@ -41,7 +41,7 @@ export const createTransaction = mutation({
       if (destPipe.userId !== userId) throw new Error("Not authorized");
 
       await ctx.db.patch(args.to, {
-        fed: (destPipe.fed ?? 0) + args.value,
+        fed: destPipe.fed + args.value,
       });
 
       await ctx.db.insert("transactions", {
@@ -79,10 +79,10 @@ export const createTransaction = mutation({
       if (destPipe.userId !== userId) throw new Error("Not authorized");
 
       await ctx.db.patch(pipeId, {
-        fed: (pipe.fed ?? 0) + args.value,
+        fed: pipe.fed + args.value,
       });
       await ctx.db.patch(args.to, {
-        fed: (destPipe.fed ?? 0) - args.value,
+        fed: destPipe.fed - args.value,
       });
 
       await recascadeTree(ctx, userId);
@@ -132,8 +132,8 @@ export const editTransaction = mutation({
         const dst = await ctx.db.get(tx.to);
         if (!src || !dst) throw new Error("Pipe not found");
 
-        await ctx.db.patch(tx.from, { fed: (src.fed ?? 0) + valueDiff });
-        await ctx.db.patch(tx.to, { fed: (dst.fed ?? 0) - valueDiff });
+        await ctx.db.patch(tx.from, { fed: src.fed + valueDiff });
+        await ctx.db.patch(tx.to, { fed: dst.fed - valueDiff });
         await recascadeTree(ctx, userId);
       } else if (tx.from) {
         const pipe = await ctx.db.get(tx.from);
@@ -146,7 +146,7 @@ export const editTransaction = mutation({
         const pipe = await ctx.db.get(tx.to);
         if (!pipe) throw new Error("Pipe not found");
 
-        await ctx.db.patch(tx.to, { fed: (pipe.fed ?? 0) + valueDiff });
+        await ctx.db.patch(tx.to, { fed: pipe.fed + valueDiff });
         await recascadeTree(ctx, userId);
       }
     }

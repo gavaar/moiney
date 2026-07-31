@@ -3,23 +3,15 @@ import { useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { type Id, type Doc } from "@convex/_generated/dataModel";
 
-export type Pipe = {
-  _id: Id<"pipes">;
-  name: string;
-  icon: string;
-  priority: number;
-  capacity: number;
-  fed: number;
-  spent: number;
-};
+export type Pipe = Doc<"pipes">;
 
 type PipeSelectionContextValue = {
   selectedPipePath: Id<"pipes">[];
   selectPipe: (path: Id<"pipes">[]) => void;
   deselectPipe: () => void;
-  allPipes: Doc<"pipes">[] | undefined;
-  pipesById: Record<Id<"pipes">, Doc<"pipes">> | undefined;
-  childrenByParent: Map<Id<"pipes">, Doc<"pipes">[]>;
+  allPipes: Pipe[] | undefined;
+  pipesById: Record<Id<"pipes">, Pipe> | undefined;
+  childrenByParent: Map<Id<"pipes">, Pipe[]>;
   isLoading: boolean;
   feeds: Pipe[];
   selectedPipe: Pipe | null;
@@ -43,18 +35,6 @@ const PipeSelectionContext = createContext<PipeSelectionContextValue>(defaultVal
 
 export function usePipeSelection() {
   return useContext(PipeSelectionContext);
-}
-
-export function toPipe(doc: Doc<"pipes">): Pipe {
-  return {
-    _id: doc._id,
-    name: doc.name,
-    icon: doc.icon,
-    priority: doc.priority,
-    capacity: doc.capacity ?? 0,
-    fed: doc.fed ?? 0,
-    spent: doc.spent ?? 0,
-  };
 }
 
 export function PipeSelectionProvider({ children }: { children: ReactNode }) {
@@ -87,17 +67,15 @@ export function PipeSelectionProvider({ children }: { children: ReactNode }) {
 
   const feeds = allPipesFlat
     .filter((p) => p.parentId === undefined)
-    .map(toPipe)
     .sort((a, b) => b.fed - a.fed);
 
   const selectedId =
     selectedPipePath.length > 0
       ? selectedPipePath[selectedPipePath.length - 1]
       : null;
-  const selectedPipeData = selectedId
+  const selectedPipe = selectedId
     ? allPipesFlat.find((p) => p._id === selectedId) ?? null
     : null;
-  const selectedPipe = selectedPipeData ? toPipe(selectedPipeData) : null;
   const selectedName = selectedPipe?.name ?? null;
 
   const selectPipe = (path: Id<"pipes">[]) => setSelectedPipePath(path);

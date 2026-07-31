@@ -47,11 +47,17 @@ export default defineSchema({
     icon: v.string(),
     description: v.optional(v.string()),
     priority: v.number(),
-    capacity: v.optional(v.number()),
-    fed: v.optional(v.number()),
-    spent: v.optional(v.number()),
-    // rule
-    resetOn: v.optional(v.union(v.literal("empty"), v.literal("cron"), v.literal("uncapped"))),
-    resetCron: v.optional(v.string()),
+    capacity: v.number(),
+    fed: v.number(),
+    spent: v.number(),
+    rule: v.optional(v.union(v.literal("spend_overflow"), v.literal("any_spend"), v.literal("cron"))),
+    // rule options
+    capUpdateMode: v.optional(v.union(v.literal("dynamic"), v.literal("static"))),
+    capUpdateValue: v.optional(v.number()),
+    cronNextDate: v.optional(v.number()),
+    cronInterval: v.optional(v.object({
+      interval: v.number(),
+      unit: v.union(v.literal("days"), v.literal("months"), v.literal("years")),
+    })),
   }).index("by_userId", ["userId"]),
 });

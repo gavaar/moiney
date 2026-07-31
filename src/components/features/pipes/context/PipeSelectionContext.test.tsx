@@ -41,13 +41,11 @@ const mockPipe = (id: string, name: string) => ({
   name,
   icon: "icon",
   priority: 0,
-  capacity: undefined,
-  fed: undefined,
-  spent: undefined,
+  capacity: 0,
+  fed: 0,
+  spent: 0,
   parentId: undefined,
   description: undefined,
-  resetOn: undefined,
-  resetCron: undefined,
 });
 
 describe("PipeSelectionContext", () => {

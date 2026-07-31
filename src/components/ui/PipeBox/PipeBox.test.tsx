@@ -9,9 +9,11 @@ describe("PipeBox", () => {
     name: "Groceries",
     icon: "cart-outline",
     description: "Food and household items",
+    priority: 0,
     capacity: 1500,
     fed: 1000,
     spent: 500,
+    showPriority: true,
   };
 
   it("renders feed name", () => {

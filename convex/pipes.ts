@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query, type MutationCtx } from "./_generated/server";
-import type { Id } from "./_generated/dataModel";
+import type { Id, Doc } from "./_generated/dataModel";
 import { requireAuth } from "./lib/auth";
 import { MAX_PIPES_PER_USER } from "./lib/constants";
 import {
@@ -38,6 +38,7 @@ export const addFeed = mutation({
       icon: args.icon,
       description: args.description,
       priority: 0,
+      capacity: 0,
       fed: 0,
       spent: 0,
     });
@@ -50,7 +51,7 @@ export const addPipe = mutation({
     icon: v.string(),
     description: v.optional(v.string()),
     priority: v.number(),
-    capacity: v.optional(v.number()),
+    capacity: v.number(),
     parentId: v.id("pipes"),
   },
   handler: async (ctx, args) => {
@@ -71,12 +72,7 @@ export const addPipe = mutation({
 
     const parent = await ctx.db.get(args.parentId);
     if (parent) {
-      const patches: Record<string, undefined> = {};
-      if (parent.capacity !== undefined) patches.capacity = undefined;
-      if (parent.spent !== undefined) patches.spent = undefined;
-      if (Object.keys(patches).length > 0) {
-        await ctx.db.patch(parent._id, patches);
-      }
+      await ctx.db.patch(parent._id, { capacity: 0, spent: 0 });
     }
 
     await recascadeTree(ctx, userId);
@@ -181,8 +177,8 @@ export const getPipes = query({
     const computed = computePipeTree(pipes);
 
     return pipes.map((pipe) => {
-      const { capacity, spent, fed } = computed.get(pipe._id)!;
-      return { ...pipe, capacity, spent, fed };
-    });
+      const v = computed.get(pipe._id)!;
+      return { ...pipe, capacity: v.capacity, spent: v.spent, fed: v.fed };
+    }) as Doc<"pipes">[];
   },
 });

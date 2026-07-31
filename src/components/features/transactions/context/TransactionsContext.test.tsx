@@ -52,12 +52,10 @@ function pipe(id: string, parentId?: string): Doc<"pipes"> {
     name: "",
     icon: "",
     priority: 0,
-    capacity: undefined,
-    fed: undefined,
-    spent: undefined,
+    capacity: 0,
+    fed: 0,
+    spent: 0,
     description: undefined,
-    resetOn: undefined,
-    resetCron: undefined,
   };
 }
 

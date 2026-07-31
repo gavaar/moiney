@@ -72,6 +72,7 @@ const CURATED_ICONS = [
   { name: "trash-outline", family: "Ionicons" as const },
   { name: "trending-down-outline", family: "Ionicons" as const },
   { name: "trending-up-outline", family: "Ionicons" as const },
+  { name: "timer-outline", family: "Ionicons" as const },
   { name: "tv-outline", family: "Ionicons" as const },
   { name: "upload", family: "MaterialCommunityIcons" as const },
   { name: "wallet-outline", family: "Ionicons" as const },

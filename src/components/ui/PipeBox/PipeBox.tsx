@@ -3,6 +3,7 @@ import { Icon, type IconName } from "@ui/Icon";
 import { colors } from "@/lib/styles";
 import { formatAmount } from "@/lib/format";
 import { Liquidity, MiniChildBox } from './components';
+import { Pipe } from '@/components/features/pipes/context/PipeSelectionContext';
 
 export type ChildSnapshot = {
   icon: string;
@@ -11,19 +12,13 @@ export type ChildSnapshot = {
   spent: number;
 };
 
-type PipeBoxProps = {
-  name: string;
-  icon: string;
-  priority?: number;
-  description?: string;
-  capacity: number;
-  fed: number;
-  spent: number;
+type PipeBoxProps = Pick<Pipe, 'name'|'icon'|'priority'|'fed'|'capacity'|'spent'> & {
+  showPriority: boolean;
   children?: ChildSnapshot[];
   onPress?: () => void;
 };
 
-export function PipeBox({ name, icon, priority, capacity, fed, spent, children, onPress }: PipeBoxProps) {
+export function PipeBox({ name, icon, priority, capacity, fed, spent, showPriority, children, onPress }: PipeBoxProps) {
   return (
     <View className="flex-1">
       <TouchableOpacity
@@ -31,7 +26,7 @@ export function PipeBox({ name, icon, priority, capacity, fed, spent, children, 
         activeOpacity={0.7}
         className="flex-row rounded-md overflow-hidden min-h-15"
       >
-        {priority !== undefined && (
+        {showPriority && (
           <Text className="absolute top-1 left-1 text-muted text-[10px] z-10">{priority}</Text>
         )}
         <View className="w-16 rounded-bl-md rounded-tl-md border border-border bg-surface items-center justify-center p-1 gap-0.5">

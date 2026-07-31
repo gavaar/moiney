@@ -252,7 +252,7 @@ export async function addFeedToPipe(
   if (pipe.userId !== userId) throw new Error("Not authorized");
 
   await ctx.db.patch(pipeId, {
-    fed: (pipe.fed ?? 0) + amount,
+    fed: pipe.fed + amount,
   });
 }
 

@@ -1,12 +1,11 @@
 import { View } from "react-native";
-import { usePipeSelection, toPipe } from "@features/pipes/context/PipeSelectionContext";
+import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
 import { PipesList } from "@features/pipes/components/PipesList";
-import { Icon } from "@ui/Icon";
-import { colors } from "@/lib/styles";
 import { AmountForm } from "@features/components/AmountForm";
 import { AddPipeButton } from "./components/AddPipeButton";
 import { Breadcrumb } from "./components/Breadcrumb";
 import { PipeBars } from "./components/PipeBars";
+import { RulesIcon } from "./components/RulesIcon";
 import { StatisticsRow } from "./components/StatisticsRow";
 
 export function InnerPipesScreen() {
@@ -18,9 +17,7 @@ export function InnerPipesScreen() {
   const max = Math.max(fed, spent, capacity);
 
   const selectedId = selectedPipePath[selectedPipePath.length - 1];
-  const children = selectedId
-    ? (childrenByParent.get(selectedId) ?? []).map(toPipe)
-    : [];
+  const children = childrenByParent.get(selectedId) ?? [];
 
   return (
     <View className="flex-1">
@@ -39,7 +36,7 @@ export function InnerPipesScreen() {
           pipes={children}
           priority={true}
           onSelectPipe={(id) => selectPipe([...selectedPipePath, id])}
-          leading={() => <Icon name="lock-open-outline" size={16} color={colors.border} />}
+          leading={(pipe) => <RulesIcon rule={pipe.rule} fed={pipe.fed} capacity={pipe.capacity ?? 0} />}
           footer={<AddPipeButton parentId={selectedPipePath[selectedPipePath.length - 1]} />}
         />
       </View>

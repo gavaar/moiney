@@ -12,6 +12,7 @@ type Pipe = {
   capacity: number;
   fed: number;
   spent: number;
+  rule?: "spend_overflow" | "any_spend" | "cron";
 };
 
 type PipesListProps = {
@@ -42,10 +43,11 @@ export function PipesList({ pipes, onSelectPipe, leading, trailing, priority, fo
             <PipeBox
               name={item.name}
               icon={item.icon}
-              priority={priority && item.priority !== pipes[idx - 1]?.priority ? item.priority : undefined}
+              priority={item.priority}
               capacity={item.capacity}
               fed={item.fed}
               spent={item.spent}
+              showPriority={item.priority !== pipes[idx - 1]?.priority}
               children={childBoxes}
               onPress={() => onSelectPipe?.(item._id)}
             />

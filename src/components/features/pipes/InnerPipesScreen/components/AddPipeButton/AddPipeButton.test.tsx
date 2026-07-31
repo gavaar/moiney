@@ -104,7 +104,7 @@ describe("AddPipeButton", () => {
         icon: "pipe",
         description: undefined,
         priority: 0,
-        capacity: undefined,
+        capacity: 0,
         parentId,
       });
     });

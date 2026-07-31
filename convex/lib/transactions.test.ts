@@ -11,10 +11,6 @@ describe("calculateSpentUpdate", () => {
     expect(calculateSpentUpdate(100, 50)).toBe(50);
   });
 
-  it("treats undefined currentSpent as 0", () => {
-    expect(calculateSpentUpdate(undefined, -30)).toBe(30);
-  });
-
   it("returns same spent when value is 0", () => {
     expect(calculateSpentUpdate(100, 0)).toBe(100);
   });

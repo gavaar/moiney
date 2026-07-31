@@ -65,7 +65,7 @@ export function AddPipeButton({ parentId }: AddPipeButtonProps) {
         icon: icon || "pipe",
         description: description || undefined,
         priority,
-        capacity: capacity ? Number(capacity) : undefined,
+        capacity: capacity ? Number(capacity) : 0,
         parentId,
       });
       setVisible(false);

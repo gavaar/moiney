@@ -2,10 +2,10 @@ import type { MutationCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
 
 export function calculateSpentUpdate(
-  currentSpent: number | undefined,
+  currentSpent: number,
   value: number,
 ): number {
-  return (currentSpent ?? 0) + -1 * value;
+  return currentSpent + -1 * value;
 }
 
 export async function updateOrCreateTitleUsage(
