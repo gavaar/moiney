@@ -3,6 +3,61 @@ import type { MutationCtx } from "../_generated/server";
 
 export type CronUnit = "days" | "months" | "years";
 
+export function computeElapsedIntervals(
+  starting: number,
+  interval: number,
+  unit: CronUnit,
+  now = Date.now(),
+): number {
+  const start = new Date(starting);
+
+  if (unit === "days") {
+    const anchor = Date.UTC(
+      start.getUTCFullYear(),
+      start.getUTCMonth(),
+      start.getUTCDate(),
+      12,
+    );
+    const step = interval * 24 * 60 * 60 * 1000;
+    return Math.max(0, Math.floor((now - anchor) / step));
+  }
+
+  const nowDate = new Date(now);
+  const elapsedMonths =
+    (nowDate.getUTCFullYear() - start.getUTCFullYear()) * 12 +
+    (nowDate.getUTCMonth() - start.getUTCMonth());
+  const monthsPerStep = unit === "years" ? interval * 12 : interval;
+  return Math.max(0, Math.floor(elapsedMonths / monthsPerStep));
+}
+
+export async function executePipeRule(
+  ctx: MutationCtx,
+  pipeId: Id<"pipes">,
+) {
+  const pipe = await ctx.db.get(pipeId);
+  if (!pipe) throw new Error("Pipe not found");
+
+  const leftoverFed = pipe.fed - pipe.spent;
+  const patch: Record<string, unknown> = {
+    fed: leftoverFed,
+    spent: 0,
+  };
+
+  if (pipe.capUpdateValue != null) {
+    patch.capacity = pipe.capacity - leftoverFed + pipe.capUpdateValue;
+  }
+
+  if (pipe.rule === "cron" && pipe.cronInterval && pipe.cronNextDate != null) {
+    patch.cronNextDate = computeCronNextDate(
+      pipe.cronNextDate,
+      pipe.cronInterval.interval,
+      pipe.cronInterval.unit,
+    );
+  }
+
+  await ctx.db.patch(pipeId, patch);
+}
+
 type CronAnchor = { year: number; month: number; day: number };
 
 function occurrenceAt(
@@ -45,12 +100,7 @@ export function computeCronNextDate(
   }
 
   const monthsPerStep = unit === "years" ? interval * 12 : interval;
-  const nowDate = new Date(now);
-  const elapsedMonths =
-    (nowDate.getUTCFullYear() - anchor.year) * 12 +
-    (nowDate.getUTCMonth() - anchor.month);
-
-  let k = Math.max(0, Math.floor(elapsedMonths / monthsPerStep));
+  let k = computeElapsedIntervals(starting, interval, unit, now);
   let next = occurrenceAt(anchor, monthsPerStep, k);
   if (next <= now) {
     next = occurrenceAt(anchor, monthsPerStep, k + 1);

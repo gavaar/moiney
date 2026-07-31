@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { updatePipeRule } from "./pipes";
+import { computeElapsedIntervals } from "./lib/pipes";
 
 vi.mock("./lib/auth", () => ({
   requireAuth: vi.fn().mockResolvedValue("user-1"),
@@ -21,7 +22,7 @@ function mockCtx() {
   } as any;
 }
 
-const A_PIPE = { _id: "pipe-1", userId: "user-1" };
+const A_PIPE = { _id: "pipe-1", userId: "user-1", capacity: 500 };
 
 describe("updatePipeRule", () => {
   beforeEach(() => {
@@ -112,6 +113,7 @@ describe("updatePipeRule", () => {
     expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
       rule: "cron",
       capUpdateValue: 500,
+      capacity: 500,
       cronNextDate: Date.UTC(2099, 8, 15, 12),
       cronInterval: { interval: 30, unit: "days" },
     });
@@ -175,5 +177,70 @@ describe("updatePipeRule", () => {
         starting: Date.UTC(2099, 0, 1),
       }),
     ).rejects.toThrow("Not authorized");
+  });
+
+  it("credits missed intervals to capacity when started is in the past", async () => {
+    const ctx = mockCtx();
+    ctx.db.get.mockResolvedValue({ _id: "pipe-1", userId: "user-1", capacity: 100 });
+    const starting = Date.UTC(2026, 0, 15);
+
+    await (updatePipeRule as any)._handler(ctx, {
+      pipeId: "pipe-1",
+      rule: "cron",
+      interval: 1,
+      unit: "months",
+      starting,
+      capUpdateValue: 50,
+    });
+
+    const elapsed = computeElapsedIntervals(starting, 1, "months");
+    expect(ctx.db.patch).toHaveBeenCalledWith(
+      "pipe-1",
+      expect.objectContaining({
+        capacity: 100 + elapsed * 50,
+      }),
+    );
+  });
+
+  it("credits capacity again when the same cron rule is saved again", async () => {
+    const ctx = mockCtx();
+    ctx.db.get.mockResolvedValue({ _id: "pipe-1", userId: "user-1", capacity: 0 });
+    const args = {
+      pipeId: "pipe-1",
+      rule: "cron",
+      interval: 1,
+      unit: "months",
+      starting: Date.UTC(2026, 0, 15),
+      capUpdateValue: 50,
+    };
+
+    await (updatePipeRule as any)._handler(ctx, args);
+    const first = ctx.db.patch.mock.calls[0][1].capacity;
+
+    ctx.db.get.mockResolvedValue({ _id: "pipe-1", userId: "user-1", capacity: first });
+    await (updatePipeRule as any)._handler(ctx, args);
+
+    expect(ctx.db.patch).toHaveBeenCalledTimes(2);
+    expect(ctx.db.patch.mock.calls[1][1].capacity).toBe(first * 2);
+  });
+
+  it("does not credit capacity when capUpdateValue is not provided", async () => {
+    const ctx = mockCtx();
+    ctx.db.get.mockResolvedValue(A_PIPE);
+
+    await (updatePipeRule as any)._handler(ctx, {
+      pipeId: "pipe-1",
+      rule: "cron",
+      interval: 1,
+      unit: "months",
+      starting: Date.UTC(2026, 0, 15),
+    });
+
+    expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+      rule: "cron",
+      capUpdateValue: undefined,
+      cronNextDate: expect.any(Number),
+      cronInterval: { interval: 1, unit: "months" },
+    });
   });
 });

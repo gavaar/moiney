@@ -6,6 +6,7 @@ import { MAX_PIPES_PER_USER } from "./lib/constants";
 import {
   collectDescendants,
   computeCronNextDate,
+  computeElapsedIntervals,
   computePipeTree,
   recascadeTree,
 } from "./lib/pipes";
@@ -213,6 +214,10 @@ export const updatePipeRule = mutation({
         args.interval,
         args.unit,
       );
+      if (args.capUpdateValue != null) {
+        const intervals = computeElapsedIntervals(args.starting, args.interval, args.unit);
+        patch.capacity = pipe.capacity + intervals * args.capUpdateValue;
+      }
     }
 
     await ctx.db.patch(args.pipeId, patch);

@@ -1,9 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   calculatePipeAllocations,
   computeCronNextDate,
+  computeElapsedIntervals,
   computePipeDerivedValues,
   computePipeTree,
+  executePipeRule,
   recalculatePipes,
   splitEvenly,
 } from "./pipes";
@@ -707,5 +709,140 @@ describe("computeCronNextDate", () => {
     expect(computeCronNextDate(starting, 1, "years", now)).toBe(
       Date.UTC(2025, 1, 28, 12),
     );
+  });
+});
+
+describe("computeElapsedIntervals", () => {
+  it("returns 0 when the starting date is in the future", () => {
+    expect(
+      computeElapsedIntervals(
+        Date.UTC(2099, 0, 1),
+        1,
+        "months",
+        Date.UTC(2026, 6, 1),
+      ),
+    ).toBe(0);
+  });
+
+  it("returns 0 for the same month as starting", () => {
+    expect(
+      computeElapsedIntervals(
+        Date.UTC(2026, 0, 15),
+        1,
+        "months",
+        Date.UTC(2026, 0, 20),
+      ),
+    ).toBe(0);
+  });
+
+  it("counts completed month intervals", () => {
+    expect(
+      computeElapsedIntervals(
+        Date.UTC(2026, 0, 15),
+        1,
+        "months",
+        Date.UTC(2026, 1, 1),
+      ),
+    ).toBe(1);
+    expect(
+      computeElapsedIntervals(
+        Date.UTC(2026, 0, 15),
+        1,
+        "months",
+        Date.UTC(2026, 2, 1),
+      ),
+    ).toBe(2);
+  });
+
+  it("counts completed day intervals", () => {
+    expect(
+      computeElapsedIntervals(
+        Date.UTC(2026, 0, 1, 12),
+        7,
+        "days",
+        Date.UTC(2026, 0, 10, 12),
+      ),
+    ).toBe(1);
+  });
+
+  it("counts completed year intervals", () => {
+    expect(
+      computeElapsedIntervals(
+        Date.UTC(2024, 0, 1),
+        1,
+        "years",
+        Date.UTC(2026, 2, 1),
+      ),
+    ).toBe(2);
+  });
+});
+
+describe("executePipeRule", () => {
+  function mockCtx(pipe: any) {
+    return {
+      db: {
+        get: vi.fn().mockResolvedValue(pipe),
+        patch: vi.fn(),
+      },
+    } as any;
+  }
+
+  it("throws when the pipe is not found", async () => {
+    const ctx = mockCtx(null);
+
+    await expect(executePipeRule(ctx, "pipe-1" as any)).rejects.toThrow(
+      "Pipe not found",
+    );
+  });
+
+  it("patches fed to leftover and resets spent when no capUpdateValue", async () => {
+    const ctx = mockCtx({ _id: "pipe-1", fed: 500, spent: 200, capacity: 1000 });
+
+    await executePipeRule(ctx, "pipe-1" as any);
+
+    expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+      fed: 300,
+      spent: 0,
+    });
+  });
+
+  it("updates capacity when capUpdateValue is set", async () => {
+    const ctx = mockCtx({
+      _id: "pipe-1",
+      fed: 500,
+      spent: 200,
+      capacity: 1000,
+      capUpdateValue: 100,
+    });
+
+    await executePipeRule(ctx, "pipe-1" as any);
+
+    expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+      fed: 300,
+      spent: 0,
+      capacity: 800,
+    });
+  });
+
+  it("advances cronNextDate to the next occurrence for cron rules", async () => {
+    const ctx = mockCtx({
+      _id: "pipe-1",
+      fed: 500,
+      spent: 200,
+      capacity: 1000,
+      capUpdateValue: 100,
+      rule: "cron",
+      cronInterval: { interval: 1, unit: "months" },
+      cronNextDate: Date.UTC(2099, 0, 1, 12),
+    });
+
+    await executePipeRule(ctx, "pipe-1" as any);
+
+    expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+      fed: 300,
+      spent: 0,
+      capacity: 800,
+      cronNextDate: Date.UTC(2099, 0, 1, 12),
+    });
   });
 });
