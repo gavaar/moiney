@@ -640,12 +640,12 @@ describe("recalculatePipes", () => {
 });
 
 describe("computeCronNextDate", () => {
-  it("returns the starting date at UTC noon when it is still in the future", () => {
+  it("returns the starting date at the rule hour (5am UTC) when it is still in the future", () => {
     const starting = Date.UTC(2099, 8, 15, 8, 30);
     const now = Date.UTC(2099, 8, 1);
 
     expect(computeCronNextDate(starting, 1, "months", now)).toBe(
-      Date.UTC(2099, 8, 15, 12),
+      Date.UTC(2099, 8, 15, 5),
     );
   });
 
@@ -654,25 +654,25 @@ describe("computeCronNextDate", () => {
     const now = Date.UTC(2026, 6, 10, 12, 0);
 
     expect(computeCronNextDate(starting, 7, "days", now)).toBe(
-      Date.UTC(2026, 6, 15, 12),
+      Date.UTC(2026, 6, 15, 5),
     );
   });
 
-  it("rolls forward when the anchor noon has already passed today", () => {
+  it("rolls forward when the anchor hour has already passed today", () => {
     const starting = Date.UTC(2026, 6, 10, 0, 0);
     const now = Date.UTC(2026, 6, 10, 15, 0);
 
     expect(computeCronNextDate(starting, 7, "days", now)).toBe(
-      Date.UTC(2026, 6, 17, 12),
+      Date.UTC(2026, 6, 17, 5),
     );
   });
 
-  it("returns the next interval when now equals the anchor noon exactly", () => {
+  it("returns the next interval when now equals the anchor hour exactly", () => {
     const starting = Date.UTC(2026, 6, 10, 12, 0);
     const now = Date.UTC(2026, 6, 10, 12, 0);
 
     expect(computeCronNextDate(starting, 30, "days", now)).toBe(
-      Date.UTC(2026, 7, 9, 12),
+      Date.UTC(2026, 7, 9, 5),
     );
   });
 
@@ -681,7 +681,7 @@ describe("computeCronNextDate", () => {
     const now = Date.UTC(2026, 1, 1);
 
     expect(computeCronNextDate(starting, 1, "months", now)).toBe(
-      Date.UTC(2026, 1, 28, 12),
+      Date.UTC(2026, 1, 28, 5),
     );
   });
 
@@ -690,7 +690,7 @@ describe("computeCronNextDate", () => {
     const now = Date.UTC(2026, 2, 1);
 
     expect(computeCronNextDate(starting, 1, "months", now)).toBe(
-      Date.UTC(2026, 2, 31, 12),
+      Date.UTC(2026, 2, 31, 5),
     );
   });
 
@@ -699,7 +699,7 @@ describe("computeCronNextDate", () => {
     const now = Date.UTC(2026, 3, 1);
 
     expect(computeCronNextDate(starting, 1, "months", now)).toBe(
-      Date.UTC(2026, 3, 30, 12),
+      Date.UTC(2026, 3, 30, 5),
     );
   });
 
@@ -708,7 +708,7 @@ describe("computeCronNextDate", () => {
     const now = Date.UTC(2024, 5, 1);
 
     expect(computeCronNextDate(starting, 1, "years", now)).toBe(
-      Date.UTC(2025, 1, 28, 12),
+      Date.UTC(2025, 1, 28, 5),
     );
   });
 });
@@ -779,9 +779,12 @@ describe("computeElapsedIntervals", () => {
 });
 
 describe("computeCronIntervalProgress", () => {
-  it("returns 0 at the start of a day interval", () => {
+  const DAY = 24 * 60 * 60 * 1000;
+  const EXECUTION_DELAY = 60 * 60 * 1000;
+
+  it("returns 0 at the start of the effective interval", () => {
     const cronNextDate = Date.UTC(2026, 6, 10, 12);
-    const startOfInterval = cronNextDate - 7 * 24 * 60 * 60 * 1000;
+    const startOfInterval = cronNextDate - 7 * DAY + EXECUTION_DELAY;
 
     expect(
       computeCronIntervalProgress(cronNextDate, 7, "days", startOfInterval),
@@ -793,32 +796,52 @@ describe("computeCronIntervalProgress", () => {
     const now = Date.UTC(2026, 6, 6, 12);
 
     expect(computeCronIntervalProgress(cronNextDate, 7, "days", now)).toBeCloseTo(
-      3 / 7,
+      71 / 144,
       5,
     );
   });
 
-  it("returns 1 exactly at cronNextDate for a day interval", () => {
+  it("returns 1 at cronNextDate before the rule executes an hour later", () => {
     const cronNextDate = Date.UTC(2026, 6, 10, 12);
 
     expect(computeCronIntervalProgress(cronNextDate, 7, "days", cronNextDate)).toBe(1);
   });
 
-  it("clamps to 1 once now has passed cronNextDate", () => {
+  it("returns 0 exactly one hour after cronNextDate when the rule executes", () => {
+    const cronNextDate = Date.UTC(2026, 6, 10, 12);
+
+    expect(
+      computeCronIntervalProgress(cronNextDate, 7, "days", cronNextDate + EXECUTION_DELAY),
+    ).toBe(0);
+  });
+
+  it("returns 1 throughout the last 24 hours before the rule executes", () => {
+    const cronNextDate = Date.UTC(2026, 6, 10, 12);
+    const startOfFullWindow = cronNextDate - DAY + EXECUTION_DELAY;
+
+    expect(
+      computeCronIntervalProgress(cronNextDate, 7, "days", startOfFullWindow),
+    ).toBe(1);
+    expect(computeCronIntervalProgress(cronNextDate, 7, "days", cronNextDate)).toBe(1);
+  });
+
+  it("returns the fraction elapsed in the new cycle after the rule executes", () => {
     const cronNextDate = Date.UTC(2026, 6, 10, 12);
     const now = Date.UTC(2026, 6, 11, 12);
 
-    expect(computeCronIntervalProgress(cronNextDate, 7, "days", now)).toBe(1);
+    expect(computeCronIntervalProgress(cronNextDate, 7, "days", now)).toBeCloseTo(
+      23 / 144,
+      5,
+    );
   });
 
   it("returns the fraction of a monthly interval elapsed", () => {
     const cronNextDate = Date.UTC(2026, 6, 15, 12);
     const now = Date.UTC(2026, 6, 1, 12);
 
-    // interval start = June 15, duration = 30 days, elapsed = 16 days
     expect(
       computeCronIntervalProgress(cronNextDate, 1, "months", now),
-    ).toBeCloseTo(16 / 30, 5);
+    ).toBeCloseTo(0.55477, 4);
   });
 
   it("uses the calendar-accurate previous occurrence (variable month lengths)", () => {
@@ -826,20 +849,18 @@ describe("computeCronIntervalProgress", () => {
     const cronNextDate = Date.UTC(2026, 2, 31, 12);
     const now = Date.UTC(2026, 2, 14, 12);
 
-    // interval start = Feb 28, duration = 31 days, elapsed = 14 days
     expect(
       computeCronIntervalProgress(cronNextDate, 1, "months", now),
-    ).toBeCloseTo(14 / 31, 5);
+    ).toBeCloseTo(0.47043, 4);
   });
 
   it("returns the fraction of a yearly interval elapsed", () => {
     const cronNextDate = Date.UTC(2027, 0, 1, 12);
     const now = Date.UTC(2026, 6, 2, 12);
 
-    // interval start = Jan 1 2026, duration = 365 days, elapsed = 182 days
     expect(
       computeCronIntervalProgress(cronNextDate, 1, "years", now),
-    ).toBeCloseTo(182 / 365, 5);
+    ).toBeCloseTo(0.50029, 4);
   });
 
   it("clamps to 0 before the start of the interval", () => {
@@ -899,7 +920,7 @@ describe("executePipeRule", () => {
     expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
       fed: 300,
       spent: 0,
-      capacity: 800,
+      capacity: 400,
     });
   });
 
@@ -920,8 +941,8 @@ describe("executePipeRule", () => {
     expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
       fed: 300,
       spent: 0,
-      capacity: 800,
-      cronNextDate: Date.UTC(2099, 0, 1, 12),
+      capacity: 400,
+      cronNextDate: Date.UTC(2099, 0, 1, 5),
     });
   });
 
@@ -943,7 +964,7 @@ describe("executePipeRule", () => {
     expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
       fed: 300,
       spent: 0,
-      cronNextDate: Date.UTC(2026, 5, 16, 12),
+      cronNextDate: Date.UTC(2026, 5, 16, 5),
     });
   });
 });

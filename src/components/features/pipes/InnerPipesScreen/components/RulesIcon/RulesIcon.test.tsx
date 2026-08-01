@@ -183,7 +183,25 @@ describe("RulesIcon", () => {
       />,
     );
     expect(screen.getByTestId("progress-ring")).toBeTruthy();
-    expect(lastRingProps.progress).toBeCloseTo(3 / 7, 5);
+    expect(lastRingProps.progress).toBeCloseTo(71 / 144, 5);
+  });
+
+  it("renders an empty ring on the cron day once the rule has executed", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(Date.UTC(2026, 6, 10, 6));
+
+    render(
+      <RulesIcon
+        pipeId={pId("pipe-1")}
+        rule="cron"
+        fed={0}
+        capacity={100}
+        cronNextDate={Date.UTC(2026, 6, 10, 5)}
+        cronInterval={{ interval: 7, unit: "days" }}
+      />,
+    );
+    expect(screen.getByTestId("progress-ring")).toBeTruthy();
+    expect(lastRingProps.progress).toBe(0);
   });
 
   it("renders no ring for any_spend", () => {

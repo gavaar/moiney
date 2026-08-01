@@ -3,6 +3,9 @@ import type { MutationCtx } from "../_generated/server";
 
 export type CronUnit = "days" | "months" | "years";
 
+const CRON_ANCHOR_HOUR = 5;
+const CRON_EXECUTION_DELAY = 60 * 60 * 1000;
+
 export function computeElapsedIntervals(
   starting: number,
   interval: number,
@@ -16,7 +19,7 @@ export function computeElapsedIntervals(
       start.getUTCFullYear(),
       start.getUTCMonth(),
       start.getUTCDate(),
-      12,
+      CRON_ANCHOR_HOUR,
     );
     const step = interval * 24 * 60 * 60 * 1000;
     return Math.max(0, Math.floor((now - anchor) / step));
@@ -46,7 +49,7 @@ export async function executePipeRule(
   };
 
   if (pipe.capUpdateValue != null) {
-    patch.capacity = pipe.capacity - leftoverFed + pipe.capUpdateValue;
+    patch.capacity = leftoverFed + pipe.capUpdateValue;
   }
 
   if (pipe.rule === "cron" && pipe.cronInterval && pipe.cronNextDate != null) {
@@ -78,7 +81,7 @@ function occurrenceAt(
     targetYear,
     targetMonth,
     Math.min(anchor.day, daysInTargetMonth),
-    12,
+    CRON_ANCHOR_HOUR,
   );
 }
 
@@ -94,7 +97,12 @@ export function computeCronNextDate(
     month: start.getUTCMonth(),
     day: start.getUTCDate(),
   };
-  const anchorTs = Date.UTC(anchor.year, anchor.month, anchor.day, 12);
+  const anchorTs = Date.UTC(
+    anchor.year,
+    anchor.month,
+    anchor.day,
+    CRON_ANCHOR_HOUR,
+  );
 
   if (unit === "days") {
     const step = interval * 24 * 60 * 60 * 1000;
@@ -132,8 +140,16 @@ export function computeCronIntervalProgress(
       : cronNextDate -
         occurrenceAt(anchor, unit === "years" ? interval * 12 : interval, -1);
 
-  const startOfInterval = cronNextDate - stepDuration;
-  return Math.min(1, Math.max(0, (now - startOfInterval) / stepDuration));
+  const fullWindow = 24 * 60 * 60 * 1000;
+  const fillSpan = stepDuration - fullWindow;
+  if (fillSpan <= 0) return 1;
+
+  const startOfInterval = cronNextDate - stepDuration + CRON_EXECUTION_DELAY;
+  const elapsed = now - startOfInterval;
+  if (elapsed < 0) return 0;
+
+  const cycleElapsed = elapsed % stepDuration;
+  return Math.min(1, cycleElapsed / fillSpan);
 }
 
 // ── Allocation math ──

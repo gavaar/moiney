@@ -27,7 +27,7 @@ export function PipeBox({ name, icon, priority, capacity, fed, spent, showPriori
         className="flex-row rounded-md overflow-hidden min-h-16"
       >
         {showPriority && (
-          <Text className="absolute top-1 left-1 text-muted text-[10px] z-10">{priority}</Text>
+          <Text className="absolute top-1 left-1 text-surface text-[10px] z-10">{priority}</Text>
         )}
         <View className="w-16 rounded-bl-md rounded-tl-md border border-border bg-surface items-center justify-center p-1 gap-0.5">
           <Icon name={icon as IconName} size={16} color={colors.text} />

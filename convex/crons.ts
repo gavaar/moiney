@@ -10,7 +10,7 @@ crons.monthly(
 );
 crons.daily(
   "run due cron rules",
-  { hourUTC: 13, minuteUTC: 0 },
+  { hourUTC: 6, minuteUTC: 0 },
   internal.pipes.runDueCronRules,
   {},
 );

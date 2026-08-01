@@ -114,7 +114,7 @@ describe("updatePipeRule", () => {
       rule: "cron",
       capUpdateValue: 500,
       capacity: 500,
-      cronNextDate: Date.UTC(2099, 8, 15, 12),
+      cronNextDate: Date.UTC(2099, 8, 15, 5),
       cronInterval: { interval: 30, unit: "days" },
     });
   });
@@ -135,7 +135,7 @@ describe("updatePipeRule", () => {
     expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
       rule: "cron",
       capUpdateValue: undefined,
-      cronNextDate: Date.UTC(2099, 8, 15, 12),
+      cronNextDate: Date.UTC(2099, 8, 15, 5),
       cronInterval: { interval: 30, unit: "days" },
     });
   });
@@ -284,7 +284,7 @@ describe("executePipeRuleNow", () => {
     expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
       fed: 60,
       spent: 0,
-      capacity: 490,
+      capacity: 110,
     });
   });
 
@@ -317,7 +317,7 @@ describe("executePipeRuleNow", () => {
       capacity: 100,
       capUpdateValue: 10,
       cronInterval: { interval: 1, unit: "days" },
-      cronNextDate: Date.UTC(2020, 0, 1, 12),
+      cronNextDate: Date.UTC(2020, 0, 1, 5),
     });
 
     await (executePipeRuleNow as any)._handler(ctx, { pipeId: "pipe-1" });
@@ -331,7 +331,7 @@ describe("executePipeRuleNow", () => {
     const patch = ctx.db.patch.mock.calls[0][1];
     expect(patch.cronNextDate).toBeGreaterThan(Date.now());
     expect(patch.cronNextDate % (24 * 60 * 60 * 1000)).toBe(
-      Date.UTC(2020, 0, 1, 12) % (24 * 60 * 60 * 1000),
+      Date.UTC(2020, 0, 1, 5) % (24 * 60 * 60 * 1000),
     );
   });
 });
@@ -344,7 +344,7 @@ describe("runDueCronRules", () => {
     _id: "pipe-1",
     userId: "user-1",
     rule: "cron" as const,
-    cronNextDate: Date.UTC(2026, 5, 15, 12),
+    cronNextDate: Date.UTC(2026, 5, 15, 5),
     cronInterval: { interval: 1, unit: "days" as const },
     fed: 500,
     spent: 200,
@@ -405,7 +405,7 @@ describe("runDueCronRules", () => {
     expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
       fed: 300,
       spent: 0,
-      cronNextDate: Date.UTC(2026, 5, 16, 12),
+      cronNextDate: Date.UTC(2026, 5, 16, 5),
     });
   });
 });
