@@ -1,10 +1,10 @@
-import { type ReactNode } from "react";
+import { memo, type ReactNode } from "react";
 import { ScrollView, View } from "react-native";
 import { type Id } from "@convex/_generated/dataModel";
 import { PipeBox, type ChildSnapshot } from "@ui/PipeBox";
 import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
 
-type Pipe = {
+export type Pipe = {
   _id: Id<"pipes">;
   name: string;
   icon: string;
@@ -26,7 +26,7 @@ type PipesListProps = {
   footer?: ReactNode;
 };
 
-export function PipesList({ pipes, onSelectPipe, leading, trailing, footer }: PipesListProps) {
+export const PipesList = memo(function PipesList({ pipes, onSelectPipe, leading, trailing, footer }: PipesListProps) {
   const { childrenByParent } = usePipeSelection();
 
   return (
@@ -63,4 +63,4 @@ export function PipesList({ pipes, onSelectPipe, leading, trailing, footer }: Pi
       </View>
     </ScrollView>
   );
-}
+});

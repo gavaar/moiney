@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { type Id, type Doc } from "@convex/_generated/dataModel";
@@ -17,6 +17,8 @@ type PipeSelectionContextValue = {
   selectedPipe: Pipe | null;
   selectedName: string | null;
 };
+
+const EMPTY_PIPES: Pipe[] = [];
 
 const defaultVal: PipeSelectionContextValue = {
   selectedPipePath: [],
@@ -43,7 +45,7 @@ export function PipeSelectionProvider({ children }: { children: ReactNode }) {
 
   const isLoading = allPipes === undefined;
 
-  const allPipesFlat = allPipes ?? [];
+  const allPipesFlat = allPipes ?? EMPTY_PIPES;
 
   const pipesById = useMemo(
     () => Object.fromEntries(allPipesFlat.map((p) => [p._id, p])) as Record<Id<"pipes">, Doc<"pipes">>,
@@ -65,37 +67,56 @@ export function PipeSelectionProvider({ children }: { children: ReactNode }) {
     return map;
   }, [allPipesFlat]);
 
-  const feeds = allPipesFlat
-    .filter((p) => p.parentId === undefined)
-    .sort((a, b) => b.fed - a.fed);
+  const feeds = useMemo(
+    () =>
+      allPipesFlat
+        .filter((p) => p.parentId === undefined)
+        .sort((a, b) => b.fed - a.fed),
+    [allPipesFlat],
+  );
 
   const selectedId =
     selectedPipePath.length > 0
       ? selectedPipePath[selectedPipePath.length - 1]
       : null;
-  const selectedPipe = selectedId
-    ? allPipesFlat.find((p) => p._id === selectedId) ?? null
-    : null;
+  const selectedPipe = useMemo(
+    () => (selectedId ? allPipesFlat.find((p) => p._id === selectedId) ?? null : null),
+    [allPipesFlat, selectedId],
+  );
   const selectedName = selectedPipe?.name ?? null;
 
-  const selectPipe = (path: Id<"pipes">[]) => setSelectedPipePath(path);
-  const deselectPipe = () => setSelectedPipePath([]);
+  const selectPipe = useCallback((path: Id<"pipes">[]) => setSelectedPipePath(path), []);
+  const deselectPipe = useCallback(() => setSelectedPipePath([]), []);
+
+  const value = useMemo(
+    () => ({
+      selectedPipePath,
+      selectPipe,
+      deselectPipe,
+      allPipes,
+      pipesById,
+      childrenByParent,
+      isLoading,
+      feeds,
+      selectedPipe,
+      selectedName,
+    }),
+    [
+      selectedPipePath,
+      selectPipe,
+      deselectPipe,
+      allPipes,
+      pipesById,
+      childrenByParent,
+      isLoading,
+      feeds,
+      selectedPipe,
+      selectedName,
+    ],
+  );
 
   return (
-    <PipeSelectionContext.Provider
-      value={{
-        selectedPipePath,
-        selectPipe,
-        deselectPipe,
-        allPipes,
-        pipesById,
-        childrenByParent,
-        isLoading,
-        feeds,
-        selectedPipe,
-        selectedName,
-      }}
-    >
+    <PipeSelectionContext.Provider value={value}>
       {children}
     </PipeSelectionContext.Provider>
   );

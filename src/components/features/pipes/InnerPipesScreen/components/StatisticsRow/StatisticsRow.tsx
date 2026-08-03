@@ -1,14 +1,11 @@
-import { Fragment, RefObject, useRef, useState } from "react";
+import { Fragment, RefObject, useMemo, useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
-import { type Id } from "@convex/_generated/dataModel";
 import { Popover } from "@ui/Popover";
 import { Icon, type IconName } from "@ui/Icon";
 import { colors } from "@/lib/styles";
 import { formatAmount } from "@/lib/format";
 import { getDaysInMonth } from "@/lib/dates";
 import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
-import { DeletePipeConfirmation } from "@features/pipes/InnerPipesScreen/components/DeletePipeConfirmation";
-import { EditPipeModal } from "@features/pipes/InnerPipesScreen/components/EditPipeModal";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -29,15 +26,11 @@ type Props = {
 export function StatisticsRow({ fed, spent }: Props) {
   const daysInMonth = getDaysInMonth();
   const [selectedStatLabel, setSelectedStatLabel] = useState<string | null>(null);
-  const [showOptions, setShowOptions] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const ellipsisRef = useRef<View>(null);
   const l2sRef = useRef<View>(null);
   const stmRef = useRef<View>(null);
   const stmpdRef = useRef<View>(null);
   const cronRef = useRef<View>(null);
-  const { selectedPipePath, pipesById, isLoading } = usePipeSelection();
+  const { selectedPipePath, pipesById } = usePipeSelection();
 
   const selectedId = selectedPipePath.length > 0
     ? selectedPipePath[selectedPipePath.length - 1]
@@ -49,7 +42,7 @@ export function StatisticsRow({ fed, spent }: Props) {
       ? Math.max(0, Math.ceil((currentPipe.cronNextDate - Date.now()) / DAY_MS))
       : null;
 
-  const stats: StatItem[] = [
+  const stats = useMemo<StatItem[]>(() => [
     {
       label: "L2S",
       value: fed - spent,
@@ -83,88 +76,42 @@ export function StatisticsRow({ fed, spent }: Props) {
           },
         ]
       : []),
-  ];
+  ], [fed, spent, daysInMonth, daysLeft]);
 
   return (
-    <>
-      <View className="flex-row self-stretch justify-center gap-1 pb-2 px-5">
-        {stats.map((stat, index) => (
-          <Fragment key={stat.label}>
-            {index > 0 && (<Text className="text-muted/50 text-xs">|</Text>)}
+    <View className="flex-row justify-center gap-1">
+      {stats.map((stat, index) => (
+        <Fragment key={stat.label}>
+          {index > 0 && (<Text className="text-muted/50 text-xs">|</Text>)}
 
-            <View className="flex-row items-center">
-              <Pressable ref={stat.ref} onPress={() => setSelectedStatLabel(stat.label)}>
-                <Text className="text-sm border px-2 rounded-md border-muted/50 text-text">
-                  {stat.icon ? (
-                    <>
-                      <Icon name={stat.icon} size={14} color={colors.text} />
-                      <Text> {stat.value}</Text>
-                    </>
-                  ) : (
-                    <>
-                      {stat.label}: {formatAmount(stat.value)}
-                    </>
-                  )}
-                </Text>
-              </Pressable>
+          <View className="flex-row items-center">
+            <Pressable ref={stat.ref} onPress={() => setSelectedStatLabel(stat.label)}>
+              <Text className="text-sm border px-2 rounded-md border-muted/50 text-text">
+                {stat.icon ? (
+                  <>
+                    <Icon name={stat.icon} size={14} color={colors.text} />
+                    <Text> {stat.value}</Text>
+                  </>
+                ) : (
+                  <>
+                    {stat.label}: {formatAmount(stat.value)}
+                  </>
+                )}
+              </Text>
+            </Pressable>
 
-              <Popover
-                visible={selectedStatLabel === stat.label}
-                onClose={() => setSelectedStatLabel(null)}
-                anchorRef={stat.ref as RefObject<View>}
-                anchorPosition="bottom"
-              >
-                <Text className="text-text font-bold text-md">{stats[index].title}:</Text>
-                <Text className="text-text text-sm">{stats[index].description}</Text>
-              </Popover>
-            </View>
-          </Fragment>
-        ))}
-
-        <View className="ml-auto">
-          <Pressable ref={ellipsisRef} onPress={() => setShowOptions(true)}>
-            <Icon name="ellipsis-vertical" size={16} color={colors.muted} />
-          </Pressable>
-        </View>
-      </View>
-
-      <Popover
-        visible={showOptions}
-        onClose={() => setShowOptions(false)}
-        anchorRef={ellipsisRef as RefObject<View>}
-        anchorPosition="left-start"
-      >
-        <Pressable onPress={() => {
-          setShowOptions(false);
-          setShowEditModal(true);
-        }}>
-          <Icon name="pencil-outline" size={24} color={colors.secondary} />
-        </Pressable>
-        <View className="h-5" />
-        <Pressable onPress={() => {
-          setShowOptions(false);
-          setShowDeleteModal(true);
-        }}>
-          <Icon name="trash-bin-outline" size={24} color={colors.error} />
-        </Pressable>
-      </Popover>
-
-      {selectedId && !isLoading && (
-        <DeletePipeConfirmation
-          visible={showDeleteModal}
-          onClose={() => setShowDeleteModal(false)}
-          pipeId={selectedId as Id<"pipes">}
-          onDeleted={() => setShowDeleteModal(false)}
-        />
-      )}
-
-      {selectedId && showEditModal && (
-        <EditPipeModal
-          visible={showEditModal}
-          onClose={() => setShowEditModal(false)}
-          pipeId={selectedId as Id<"pipes">}
-        />
-      )}
-    </>
+            <Popover
+              visible={selectedStatLabel === stat.label}
+              onClose={() => setSelectedStatLabel(null)}
+              anchorRef={stat.ref as RefObject<View>}
+              anchorPosition="bottom"
+            >
+              <Text className="text-text font-bold text-md">{stats[index].title}:</Text>
+              <Text className="text-text text-sm">{stats[index].description}</Text>
+            </Popover>
+          </View>
+        </Fragment>
+      ))}
+    </View>
   );
 }

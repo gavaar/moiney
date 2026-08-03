@@ -1,9 +1,11 @@
+import { useCallback } from "react";
 import { View } from "react-native";
 import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
-import { PipesList } from "@features/pipes/components/PipesList";
+import { type Id } from "@convex/_generated/dataModel";
+import { PipesList, type Pipe as PipesListPipe } from "@features/pipes/components/PipesList";
 import { AmountForm } from "@features/components/AmountForm";
-import { AddPipeButton } from "./components/AddPipeButton";
 import { Breadcrumb } from "./components/Breadcrumb";
+import { OptionsButton } from "./components/OptionsButton";
 import { PipeBars } from "./components/PipeBars";
 import { RulesIcon } from "./components/RulesIcon";
 import { StatisticsRow } from "./components/StatisticsRow";
@@ -18,12 +20,38 @@ export function InnerPipesScreen() {
   const selectedId = selectedPipePath[selectedPipePath.length - 1];
   const children = childrenByParent.get(selectedId) ?? [];
 
+  const handleSelectPipe = useCallback(
+    (id: Id<"pipes">) => selectPipe([...selectedPipePath, id]),
+    [selectedPipePath, selectPipe],
+  );
+
+  const leading = useCallback(
+    (pipe: PipesListPipe) => (
+      <RulesIcon
+        pipeId={pipe._id}
+        rule={pipe.rule}
+        fed={pipe.fed}
+        capacity={pipe.capacity}
+        spent={pipe.spent}
+        cronNextDate={pipe.cronNextDate}
+        cronInterval={pipe.cronInterval}
+        disabled={(childrenByParent.get(pipe._id)?.length ?? 0) > 0}
+      />
+    ),
+    [childrenByParent],
+  );
+
   return (
     <View className="flex-1">
       <View className="flex flex-col">
         <Breadcrumb />
         <PipeBars fed={fed} spent={spent} capacity={capacity} rule={selectedPipe?.rule} />
-        <StatisticsRow fed={fed} spent={spent} />
+        <View className="flex-row items-center gap-2 px-5 pb-2">
+          <View className="flex-1">
+            <StatisticsRow fed={fed} spent={spent} />
+          </View>
+          <OptionsButton pipeId={selectedId} />
+        </View>
         <View className="border-b self-center border-muted/50 mb-3 w-3/4" />
       </View>
 
@@ -34,20 +62,8 @@ export function InnerPipesScreen() {
         <PipesList
           pipes={children}
           priority={true}
-          onSelectPipe={(id) => selectPipe([...selectedPipePath, id])}
-          leading={(pipe) => (
-            <RulesIcon
-              pipeId={pipe._id}
-              rule={pipe.rule}
-              fed={pipe.fed}
-              capacity={pipe.capacity}
-              spent={pipe.spent}
-              cronNextDate={pipe.cronNextDate}
-              cronInterval={pipe.cronInterval}
-              disabled={(childrenByParent.get(pipe._id)?.length ?? 0) > 0}
-            />
-          )}
-          footer={<AddPipeButton parentId={selectedPipePath[selectedPipePath.length - 1]} />}
+          onSelectPipe={handleSelectPipe}
+          leading={leading}
         />
       </View>
     </View>

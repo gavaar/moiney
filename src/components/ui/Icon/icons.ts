@@ -59,6 +59,7 @@ const CURATED_ICONS = [
   { name: "pipe-disconnected", family: "MaterialCommunityIcons" as const },
   { name: "pipe-leak", family: "MaterialCommunityIcons" as const },
   { name: "pipe-valve", family: "MaterialCommunityIcons" as const },
+  { name: "pipe-wrench", family: "MaterialCommunityIcons" as const },
   { name: "ray-end-arrow", family: "MaterialCommunityIcons" as const },
   { name: "ray-start-arrow", family: "MaterialCommunityIcons" as const },
   { name: "reload-outline", family: "Ionicons" as const },

@@ -3,7 +3,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { type Id } from "@convex/_generated/dataModel";
-import { AddPipeButton } from "./AddPipeButton";
+import { AddPipeModal } from "./AddPipeModal";
 
 const mockAddPipe = vi.fn().mockResolvedValue(undefined);
 
@@ -20,84 +20,61 @@ vi.mock("@convex/_generated/api", () => ({
 }));
 
 const parentId = "parent-1" as Id<"pipes">;
+const onClose = vi.fn();
 
-describe("AddPipeButton", () => {
+function renderModal(visible = true) {
+  return render(<AddPipeModal visible={visible} onClose={onClose} parentId={parentId} />);
+}
+
+describe("AddPipeModal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("renders the add pipe button", () => {
-    render(<AddPipeButton parentId={parentId} />);
-    expect(screen.getByText("Add pipe")).toBeDefined();
+  it("renders nothing when not visible", () => {
+    renderModal(false);
+    expect(screen.queryByPlaceholderText("Pipe name")).toBeNull();
   });
 
-  it("opens modal with form fields on tap", async () => {
-    const user = userEvent.setup();
-    render(<AddPipeButton parentId={parentId} />);
-
-    await user.click(screen.getByText("Add pipe"));
-
+  it("renders form fields when visible", () => {
+    renderModal();
     expect(screen.getByPlaceholderText("Pipe name")).toBeDefined();
     expect(screen.getByText("Submit")).toBeDefined();
     expect(screen.getByText("Cancel")).toBeDefined();
   });
 
-  it("resets form fields when cancel is pressed", async () => {
+  it("resets form fields when reopened", async () => {
     const user = userEvent.setup();
-    render(<AddPipeButton parentId={parentId} />);
-
-    await user.click(screen.getByText("Add pipe"));
-
-    const nameInput = screen.getByPlaceholderText("Pipe name");
-    await user.type(nameInput, "Food");
-
-    await user.click(screen.getByText("Cancel"));
-
-    await user.click(screen.getByText("Add pipe"));
-
+    const { rerender } = renderModal();
+    await user.type(screen.getByPlaceholderText("Pipe name"), "Food");
+    rerender(<AddPipeModal visible={false} onClose={onClose} parentId={parentId} />);
+    rerender(<AddPipeModal visible={true} onClose={onClose} parentId={parentId} />);
     const reopenedInput = screen.getByPlaceholderText("Pipe name") as HTMLInputElement;
     expect(reopenedInput.value).toBe("");
   });
 
   it("shows validation error when name is empty", async () => {
     const user = userEvent.setup();
-    render(<AddPipeButton parentId={parentId} />);
-
-    await user.click(screen.getByText("Add pipe"));
+    renderModal();
     await user.click(screen.getByText("Submit"));
-
     expect(screen.getByText("Name is required")).toBeDefined();
     expect(mockAddPipe).not.toHaveBeenCalled();
   });
 
   it("shows validation error when name is less than 3 characters", async () => {
     const user = userEvent.setup();
-    render(<AddPipeButton parentId={parentId} />);
-
-    await user.click(screen.getByText("Add pipe"));
-
-    const nameInput = screen.getByPlaceholderText("Pipe name");
-    await user.type(nameInput, "ab");
-
+    renderModal();
+    await user.type(screen.getByPlaceholderText("Pipe name"), "ab");
     await user.click(screen.getByText("Submit"));
-
-    expect(
-      screen.getByText("Name must be at least 3 characters"),
-    ).toBeDefined();
+    expect(screen.getByText("Name must be at least 3 characters")).toBeDefined();
     expect(mockAddPipe).not.toHaveBeenCalled();
   });
 
   it("calls addPipe mutation with form data on valid submit", async () => {
     const user = userEvent.setup();
-    render(<AddPipeButton parentId={parentId} />);
-
-    await user.click(screen.getByText("Add pipe"));
-
-    const nameInput = screen.getByPlaceholderText("Pipe name");
-    await user.type(nameInput, "Food");
-
+    renderModal();
+    await user.type(screen.getByPlaceholderText("Pipe name"), "Food");
     await user.click(screen.getByText("Submit"));
-
     await waitFor(() => {
       expect(mockAddPipe).toHaveBeenCalledWith({
         name: "Food",
@@ -112,21 +89,13 @@ describe("AddPipeButton", () => {
 
   it("shows error and re-enables button on mutation failure", async () => {
     mockAddPipe.mockRejectedValueOnce(new Error("Server error"));
-
     const user = userEvent.setup();
-    render(<AddPipeButton parentId={parentId} />);
-
-    await user.click(screen.getByText("Add pipe"));
-
-    const nameInput = screen.getByPlaceholderText("Pipe name");
-    await user.type(nameInput, "Food");
-
+    renderModal();
+    await user.type(screen.getByPlaceholderText("Pipe name"), "Food");
     await user.click(screen.getByText("Submit"));
-
     await waitFor(() => {
       expect(screen.getByText("Server error")).toBeDefined();
     });
-
     expect(screen.getByText("Submit")).toBeDefined();
   });
 
@@ -137,23 +106,21 @@ describe("AddPipeButton", () => {
         resolveMutation = resolve;
       }),
     );
-
     const user = userEvent.setup();
-    render(<AddPipeButton parentId={parentId} />);
-
-    await user.click(screen.getByText("Add pipe"));
-
-    const nameInput = screen.getByPlaceholderText("Pipe name");
-    await user.type(nameInput, "Food");
-
+    renderModal();
+    await user.type(screen.getByPlaceholderText("Pipe name"), "Food");
     await user.click(screen.getByText("Submit"));
-
     expect(screen.queryByText("Submit")).toBeNull();
-
     resolveMutation(undefined);
-
     await waitFor(() => {
-      expect(screen.getByText("Add pipe")).toBeDefined();
+      expect(onClose).toHaveBeenCalled();
     });
+  });
+
+  it("calls onClose when cancel is pressed", async () => {
+    const user = userEvent.setup();
+    renderModal();
+    await user.click(screen.getByText("Cancel"));
+    expect(onClose).toHaveBeenCalled();
   });
 });

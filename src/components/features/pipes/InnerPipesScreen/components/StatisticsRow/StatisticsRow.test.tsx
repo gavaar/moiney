@@ -17,11 +17,6 @@ vi.mock("@features/pipes/context/PipeSelectionContext", () => ({
   }),
 }));
 
-vi.mock("@features/pipes/InnerPipesScreen/components/DeletePipeConfirmation", () => ({
-  DeletePipeConfirmation: ({ visible }: any) =>
-    visible ? <div data-testid="delete-confirmation">Delete confirmation</div> : null,
-}));
-
 import { StatisticsRow } from "./StatisticsRow";
 
 vi.mock("@ui/Popover", () => ({
@@ -60,13 +55,6 @@ describe("StatisticsRow", () => {
     expect(screen.getByText(/StMpD: 13\.33/)).toBeDefined();
   });
 
-  it("renders options icon", () => {
-    render(<StatisticsRow fed={1000} spent={400} />);
-    const icons = screen.getAllByTestId("icon");
-    const optionsIcon = icons.find((i) => i.getAttribute("data-name") === "ellipsis-vertical");
-    expect(optionsIcon).toBeDefined();
-  });
-
   it("opens stat description popover on tap", async () => {
     const user = userEvent.setup();
     render(<StatisticsRow fed={1000} spent={400} />);
@@ -83,46 +71,10 @@ describe("StatisticsRow", () => {
     expect(screen.queryByText(/Spent this month \(StM\):/)).toBeNull();
   });
 
-  it("opens popover on options icon tap showing edit and delete icons", async () => {
-    const user = userEvent.setup();
-    render(<StatisticsRow fed={1000} spent={400} />);
-    const icons = screen.getAllByTestId("icon");
-    const optionsIcon = icons.find((i) => i.getAttribute("data-name") === "ellipsis-vertical")!;
-    await user.click(optionsIcon);
-    const popoverIcons = screen.getAllByTestId("icon");
-    const pencil = popoverIcons.find((i) => i.getAttribute("data-name") === "pencil-outline");
-    const trash = popoverIcons.find((i) => i.getAttribute("data-name") === "trash-bin-outline");
-    expect(pencil).toBeDefined();
-    expect(trash).toBeDefined();
-  });
-
-  it("closes popover on backdrop tap", async () => {
-    const user = userEvent.setup();
-    render(<StatisticsRow fed={1000} spent={400} />);
-    const icons = screen.getAllByTestId("icon");
-    const optionsIcon = icons.find((i) => i.getAttribute("data-name") === "ellipsis-vertical")!;
-    await user.click(optionsIcon);
-    expect(screen.getByTestId("popover")).toBeDefined();
-    await user.click(screen.getByTestId("popover-backdrop"));
-    expect(screen.queryByTestId("popover")).toBeNull();
-  });
-
   it("renders separators between stats", () => {
     render(<StatisticsRow fed={1000} spent={400} />);
     const separators = screen.getAllByText("|");
     expect(separators.length).toBe(2);
-  });
-
-  it("opens delete confirmation modal on trash tap", async () => {
-    const user = userEvent.setup();
-    render(<StatisticsRow fed={1000} spent={400} />);
-    const icons = screen.getAllByTestId("icon");
-    const optionsIcon = icons.find((i) => i.getAttribute("data-name") === "ellipsis-vertical")!;
-    await user.click(optionsIcon);
-    const popoverIcons = screen.getAllByTestId("icon");
-    const trash = popoverIcons.find((i) => i.getAttribute("data-name") === "trash-bin-outline")!;
-    await user.click(trash);
-    expect(screen.getByTestId("delete-confirmation")).toBeDefined();
   });
 
   it("renders days left with a timer-outline icon for cron pipes", () => {
@@ -169,7 +121,7 @@ describe("StatisticsRow", () => {
     render(<StatisticsRow fed={1000} spent={400} />);
 
     const timerIcon = screen
-      .getAllByTestId("icon")
+      .queryAllByTestId("icon")
       .find((i) => i.getAttribute("data-name") === "timer-outline");
     expect(timerIcon).toBeUndefined();
   });

@@ -65,13 +65,15 @@ export default function Pipes() {
         )}
       </View>
 
-      <View style={{ flex: 1 }}>
-        <Text className="text-text font-semibold text-base my-2 px-2">Latest transactions</Text>
-        <TransactionList
-          transactions={transactions}
-          isLoading={transactionLoading}
-        />
-      </View>
+      {!treeMode && (
+        <View style={{ flex: 1 }}>
+          <Text className="text-text font-semibold text-base my-2 px-2">Latest transactions</Text>
+          <TransactionList
+            transactions={transactions}
+            isLoading={transactionLoading}
+          />
+        </View>
+      )}
     </SafeAreaView>
   );
 }
