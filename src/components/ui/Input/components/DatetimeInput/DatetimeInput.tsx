@@ -4,7 +4,6 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import { cn } from "@/lib/styles";
 import { Icon } from "@ui/Icon";
 import { ModalShell } from "@ui/Modal";
-import { Button } from "@ui/Button";
 import { getBorderStyle } from "../../input.config";
 
 export type DatetimeMode = "date" | "datetime";
@@ -130,16 +129,13 @@ export function DatetimeInput({ label, error, disabled, value, onChange, mode = 
       {showPicker ? (
         isIOS ? (
           <ModalShell visible={showPicker} onClose={handleDone}>
-            <View className="gap-4">
-              <DateTimePicker
-                value={value}
-                mode={mode}
-                display="spinner"
-                onValueChange={handleValueChange}
-                onDismiss={handleDismiss}
-              />
-              <Button title="Done" onPress={handleDone} />
-            </View>
+            <DateTimePicker
+              value={value}
+              mode={mode}
+              display="spinner"
+              onValueChange={handleValueChange}
+              onDismiss={handleDismiss}
+            />
           </ModalShell>
         ) : (
           <>

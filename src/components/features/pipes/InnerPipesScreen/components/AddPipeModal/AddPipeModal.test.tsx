@@ -40,7 +40,7 @@ describe("AddPipeModal", () => {
     renderModal();
     expect(screen.getByPlaceholderText("Pipe name")).toBeDefined();
     expect(screen.getByText("Submit")).toBeDefined();
-    expect(screen.getByText("Cancel")).toBeDefined();
+    expect(screen.queryByText("Cancel")).toBeNull();
   });
 
   it("resets form fields when reopened", async () => {
@@ -117,10 +117,10 @@ describe("AddPipeModal", () => {
     });
   });
 
-  it("calls onClose when cancel is pressed", async () => {
+  it("calls onClose when the backdrop is pressed", async () => {
     const user = userEvent.setup();
     renderModal();
-    await user.click(screen.getByText("Cancel"));
+    await user.click(screen.getByTestId("modal-backdrop"));
     expect(onClose).toHaveBeenCalled();
   });
 });

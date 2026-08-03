@@ -64,7 +64,7 @@ export function EditPipeModal({ visible, onClose, pipeId }: EditPipeModalProps) 
   if (!pipe) return null;
 
   return (
-    <ModalShell visible={visible} closeOnBackdropPress={false} onClose={onClose}>
+    <ModalShell visible={visible} onClose={onClose}>
       <ScrollView style={{ flexGrow: 0 }}>
         <View className="gap-4">
           <View className="flex-row items-center gap-2">
@@ -120,14 +120,8 @@ export function EditPipeModal({ visible, onClose, pipeId }: EditPipeModalProps) 
         </View>
       </ScrollView>
 
-      <View className="flex-row gap-2 mt-4">
-        <Button
-          className="flex-1"
-          title="Cancel"
-          variant="muted"
-          onPress={onClose}
-        />
-        <Button className="flex-[2_1_0]" title="Submit" loading={isSubmitting} onPress={handleSubmit} />
+      <View className="mt-4">
+        <Button title="Submit" loading={isSubmitting} onPress={handleSubmit} />
       </View>
     </ModalShell>
   );

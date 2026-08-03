@@ -176,7 +176,7 @@ export function StackedTransactionItem({
         </Text>
       </Pressable>
 
-      <ModalShell visible={showForm} closeOnBackdropPress={true} onClose={() => setShowForm(false)}>
+      <ModalShell visible={showForm} onClose={() => setShowForm(false)}>
         {primaryPipe && (
           <AmountForm variant="transaction" pipeId={primaryPipe._id} initState={amountFormInitState} />
         )}

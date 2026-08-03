@@ -84,7 +84,7 @@ export function AddPipeModal({ parentId, visible, onClose }: AddPipeModalProps) 
   };
 
   return (
-    <ModalShell visible={visible} closeOnBackdropPress={false} onClose={onClose}>
+    <ModalShell visible={visible} onClose={onClose}>
       <ScrollView>
         <View className="gap-4">
           <Input label="Parent" value={parentName} disabled />
@@ -157,18 +157,8 @@ export function AddPipeModal({ parentId, visible, onClose }: AddPipeModalProps) 
         </View>
       ) : null}
 
-      <View className="flex-row gap-2 mt-4">
-        <Button
-          className="flex-1"
-          title="Cancel"
-          variant="muted"
-          onPress={() => {
-            onClose();
-            resetForm();
-          }}
-          disabled={loading}
-        />
-        <Button className="flex-[2_1_0]" title="Submit" onPress={handleSubmit} loading={loading} />
+      <View className="mt-4">
+        <Button title="Submit" onPress={handleSubmit} loading={loading} />
       </View>
     </ModalShell>
   );

@@ -90,11 +90,11 @@ export function TransactionItem({ transaction }: TransactionItemProps) {
         {transaction.value.toFixed(2)}
       </Text>
 
-      <ModalShell visible={showForm} closeOnBackdropPress={true} onClose={() => setShowForm(false)}>
+      <ModalShell visible={showForm} onClose={() => setShowForm(false)}>
         {primaryPipe && <AmountForm variant="transaction" pipeId={primaryPipe._id} initState={amountFormInitState} />}
       </ModalShell>
 
-      <ModalShell visible={showDisabledInfo} closeOnBackdropPress={true} onClose={() => setShowDisabledInfo(false)}>
+      <ModalShell visible={showDisabledInfo} onClose={() => setShowDisabledInfo(false)}>
         <View className="p-4">
           <Text className="text-text font-bold text-lg mb-2">Cannot repeat transaction</Text>
           <Text className="text-muted text-sm leading-5">

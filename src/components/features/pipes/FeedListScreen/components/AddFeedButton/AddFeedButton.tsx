@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import { useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { Button } from "@ui/Button";
-import { type IconName } from "@ui/Icon";
+import { ICON_REGISTRY, type IconName } from "@ui/Icon";
 import { Input } from "@ui/Input";
 import { useAlert } from "@ui/Alert";
 import { ModalShell } from "@ui/Modal";
@@ -20,25 +20,38 @@ export function AddFeedButton() {
   const showAlert = useAlert();
   const addFeed = useMutation(api.pipes.addFeed);
 
-  const validateName = (value: string): string | undefined => {
+  const validateName = useCallback((value: string): string | undefined => {
     if (!value.trim()) return "Name is required";
     if (value.trim().length < 2) return "Name must be at least 2 characters";
     return undefined;
-  };
+  }, []);
 
-  const resetForm = () => {
+  const handleNameChange = useCallback((value: string) => {
+    setName(value);
+    setNameError(undefined);
+  }, []);
+
+  const handleNameBlur = useCallback(() => {
+    setNameError(validateName(name));
+  }, [name, validateName]);
+
+  const resetForm = useCallback(() => {
     setName("");
     setIcon("");
     setDescription("");
     setNameError(undefined);
-  };
+  }, []);
 
-  const handleSubmit = async () => {
-    const error = validateName(name);
-    if (error) {
-      setNameError(error);
-      return;
-    }
+  const canSubmit = useMemo(
+    () =>
+      validateName(name) === undefined &&
+      icon !== "" &&
+      icon in ICON_REGISTRY,
+    [name, icon, validateName],
+  );
+
+  const handleSubmit = useCallback(async () => {
+    if (!canSubmit || loading) return;
     setLoading(true);
     try {
       await addFeed({
@@ -56,7 +69,16 @@ export function AddFeedButton() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [
+    canSubmit,
+    loading,
+    addFeed,
+    name,
+    icon,
+    description,
+    showAlert,
+    resetForm,
+  ]);
 
   return (
     <>
@@ -68,17 +90,14 @@ export function AddFeedButton() {
         <Text className="text-primary text-base">Add new Feed</Text>
       </TouchableOpacity>
 
-      <ModalShell visible={visible} closeOnBackdropPress={false} onClose={() => setVisible(false)}>
+      <ModalShell visible={visible} onClose={() => setVisible(false)}>
         <View className="gap-4">
           <Input
             label="Name"
             placeholder="Feed name"
             value={name}
-            onChangeText={(v) => {
-              setName(v);
-              setNameError(undefined);
-            }}
-            onBlur={() => setNameError(validateName(name))}
+            onChangeText={handleNameChange}
+            onBlur={handleNameBlur}
             error={nameError}
           />
           <Input type="icon" label="Icon" value={icon} onSelect={setIcon} />
@@ -90,15 +109,15 @@ export function AddFeedButton() {
             multiline
             numberOfLines={3}
           />
-          <View className="flex-row gap-2">
+          <View className="mt-2">
             <Button
-              className="flex-1"
-              title="Cancel"
-              variant="muted"
-              onPress={() => setVisible(false)}
-              disabled={loading}
+              className="ml-auto min-w-40"
+              title="Add"
+              onPress={handleSubmit}
+              loading={loading}
+              disabled={!canSubmit}
+              testID="add-feed-submit"
             />
-            <Button className="flex-[2_1_0]" title="Add" onPress={handleSubmit} loading={loading} />
           </View>
         </View>
       </ModalShell>

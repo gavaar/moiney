@@ -215,10 +215,8 @@ export function RuleModal({ visible, onClose, pipeId }: Props) {
         </View>
       </ScrollView>
 
-      <View className="flex-row gap-2 mt-4">
-        <Button className="flex-1" title="Cancel" variant="muted" onPress={onClose} />
+      <View className="mt-4">
         <Button
-          className="flex-[2_1_0]"
           title={actionTitle}
           variant={actionVariant}
           icon={actionIcon}

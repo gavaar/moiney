@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { AddFeedButton } from "./AddFeedButton";
@@ -24,16 +24,20 @@ vi.mock("@convex/_generated/api", () => ({
   },
 }));
 
+const openModal = async () => {
+  const user = userEvent.setup();
+  render(<AddFeedButton />);
+  await user.click(screen.getByText("Add new Feed"));
+  return user;
+};
+
 describe("AddFeedButton", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("calls addFeed mutation with form data on submit", async () => {
-    const user = userEvent.setup();
-    render(<AddFeedButton />);
-
-    await user.click(screen.getByText("Add new Feed"));
+    const user = await openModal();
 
     const nameInput = screen.getByPlaceholderText("Feed name");
     await user.type(nameInput, "Food");
@@ -53,13 +57,13 @@ describe("AddFeedButton", () => {
   });
 
   it("shows success alert and closes modal on successful submit", async () => {
-    const user = userEvent.setup();
-    render(<AddFeedButton />);
-
-    await user.click(screen.getByText("Add new Feed"));
+    const user = await openModal();
 
     const nameInput = screen.getByPlaceholderText("Feed name");
     await user.type(nameInput, "Food");
+
+    await user.click(screen.getByTestId("icon-picker-trigger"));
+    await user.click(screen.getByText("wallet-outline"));
 
     await user.click(screen.getByText("Add"));
 
@@ -73,13 +77,13 @@ describe("AddFeedButton", () => {
   it("shows error alert and keeps modal open on mutation failure", async () => {
     mockAddFeed.mockRejectedValueOnce(new Error("Server error"));
 
-    const user = userEvent.setup();
-    render(<AddFeedButton />);
-
-    await user.click(screen.getByText("Add new Feed"));
+    const user = await openModal();
 
     const nameInput = screen.getByPlaceholderText("Feed name");
     await user.type(nameInput, "Food");
+
+    await user.click(screen.getByTestId("icon-picker-trigger"));
+    await user.click(screen.getByText("wallet-outline"));
 
     await user.click(screen.getByText("Add"));
 
@@ -89,26 +93,23 @@ describe("AddFeedButton", () => {
   });
 
   it("shows validation error when name is empty", async () => {
-    const user = userEvent.setup();
-    render(<AddFeedButton />);
+    const user = await openModal();
 
-    await user.click(screen.getByText("Add new Feed"));
-    await user.click(screen.getByText("Add"));
+    const nameInput = screen.getByPlaceholderText("Feed name");
+    await user.click(nameInput);
+    await user.tab();
 
     expect(screen.getByText("Name is required")).toBeDefined();
     expect(mockAddFeed).not.toHaveBeenCalled();
   });
 
   it("shows validation error when name is less than 2 characters", async () => {
-    const user = userEvent.setup();
-    render(<AddFeedButton />);
-
-    await user.click(screen.getByText("Add new Feed"));
+    const user = await openModal();
 
     const nameInput = screen.getByPlaceholderText("Feed name");
     await user.type(nameInput, "a");
-
-    await user.click(screen.getByText("Add"));
+    await user.click(nameInput);
+    await user.tab();
 
     expect(
       screen.getByText("Name must be at least 2 characters"),
@@ -116,39 +117,67 @@ describe("AddFeedButton", () => {
     expect(mockAddFeed).not.toHaveBeenCalled();
   });
 
-  it("clears validation error when user types after failed submit", async () => {
-    const user = userEvent.setup();
-    render(<AddFeedButton />);
+  it("clears validation error when user types after blurring empty name", async () => {
+    const user = await openModal();
 
-    await user.click(screen.getByText("Add new Feed"));
-    await user.click(screen.getByText("Add"));
+    const nameInput = screen.getByPlaceholderText("Feed name");
+    await user.click(nameInput);
+    await user.tab();
 
     expect(screen.getByText("Name is required")).toBeDefined();
 
-    const nameInput = screen.getByPlaceholderText("Feed name");
     await user.type(nameInput, "F");
 
     expect(screen.queryByText("Name is required")).toBeNull();
   });
 
   it("re-validates name on blur after typing", async () => {
-    const user = userEvent.setup();
-    render(<AddFeedButton />);
-
-    await user.click(screen.getByText("Add new Feed"));
-    await user.click(screen.getByText("Add"));
-
-    expect(screen.getByText("Name is required")).toBeDefined();
+    const user = await openModal();
 
     const nameInput = screen.getByPlaceholderText("Feed name");
+
+    await user.click(nameInput);
+    await user.tab();
+    expect(screen.getByText("Name is required")).toBeDefined();
 
     await user.type(nameInput, "F");
     expect(screen.queryByText("Name is required")).toBeNull();
 
-    fireEvent.blur(nameInput);
+    await user.click(nameInput);
+    await user.tab();
 
     expect(
       screen.getByText("Name must be at least 2 characters"),
     ).toBeDefined();
+  });
+
+  it("disables Add button when form is empty", async () => {
+    await openModal();
+
+    const btn = screen.getByTestId("add-feed-submit");
+    expect(btn.getAttribute("aria-disabled")).toBe("true");
+  });
+
+  it("disables Add button with a valid name but no icon", async () => {
+    const user = await openModal();
+
+    const nameInput = screen.getByPlaceholderText("Feed name");
+    await user.type(nameInput, "Food");
+
+    const btn = screen.getByTestId("add-feed-submit");
+    expect(btn.getAttribute("aria-disabled")).toBe("true");
+  });
+
+  it("enables Add button when name and icon are provided", async () => {
+    const user = await openModal();
+
+    const nameInput = screen.getByPlaceholderText("Feed name");
+    await user.type(nameInput, "Food");
+
+    await user.click(screen.getByTestId("icon-picker-trigger"));
+    await user.click(screen.getByText("wallet-outline"));
+
+    const btn = screen.getByTestId("add-feed-submit");
+    expect(btn.getAttribute("aria-disabled")).toBeNull();
   });
 });
