@@ -26,7 +26,7 @@ type PipesListProps = {
   footer?: ReactNode;
 };
 
-export function PipesList({ pipes, onSelectPipe, leading, trailing, priority, footer }: PipesListProps) {
+export function PipesList({ pipes, onSelectPipe, leading, trailing, footer }: PipesListProps) {
   const { childrenByParent } = usePipeSelection();
 
   return (
@@ -40,7 +40,7 @@ export function PipesList({ pipes, onSelectPipe, leading, trailing, priority, fo
         }));
 
         return (
-          <View key={item._id} className="flex-row items-center gap-2">
+          <View key={item._id} className="flex-row items-center">
             {leading?.(item)}
             <PipeBox
               name={item.name}

@@ -1,0 +1,45 @@
+# TODO: TEMPORARY WORKAROUND - REMOVE ONCE UPSTREAM FIX LANDS IN AN SDK-57-COMPATIBLE METRO
+#
+# Why this exists:
+#   react-native-worklets "bundle mode" isolates each worklet into a throwaway module
+#   (node_modules/react-native-worklets/.worklets/*.js) at build time. Metro does not
+#   index these generated files in time, so bundling fails with
+#   "Failed to get the SHA-1 for: .../react-native-worklets/.worklets/<hash>.js".
+#   This patch makes Metro return a pseudo-SHA-1 for anything under the .worklets dir.
+#
+# This is the officially-provided workaround from Software Mansion
+# (react-native-worklets bundleMode docs), a stopgap until the fix is merged into Metro.
+#
+# REMOVAL TRIGGER: Drop this patch once either:
+#   1. A future Expo SDK (e.g. 58+) bundles a Metro that ships the SHA-1 index fix natively, OR
+#   2. An SDK-57-compatible Metro (pinned by @expo/metro@56.0.0 -> metro@0.84.4)
+#      releases the fix without requiring a package bump.
+#
+# CAUTION: We are pinned to metro@0.84.4 by Expo SDK 57. The "latest" Metro tag (0.87.x)
+#   is NOT usable here - upgrading Metro without a matching SDK breaks the Expo Go pin.
+#   Do NOT appease this TODO by bumping metro to a later tag.
+#
+# When considering removal, re-check the upstream patches folder for what SDK 57 supports:
+#   https://github.com/software-mansion/react-native-reanimated/tree/main/packages/react-native-worklets/bundleMode/patches/patch-package/metro
+
+diff --git a/src/node-haste/DependencyGraph.js b/src/node-haste/DependencyGraph.js
+index 6875a792fb60de3c08cef619b78d98d099cdb672..e806ce9105e338c1e28ac69efd78dbfcb2056a70 100644
+--- a/src/node-haste/DependencyGraph.js
++++ b/src/node-haste/DependencyGraph.js
+@@ -32,6 +32,7 @@ function getOrCreateMap(map, field) {
+   }
+   return subMap;
+ }
++const workletsDirPath = _path.default.join("react-native-worklets", ".worklets");
+ class DependencyGraph extends _events.default {
+   #packageCache;
+   #dependencyPlugin;
+@@ -197,7 +198,7 @@ class DependencyGraph extends _events.default {
+     return (0, _nullthrows.default)(this._fileSystem).getAllFiles();
+   }
+   async getOrComputeSha1(mixedPath) {
+-    if (mixedPath.includes("react-native-worklets/.worklets")) {
++    if (mixedPath.includes(workletsDirPath)) {
+       const createHash = require("crypto").createHash;
+       return {
+         sha1: createHash("sha1")

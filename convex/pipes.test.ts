@@ -11,7 +11,9 @@ function mockDb() {
     get: vi.fn(),
     patch: vi.fn(),
     insert: vi.fn(),
-    query: vi.fn(),
+    query: vi.fn(() => ({
+      withIndex: vi.fn(() => ({ collect: vi.fn().mockResolvedValue([]) })),
+    })),
   };
 }
 
@@ -352,27 +354,33 @@ describe("runDueCronRules", () => {
   };
 
   function mockQueryChain(pipes: any[]) {
-    const bounds: any = {};
-    const q = {
+    const calls: any[] = [];
+    const q: any = {
       eq: (f: string, v: unknown) => {
-        bounds.eq = [f, v];
+        q.eqArgs = [f, v];
         return q;
       },
       gte: (f: string, v: unknown) => {
-        bounds.gte = [f, v];
+        q.gteArgs = [f, v];
         return q;
       },
       lt: (f: string, v: unknown) => {
-        bounds.lt = [f, v];
+        q.ltArgs = [f, v];
         return q;
       },
     };
-    const withIndex = vi.fn((_name: string, predicate: any) => {
+    const withIndex = vi.fn((name: string, predicate: any) => {
+      q.eqArgs = undefined;
+      q.gteArgs = undefined;
+      q.ltArgs = undefined;
       predicate(q);
-      return { collect: vi.fn().mockResolvedValue(pipes) };
+      calls.push({ index: name, ...(q.eqArgs ? { eq: q.eqArgs } : {}), ...(q.ltArgs ? { lt: q.ltArgs } : {}) });
+      return {
+        collect: vi.fn().mockResolvedValue(name === "by_parentId" ? [] : pipes),
+      };
     });
     const query = vi.fn(() => ({ withIndex }));
-    return { bounds, withIndex, query };
+    return { calls, withIndex, query };
   }
 
   beforeEach(() => {
@@ -380,24 +388,24 @@ describe("runDueCronRules", () => {
   });
 
   it("queries the by_rule_cronNextDate index for cron pipes due before end of today", async () => {
-    const { bounds, withIndex, query } = mockQueryChain([dueToday]);
+    const { calls, query } = mockQueryChain([dueToday]);
     const ctx = mockCtx();
     ctx.db.query = query;
+    ctx.db.get.mockResolvedValue(dueToday);
 
     await (runDueCronRules as any)._handler(ctx, { now: NOW });
 
-    expect(withIndex).toHaveBeenCalledWith(
-      "by_rule_cronNextDate",
-      expect.any(Function),
-    );
-    expect(bounds.eq).toEqual(["rule", "cron"]);
-    expect(bounds.lt).toEqual(["cronNextDate", END_OF_TODAY]);
+    const cronCall = calls.find((c) => c.index === "by_rule_cronNextDate");
+    expect(cronCall).toBeDefined();
+    expect(cronCall.eq).toEqual(["rule", "cron"]);
+    expect(cronCall.lt).toEqual(["cronNextDate", END_OF_TODAY]);
   });
 
   it("runs executePipeRule for each pipe the index returns", async () => {
     const { query } = mockQueryChain([dueToday]);
     const ctx = mockCtx();
     ctx.db.query = query;
+    ctx.db.get.mockResolvedValue(dueToday);
 
     await (runDueCronRules as any)._handler(ctx, { now: NOW });
 

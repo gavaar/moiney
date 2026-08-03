@@ -1,13 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   calculatePipeAllocations,
+  collectChildSubtree,
   computeCronIntervalProgress,
   computeCronNextDate,
   computeElapsedIntervals,
   computePipeDerivedValues,
   computePipeTree,
   executePipeRule,
+  recalcPipeSubtree,
   recalculatePipes,
+  resolveTopMostAncestor,
   splitEvenly,
 } from "./pipes";
 
@@ -636,6 +639,124 @@ describe("recalculatePipes", () => {
       { _id: "c", parentId: "a", priority: 1, capacity: 0, fed: -100 },
     ]);
     expect(new Map(feed3.map((r) => [r._id, r.fed])).get("c")).toBe(0);
+  });
+});
+
+function makeDb(docs: Record<string, any>) {
+  const patch = vi.fn(async (id: any, p: any) => {
+    docs[id] = { ...docs[id], ...p };
+  });
+  let field: string | undefined;
+  let value: unknown;
+  const db = {
+    get: async (id: any) => (id in docs ? docs[id] : null),
+    patch,
+    query: () => {
+      const builder = {
+        eq: (f: string, v: unknown) => {
+          field = f;
+          value = v;
+          return {};
+        },
+      };
+      const queryObj = {
+        withIndex: (_name: string, fn?: (q: any) => any) => {
+          if (fn) fn(builder as any);
+          return queryObj;
+        },
+        collect: async () => {
+          if (field === "parentId") {
+            return Object.values(docs).filter((d: any) => d.parentId === value);
+          }
+          return Object.values(docs);
+        },
+      };
+      return queryObj;
+    },
+  };
+  return { db, patch };
+}
+
+describe("resolveTopMostAncestor", () => {
+  it("resolves a leaf to its top-most ancestor by walking parentId", async () => {
+    const { db } = makeDb({
+      a: { _id: "a", parentId: undefined },
+      b: { _id: "b", parentId: "a" },
+      c: { _id: "c", parentId: "b" },
+    });
+
+    expect(await resolveTopMostAncestor({ db } as any, "c" as any)).toBe("a");
+    expect(await resolveTopMostAncestor({ db } as any, "b" as any)).toBe("a");
+    expect(await resolveTopMostAncestor({ db } as any, "a" as any)).toBe("a");
+  });
+
+  it("returns the pipe itself when it is already a root", async () => {
+    const { db } = makeDb({ a: { _id: "a", parentId: undefined } });
+    expect(await resolveTopMostAncestor({ db } as any, "a" as any)).toBe("a");
+  });
+});
+
+describe("collectChildSubtree", () => {
+  it("returns all descendants of a root (not the root itself)", async () => {
+    const { db } = makeDb({
+      a: { _id: "a", parentId: undefined },
+      b: { _id: "b", parentId: "a" },
+      c: { _id: "c", parentId: "b" },
+      d: { _id: "d", parentId: "b" },
+      z: { _id: "z", parentId: undefined },
+    });
+
+    const subtree = await collectChildSubtree({ db } as any, "a" as any);
+    const ids = subtree.map((p) => p._id).sort();
+    expect(ids).toEqual(["b", "c", "d"]);
+  });
+});
+
+describe("recalcPipeSubtree", () => {
+  function pipe(id: string, parentId: any, fed: number, capacity?: number, priority = 0) {
+    return { _id: id, parentId, fed, capacity, priority };
+  }
+
+  it("rebalances only the affected root's subtree and patches changed fed", async () => {
+    // Two independent trees. Only the first fires and must be rebalanced.
+    const docs: Record<string, any> = {
+      z: pipe("z", undefined, 500, undefined), // unrelated root, must stay alone
+      a: pipe("a", undefined, 2772.9),
+      home: pipe("home", "a", 1913.46, 1702.65),
+      health: pipe("health", "a", 402.55, 230.3),
+      dumb: pipe("dumb", "a", 356.89, 400),
+      smart: pipe("smart", "a", 100, 100),
+    };
+    const { db, patch } = makeDb(docs);
+
+    await recalcPipeSubtree({ db } as any, "home" as any);
+
+    const fed = new Map<string, number>();
+    for (const [id, d] of Object.entries(docs)) fed.set(id, d.fed);
+
+    // overfed children reclaimed to their caps
+    expect(fed.get("home")).toBe(1702.65);
+    expect(fed.get("health")).toBe(230.3);
+    // smart already at cap stays at cap
+    expect(fed.get("smart")).toBe(100);
+    // the underfed child gets topped up from the parent surplus
+    expect(fed.get("dumb")).toBe(400);
+
+    // unrelated tree ("z") patched zero times
+    const patchedIds = patch.mock.calls.map((c) => c[0]);
+    expect(patchedIds).not.toContain("z");
+  });
+
+  it("does not patch pipes whose fed is unchanged", async () => {
+    const docs: Record<string, any> = {
+      a: pipe("a", undefined, 0),
+      b: pipe("b", "a", 100, 100), // at cap, nothing to change
+    };
+    const { db, patch } = makeDb(docs);
+
+    await recalcPipeSubtree({ db } as any, "b" as any);
+
+    expect(patch).not.toHaveBeenCalled();
   });
 });
 

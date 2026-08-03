@@ -9,7 +9,9 @@ import {
   computeElapsedIntervals,
   computePipeTree,
   executePipeRule,
+  recalcPipeSubtree,
   recascadeTree,
+  resolveTopMostAncestor,
 } from "./lib/pipes";
 
 async function checkPipeLimit(ctx: MutationCtx, userId: Id<"users">) {
@@ -244,6 +246,7 @@ export const executePipeRuleNow = mutation({
     if (pipe.userId !== userId) throw new Error("Not authorized");
 
     await executePipeRule(ctx, args.pipeId, { pipe });
+    await recalcPipeSubtree(ctx, args.pipeId);
   },
 });
 
@@ -268,8 +271,16 @@ export const runDueCronRules = internalMutation({
       )
       .collect();
 
+    const rootCache = new Map<Id<"pipes">, Id<"pipes">>();
+    const roots = new Set<Id<"pipes">>();
+
     for (const pipe of pipes) {
       await executePipeRule(ctx, pipe._id, { now, pipe });
+      roots.add(await resolveTopMostAncestor(ctx, pipe._id, rootCache));
+    }
+
+    for (const rootId of roots) {
+      await recalcPipeSubtree(ctx, rootId);
     }
   },
 });

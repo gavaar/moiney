@@ -52,7 +52,7 @@ export function RulesIcon({
   if (disabled) {
     return (
       <View className="p-3">
-        <View className="w-8 h-8 items-center justify-center" testID="rules-icon-box">
+        <View className="w-6 h-6 items-center justify-center" testID="rules-icon-box">
           <Icon name="pipe" size={20} color={colors.muted} testID="rules-icon-placeholder" />
         </View>
       </View>
@@ -62,12 +62,12 @@ export function RulesIcon({
   return (
     <>
       <TouchableOpacity className="p-3" onPress={() => setModalVisible(true)}>
-        <View className="relative w-8 h-8" testID="rules-icon-box">
+        <View className="relative w-6 h-6" testID="rules-icon-box">
           {ringProgress !== undefined ? (
-            <View className="absolute inset-0">
+            <View className="absolute inset-0 items-center justify-center">
               <ProgressRing
                 size={30}
-                strokeWidth={2}
+                strokeWidth={1}
                 progress={ringProgress}
                 color={color}
               />

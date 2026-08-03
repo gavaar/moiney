@@ -8,6 +8,7 @@ module.exports = {
     "./src/features/**/*.{js,jsx,ts,tsx}",
     "./src/lib/**/*.{js,jsx,ts,tsx}",
   ],
+  darkMode: "class",
   presets: [require("nativewind/preset")],
   theme: {
     extend: {

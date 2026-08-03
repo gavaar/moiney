@@ -60,5 +60,6 @@ export default defineSchema({
     })),
   })
     .index("by_userId", ["userId"])
+    .index("by_parentId", ["parentId"])
     .index("by_rule_cronNextDate", ["rule", "cronNextDate"]),
 });

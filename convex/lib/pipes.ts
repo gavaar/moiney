@@ -432,3 +432,67 @@ export function collectDescendants<TPipeId extends string>(
   }
   return ids;
 }
+
+export async function resolveTopMostAncestor(
+  ctx: MutationCtx,
+  startingPipeId: Id<"pipes">,
+  cache?: Map<Id<"pipes">, Id<"pipes">>,
+): Promise<Id<"pipes">> {
+  const cached = cache?.get(startingPipeId);
+  if (cached) return cached;
+
+  const first = await ctx.db.get(startingPipeId);
+  if (!first) throw new Error("Pipe not found");
+
+  const visited: Id<"pipes">[] = [first._id];
+  let cursor: Doc<"pipes"> = first;
+  while (cursor.parentId) {
+    const parent = await ctx.db.get(cursor.parentId);
+    if (!parent) break;
+    visited.push(parent._id);
+    cursor = parent;
+  }
+
+  if (cache) {
+    for (const id of visited) cache.set(id, cursor._id);
+  }
+  return cursor._id;
+}
+
+export async function collectChildSubtree(
+  ctx: MutationCtx,
+  rootId: Id<"pipes">,
+): Promise<Doc<"pipes">[]> {
+  const out: Doc<"pipes">[] = [];
+  const stack: Id<"pipes">[] = [rootId];
+  while (stack.length) {
+    const id = stack.pop()!;
+    const children = await ctx.db
+      .query("pipes")
+      .withIndex("by_parentId", (q) => q.eq("parentId", id))
+      .collect();
+    out.push(...children);
+    for (const child of children) stack.push(child._id);
+  }
+  return out;
+}
+
+export async function recalcPipeSubtree(
+  ctx: MutationCtx,
+  pipeId: Id<"pipes">,
+): Promise<void> {
+  const cache = new Map<Id<"pipes">, Id<"pipes">>();
+  const rootId = await resolveTopMostAncestor(ctx, pipeId, cache);
+  const root = await ctx.db.get(rootId);
+  const children = await collectChildSubtree(ctx, rootId);
+  const subtree: Doc<"pipes">[] = root ? [root, ...children] : [];
+
+  const updates = recalculatePipes(subtree);
+  const currentFed = new Map(subtree.map((p) => [p._id, p.fed]));
+
+  await Promise.all(
+    updates
+      .filter((u) => (currentFed.get(u._id) ?? 0) !== u.fed)
+      .map((u) => ctx.db.patch(u._id, { fed: u.fed })),
+  );
+}

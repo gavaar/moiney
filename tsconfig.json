@@ -24,6 +24,5 @@
     "convex/**/*.tsx",
     "nativewind-env.d.ts",
     "vitest.config.ts"
-  ],
-  "types": ["node"]
+  ]
 }

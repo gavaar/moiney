@@ -7,11 +7,6 @@
     "icon": "./assets/icon.png",
     "scheme": "moiney",
     "userInterfaceStyle": "dark",
-    "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "backgroundColor": "#111111"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.moiney.app"
@@ -33,7 +28,16 @@
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-status-bar",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "backgroundColor": "#111111"
+        }
+      ],
+      "expo-font"
     ],
     "extra": {
       "router": {},
