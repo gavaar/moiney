@@ -34,7 +34,9 @@ jobs:
       - name: Download APK
         run: |
           BUILD_ID=$(node -e "const b=JSON.parse(require('fs').readFileSync('eas-build.json','utf8'));const id=Array.isArray(b)?b[0].id:b.id;console.log(id)")
-          eas build:download "$BUILD_ID" --platform android --output apk/moiney.apk
+          APK_PATH=$(eas build:download --build-id "$BUILD_ID" --json --non-interactive | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>console.log(JSON.parse(d).path))")
+          mkdir -p apk
+          mv "$APK_PATH" apk/moiney.apk
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
