@@ -263,7 +263,7 @@ export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: 
         </View>
         <View className="flex-1">
           <Input
-            type="datetime"
+            type="date"
             label="Date"
             value={date}
             onChange={setDate}

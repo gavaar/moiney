@@ -18,6 +18,9 @@ moiney/
 │   │   └── (main)/       # Main app (tabs: history, pipes, profile)
 │   ├── components/       # All components (ui primitives + features)
 │   │   ├── ui/           # Alert, Button, Icon, Input, Modal, PipeBox, ScreenHeader, etc.
+│   │   │   └── Input/
+│   │   │       ├── Input.tsx          # polymorphic dispatcher (switches on `type`)
+│   │   │       └── components/        # one folder per variant (TextInput, NumberInput, DateInput, ...)
 │   │   └── features/     # Feature modules (feature-first colocation)
 │   │       ├── AmountForm/ # Shared feature-level component
 │   │       ├── pipes/     # Pipes feature: screens, contexts, sub-components
@@ -70,3 +73,25 @@ moiney/
 - Platform files: use `.native.ts` / `.web.ts` suffixes for platform-specific variants (e.g. `storage.ts`)
 - Convex schema in `convex/schema.ts`, domain functions in `convex/*.ts`, shared helpers in `convex/lib/`
 - For testing use `bun run test` instead of `bun test`
+
+### `Input` component (polymorphic form fields)
+`src/components/ui/Input/Input.tsx` is a single dispatcher component: it renders one of several field variants based on its `type` prop. Screens and features use `<Input type="..." />` — they never import variant components directly.
+
+- Variant mapping (`type` → component in `src/components/ui/Input/components/`):
+
+  | `type` | Component | Folder |
+  | --- | --- | --- |
+  | `"text"` | `TextInput` | `TextInput/` |
+  | `"number"` | `NumberInput` | `NumberInput/` |
+  | `"decimal"` | `DecimalInput` | `DecimalInput/` |
+  | `"date"` | `DateInput` | `DateInput/` |
+  | `"icon"` | `IconInput` | `IconInput/` |
+  | `"checkbox"` | `CheckboxInput` | `Checkbox/` |
+  | `"select"` | `SelectInput` | `SelectInput/` |
+  | `"text-select"` | `TextSelectInput` | `TextSelectInput/` |
+
+  Note: the `type` string does **not** always match the folder name (e.g. `"checkbox"` → `Checkbox/`, `"date"` → `DateInput`).
+- Each variant folder holds `<Variant>.tsx`, `<Variant>.test.tsx`, and an `index.ts` barrel, re-exported from `Input/components/index.ts`.
+- Each variant declares its own Props type in `Input.tsx` (e.g. `DateProps`, `SelectProps`); all of them are unioned into `Props` and dispatched via a `switch (props.type)`.
+- Complex variants colocate their internals inside their own folder (e.g. `DateInput/components/Calendar.tsx` modal + `DateInput/calendar.ts` pure date helpers).
+- Adding a new variant: create the folder under `components/`, re-export it in `components/index.ts`, then add its Props union + `case` in `Input.tsx`.

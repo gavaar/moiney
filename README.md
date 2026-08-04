@@ -37,6 +37,7 @@ moiney/
 │   ├── app/            # 🖥️ Expo Router screens (_layout, index, login, sign-up)
 │   ├── components/     # 🧩 Reusable UI + features
 │   │   ├── ui/         # Alert, Button, Input, Icon, Modal, ErrorBoundary, etc.
+│   │   │   └── Input/  # polymorphic dispatcher + variant folders (TextInput, NumberInput, DateInput, ...)
 │   │   └── features/   # Feature modules (pipes, transactions, AmountForm)
 │   └── lib/            # 🔧 Hooks, utils, auth state, storage, test files
 ├── convex/

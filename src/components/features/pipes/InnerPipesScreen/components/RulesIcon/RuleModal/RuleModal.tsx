@@ -194,8 +194,7 @@ export function RuleModal({ visible, onClose, pipeId }: Props) {
               </View>
 
               <Input
-                type="datetime"
-                mode="date"
+                type="date"
                 label="Starting date"
                 value={starting}
                 onChange={setStarting}

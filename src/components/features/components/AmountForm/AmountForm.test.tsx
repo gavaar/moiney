@@ -77,7 +77,7 @@ vi.mock("@features/pipes/context/PipeSelectionContext", () => ({
 
 vi.mock("@ui/Input", () => ({
   Input: ({ label, type, value, onChangeText, onChange, disabled, placeholder, allowNegative, error, maxLength, items, onSelect, options, onOptionSelect }: any) => {
-    if (type === "datetime") {
+    if (type === "date") {
       return (
         <div data-testid={`input-${label}`}>
           <span>{label}</span>

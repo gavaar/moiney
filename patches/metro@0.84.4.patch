@@ -8,7 +8,8 @@
 #   This patch makes Metro return a pseudo-SHA-1 for anything under the .worklets dir.
 #
 # This is the officially-provided workaround from Software Mansion
-# (react-native-worklets bundleMode docs), a stopgap until the fix is merged into Metro.
+# (react-native-worklets bundleMode docs), a stopgap until the fix is merged into Metro:
+#   https://github.com/software-mansion/react-native-reanimated/tree/main/packages/react-native-worklets/bundleMode/patches/patch-package/metro/metro+0.84.4.patch
 #
 # REMOVAL TRIGGER: Drop this patch once either:
 #   1. A future Expo SDK (e.g. 58+) bundles a Metro that ships the SHA-1 index fix natively, OR
@@ -19,27 +20,37 @@
 #   is NOT usable here - upgrading Metro without a matching SDK breaks the Expo Go pin.
 #   Do NOT appease this TODO by bumping metro to a later tag.
 #
-# When considering removal, re-check the upstream patches folder for what SDK 57 supports:
-#   https://github.com/software-mansion/react-native-reanimated/tree/main/packages/react-native-worklets/bundleMode/patches/patch-package/metro
+# NOTE: This must remain a PURE-ADDITION patch. metro@0.84.4 as published on npm does NOT
+#   contain any worklets code, so any `-` hunk context that references it will not match
+#   and the patch application becomes environment-dependent (fails/corrupts in EAS builds).
 
 diff --git a/src/node-haste/DependencyGraph.js b/src/node-haste/DependencyGraph.js
-index 6875a792fb60de3c08cef619b78d98d099cdb672..e806ce9105e338c1e28ac69efd78dbfcb2056a70 100644
 --- a/src/node-haste/DependencyGraph.js
 +++ b/src/node-haste/DependencyGraph.js
-@@ -32,6 +32,7 @@ function getOrCreateMap(map, field) {
+@@ -32,6 +32,11 @@ function getOrCreateMap(map, field) {
    }
    return subMap;
  }
-+const workletsDirPath = _path.default.join("react-native-worklets", ".worklets");
++
++const workletsDirPath = _path.default.join(
++  "react-native-worklets",
++  ".worklets",
++);
  class DependencyGraph extends _events.default {
    #packageCache;
    #dependencyPlugin;
-@@ -197,7 +198,7 @@ class DependencyGraph extends _events.default {
+@@ -197,6 +202,14 @@ class DependencyGraph extends _events.default {
      return (0, _nullthrows.default)(this._fileSystem).getAllFiles();
    }
    async getOrComputeSha1(mixedPath) {
--    if (mixedPath.includes("react-native-worklets/.worklets")) {
 +    if (mixedPath.includes(workletsDirPath)) {
-       const createHash = require("crypto").createHash;
-       return {
-         sha1: createHash("sha1")
++      const createHash = require("crypto").createHash;
++      return {
++        sha1: createHash("sha1")
++          .update(performance.now().toString())
++          .digest("hex"),
++      };
++    }
+     const result = await this._fileSystem.getOrComputeSha1(mixedPath);
+     if (!result || !result.sha1) {
+       throw new Error(`Failed to get the SHA-1 for: ${mixedPath}.

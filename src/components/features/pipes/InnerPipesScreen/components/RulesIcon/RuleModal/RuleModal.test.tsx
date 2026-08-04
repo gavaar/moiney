@@ -15,7 +15,6 @@ const h = vi.hoisted(() => ({
   executePipeRuleNow: vi.fn(),
   showAlert: { success: vi.fn(), error: vi.fn() },
   usePipeSelection: vi.fn(),
-  pickerDate: { value: new Date(2026, 0, 15, 12) },
 }));
 
 vi.mock("@convex/_generated/api", () => ({ api: h.api }));
@@ -26,15 +25,6 @@ vi.mock("convex/react", () => ({
 vi.mock("@ui/Alert", () => ({ useAlert: () => h.showAlert }));
 vi.mock("@features/pipes/context/PipeSelectionContext", () => ({
   usePipeSelection: () => h.usePipeSelection(),
-}));
-vi.mock("@react-native-community/datetimepicker", () => ({
-  default: ({ mode, onValueChange }: any) => (
-    <button
-      data-testid="dt-picker"
-      data-mode={mode}
-      onClick={() => onValueChange(null, h.pickerDate.value)}
-    />
-  ),
 }));
 
 import { RuleModal } from "./RuleModal";

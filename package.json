@@ -16,7 +16,6 @@
     "@convex-dev/migrations": "^0.3.5",
     "@expo/metro-runtime": "~57.0.8",
     "@expo/vector-icons": "^15.0.2",
-    "@react-native-community/datetimepicker": "^9.1.0",
     "convex": "^1.42.3",
     "expo": "^57.0.0",
     "expo-constants": "~57.0.8",
@@ -54,6 +53,9 @@
     "vitest": "^4.1.10"
   },
   "private": true,
+  "engines": {
+    "node": ">=20.19.4"
+  },
   "patchedDependencies": {
     "metro@0.84.4": "patches/metro@0.84.4.patch"
   }

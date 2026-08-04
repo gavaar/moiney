@@ -23,6 +23,8 @@ const CURATED_ICONS = [
   { name: "checkmark", family: "Ionicons" as const },
   { name: "checkmark-circle", family: "Ionicons" as const },
   { name: "checkmark-done-outline", family: "Ionicons" as const },
+  { name: "chevron-back", family: "Ionicons" as const },
+  { name: "chevron-forward", family: "Ionicons" as const },
   { name: "close", family: "Ionicons" as const },
   { name: "close-circle", family: "Ionicons" as const },
   { name: "document-text-outline", family: "Ionicons" as const },
