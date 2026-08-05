@@ -8,6 +8,19 @@ export function calculateSpentUpdate(
   return currentSpent + -1 * value;
 }
 
+export function calculatePayByTransferUpdate(
+  fromFed: number,
+  fromSpent: number,
+  paidFromFed: number,
+  value: number,
+) {
+  return {
+    fromFed: fromFed - value,
+    fromSpent: calculateSpentUpdate(fromSpent, value),
+    paidFromFed: paidFromFed + value,
+  };
+}
+
 export async function updateOrCreateTitleUsage(
   ctx: MutationCtx,
   args: { pipeId: Id<"pipes">; userId: Id<"users">; title: string; date: number },

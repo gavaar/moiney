@@ -240,3 +240,25 @@ describe("TransactionItem feed variant", () => {
     expect(screen.getByText("Cannot repeat transaction")).toBeDefined();
   });
 });
+
+describe("TransactionItem pay-by-transfer variant", () => {
+  it("renders payer, arrow, and spending category icons in that order", () => {
+    mockUsePipeSelection.mockReturnValue({
+      pipesById: {
+        "salary-pipe": salaryPipe,
+        "rent-pipe": rentPipe,
+      },
+      childrenByParent: new Map(),
+    });
+    const tx = {
+      ...baseTx,
+      from: "rent-pipe" as Id<"pipes">,
+      paidFrom: "salary-pipe" as Id<"pipes">,
+    };
+
+    render(<TransactionItem transaction={tx} />);
+
+    expect(screen.getAllByTestId("mock-icon").map((icon) => icon.getAttribute("data-name")))
+      .toEqual(["cash-outline", "ray-start-arrow", "home-outline"]);
+  });
+});

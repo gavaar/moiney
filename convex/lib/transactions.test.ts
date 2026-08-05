@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { calculateSpentUpdate } from "./transactions";
+import {
+  calculatePayByTransferUpdate,
+  calculateSpentUpdate,
+} from "./transactions";
 import { recalculatePipes } from "./pipes";
 
 describe("calculateSpentUpdate", () => {
@@ -13,6 +16,33 @@ describe("calculateSpentUpdate", () => {
 
   it("returns same spent when value is 0", () => {
     expect(calculateSpentUpdate(100, 0)).toBe(100);
+  });
+});
+
+describe("calculatePayByTransferUpdate", () => {
+  it("moves fed from the payer and records an expense on the category", () => {
+    expect(calculatePayByTransferUpdate(100, 20, 250, -30)).toEqual({
+      fromFed: 130,
+      fromSpent: 50,
+      paidFromFed: 220,
+    });
+  });
+
+  it("reverses all effects for a positive refund", () => {
+    expect(calculatePayByTransferUpdate(100, 50, 220, 30)).toEqual({
+      fromFed: 70,
+      fromSpent: 20,
+      paidFromFed: 250,
+    });
+  });
+
+  it("keeps spent cumulative across expenses and a pay-by-transfer refund", () => {
+    let spent = calculateSpentUpdate(0, -10);
+    spent = calculatePayByTransferUpdate(100, spent, 100, -5).fromSpent;
+    spent = calculateSpentUpdate(spent, -8);
+    spent = calculatePayByTransferUpdate(100, spent, 100, 3).fromSpent;
+
+    expect(spent).toBe(20);
   });
 });
 

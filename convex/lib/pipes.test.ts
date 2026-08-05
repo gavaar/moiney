@@ -424,10 +424,10 @@ describe("recalculatePipes", () => {
       { _id: "d", parentId: "b", priority: 0, capacity: 400, fed: 0 },
     ]);
     const map = new Map(result.map((r) => [r._id, r.fed]));
-    // A gives its 1000 to B; D has room (cap 400, at 0) and gets 400.
-    // B keeps remaining (1100 - 400 = 700)
-    expect(map.get("a")).toBe(0);
-    expect(map.get("b")).toBe(700);
+    // B's subtree can retain 1300. D gets its missing 400 and the remaining
+    // 700 bubbles back to A instead of staying stranded on B.
+    expect(map.get("a")).toBe(700);
+    expect(map.get("b")).toBe(0);
     expect(map.get("c")).toBe(900);
     expect(map.get("d")).toBe(400);
     // total conserved
@@ -459,6 +459,60 @@ describe("recalculatePipes", () => {
     expect(map.get("a")).toBe(0);
     expect(map.get("b")).toBe(0);
     expect(map.get("c")).toBe(800);
+  });
+
+  it("returns unusable midway fed to the parent for sibling redistribution", () => {
+    const result = recalculatePipes([
+      { _id: "root", parentId: undefined, priority: 0, fed: 0 },
+      { _id: "midway", parentId: "root", priority: 0, fed: 20 },
+      { _id: "full-a", parentId: "midway", priority: 0, capacity: 50, fed: 50 },
+      { _id: "full-b", parentId: "midway", priority: 0, capacity: 50, fed: 50 },
+      { _id: "other", parentId: "root", priority: 0, capacity: 100, fed: 0 },
+    ]);
+
+    expect(new Map(result.map((pipe) => [pipe._id, pipe.fed]))).toEqual(
+      new Map([
+        ["root", 0],
+        ["midway", 0],
+        ["full-a", 50],
+        ["full-b", 50],
+        ["other", 20],
+      ]),
+    );
+  });
+
+  it("bubbles excess through multiple midway levels", () => {
+    const result = recalculatePipes([
+      { _id: "root", parentId: undefined, priority: 0, fed: 0 },
+      { _id: "outer", parentId: "root", priority: 0, fed: 30 },
+      { _id: "inner", parentId: "outer", priority: 0, fed: 0 },
+      { _id: "full", parentId: "inner", priority: 0, capacity: 100, fed: 100 },
+      { _id: "other", parentId: "root", priority: 0, capacity: 50, fed: 0 },
+    ]);
+    const fed = new Map(result.map((pipe) => [pipe._id, pipe.fed]));
+
+    expect(fed.get("outer")).toBe(0);
+    expect(fed.get("inner")).toBe(0);
+    expect(fed.get("other")).toBe(30);
+    expect(Array.from(fed.values()).reduce((sum, value) => sum + value, 0)).toBe(130);
+  });
+
+  it("keeps whole-tree excess at the root and is idempotent", () => {
+    const pipes = [
+      { _id: "root", parentId: undefined as string | undefined, priority: 0, fed: 0 },
+      { _id: "midway", parentId: "root", priority: 0, fed: 20 },
+      { _id: "full-a", parentId: "midway", priority: 0, capacity: 50, fed: 50 },
+      { _id: "full-b", parentId: "midway", priority: 0, capacity: 50, fed: 50 },
+    ];
+    const first = recalculatePipes(pipes);
+    const firstFed = new Map(first.map((pipe) => [pipe._id, pipe.fed]));
+    const second = recalculatePipes(
+      pipes.map((pipe) => ({ ...pipe, fed: firstFed.get(pipe._id) })),
+    );
+
+    expect(firstFed.get("root")).toBe(20);
+    expect(firstFed.get("midway")).toBe(0);
+    expect(second).toEqual(first);
   });
 
   it("respects priority ordering", () => {

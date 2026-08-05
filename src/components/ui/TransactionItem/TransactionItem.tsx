@@ -20,7 +20,7 @@ const DATE_FORMAT: Intl.DateTimeFormatOptions = {
 export function TransactionItem({ transaction }: TransactionItemProps) {
   const isFeed = !transaction.from && !!transaction.to;
   const isTransfer = !!transaction.from && !!transaction.to;
-  const isDrain = !!transaction.from && !transaction.to;
+  const isPayByTransfer = !!transaction.from && !!transaction.paidFrom;
   const isNegative = transaction.value < 0;
   const [showForm, setShowForm] = useState(false);
   const [showDisabledInfo, setShowDisabledInfo] = useState(false);
@@ -28,17 +28,31 @@ export function TransactionItem({ transaction }: TransactionItemProps) {
 
   const sourcePipe = transaction.from ? pipesById?.[transaction.from] : undefined;
   const destPipe = transaction.to ? pipesById?.[transaction.to] : undefined;
+  const paidFromPipe = transaction.paidFrom ? pipesById?.[transaction.paidFrom] : undefined;
   const fromValid = !!sourcePipe && (childrenByParent.get(sourcePipe._id)?.length ?? 0) === 0;
   const toValid = !!destPipe && destPipe.parentId === undefined;
-  const disabled = (!!transaction.from && !fromValid) || (!!transaction.to && !toValid);
+  const paidFromValid = !!paidFromPipe && (childrenByParent.get(paidFromPipe._id)?.length ?? 0) === 0;
+  const disabled =
+    (!!transaction.from && !fromValid) ||
+    (!!transaction.to && !toValid) ||
+    (!!transaction.paidFrom && !paidFromValid);
   const primaryPipe = isFeed ? destPipe : sourcePipe;
-  const bgClass = isFeed ? "bg-secondary/30" : isTransfer ? "bg-accent/30" : isNegative ? "bg-error/30" : "bg-primary/30";
+  const bgClass = isFeed
+    ? "bg-secondary/30"
+    : isTransfer
+      ? "bg-accent/30"
+      : isNegative
+        ? "bg-error/30"
+        : isPayByTransfer
+          ? "bg-success/30"
+          : "bg-primary/30";
   const amountFormInitState = primaryPipe ? {
     pipeIcon: primaryPipe.icon,
     pipeName: primaryPipe.name,
     title: transaction.title,
     value: `${transaction.value}`,
     ...(isTransfer && destPipe ? { to: destPipe._id } : {}),
+    ...(isPayByTransfer && paidFromPipe ? { paidFrom: paidFromPipe._id } : {}),
     isFeed,
     transactionId: transaction._id,
     date: transaction.date,
@@ -60,12 +74,16 @@ export function TransactionItem({ transaction }: TransactionItemProps) {
       )}
       onPress={handlePress}
     >
-      <Icon name={safeIconName(isFeed ? destPipe?.icon : sourcePipe?.icon)} size={16} color={colors.muted} />
+      <Icon
+        name={safeIconName(isFeed ? destPipe?.icon : isPayByTransfer ? paidFromPipe?.icon : sourcePipe?.icon)}
+        size={16}
+        color={colors.muted}
+      />
 
-      {isTransfer ? (
+      {isTransfer || isPayByTransfer ? (
         <>
           <Icon name={isNegative ? "ray-start-arrow" : "ray-end-arrow"} size={14} color={colors.muted} />
-          <Icon name={safeIconName(destPipe?.icon)} size={16} color={colors.muted} />
+          <Icon name={safeIconName(isPayByTransfer ? sourcePipe?.icon : destPipe?.icon)} size={16} color={colors.muted} />
         </>
       ) : null}
 

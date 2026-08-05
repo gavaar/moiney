@@ -291,69 +291,86 @@ export function computePipeTree<TPipeId extends string>(
 
 // ── Fed distribution ──
 
-function reconcileNode<TPipeId extends string>(
+type ReconciliationState<TPipeId extends string> = {
+  childrenByParent: Map<TPipeId, Array<{ _id: TPipeId; priority: number; capacity?: number }>>;
+  computed: Map<TPipeId, { capacity?: number }>;
+  fedById: Map<TPipeId, number>;
+  subtreeFedById: Map<TPipeId, number>;
+};
+
+function collectExcess<TPipeId extends string>(
   nodeId: TPipeId,
-  childrenByParent: Map<TPipeId, Array<{ _id: TPipeId; priority: number; capacity?: number }>>,
-  computed: Map<TPipeId, { capacity?: number }>,
-  fedMap: Map<TPipeId, number>,
-  isRoot?: boolean,
-): void {
-  const rawChildren = childrenByParent.get(nodeId);
-  if (!rawChildren || rawChildren.length === 0) return;
-
-  const children = rawChildren.map((child) => {
-    const computedChild = computed.get(child._id);
-    return {
-      id: child._id,
-      priority: child.priority,
-      capacity: computedChild?.capacity ?? child.capacity,
-    };
-  });
-
-  let parentFed = fedMap.get(nodeId) ?? 0;
+  state: ReconciliationState<TPipeId>,
+  isRoot: boolean,
+): { retainedFed: number; excess: number } {
+  const children = state.childrenByParent.get(nodeId) ?? [];
+  let nodeFed = state.fedById.get(nodeId) ?? 0;
+  let descendantsFed = 0;
 
   for (const child of children) {
-    const childFed = fedMap.get(child.id) ?? 0;
-    if (child.capacity !== undefined && childFed > child.capacity) {
-      const excess = childFed - child.capacity;
-      fedMap.set(child.id, child.capacity);
-      parentFed += excess;
-    }
+    const childResult = collectExcess(child._id, state, false);
+    nodeFed += childResult.excess;
+    descendantsFed += childResult.retainedFed;
   }
 
-  const childrenCurrent = children.map((c) => ({
-    id: c.id,
-    priority: c.priority,
-    capacity: c.capacity,
-    currentFed: fedMap.get(c.id) ?? 0,
-  }));
+  const totalFed = nodeFed + descendantsFed;
+  const capacity = state.computed.get(nodeId)?.capacity;
+  const excess = !isRoot && capacity !== undefined
+    ? Math.max(0, totalFed - capacity)
+    : 0;
 
-  const available = parentFed;
+  state.fedById.set(nodeId, nodeFed - excess);
+  state.subtreeFedById.set(nodeId, totalFed - excess);
+
+  return { retainedFed: totalFed - excess, excess };
+}
+
+function distributeFed<TPipeId extends string>(
+  nodeId: TPipeId,
+  state: ReconciliationState<TPipeId>,
+  isRoot: boolean,
+): void {
+  const rawChildren = state.childrenByParent.get(nodeId);
+  if (!rawChildren || rawChildren.length === 0) return;
+
+  const children = rawChildren.map((child) => ({
+    id: child._id,
+    priority: child.priority,
+    capacity: state.computed.get(child._id)?.capacity ?? child.capacity,
+    currentFed: state.subtreeFedById.get(child._id) ?? 0,
+  }));
+  const childById = new Map(children.map((child) => [child.id, child]));
+  const available = state.fedById.get(nodeId) ?? 0;
 
   if (available > 0 || (available < 0 && isRoot)) {
     const allocations = calculatePipeAllocations(
       available,
-      childrenCurrent.map((c) => ({
-        id: c.id,
-        priority: c.priority,
-        capacity: c.capacity,
-        fed: c.currentFed,
+      children.map((child) => ({
+        id: child.id,
+        priority: child.priority,
+        capacity: child.capacity,
+        fed: child.currentFed,
       })),
     );
 
     let totalAllocated = 0;
-    for (const alloc of allocations) {
-      const child = childrenCurrent.find((c) => c.id === alloc.childId)!;
-      fedMap.set(alloc.childId, child.currentFed + alloc.amount);
-      totalAllocated += alloc.amount;
+    for (const allocation of allocations) {
+      const child = childById.get(allocation.childId)!;
+      state.fedById.set(
+        allocation.childId,
+        (state.fedById.get(allocation.childId) ?? 0) + allocation.amount,
+      );
+      state.subtreeFedById.set(
+        allocation.childId,
+        child.currentFed + allocation.amount,
+      );
+      totalAllocated += allocation.amount;
     }
-    fedMap.set(nodeId, parentFed - totalAllocated);
-  } else {
-    fedMap.set(nodeId, parentFed);
+    state.fedById.set(nodeId, available - totalAllocated);
   }
 
   for (const child of children) {
-    reconcileNode(child.id, childrenByParent, computed, fedMap, false);
+    distributeFed(child.id, state, false);
   }
 }
 
@@ -371,21 +388,27 @@ export function recalculatePipes<TPipeId extends string>(
   const computed = computePipeTree(pipes);
   const childrenByParent = buildChildrenMap(pipes);
 
-  const fedMap = new Map<TPipeId, number>();
+  const fedById = new Map<TPipeId, number>();
   const rootIds: TPipeId[] = [];
 
   for (const pipe of pipes) {
-    fedMap.set(pipe._id, pipe.fed ?? 0);
+    fedById.set(pipe._id, pipe.fed ?? 0);
     if (!pipe.parentId) {
       rootIds.push(pipe._id);
     }
   }
 
-  for (const rootId of rootIds) {
-    reconcileNode(rootId, childrenByParent, computed, fedMap, true);
-  }
+  const state: ReconciliationState<TPipeId> = {
+    childrenByParent,
+    computed,
+    fedById,
+    subtreeFedById: new Map(),
+  };
 
-  return pipes.map((p) => ({ _id: p._id, fed: fedMap.get(p._id) ?? 0 }));
+  for (const rootId of rootIds) collectExcess(rootId, state, true);
+  for (const rootId of rootIds) distributeFed(rootId, state, true);
+
+  return pipes.map((p) => ({ _id: p._id, fed: fedById.get(p._id) ?? 0 }));
 }
 
 // ── DB operations ──

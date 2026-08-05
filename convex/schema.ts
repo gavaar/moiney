@@ -6,8 +6,11 @@ export default defineSchema({
     title: v.string(),
     value: v.number(),
     date: v.number(),
+    // Deprecated: retained until existing pay-by-transfer records are migrated.
+    type: v.optional(v.literal("pay_by_transfer")),
     from: v.optional(v.id("pipes")),
     to: v.optional(v.id("pipes")),
+    paidFrom: v.optional(v.id("pipes")),
     userId: v.id("users"),
   })
     .index("by_from", ["from"])

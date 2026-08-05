@@ -4,7 +4,15 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
 import { type Id } from "@convex/_generated/dataModel";
 import { AmountForm } from "./AmountForm";
-import { getButtonIcon, getButtonLabel, getButtonStyle, buildPipeItems, getDestinationPipeName } from "./helpers";
+import {
+  buildPaidFromPipeItems,
+  buildPipeItems,
+  getButtonIcon,
+  getButtonLabel,
+  getButtonStyle,
+  getDestinationPipeName,
+  getTopmostPipeId,
+} from "./helpers";
 
 const PIPE_ID = "pipe-1" as Id<"pipes">;
 const mockCreateTransaction = vi.fn().mockResolvedValue(undefined);
@@ -235,6 +243,57 @@ describe("buildPipeItems", () => {
     const result = buildPipeItems(null, "pipe-1" as Id<"pipes">);
     expect(result).toHaveLength(1);
     expect(result[0].name).toBe("None");
+  });
+});
+
+describe("buildPaidFromPipeItems", () => {
+  const allPipes = [
+    { _id: "feed-1" as Id<"pipes">, parentId: undefined, name: "Salary", icon: "cash-outline" },
+    { _id: "feed-2" as Id<"pipes">, parentId: undefined, name: "Freelance", icon: "laptop-outline" },
+    { _id: "feed-3" as Id<"pipes">, parentId: undefined, name: "Savings", icon: "wallet-outline" },
+    { _id: "child-1" as Id<"pipes">, parentId: "feed-1" as Id<"pipes">, name: "Rent", icon: "home-outline" },
+    { _id: "child-2" as Id<"pipes">, parentId: "feed-1" as Id<"pipes">, name: "Coffee", icon: "cafe-outline" },
+    { _id: "child-3" as Id<"pipes">, parentId: "feed-3" as Id<"pipes">, name: "Emergency", icon: "alert-outline" },
+  ];
+
+  it("offers childless pipes for a payment", () => {
+    expect(buildPaidFromPipeItems(allPipes, "child-1" as Id<"pipes">, true))
+      .toEqual([
+        { id: "", name: "None", icon: "close-circle" },
+        { id: "feed-2", name: "Freelance", icon: "laptop-outline" },
+        { id: "child-3", name: "Emergency", icon: "alert-outline" },
+      ]);
+  });
+
+  it("offers roots outside the current tree for a refund", () => {
+    expect(buildPaidFromPipeItems(allPipes, "child-1" as Id<"pipes">, false))
+      .toEqual([
+        { id: "", name: "None", icon: "close-circle" },
+        { id: "feed-2", name: "Freelance", icon: "laptop-outline" },
+        { id: "feed-3", name: "Savings", icon: "wallet-outline" },
+      ]);
+  });
+});
+
+describe("getTopmostPipeId", () => {
+  it("resolves a nested pipe to its root", () => {
+    const pipes = [
+      { _id: "root" as Id<"pipes">, name: "Root", icon: "wallet" },
+      {
+        _id: "child" as Id<"pipes">,
+        parentId: "root" as Id<"pipes">,
+        name: "Child",
+        icon: "folder",
+      },
+      {
+        _id: "leaf" as Id<"pipes">,
+        parentId: "child" as Id<"pipes">,
+        name: "Leaf",
+        icon: "cafe",
+      },
+    ];
+
+    expect(getTopmostPipeId(pipes, "leaf" as Id<"pipes">)).toBe("root");
   });
 });
 
@@ -664,6 +723,61 @@ describe("AmountForm", () => {
       expect(screen.queryByTestId("input-Transfer to")).toBeNull();
       fireEvent.click(screen.getByTestId("slide-toggle-transfer"));
       expect(screen.getByTestId("input-Transfer to")).toBeTruthy();
+    });
+
+    it("reveals a muted paid-from selector with leaf pipes only", () => {
+      render(<AmountForm pipeId={PIPE_ID} variant="spend" />);
+
+      expect(screen.queryByTestId("input-Paid from")).toBeNull();
+      fireEvent.click(screen.getByText("Paid from another pipe?"));
+
+      expect(screen.getByTestId("input-Paid from")).toBeTruthy();
+      expect(screen.queryByTestId("select-item-feed-1")).toBeNull();
+      expect(screen.getByTestId("select-item-feed-2")).toBeTruthy();
+      expect(screen.getByTestId("select-item-child-1")).toBeTruthy();
+    });
+
+    it("submits a pay-by-transfer transaction when a payer is selected", async () => {
+      const date = new Date(2026, 6, 21, 15, 45);
+      vi.setSystemTime(date);
+      render(<AmountForm pipeId={PIPE_ID} variant="spend" />);
+
+      fireEvent.change(screen.getByPlaceholderText("What was this for?"), {
+        target: { value: "Coffee" },
+      });
+      fireEvent.change(screen.getByTestId("input-Value-field"), {
+        target: { value: "5" },
+      });
+      fireEvent.click(screen.getByText("Paid from another pipe?"));
+      fireEvent.click(screen.getByTestId("select-item-feed-2"));
+      fireEvent.click(screen.getByTestId("submit-button"));
+
+      await waitFor(() => {
+        expect(mockCreateTransaction).toHaveBeenCalledWith({
+          title: "Coffee",
+          value: -5,
+          date: date.getTime(),
+          from: PIPE_ID,
+          paidFrom: "feed-2",
+        });
+      });
+      vi.useRealTimers();
+    });
+
+    it("labels a positive value as refunded and offers parentless pipes", () => {
+      render(<AmountForm pipeId={PIPE_ID} variant="spend" />);
+      fireEvent.change(screen.getByTestId("input-Value-field"), {
+        target: { value: "10" },
+      });
+      fireEvent.change(screen.getByTestId("input-Value-field"), {
+        target: { value: "10" },
+      });
+      fireEvent.click(screen.getByText("Paid from another pipe?"));
+
+      expect(screen.getByTestId("input-Refunded to")).toBeTruthy();
+      expect(screen.getByTestId("select-item-feed-1")).toBeTruthy();
+      expect(screen.getByTestId("select-item-feed-2")).toBeTruthy();
+      expect(screen.queryByTestId("select-item-child-1")).toBeNull();
     });
 
     it("toggling to transfer changes header text", () => {

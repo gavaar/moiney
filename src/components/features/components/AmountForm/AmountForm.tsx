@@ -1,4 +1,4 @@
-import { useCallback, useState, useMemo } from "react";
+import { useCallback, useEffect, useState, useMemo } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -17,6 +17,7 @@ import { useAlert } from "@ui/Alert";
 import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
 import {
   buildPipeItems,
+  buildPaidFromPipeItems,
   getButtonIcon,
   getButtonLabel,
   getButtonStyle,
@@ -34,6 +35,7 @@ type Props = {
     title: string;
     value: string;
     to?: Id<"pipes">;
+    paidFrom?: Id<"pipes">;
     isFeed?: boolean;
     transactionId?: Id<"transactions">;
     date?: number;
@@ -49,6 +51,10 @@ export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: 
   const [sentToPipeId, setSentToPipeId] = useState<Id<"pipes"> | null>(
     initState?.to ?? null,
   );
+  const [paidFromPipeId, setPaidFromPipeId] = useState<Id<"pipes"> | null>(
+    initState?.paidFrom ?? null,
+  );
+  const [showPaidFrom, setShowPaidFrom] = useState(Boolean(initState?.paidFrom));
   const [spendMode, setSpendMode] = useState<SpentMode>(
     initState?.to ? "transfer" : "spend",
   );
@@ -93,6 +99,9 @@ export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: 
     setSpendMode(newMode as SpentMode);
     if (newMode === "spend") {
       setSentToPipeId(null);
+    } else {
+      setPaidFromPipeId(null);
+      setShowPaidFrom(false);
     }
   }, []);
 
@@ -119,6 +128,21 @@ export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: 
     [allPipes, pipeId],
   );
 
+  const paidFromPipeItems = useMemo(
+    () => buildPaidFromPipeItems(allPipes, pipeId, isNegative),
+    [allPipes, pipeId, isNegative],
+  );
+
+  useEffect(() => {
+    if (
+      allPipes &&
+      paidFromPipeId &&
+      !paidFromPipeItems.some((item) => item.id === paidFromPipeId)
+    ) {
+      setPaidFromPipeId(null);
+    }
+  }, [allPipes, paidFromPipeId, paidFromPipeItems]);
+
   const destinationPipeName = useMemo(
     () => getDestinationPipeName(allPipes, sentToPipeId),
     [allPipes, sentToPipeId],
@@ -129,6 +153,8 @@ export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: 
     setValue("");
     setDate(new Date());
     setSentToPipeId(null);
+    setPaidFromPipeId(null);
+    setShowPaidFrom(false);
     setSpendMode("spend");
     setIntent("repeat");
   }, []);
@@ -163,11 +189,16 @@ export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: 
         date: date.getTime(),
         from: pipeId,
         ...(spendMode === "transfer" && sentToPipeId ? { to: sentToPipeId } : {}),
+        ...(spendMode === "spend" && paidFromPipeId
+          ? {
+              paidFrom: paidFromPipeId,
+            }
+          : {}),
       });
     }
     resetForm();
     onSuccess?.();
-  }, [isFeed, value, title, date, pipeId, spendMode, sentToPipeId, onSuccess, resetForm, createTransaction]);
+  }, [isFeed, value, title, date, pipeId, spendMode, sentToPipeId, paidFromPipeId, onSuccess, resetForm, createTransaction]);
 
   const handleSubmit = useCallback(async () => {
     if (!isValid || loading) return;
@@ -282,6 +313,30 @@ export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: 
           renderItem={renderPipeItem}
           placeholder="None"
         />
+      )}
+
+      {!isFeed && !isTransactionVariant && spendMode === "spend" && (
+        showPaidFrom ? (
+          <Input
+            type="select"
+            label={isNegative ? "Paid from" : "Refunded to"}
+            value={paidFromPipeId}
+            onSelect={(id) => setPaidFromPipeId(id ? (id as Id<"pipes">) : null)}
+            items={paidFromPipeItems}
+            renderItem={renderPipeItem}
+            placeholder="None"
+          />
+        ) : (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Paid from another pipe?"
+            onPress={() => setShowPaidFrom(true)}
+            className="self-start flex-row items-center gap-1 py-1 opacity-50"
+          >
+            <Icon name="wallet-outline" size={14} color={colors.muted} />
+            <Text className="text-xs text-muted">Paid from another pipe?</Text>
+          </Pressable>
+        )
       )}
 
       <View className="flex-row items-center justify-between gap-3 pt-2">

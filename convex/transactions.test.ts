@@ -19,6 +19,7 @@ function mockDb() {
     patch: vi.fn(),
     insert: vi.fn(),
     query: vi.fn(() => chain),
+    _chain: chain,
   };
 }
 
@@ -109,6 +110,116 @@ describe("createTransaction", () => {
         to: "pipe-1",
         userId: "user-1",
       });
+    });
+  });
+
+  describe("pay by transfer", () => {
+    it("moves fed from the payer and records spend and fed on the category", async () => {
+      const ctx = mockCtx();
+      ctx.db.get.mockImplementation((id: string) => {
+        if (id === "pipe-1") return A_PIPE;
+        if (id === "pipe-2") return B_PIPE;
+        return null;
+      });
+
+      await (createTransaction as any)._handler(ctx, {
+        title: "coffee",
+        value: -30,
+        date: 3500,
+        from: "pipe-1",
+        paidFrom: "pipe-2",
+      });
+
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+        fed: 530,
+        spent: 130,
+      });
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-2", { fed: 170 });
+      expect(ctx.db.patch).toHaveBeenCalledTimes(2);
+      expect(ctx.db.insert).toHaveBeenCalledWith("transactions", {
+        title: "coffee",
+        value: -30,
+        date: 3500,
+        from: "pipe-1",
+        paidFrom: "pipe-2",
+        userId: "user-1",
+      });
+    });
+
+    it("rejects paying from the spending pipe", async () => {
+      const ctx = mockCtx();
+
+      await expect(
+        (createTransaction as any)._handler(ctx, {
+          title: "coffee",
+          value: -30,
+          date: 3500,
+          from: "pipe-1",
+          paidFrom: "pipe-1",
+        }),
+      ).rejects.toThrow("Paid from pipe must be different");
+    });
+
+    it("allows a positive refund to a parentless pipe that has children", async () => {
+      const ctx = mockCtx();
+      ctx.db.get.mockImplementation((id: string) => {
+        if (id === "pipe-1") return A_PIPE;
+        if (id === "pipe-2") return { ...B_PIPE, parentId: undefined };
+        return null;
+      });
+      ctx.db._chain.take
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([{ _id: "child" }]);
+
+      await expect(
+        (createTransaction as any)._handler(ctx, {
+          title: "coffee refund",
+          value: 30,
+          date: 3500,
+          from: "pipe-1",
+          paidFrom: "pipe-2",
+        }),
+      ).resolves.toBeUndefined();
+    });
+
+    it("rejects a negative payer in the transaction pipe's root tree", async () => {
+      const ctx = mockCtx();
+      const rootPipe = { ...A_PIPE, _id: "root-1", parentId: undefined };
+      ctx.db.get.mockImplementation((id: string) => {
+        if (id === "pipe-1") return { ...A_PIPE, parentId: "root-1" };
+        if (id === "pipe-2") return { ...B_PIPE, parentId: "root-1" };
+        if (id === "root-1") return rootPipe;
+        return null;
+      });
+
+      await expect(
+        (createTransaction as any)._handler(ctx, {
+          title: "coffee",
+          value: -30,
+          date: 3500,
+          from: "pipe-1",
+          paidFrom: "pipe-2",
+        }),
+      ).rejects.toThrow("Paid from pipe must be outside the transaction tree");
+    });
+
+    it("recalculates the paid-from tree after applying the balance changes", async () => {
+      const ctx = mockCtx();
+      ctx.db.get.mockImplementation((id: string) => {
+        if (id === "pipe-1") return A_PIPE;
+        if (id === "pipe-2") return B_PIPE;
+        return null;
+      });
+
+      await (createTransaction as any)._handler(ctx, {
+        title: "coffee",
+        value: -30,
+        date: 3500,
+        from: "pipe-1",
+        paidFrom: "pipe-2",
+      });
+
+      expect(ctx.db._chain.collect).toHaveBeenCalled();
     });
   });
 
@@ -288,6 +399,87 @@ describe("editTransaction", () => {
       });
       expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", { fed: 470 });
       expect(ctx.db.patch).toHaveBeenCalledWith("pipe-2", { fed: 230 });
+    });
+  });
+
+  describe("pay by transfer transaction", () => {
+    it("adjusts all three balances by the edited value difference", async () => {
+      const ctx = mockCtx();
+      const tx = {
+        ...BASE_TX,
+        value: -50,
+        from: "pipe-1",
+        paidFrom: "pipe-2",
+      };
+      ctx.db.get.mockImplementation((id: string) => {
+        if (id === "tx-1") return tx;
+        if (id === "pipe-1") return A_PIPE;
+        if (id === "pipe-2") return B_PIPE;
+        return null;
+      });
+
+      await (editTransaction as any)._handler(ctx, {
+        transactionId: "tx-1",
+        title: "more coffee",
+        value: -80,
+        date: 5000,
+      });
+
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+        fed: 530,
+        spent: 130,
+      });
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-2", { fed: 170 });
+    });
+
+    it("recalculates the paid-from tree after an amount edit", async () => {
+      const ctx = mockCtx();
+      const tx = {
+        ...BASE_TX,
+        value: -50,
+        from: "pipe-1",
+        paidFrom: "pipe-2",
+      };
+      ctx.db.get.mockImplementation((id: string) => {
+        if (id === "tx-1") return tx;
+        if (id === "pipe-1") return A_PIPE;
+        if (id === "pipe-2") return B_PIPE;
+        return null;
+      });
+
+      await (editTransaction as any)._handler(ctx, {
+        transactionId: "tx-1",
+        title: "coffee",
+        value: -80,
+        date: 5000,
+      });
+
+      expect(ctx.db._chain.collect).toHaveBeenCalled();
+    });
+
+    it("rejects changing to a refund when paidFrom is not a root pipe", async () => {
+      const ctx = mockCtx();
+      const tx = {
+        ...BASE_TX,
+        value: -50,
+        from: "pipe-1",
+        paidFrom: "pipe-2",
+      };
+      ctx.db.get.mockImplementation((id: string) => {
+        if (id === "tx-1") return tx;
+        if (id === "pipe-1") return A_PIPE;
+        if (id === "pipe-2") return { ...B_PIPE, parentId: "root-2" };
+        return null;
+      });
+
+      await expect(
+        (editTransaction as any)._handler(ctx, {
+          transactionId: "tx-1",
+          title: "coffee refund",
+          value: 30,
+          date: 5000,
+        }),
+      ).rejects.toThrow("Refund destination must be a root outside the transaction tree");
     });
   });
 
