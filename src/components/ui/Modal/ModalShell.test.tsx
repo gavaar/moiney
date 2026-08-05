@@ -1,10 +1,17 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ModalShell } from "./ModalShell";
 
 describe("ModalShell", () => {
+  it("constrains modal content to 85% of the viewport", () => {
+    const source = readFileSync("src/components/ui/Modal/ModalShell.tsx", "utf8");
+
+    expect(source).toContain('w-[85%] max-w-[960px]');
+  });
+
   it("renders children when visible", () => {
     render(
       <ModalShell visible onClose={() => {}}>

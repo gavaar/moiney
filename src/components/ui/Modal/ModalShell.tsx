@@ -25,7 +25,7 @@ export function ModalShell({ visible, onClose, children }: Props) {
           testID="modal-backdrop"
           onPress={onClose}
         />
-        <View className="bg-surface rounded-xl p-4 mx-4 min-w-[300px] max-h-[75%] max-w-[min(960px,80vw)]">
+        <View className="bg-surface rounded-xl p-4 w-[85%] max-w-[960px] max-h-[75%]">
           {children}
         </View>
       </View>

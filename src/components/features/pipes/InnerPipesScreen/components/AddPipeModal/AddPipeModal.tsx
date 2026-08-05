@@ -85,7 +85,7 @@ export function AddPipeModal({ parentId, visible, onClose }: AddPipeModalProps) 
 
   return (
     <ModalShell visible={visible} onClose={onClose}>
-      <ScrollView>
+      <ScrollView className="flex-grow-0">
         <View className="gap-4">
           <Input label="Parent" value={parentName} disabled />
 
@@ -102,7 +102,7 @@ export function AddPipeModal({ parentId, visible, onClose }: AddPipeModalProps) 
           />
 
           <View className="flex-row gap-4">
-            <View className="flex-[3]">
+            <View className="flex-1">
               <Input
                 type="decimal"
                 label={Number(capacity) < 0 ? "Debt" : "Initial capacity?"}
@@ -112,7 +112,7 @@ export function AddPipeModal({ parentId, visible, onClose }: AddPipeModalProps) 
                 allowNegative={true}
               />
             </View>
-            <View className="flex-[2]">
+            <View className="flex-1">
               <Input
                 type="number"
                 label="Priority"
