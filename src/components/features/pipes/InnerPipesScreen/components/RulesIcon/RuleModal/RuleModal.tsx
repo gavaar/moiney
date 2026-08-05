@@ -18,13 +18,16 @@ import {
   type RuleId,
 } from "./config";
 import {
+  calculateEffectiveCron,
   formatCapCredit,
   getActionConfig,
+  getPacingOptions,
   hasRuleDiff,
   parseCapValue,
   shouldShowCapWarning,
   todayMidday,
   unitPlural,
+  type Pacing,
 } from "./helpers";
 
 type Props = {
@@ -46,6 +49,7 @@ export function RuleModal({ visible, onClose, pipeId }: Props) {
   );
   const [interval, setInterval] = useState<number>(pipe?.cronInterval?.interval ?? 1);
   const [unit, setUnit] = useState<CronUnit>(pipe?.cronInterval?.unit ?? "months");
+  const [pacing, setPacing] = useState<Pacing>();
   const [starting, setStarting] = useState<Date>(() =>
     pipe?.cronNextDate != null ? new Date(pipe.cronNextDate) : todayMidday(),
   );
@@ -54,19 +58,41 @@ export function RuleModal({ visible, onClose, pipeId }: Props) {
   const isCron = selectedRule === "cron";
 
   const capNumber = useMemo(() => parseCapValue(capValue), [capValue]);
+  const effectiveCron = useMemo(
+    () => calculateEffectiveCron({ capUpdateValue: capNumber, interval, unit, pacing }),
+    [capNumber, interval, unit, pacing],
+  );
 
   const hasDiff = useMemo(
-    () => hasRuleDiff({ selectedRule, isCron, capNumber, interval, unit, pipe }),
-    [selectedRule, isCron, capNumber, interval, unit, pipe],
+    () =>
+      hasRuleDiff({
+        selectedRule,
+        isCron,
+        capNumber: effectiveCron.capUpdateValue,
+        interval: effectiveCron.interval,
+        unit: effectiveCron.unit,
+        pipe,
+      }),
+    [selectedRule, isCron, effectiveCron, pipe],
   );
 
   const elapsedIntervals = useMemo(() => {
     if (!isCron) return 0;
-    return computeElapsedIntervals(starting.getTime(), interval, unit);
-  }, [isCron, starting, interval, unit]);
+    return computeElapsedIntervals(
+      starting.getTime(),
+      effectiveCron.interval,
+      effectiveCron.unit,
+    );
+  }, [isCron, starting, effectiveCron]);
 
-  const capCredit = formatCapCredit(elapsedIntervals, capNumber);
-  const showWarning = shouldShowCapWarning({ isCron, capNumber, elapsedIntervals });
+  const capCredit = formatCapCredit(elapsedIntervals, effectiveCron.capUpdateValue);
+  const showWarning = shouldShowCapWarning({
+    isCron,
+    capNumber: effectiveCron.capUpdateValue,
+    elapsedIntervals,
+  });
+  const pacingOptions = getPacingOptions(unit);
+  const showPacingPreview = pacing != null && capNumber != null && capNumber !== 0;
 
   const { title: actionTitle, variant: actionVariant, icon: actionIcon, disabled: actionDisabled } =
     getActionConfig({ hasDiff, isCron });
@@ -80,10 +106,10 @@ export function RuleModal({ visible, onClose, pipeId }: Props) {
         await updatePipeRule({
           pipeId,
           rule: "cron",
-          interval,
-          unit,
+          interval: effectiveCron.interval,
+          unit: effectiveCron.unit,
           starting: starting.getTime(),
-          capUpdateValue: capNumber,
+          capUpdateValue: effectiveCron.capUpdateValue,
         });
       } else {
         await updatePipeRule({
@@ -102,10 +128,9 @@ export function RuleModal({ visible, onClose, pipeId }: Props) {
     selectedRule,
     isCron,
     pipeId,
-    interval,
-    unit,
     starting,
     capNumber,
+    effectiveCron,
     updatePipeRule,
     onClose,
     showAlert,
@@ -188,10 +213,36 @@ export function RuleModal({ visible, onClose, pipeId }: Props) {
                       <Text className="text-text text-base">{item.label}</Text>
                     )}
                     value={unit}
-                    onSelect={(u) => setUnit(u as CronUnit)}
+                    onSelect={(value) => {
+                      const nextUnit = value as CronUnit;
+                      setUnit(nextUnit);
+                      if (!getPacingOptions(nextUnit).some((option) => option.id === pacing)) {
+                        setPacing(undefined);
+                      }
+                    }}
                   />
                 </View>
               </View>
+
+              <Input
+                type="select"
+                label="Pacing"
+                items={pacingOptions}
+                renderItem={(item) => (
+                  <Text className="text-text text-base">{item.label}</Text>
+                )}
+                value={pacing ?? null}
+                onSelect={(value) => setPacing(value as Pacing)}
+                placeholder="Select pacing..."
+                disabled={capNumber == null || capNumber === 0 || pacingOptions.length === 0}
+              />
+
+              {showPacingPreview ? (
+                <Text className="text-sm text-muted">
+                  Capacity will update by {effectiveCron.capUpdateValue?.toFixed(2)} every{" "}
+                  {unitPlural(1, effectiveCron.unit)}.
+                </Text>
+              ) : null}
 
               <Input
                 type="date"
@@ -204,8 +255,8 @@ export function RuleModal({ visible, onClose, pipeId }: Props) {
                 <View className="bg-warning/10 border border-warning rounded-lg p-3">
                   <Text className="text-warning text-sm">
                     saving this rule will automatically add {capCredit} cap to account for the{" "}
-                    {elapsedIntervals} {unitPlural(elapsedIntervals, unit)} that have passed from
-                    the starting date
+                    {elapsedIntervals} {unitPlural(elapsedIntervals, effectiveCron.unit)} that have
+                    passed from the starting date
                   </Text>
                 </View>
               ) : null}

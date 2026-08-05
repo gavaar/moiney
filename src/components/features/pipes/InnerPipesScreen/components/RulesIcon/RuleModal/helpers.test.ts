@@ -1,14 +1,81 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  calculateEffectiveCron,
   formatCapCredit,
   getActionConfig,
+  getPacingOptions,
   hasRuleDiff,
   parseCapValue,
   shouldShowCapWarning,
   todayMidday,
   unitPlural,
 } from "./helpers";
+
+describe("calculateEffectiveCron", () => {
+  it("paces a yearly cap update monthly", () => {
+    expect(
+      calculateEffectiveCron({
+        capUpdateValue: 1200,
+        interval: 1,
+        unit: "years",
+        pacing: "months",
+      }),
+    ).toEqual({ capUpdateValue: 100, interval: 1, unit: "months" });
+  });
+
+  it("paces a multi-month cap update monthly", () => {
+    expect(
+      calculateEffectiveCron({
+        capUpdateValue: 1200,
+        interval: 6,
+        unit: "months",
+        pacing: "months",
+      }),
+    ).toEqual({ capUpdateValue: 200, interval: 1, unit: "months" });
+  });
+
+  it("paces a multi-year cap update yearly", () => {
+    expect(
+      calculateEffectiveCron({
+        capUpdateValue: 1200,
+        interval: 2,
+        unit: "years",
+        pacing: "years",
+      }),
+    ).toEqual({ capUpdateValue: 600, interval: 1, unit: "years" });
+  });
+
+  it("preserves the cron when pacing is empty", () => {
+    expect(
+      calculateEffectiveCron({
+        capUpdateValue: 1200,
+        interval: 1,
+        unit: "years",
+        pacing: undefined,
+      }),
+    ).toEqual({ capUpdateValue: 1200, interval: 1, unit: "years" });
+  });
+
+  it("does not calculate pacing without a cap update", () => {
+    expect(
+      calculateEffectiveCron({
+        capUpdateValue: undefined,
+        interval: 1,
+        unit: "years",
+        pacing: "months",
+      }),
+    ).toEqual({ capUpdateValue: undefined, interval: 1, unit: "years" });
+  });
+});
+
+describe("getPacingOptions", () => {
+  it("offers only compatible pacing units", () => {
+    expect(getPacingOptions("days")).toEqual([]);
+    expect(getPacingOptions("months").map(({ id }) => id)).toEqual(["months"]);
+    expect(getPacingOptions("years").map(({ id }) => id)).toEqual(["months", "years"]);
+  });
+});
 
 describe("todayMidday", () => {
   afterEach(() => {

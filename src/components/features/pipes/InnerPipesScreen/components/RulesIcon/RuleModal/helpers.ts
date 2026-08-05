@@ -3,6 +3,44 @@ import { type IconName } from "@ui/Icon";
 import { type CronUnit } from "@convex/lib/pipes";
 import { type RuleId } from "./config";
 
+export type Pacing = "months" | "years";
+
+const MONTHLY_PACING_OPTION = { id: "months", label: "Monthly" } as const;
+const YEARLY_PACING_OPTION = { id: "years", label: "Yearly" } as const;
+
+export function getPacingOptions(unit: CronUnit) {
+  if (unit === "months") return [MONTHLY_PACING_OPTION];
+  if (unit === "years") return [MONTHLY_PACING_OPTION, YEARLY_PACING_OPTION];
+  return [];
+}
+
+export function calculateEffectiveCron({
+  capUpdateValue,
+  interval,
+  unit,
+  pacing,
+}: {
+  capUpdateValue: number | undefined;
+  interval: number;
+  unit: CronUnit;
+  pacing: Pacing | undefined;
+}): { capUpdateValue: number | undefined; interval: number; unit: CronUnit } {
+  if (capUpdateValue == null || capUpdateValue === 0 || pacing == null) {
+    return { capUpdateValue, interval, unit };
+  }
+
+  const pacingPeriods =
+    pacing === "months" && unit === "years"
+      ? interval * 12
+      : pacing === unit
+        ? interval
+        : undefined;
+
+  if (pacingPeriods == null) return { capUpdateValue, interval, unit };
+
+  return { capUpdateValue: capUpdateValue / pacingPeriods, interval: 1, unit: pacing };
+}
+
 export function todayMidday(): Date {
   const now = new Date();
   return new Date(

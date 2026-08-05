@@ -114,6 +114,72 @@ describe("RuleModal", () => {
     expect(screen.getByText("Interval")).toBeTruthy();
     expect(screen.getByText("Unit")).toBeTruthy();
     expect(screen.getByText("Starting date")).toBeTruthy();
+    expect(screen.getByText("Pacing")).toBeTruthy();
+  });
+
+  it("previews and submits a yearly cap update paced monthly", async () => {
+    renderModal(
+      basePipe({
+        rule: "cron",
+        capUpdateValue: 1200,
+        cronInterval: { interval: 1, unit: "years" },
+        cronNextDate: Date.UTC(2099, 0, 15, 12),
+      }),
+    );
+
+    expect(screen.getByText("Select pacing...")).toBeTruthy();
+    fireEvent.click(screen.getAllByTestId("select-trigger")[2]);
+    fireEvent.click(screen.getByText("Monthly"));
+
+    expect(screen.getByText("Capacity will update by 100.00 every month.")).toBeTruthy();
+
+    await clickAndFlush(screen.getByText("Save rule"));
+
+    expect(h.updatePipeRule).toHaveBeenCalledWith(
+      expect.objectContaining({
+        capUpdateValue: 100,
+        interval: 1,
+        unit: "months",
+      }),
+    );
+  });
+
+  it("uses the paced schedule in the past-date cap warning", () => {
+    const starting = new Date(Date.UTC(2026, 0, 15, 12));
+    renderModal(
+      basePipe({
+        rule: "cron",
+        capUpdateValue: 1200,
+        cronInterval: { interval: 1, unit: "years" },
+        cronNextDate: starting.getTime(),
+      }),
+    );
+
+    fireEvent.click(screen.getAllByTestId("select-trigger")[2]);
+    fireEvent.click(screen.getByText("Monthly"));
+
+    const elapsed = computeElapsedIntervals(starting.getTime(), 1, "months");
+    expect(
+      screen.getByText(
+        `saving this rule will automatically add ${(elapsed * 100).toFixed(2)} cap to account for the ${elapsed} months that have passed from the starting date`,
+      ),
+    ).toBeTruthy();
+  });
+
+  it("disables pacing and omits its preview when cap update is zero", () => {
+    renderModal(
+      basePipe({
+        rule: "cron",
+        capUpdateValue: 0,
+        cronInterval: { interval: 1, unit: "years" },
+        cronNextDate: Date.UTC(2099, 0, 15, 12),
+      }),
+    );
+
+    fireEvent.click(screen.getAllByTestId("select-trigger")[2]);
+
+    expect(screen.queryByText("Monthly")).toBeNull();
+    expect(screen.queryByText(/Capacity will update by/)).toBeNull();
   });
 
   it("hides cap update for non-cron rules", () => {
