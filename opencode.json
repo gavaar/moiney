@@ -1,7 +1,12 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "model": "anthropic/claude-sonnet-4-6",
-  "instructions": ["AGENTS.md", "docs/style.md", ".agents/skills/tdd/SKILL.md"],
+  "instructions": [
+    "AGENTS.md",
+    "docs/engineering-principles.md",
+    "docs/domain-decisions.md",
+    ".agents/skills/tdd/SKILL.md"
+  ],
   "skills": {
     "paths": [".opencode/skills", ".agents/skills"]
   },
@@ -9,6 +14,10 @@
     "convex": {
       "repository": "get-convex/convex-backend",
       "description": "Use for Convex backend implementation details"
+    },
+    "project-docs": {
+      "path": "docs",
+      "description": "Use for Moiney engineering rules, domain decisions, and refactor status"
     }
   }
 }

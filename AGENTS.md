@@ -1,97 +1,129 @@
 # Moiney - Financial Companion App
 
-## Stack
-- **Framework**: Expo SDK 54 (React Native 0.81, React 19)
-- **Routing**: Expo Router (file-based, `app/` directory)
-- **Styling**: NativeWind v4 (Tailwind CSS v3)
-- **Backend**: Convex (reactive backend-as-a-service)
-- **Package Manager**: Bun
+## Source Of Truth
+
+- Verify dependency versions in `package.json`; documentation is descriptive and must be updated after upgrades.
+- Read `docs/engineering-principles.md` before changing production code.
+- Read `docs/domain-decisions.md` before changing money, transactions, pipes, deletion, scheduling, or authentication.
+- Read and update `docs/refactor-roadmap.md` when working on the design-improvement backlog.
+- Load the relevant project skill for Convex, Expo, routing, migrations, auth, or performance work.
+
+## Current Stack
+
+- Expo SDK 57, React Native 0.86, React 19
+- Expo Router with routes under `src/app/`
+- NativeWind v4 and Tailwind CSS v3
+- Convex backend under `convex/`
+- TypeScript in strict mode
+- Bun package manager
+- Vitest test runner
 
 ## Project Structure
-```
+
+```text
 moiney/
-├── src/                  # Application source code
-│   ├── app/              # Expo Router screens (file-based)
-│   │   ├── _layout.tsx
-│   │   ├── index.tsx
-│   │   ├── (auth)/       # Auth flow (login, sign-up)
-│   │   └── (main)/       # Main app (tabs: history, pipes, profile)
-│   ├── components/       # All components (ui primitives + features)
-│   │   ├── ui/           # Alert, Button, Icon, Input, Modal, PipeBox, ScreenHeader, etc.
-│   │   │   └── Input/
-│   │   │       ├── Input.tsx          # polymorphic dispatcher (switches on `type`)
-│   │   │       └── components/        # one folder per variant (TextInput, NumberInput, DateInput, ...)
-│   │   └── features/     # Feature modules (feature-first colocation)
-│   │       ├── AmountForm/ # Shared feature-level component
-│   │       ├── pipes/     # Pipes feature: screens, contexts, sub-components
-│   │       └── transactions/ # Transactions feature: context
-│   ├── lib/              # Shared utilities and hooks
-│   │   ├── auth/         # Auth provider, token storage (platform variants)
-│   │   ├── errors/       # Error handling utilities
-│   │   ├── forms/        # useForm hook
-│   │   ├── hooks/        # useDebounce, useKeyboardHeight
-│   │   ├── styles/       # cn() utility, color tokens
-│   │   └── dates.ts      # Date helpers
-│   ├── global.css
-│   └── globals.d.ts
-├── convex/               # Convex backend
-│   ├── lib/              # Shared backend utilities (auth, jwt, pipes, transactions, etc.)
-│   ├── _generated/       # Auto-generated Convex types
-│   ├── schema.ts         # Database schema
-│   ├── auth.ts / auth.config.ts
-│   ├── http.ts / crons.ts
-│   ├── pipes.ts / transactions.ts / accounts.ts / sessions.ts
-│   └── migrations.ts
-├── assets/               # Static assets
-├── .agents/skills/       # AI agent skills (Expo, Convex, RN)
-├── app.json              # Expo config
-├── tailwind.config.js
-├── babel.config.js
-├── metro.config.js
-└── convex.json           # Convex CLI config
+|-- src/
+|   |-- app/                 # Expo Router route and layout files only
+|   |-- components/
+|   |   |-- ui/              # Reusable presentation primitives
+|   |   `-- features/        # Feature-owned screens, state, and components
+|   `-- lib/                 # Cross-feature infrastructure and utilities
+|-- convex/
+|   |-- _generated/          # Generated Convex code; do not edit manually
+|   |-- lib/                 # Existing backend helpers and pure algorithms
+|   |-- schema.ts
+|   `-- *.ts                 # Registered Convex functions
+|-- docs/                    # Engineering rules, decisions, and roadmap
+|-- assets/
+`-- .agents/skills/          # Project agent skills
 ```
+
+The current structure contains known boundary violations and oversized modules. Do not treat every existing dependency as an approved pattern. Consult `docs/refactor-roadmap.md` before copying one.
 
 ## Commands
-- `bun start` / `bun run dev` - Start Expo dev server
-- `bun run convex:dev` - Start Convex dev server
-- `bun run convex:deploy` - Deploy Convex functions
-- `bun run ios` / `bun run android` / `bun run web`
 
-## Convex Setup
-1. Run `bun run convex:dev` to create a Convex project and get your deployment URL
-2. Copy the `CONVEX_URL` to `.env.local` as `EXPO_PUBLIC_CONVEX_URL`
+- `bun start` or `bun run dev` - start Expo
+- `bun run ios` - start iOS
+- `bun run android` - start Android
+- `bun run web` - start web
+- `bun run convex:dev` - start Convex development
+- `bun run convex:deploy` - deploy Convex functions
+- `bun run test` - run the test suite; do not use `bun test`
+- `bunx tsc --noEmit --incremental false` - run the current type-check baseline
 
-## Conventions
-- Use Expo Router file-based routing (`src/app/` directory)
-- Style with NativeWind/Tailwind utility classes
-- Use `@/` path alias to import from `src/` (e.g. `@/app/...`, `@/lib/...`)
-- Use `@ui/` path alias to import from `src/components/ui/` (e.g. `@ui/Button`, `@ui/Icon`, `@ui/Alert`)
-- Use `@features/` path alias to import from `src/components/features/` (e.g. `@features/pipes/...`)
-- Use `@convex/` path alias to import from `convex/`
-- Feature colocation: screens, contexts, and sub-components live in `src/components/features/<feature>/`; shared feature components sit alongside them
-- Component pattern: each component directory has `ComponentName.tsx`, `ComponentName.test.tsx`, and an `index.ts` barrel file
-- Platform files: use `.native.ts` / `.web.ts` suffixes for platform-specific variants (e.g. `storage.ts`)
-- Convex schema in `convex/schema.ts`, domain functions in `convex/*.ts`, shared helpers in `convex/lib/`
-- For testing use `bun run test` instead of `bun test`
+## Mandatory Workflow
 
-### `Input` component (polymorphic form fields)
-`src/components/ui/Input/Input.tsx` is a single dispatcher component: it renders one of several field variants based on its `type` prop. Screens and features use `<Input type="..." />` — they never import variant components directly.
+- Follow `.agents/skills/tdd/SKILL.md` for production behavior changes.
+- Work on one observable behavior at a time: plan, failing test, minimum implementation, refactor.
+- Run the focused test first, then the full suite and type check before completion.
+- Prefer behavioral tests over source-text assertions or tests of implementation shape.
+- Do not install packages without explicit user approval.
+- Keep unrelated changes out of the current update.
+- Update domain decisions and roadmap status when behavior or architecture changes.
+- Do not add backward-compatibility paths unless persisted data, shipped behavior, or an external consumer requires them.
 
-- Variant mapping (`type` → component in `src/components/ui/Input/components/`):
+## Architecture Boundaries
 
-  | `type` | Component | Folder |
-  | --- | --- | --- |
-  | `"text"` | `TextInput` | `TextInput/` |
-  | `"number"` | `NumberInput` | `NumberInput/` |
-  | `"decimal"` | `DecimalInput` | `DecimalInput/` |
-  | `"date"` | `DateInput` | `DateInput/` |
-  | `"icon"` | `IconInput` | `IconInput/` |
-  | `"checkbox"` | `CheckboxInput` | `Checkbox/` |
-  | `"select"` | `SelectInput` | `SelectInput/` |
-  | `"text-select"` | `TextSelectInput` | `TextSelectInput/` |
+- Keep route files thin: route composition, route parameters, and navigation only.
+- Keep genuine UI primitives independent of feature modules and generated Convex document types.
+- Normalize backend data at feature boundaries instead of scattering casts through render code.
+- Prefer deep modules that hide representation and invariants over many pass-through wrappers.
+- Keep pure domain calculations separate from React state and Convex database orchestration.
+- Split components by responsibility and state ownership, not by a line-count rule alone.
+- Keep contexts narrow, fail loudly outside providers, and scope providers to actual consumers.
+- Avoid generic `components` or `utils` dumping grounds; ownership must be clear from the path.
+- Existing exceptions are tracked in `docs/refactor-roadmap.md`; new code must not deepen them.
 
-  Note: the `type` string does **not** always match the folder name (e.g. `"checkbox"` → `Checkbox/`, `"date"` → `DateInput`).
-- Each variant folder holds `<Variant>.tsx`, `<Variant>.test.tsx`, and an `index.ts` barrel, re-exported from `Input/components/index.ts`.
-- Each variant declares its own Props type in `Input.tsx` (e.g. `DateProps`, `SelectProps`); all of them are unioned into `Props` and dispatched via a `switch (props.type)`.
-- Complex variants colocate their internals inside their own folder (e.g. `DateInput/components/Calendar.tsx` modal + `DateInput/calendar.ts` pure date helpers).
-- Adding a new variant: create the folder under `components/`, re-export it in `components/index.ts`, then add its Props union + `case` in `Input.tsx`.
+## Convex Safety Rules
+
+For every new or modified registered Convex function:
+
+- Expose the smallest public API and return only fields required by the caller.
+- Never return credential, password-hash, token, or full account/session documents publicly.
+- Treat authentication and resource authorization as separate checks.
+- Validate resource ownership before inserting, patching, or deleting anything.
+- Validate semantic bounds in addition to Convex value types.
+- Use internal functions and generated `internal.*` references for backend-only orchestration.
+- Define argument and return validators.
+- Prefer structured expected errors over client parsing of error-message text.
+- Avoid unbounded `.collect()`, post-index database `.filter()`, and unbounded fan-out mutations.
+- Use explicit table names with `ctx.db.get`, `patch`, `replace`, and `delete` when touched code supports it.
+- Use the migration skill and widen-migrate-narrow for persisted breaking schema changes.
+
+Known violations remain in the backlog. Fix them in the agreed order rather than creating parallel compatibility layers.
+
+## Financial Domain Rules
+
+- Consult `docs/domain-decisions.md`; it distinguishes current behavior from accepted target behavior.
+- Money currently uses floating-point values. Integer cents are accepted but not yet implemented.
+- Do not introduce another monetary representation or assume the cents migration is complete.
+- Any accounting mutation must have tests for conservation, negative values, and boundary cases.
+- Consider `from`, `to`, and `paidFrom` whenever determining transaction involvement.
+- Enforce pipe topology and transaction eligibility on the backend, not only in the UI.
+- Scheduling calculations must accept an explicit clock in pure code and be idempotent at execution boundaries.
+
+## React Native And Performance
+
+- Measure before optimizing and remeasure afterward.
+- Fix ownership, subscription scope, and list virtualization before adding memoization.
+- Use virtualized lists for collections that can grow materially.
+- Scope listeners and subscriptions to screen focus when hidden tabs should not remain active.
+- Do not add state libraries, caching layers, or memoization without evidence of a real bottleneck.
+- Test platform-sensitive navigation, keyboard, modal, and accessibility behavior with native-oriented tools where practical.
+
+## Input Component
+
+Application code uses the polymorphic `src/components/ui/Input/Input.tsx` dispatcher rather than importing variants directly.
+
+| `type` | Component folder |
+| --- | --- |
+| `text` | `TextInput/` |
+| `number` | `NumberInput/` |
+| `decimal` | `DecimalInput/` |
+| `date` | `DateInput/` |
+| `icon` | `IconInput/` |
+| `checkbox` | `Checkbox/` |
+| `select` | `SelectInput/` |
+| `text-select` | `TextSelectInput/` |
+
+Each variant remains colocated with its tests and private helpers. Preserve this public dispatcher unless an approved refactor replaces the complete contract.
