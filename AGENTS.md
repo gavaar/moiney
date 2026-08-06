@@ -47,9 +47,10 @@ The current structure contains known boundary violations and oversized modules. 
 - `bun run android` - start Android
 - `bun run web` - start web
 - `bun run convex:dev` - start Convex development
-- `bun run convex:deploy` - deploy Convex functions
+- `bun run convex:deploy` - verify, then deploy Convex functions
 - `bun run test` - run the test suite; do not use `bun test`
-- `bunx tsc --noEmit --incremental false` - run the current type-check baseline
+- `bun run typecheck` - run the current type-check baseline
+- `bun run verify` - run the full test suite and type check
 
 ## Mandatory Workflow
 
