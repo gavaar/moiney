@@ -62,11 +62,11 @@ Filtering, grouping, deletion, snapshots, and query projections must account for
 
 ## D004: Username Canonicalization
 
-Status: Pending
+Status: Implemented
 
-The current implementation is effectively case-sensitive and does not consistently normalize whitespace.
+Usernames are canonicalized with `trim().toLowerCase()` before availability checks, registration, and sign-in. Canonical lowercase usernames are stored in the database.
 
-Before Update 1, decide whether usernames are canonicalized with `trim().toLowerCase()` or retain case-sensitive identity. Availability, registration, and sign-in must use the same rule.
+Whitespace-only usernames are invalid and are not reported as available. Existing test/development usernames were already lowercase, so no data migration or compatibility path was required.
 
 ## D005: Authentication Provider
 

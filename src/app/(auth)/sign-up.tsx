@@ -24,7 +24,7 @@ export default function SignUp() {
     },
     validate: (v) => {
       const e: Record<string, string> = {};
-      if (!v.username) e.username = "Username is required";
+      if (!v.username.trim()) e.username = "Username is required";
       if (!v.email) e.email = "Email is required";
       else if (!/\S+@\S+\.\S+/.test(v.email)) e.email = "Invalid email";
       if (!v.password) e.password = "Password is required";
@@ -42,21 +42,23 @@ export default function SignUp() {
   const debouncedUsername = useDebounce(values.username, 400);
 
   const usernameToCheck =
-    debouncedUsername.length >= 1 && !loading ? debouncedUsername : undefined;
+    debouncedUsername.trim().length >= 1 && !loading
+      ? debouncedUsername
+      : undefined;
 
-  const existingUser = useQuery(
-    api.accounts.getUserByUsername,
+  const usernameAvailable = useQuery(
+    api.accounts.isUsernameAvailable,
     usernameToCheck ? { username: usernameToCheck } : "skip",
   );
 
   let usernameStatus: "checking" | "available" | "unavailable" | undefined;
   if (usernameToCheck) {
-    if (existingUser === undefined) {
+    if (usernameAvailable === undefined) {
       usernameStatus = "checking";
-    } else if (existingUser !== null) {
-      usernameStatus = "unavailable";
-    } else {
+    } else if (usernameAvailable) {
       usernameStatus = "available";
+    } else {
+      usernameStatus = "unavailable";
     }
   }
 
@@ -68,16 +70,16 @@ export default function SignUp() {
   const usernameError = errors.username || asyncUsernameError;
 
   const hasEmptyFields =
-    !values.username ||
+    !values.username.trim() ||
     !values.email ||
     !values.password ||
     !values.repeatPassword;
   const { form: _formError, ...fieldErrors } = errors;
   const hasClientErrors = Object.keys(fieldErrors).length > 0;
-  const isUsernameBlocked =
-    usernameStatus === "checking" || usernameStatus === "unavailable";
+  const hasCurrentUsernameAvailability =
+    values.username === debouncedUsername && usernameStatus === "available";
   const canSubmit =
-    !hasEmptyFields && !hasClientErrors && !isUsernameBlocked && !loading;
+    !hasEmptyFields && !hasClientErrors && hasCurrentUsernameAvailability && !loading;
 
   return (
     <AuthScreenLayout

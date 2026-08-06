@@ -1,25 +1,50 @@
 "use node";
 import { action } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { v } from "convex/values";
-import { signAccessToken, generateRefreshToken, hashToken, getRefreshExpiry } from "./lib/jwt";
+import type { Doc, Id } from "./_generated/dataModel";
+import {
+  generateRefreshToken,
+  getRefreshExpiry,
+  hashToken,
+  signAccessToken,
+} from "./lib/jwt";
 import { hashPassword, verifyPassword } from "./lib/password";
+import { canonicalizeUsername } from "./lib/usernames";
+
+type AuthResult = {
+  accessToken: string;
+  refreshToken: string;
+};
+
+const authResultValidator = v.object({
+  accessToken: v.string(),
+  refreshToken: v.string(),
+});
 
 export const signUp = action({
   args: { username: v.string(), email: v.string(), password: v.string() },
-  handler: async (ctx, args) => {
-    if (args.username.length < 1) throw new Error("Username is required");
+  returns: authResultValidator,
+  handler: async (ctx, args): Promise<AuthResult> => {
+    const username = canonicalizeUsername(args.username);
+    if (username.length < 1) throw new Error("Username is required");
     if (!/^\S+@\S+\.\S+$/.test(args.email)) throw new Error("Invalid email");
-    if (args.password.length < 8) throw new Error("Password must be at least 8 characters");
+    if (args.password.length < 8) {
+      throw new Error("Password must be at least 8 characters");
+    }
 
-    const existing: { _id: string } | null = await ctx.runQuery(
-      "accounts:getUserByUsername" as any,
-      { username: args.username },
-    );
+    const existing = await ctx.runQuery(internal.accounts.getUserByUsername, {
+      username,
+    });
     if (existing) throw new Error("Account already exists");
 
-    const userId: string = await ctx.runMutation(
-      "accounts:insertUser" as any,
-      { username: args.username, email: args.email, password: hashPassword(args.password) },
+    const userId: Id<"users"> = await ctx.runMutation(
+      internal.accounts.insertUser,
+      {
+        username,
+        email: args.email,
+        password: hashPassword(args.password),
+      },
     );
 
     const refreshToken = generateRefreshToken();
@@ -37,10 +62,12 @@ export const signUp = action({
 
 export const signIn = action({
   args: { username: v.string(), password: v.string() },
-  handler: async (ctx, args) => {
-    const user: { _id: string; username: string; email: string; password: string } | null = await ctx.runQuery(
-      "accounts:getUserByUsername" as any,
-      { username: args.username },
+  returns: authResultValidator,
+  handler: async (ctx, args): Promise<AuthResult> => {
+    const username = canonicalizeUsername(args.username);
+    const user: Doc<"users"> | null = await ctx.runQuery(
+      internal.accounts.getUserByUsername,
+      { username },
     );
 
     if (!user || !verifyPassword(args.password, user.password))

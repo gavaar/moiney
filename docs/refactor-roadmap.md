@@ -16,7 +16,7 @@ This roadmap persists the whole-project audit beyond any single chat session. Wo
 | Update | Status | Objective | Depends on |
 | --- | --- | --- | --- |
 | 0. Durable agent context | Completed | Add current project guidance, engineering rules, domain-decision status, and this roadmap | None |
-| 1. Account API exposure | Pending | Replace public full-user lookup and insertion with narrow availability and internal operations | D004 username decision |
+| 1. Account API exposure | Completed | Replace public full-user lookup and insertion with narrow availability and internal operations | D004 username decision |
 | 2. Cross-tenant pipe writes | Pending | Authorize and validate parent pipes before any child write | None |
 | 3. Authentication integrity | Pending | Align JWT/JWKS, use typed internal references, and make registration/session behavior reliable | Update 1, D005 direction |
 | 4. Quality gates | Pending | Require tests and type checking before deploy; improve native and Convex boundary coverage | None |
@@ -64,4 +64,4 @@ Update 15 must report before-and-after measurements rather than relying only on 
 
 ## Current Next Step
 
-Resolve D004 username canonicalization, then present Update 1 for discussion.
+Present Update 2, cross-tenant pipe writes, for discussion.
