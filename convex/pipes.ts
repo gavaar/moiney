@@ -59,8 +59,14 @@ export const addPipe = mutation({
     capacity: v.number(),
     parentId: v.id("pipes"),
   },
+  returns: v.id("pipes"),
   handler: async (ctx, args) => {
     const userId = await requireAuth(ctx);
+    const parent = await ctx.db.get("pipes", args.parentId);
+    if (!parent || parent.userId !== userId) {
+      throw new Error("Parent pipe not found");
+    }
+
     await checkPipeLimit(ctx, userId);
 
     const childId = await ctx.db.insert("pipes", {
@@ -75,17 +81,14 @@ export const addPipe = mutation({
       spent: 0,
     });
 
-    const parent = await ctx.db.get(args.parentId);
-    if (parent) {
-      await ctx.db.patch(parent._id, {
-        capacity: 0,
-        spent: 0,
-        rule: undefined,
-        capUpdateValue: undefined,
-        cronNextDate: undefined,
-        cronInterval: undefined,
-      });
-    }
+    await ctx.db.patch("pipes", parent._id, {
+      capacity: 0,
+      spent: 0,
+      rule: undefined,
+      capUpdateValue: undefined,
+      cronNextDate: undefined,
+      cronInterval: undefined,
+    });
 
     await recascadeTree(ctx, userId);
 

@@ -17,7 +17,7 @@ This roadmap persists the whole-project audit beyond any single chat session. Wo
 | --- | --- | --- | --- |
 | 0. Durable agent context | Completed | Add current project guidance, engineering rules, domain-decision status, and this roadmap | None |
 | 1. Account API exposure | Completed | Replace public full-user lookup and insertion with narrow availability and internal operations | D004 username decision |
-| 2. Cross-tenant pipe writes | Pending | Authorize and validate parent pipes before any child write | None |
+| 2. Cross-tenant pipe writes | Completed | Authorize and validate parent pipes before any child write | None |
 | 3. Authentication integrity | Pending | Align JWT/JWKS, use typed internal references, and make registration/session behavior reliable | Update 1, D005 direction |
 | 4. Quality gates | Pending | Require tests and type checking before deploy; improve native and Convex boundary coverage | None |
 | 5. Transaction identity | Pending | Model transaction kinds and collision-free grouping, including `paidFrom` | D003 |
@@ -35,8 +35,6 @@ This roadmap persists the whole-project audit beyond any single chat session. Wo
 
 ## Confirmed High-Priority Risks
 
-- Public account functions expose password hashes and raw insertion.
-- `addPipe` can patch a parent without ownership validation.
 - JWT signing material and served JWKS have independent sources.
 - Backend financial and topology invariants are incomplete.
 - Transaction involvement is inconsistent across grouping, filtering, and deletion.
@@ -64,4 +62,4 @@ Update 15 must report before-and-after measurements rather than relying only on 
 
 ## Current Next Step
 
-Present Update 2, cross-tenant pipe writes, for discussion.
+Present Update 3, authentication integrity, for discussion.

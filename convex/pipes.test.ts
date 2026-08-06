@@ -423,6 +423,45 @@ describe("addPipe", () => {
     vi.clearAllMocks();
   });
 
+  it("rejects a missing parent without writing", async () => {
+    const ctx = mockCtx();
+    ctx.db.get.mockResolvedValue(null);
+
+    await expect(
+      (addPipe as any)._handler(ctx, {
+        name: "Child",
+        icon: "pipe",
+        priority: 1,
+        capacity: 50,
+        parentId: "missing-parent",
+      }),
+    ).rejects.toThrow("Parent pipe not found");
+
+    expect(ctx.db.insert).not.toHaveBeenCalled();
+    expect(ctx.db.patch).not.toHaveBeenCalled();
+  });
+
+  it("rejects a foreign parent without writing", async () => {
+    const ctx = mockCtx();
+    ctx.db.get.mockResolvedValue({
+      _id: "foreign-parent",
+      userId: "user-2",
+    });
+
+    await expect(
+      (addPipe as any)._handler(ctx, {
+        name: "Child",
+        icon: "pipe",
+        priority: 1,
+        capacity: 50,
+        parentId: "foreign-parent",
+      }),
+    ).rejects.toThrow("Parent pipe not found");
+
+    expect(ctx.db.insert).not.toHaveBeenCalled();
+    expect(ctx.db.patch).not.toHaveBeenCalled();
+  });
+
   it("clears the parent's rules when adding a child pipe", async () => {
     const parentPipe = {
       _id: "parent-1",
@@ -446,7 +485,7 @@ describe("addPipe", () => {
     ctx.db.insert.mockResolvedValue("child-1");
     ctx.db.query.mockReturnValue(chain);
 
-    await (addPipe as any)._handler(ctx, {
+    const childId = await (addPipe as any)._handler(ctx, {
       name: "Child",
       icon: "pipe",
       priority: 1,
@@ -454,9 +493,14 @@ describe("addPipe", () => {
       parentId: "parent-1",
     });
 
+    expect(childId).toBe("child-1");
+    expect(ctx.db.get).toHaveBeenCalledWith("pipes", "parent-1");
+    expect(ctx.db.get.mock.invocationCallOrder[0]).toBeLessThan(
+      ctx.db.insert.mock.invocationCallOrder[0],
+    );
     const parentPatch = ctx.db.patch.mock.calls.find(
-      (call: any[]) => call[0] === "parent-1",
-    )?.[1];
+      (call: any[]) => call[0] === "pipes" && call[1] === "parent-1",
+    )?.[2];
     expect(Object.keys(parentPatch)).toEqual([
       "capacity",
       "spent",
