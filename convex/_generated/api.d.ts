@@ -13,11 +13,14 @@ import type * as auth from "../auth.js";
 import type * as crons from "../crons.js";
 import type * as http from "../http.js";
 import type * as lib_auth from "../lib/auth.js";
+import type * as lib_authRateLimits from "../lib/authRateLimits.js";
 import type * as lib_constants from "../lib/constants.js";
 import type * as lib_jwt from "../lib/jwt.js";
+import type * as lib_jwtPublic from "../lib/jwtPublic.js";
 import type * as lib_password from "../lib/password.js";
 import type * as lib_pipes from "../lib/pipes.js";
 import type * as lib_transactions from "../lib/transactions.js";
+import type * as lib_usernames from "../lib/usernames.js";
 import type * as migrations from "../migrations.js";
 import type * as pipes from "../pipes.js";
 import type * as sessions from "../sessions.js";
@@ -35,11 +38,14 @@ declare const fullApi: ApiFromModules<{
   crons: typeof crons;
   http: typeof http;
   "lib/auth": typeof lib_auth;
+  "lib/authRateLimits": typeof lib_authRateLimits;
   "lib/constants": typeof lib_constants;
   "lib/jwt": typeof lib_jwt;
+  "lib/jwtPublic": typeof lib_jwtPublic;
   "lib/password": typeof lib_password;
   "lib/pipes": typeof lib_pipes;
   "lib/transactions": typeof lib_transactions;
+  "lib/usernames": typeof lib_usernames;
   migrations: typeof migrations;
   pipes: typeof pipes;
   sessions: typeof sessions;
@@ -74,4 +80,5 @@ export declare const internal: FilterApi<
 
 export declare const components: {
   migrations: import("@convex-dev/migrations/_generated/component.js").ComponentApi<"migrations">;
+  rateLimiter: import("@convex-dev/rate-limiter/_generated/component.js").ComponentApi<"rateLimiter">;
 };

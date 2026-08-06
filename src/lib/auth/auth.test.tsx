@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, render, screen, waitFor } from "@testing-library/react";
 
 const mocks = vi.hoisted(() => ({
@@ -7,6 +7,8 @@ const mocks = vi.hoisted(() => ({
   storage: {
     getRefreshToken: vi.fn(),
     getAccessToken: vi.fn(),
+    setRefreshToken: vi.fn(),
+    setAccessToken: vi.fn(),
   },
 }));
 
@@ -26,8 +28,8 @@ vi.mock("convex/react", () => {
 vi.mock("./storage", () => ({
   getRefreshToken: mocks.storage.getRefreshToken,
   getAccessToken: mocks.storage.getAccessToken,
-  setRefreshToken: vi.fn(),
-  setAccessToken: vi.fn(),
+  setRefreshToken: mocks.storage.setRefreshToken,
+  setAccessToken: mocks.storage.setAccessToken,
   removeRefreshToken: vi.fn(),
   removeAccessToken: vi.fn(),
 }));
@@ -62,6 +64,10 @@ function AuthStateDisplay() {
 describe("AuthProvider", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("resolves loading to false when no refresh token exists", async () => {
@@ -103,5 +109,71 @@ describe("AuthProvider", () => {
     });
 
     expect(screen.getByTestId("authenticated").textContent).toBe("true");
+  });
+
+  it("persists the replacement refresh token", async () => {
+    mocks.storage.getRefreshToken.mockResolvedValue("old-refresh-token");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: vi.fn().mockResolvedValue({
+          status: "success",
+          value: {
+            accessToken: "new-access-token",
+            refreshToken: "new-refresh-token",
+          },
+        }),
+      }),
+    );
+
+    render(
+      <AuthProvider>
+        <AuthStateDisplay />
+      </AuthProvider>,
+    );
+    await waitFor(() => expect(mocks.mockSetAuth).toHaveBeenCalled());
+    const fetchToken = mocks.mockSetAuth.mock.calls[0][0];
+
+    const accessToken = await fetchToken({ forceRefreshToken: true });
+
+    expect(accessToken).toBe("new-access-token");
+    expect(mocks.storage.setRefreshToken).toHaveBeenCalledWith(
+      "new-refresh-token",
+    );
+    expect(mocks.storage.setAccessToken).toHaveBeenCalledWith(
+      "new-access-token",
+    );
+  });
+
+  it("shares one request between concurrent token refreshes", async () => {
+    mocks.storage.getRefreshToken.mockResolvedValue("old-refresh-token");
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        status: "success",
+        value: {
+          accessToken: "new-access-token",
+          refreshToken: "new-refresh-token",
+        },
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <AuthProvider>
+        <AuthStateDisplay />
+      </AuthProvider>,
+    );
+    await waitFor(() => expect(mocks.mockSetAuth).toHaveBeenCalled());
+    const fetchToken = mocks.mockSetAuth.mock.calls[0][0];
+
+    const results = await Promise.all([
+      fetchToken({ forceRefreshToken: true }),
+      fetchToken({ forceRefreshToken: true }),
+    ]);
+
+    expect(results).toEqual(["new-access-token", "new-access-token"]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

@@ -2,7 +2,7 @@
 
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import SignUp from "./sign-up";
+import SignUp from "@/app/(auth)/sign-up";
 
 const mocks = vi.hoisted(() => ({
   availability: undefined as boolean | undefined,

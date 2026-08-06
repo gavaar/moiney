@@ -74,6 +74,21 @@ Status: Pending
 
 The current application uses a custom JWT and refresh-token implementation. Immediate security containment will not depend on replacing it.
 
+Immediate containment now derives JWKS from configured public key material, rejects mismatched signing and verification keys, creates accounts and sessions atomically, and uses typed internal session references. This does not resolve the provider decision or the remaining production responsibilities below.
+
 After containment, evaluate the current Convex Auth React Native flow in an isolated proof of concept. Convex Auth is currently beta and previously caused integration difficulty for this project. A migration requires demonstrated sign-up, sign-in, persistence, refresh, sign-out, recovery, and web/native compatibility.
 
 If custom auth remains, key correspondence, atomic registration, refresh rotation, replay detection, rate limiting, recovery, and storage policy must be treated as owned production responsibilities.
+
+## D006: Invited-User Account Recovery
+
+Status: Implemented
+
+While Moiney remains invitation-only, account recovery is operator-assisted. The
+operator verifies the requester through the established invitation channel; an
+unverified requester receives no confirmation that an account exists. Any
+credential reset must revoke every active session for the account.
+
+There is no public password-recovery endpoint and no email-based reset flow.
+Before a public release, replace this process with an auditable recovery flow or
+an authentication provider that demonstrates recovery across native and web.

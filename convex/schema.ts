@@ -24,11 +24,18 @@ export default defineSchema({
   sessions: defineTable({
     userId: v.id("users"),
     refreshTokenHash: v.string(),
+    familyId: v.optional(v.string()),
+    active: v.optional(v.boolean()),
+    rotatedAt: v.optional(v.number()),
+    revokedAt: v.optional(v.number()),
     expiresAt: v.number(),
     createdAt: v.number(),
   })
     .index("by_userId", ["userId"])
-    .index("by_refreshTokenHash", ["refreshTokenHash"]),
+    .index("by_refreshTokenHash", ["refreshTokenHash"])
+    .index("by_familyId", ["familyId"])
+    .index("by_familyId_active", ["familyId", "active"])
+    .index("by_userId_active", ["userId", "active"]),
   transactionTitleUsage: defineTable({
     pipeId: v.id("pipes"),
     userId: v.id("users"),

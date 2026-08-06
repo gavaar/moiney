@@ -18,7 +18,9 @@ This roadmap persists the whole-project audit beyond any single chat session. Wo
 | 0. Durable agent context | Completed | Add current project guidance, engineering rules, domain-decision status, and this roadmap | None |
 | 1. Account API exposure | Completed | Replace public full-user lookup and insertion with narrow availability and internal operations | D004 username decision |
 | 2. Cross-tenant pipe writes | Completed | Authorize and validate parent pipes before any child write | None |
-| 3. Authentication integrity | Pending | Align JWT/JWKS, use typed internal references, and make registration/session behavior reliable | Update 1, D005 direction |
+| 3A. Authentication containment | Completed | Align JWT/JWKS, use typed internal references, and make registration/session behavior reliable | Update 1 |
+| 3B. Authentication provider decision | Deferred | Reevaluate managed auth before a public release | Update 3A |
+| 3C. Custom-auth hardening | Completed | Add rotation, replay detection, rate limits, recovery, and storage policy | Update 3A |
 | 4. Quality gates | Pending | Require tests and type checking before deploy; improve native and Convex boundary coverage | None |
 | 5. Transaction identity | Pending | Model transaction kinds and collision-free grouping, including `paidFrom` | D003 |
 | 6. Pipe deletion contract | Pending | Implement optional complete history purge and return subtree balance to the parent | D002, money command contract |
@@ -35,7 +37,6 @@ This roadmap persists the whole-project audit beyond any single chat session. Wo
 
 ## Confirmed High-Priority Risks
 
-- JWT signing material and served JWKS have independent sources.
 - Backend financial and topology invariants are incomplete.
 - Transaction involvement is inconsistent across grouping, filtering, and deletion.
 - Floating-point monetary arithmetic cannot guarantee exact conservation.
@@ -62,4 +63,6 @@ Update 15 must report before-and-after measurements rather than relying only on 
 
 ## Current Next Step
 
-Present Update 3, authentication integrity, for discussion.
+Present Update 4 quality gates for discussion. Update 3C custom-auth hardening is
+complete, including refresh-token lifecycle security, rate limiting, bounded
+inputs and sessions, operator-assisted recovery policy, and web session storage.

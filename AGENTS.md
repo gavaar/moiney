@@ -65,6 +65,7 @@ The current structure contains known boundary violations and oversized modules. 
 ## Architecture Boundaries
 
 - Keep route files thin: route composition, route parameters, and navigation only.
+- Keep tests, helpers, components, and types outside `src/app/`; Expo Router treats matching source files there as routes and bundles them into the application.
 - Keep genuine UI primitives independent of feature modules and generated Convex document types.
 - Normalize backend data at feature boundaries instead of scattering casts through render code.
 - Prefer deep modules that hide representation and invariants over many pass-through wrappers.

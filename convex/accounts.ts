@@ -37,15 +37,41 @@ export const getUserByUsername = internalQuery({
   },
 });
 
-export const insertUser = internalMutation({
-  args: { username: v.string(), email: v.string(), password: v.string() },
-  returns: v.id("users"),
+export const registerWithSession = internalMutation({
+  args: {
+    username: v.string(),
+    email: v.string(),
+    password: v.string(),
+    familyId: v.string(),
+    refreshTokenHash: v.string(),
+    expiresAt: v.number(),
+  },
+  returns: v.object({
+    userId: v.id("users"),
+    sessionId: v.id("sessions"),
+  }),
   handler: async (ctx, args) => {
+    const username = canonicalizeUsername(args.username);
     const existing = await ctx.db
       .query("users")
-      .withIndex("by_username", (q) => q.eq("username", args.username))
+      .withIndex("by_username", (q) => q.eq("username", username))
       .unique();
     if (existing) throw new Error("Account already exists");
-    return await ctx.db.insert("users", args);
+
+    const userId = await ctx.db.insert("users", {
+      username,
+      email: args.email,
+      password: args.password,
+    });
+    const sessionId = await ctx.db.insert("sessions", {
+      userId,
+      familyId: args.familyId,
+      active: true,
+      refreshTokenHash: args.refreshTokenHash,
+      expiresAt: args.expiresAt,
+      createdAt: Date.now(),
+    });
+
+    return { userId, sessionId };
   },
 });

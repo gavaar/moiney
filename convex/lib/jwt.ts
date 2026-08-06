@@ -1,8 +1,34 @@
 "use node";
 import crypto from "crypto";
+import { JWT_KEY_ID } from "./jwtPublic";
 
 const ACCESS_TTL = 900;
 const REFRESH_TTL = 30 * 24 * 60 * 60;
+
+function requireEnvironmentValue(name: string): string {
+  const value = process.env[name];
+  if (!value) throw new Error(`${name} is not configured`);
+  return value;
+}
+
+export function assertJwtKeyPair(
+  privateKey: string,
+  publicKey: string,
+): void {
+  const signingPublicKey = crypto
+    .createPublicKey(privateKey)
+    .export({ type: "spki", format: "der" });
+  const configuredPublicKey = crypto
+    .createPublicKey(publicKey)
+    .export({ type: "spki", format: "der" });
+
+  if (
+    signingPublicKey.length !== configuredPublicKey.length ||
+    !crypto.timingSafeEqual(signingPublicKey, configuredPublicKey)
+  ) {
+    throw new Error("JWT key pair does not match");
+  }
+}
 
 function base64url(data: Buffer): string {
   return data
@@ -13,11 +39,13 @@ function base64url(data: Buffer): string {
 }
 
 export function signAccessToken(userId: string, sessionId: string): string {
-  const privateKey = process.env.JWT_PRIVATE_KEY!;
-  const siteUrl = process.env.CONVEX_SITE_URL!;
+  const privateKey = requireEnvironmentValue("JWT_PRIVATE_KEY");
+  const publicKey = requireEnvironmentValue("JWT_PUBLIC_KEY");
+  const siteUrl = requireEnvironmentValue("CONVEX_SITE_URL");
+  assertJwtKeyPair(privateKey, publicKey);
   const now = Math.floor(Date.now() / 1000);
 
-  const header = { alg: "RS256", typ: "JWT", kid: "moiney-key-v1" };
+  const header = { alg: "RS256", typ: "JWT", kid: JWT_KEY_ID };
   const payload = {
     sub: userId,
     sessionId,
@@ -38,6 +66,10 @@ export function signAccessToken(userId: string, sessionId: string): string {
 
 export function generateRefreshToken(): string {
   return crypto.randomBytes(32).toString("hex");
+}
+
+export function generateSessionFamilyId(): string {
+  return crypto.randomBytes(16).toString("hex");
 }
 
 export function hashToken(token: string): string {

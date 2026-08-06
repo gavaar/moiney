@@ -53,6 +53,9 @@ async function refreshAccessToken(refreshToken: string): Promise<string | null> 
     if (data.status !== "success") return null;
     const value = data.value;
     if (value.accessToken) {
+      if (value.refreshToken) {
+        await storeRefreshToken(value.refreshToken);
+      }
       await storeAccessToken(value.accessToken);
       return value.accessToken;
     }
@@ -62,18 +65,29 @@ async function refreshAccessToken(refreshToken: string): Promise<string | null> 
   }
 }
 
+let activeRefresh: Promise<string | null> | null = null;
+
+function refreshAccessTokenOnce(refreshToken: string): Promise<string | null> {
+  if (!activeRefresh) {
+    activeRefresh = refreshAccessToken(refreshToken).finally(() => {
+      activeRefresh = null;
+    });
+  }
+  return activeRefresh;
+}
+
 const fetchTokenFn: AuthTokenFetcher = async ({ forceRefreshToken }) => {
   const refreshToken = await getRefreshToken();
   if (!refreshToken) return null;
 
   if (forceRefreshToken) {
-    return refreshAccessToken(refreshToken);
+    return refreshAccessTokenOnce(refreshToken);
   }
 
   const accessToken = await getAccessToken();
   if (accessToken) return accessToken;
 
-  return refreshAccessToken(refreshToken);
+  return refreshAccessTokenOnce(refreshToken);
 };
 
 export function AuthProvider({ children }: { children: ReactNode }) {
