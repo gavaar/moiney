@@ -1081,6 +1081,39 @@ describe("AmountForm", () => {
         });
       });
 
+      it("preserves paidFrom when repeating an individual expense", async () => {
+        const date = new Date(2026, 6, 21, 15, 45);
+        vi.setSystemTime(date);
+
+        render(
+          <AmountForm
+            pipeId={"child-1" as Id<"pipes">}
+            variant="transaction"
+            initState={{
+              pipeIcon: "home-outline",
+              pipeName: "Rent",
+              title: "rent",
+              value: "-50",
+              paidFrom: "feed-2" as Id<"pipes">,
+            }}
+          />,
+        );
+
+        fireEvent.click(screen.getByTestId("submit-button"));
+
+        await waitFor(() => {
+          expect(mockCreateTransaction).toHaveBeenCalledWith({
+            title: "rent",
+            value: -50,
+            date: date.getTime(),
+            from: "child-1",
+            paidFrom: "feed-2",
+          });
+        });
+
+        vi.useRealTimers();
+      });
+
       it("keeps form filled and shows error alert on edit mutation failure", async () => {
         mockEditTransactionFn.mockRejectedValueOnce(new Error("Edit failed"));
 

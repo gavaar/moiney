@@ -1,16 +1,20 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
+import { Animated } from "react-native";
 import { StackedTransactionItem } from "./StackedTransactionItem";
 import type { TransactionGroup } from "@features/transactions/groupTransactions";
 import type { Id } from "@convex/_generated/dataModel";
 
 const baseGroup: TransactionGroup = {
+  id: '["expense","coffee",-5,"pipe-1",null]',
+  kind: "expense",
   transactions: [
     {
       _id: "tx1" as any,
       _creationTime: 0,
       title: "coffee",
+      kind: "expense",
       value: -5,
       date: new Date("2024-03-15").getTime(),
       from: "pipe-1" as Id<"pipes">,
@@ -21,6 +25,7 @@ const baseGroup: TransactionGroup = {
       _id: "tx2" as any,
       _creationTime: 0,
       title: "coffee",
+      kind: "expense",
       value: -5,
       date: new Date("2024-03-20").getTime(),
       from: "pipe-1" as Id<"pipes">,
@@ -83,7 +88,7 @@ describe("StackedTransactionItem", () => {
         onToggle={vi.fn()}
       />,
     );
-    expect(screen.getByTestId("mock-icon")).toBeDefined();
+    expect(screen.getAllByTestId("mock-icon")[0]).toBeDefined();
   });
 
   it("renders the title capitalized", () => {
@@ -175,7 +180,7 @@ describe("StackedTransactionItem", () => {
     expect(screen.getByTestId("modal")).toBeDefined();
   });
 
-  it("calls onToggle when tapped while expanded", () => {
+  it("opens the modal without toggling when tapped while expanded", () => {
     const onToggle = vi.fn();
     render(
       <StackedTransactionItem
@@ -185,7 +190,100 @@ describe("StackedTransactionItem", () => {
       />,
     );
     fireEvent.click(screen.getByText("Coffee"));
+    expect(screen.getByTestId("modal")).toBeDefined();
+    expect(onToggle).not.toHaveBeenCalled();
+  });
+
+  it("toggles only from the accessible disclosure button", () => {
+    const onToggle = vi.fn();
+    const { rerender } = render(
+      <StackedTransactionItem
+        group={baseGroup}
+        expanded={false}
+        onToggle={onToggle}
+      />,
+    );
+    const expand = screen.getByRole("button", {
+      name: "Expand 2 transactions",
+    });
+
+    fireEvent.click(expand);
     expect(onToggle).toHaveBeenCalledOnce();
+    expect(screen.queryByTestId("modal")).toBeNull();
+
+    rerender(
+      <StackedTransactionItem
+        group={baseGroup}
+        expanded
+        onToggle={onToggle}
+      />,
+    );
+    const collapse = screen.getByRole("button", {
+      name: "Collapse 2 transactions",
+    });
+    fireEvent.click(collapse);
+    expect(onToggle).toHaveBeenCalledTimes(2);
+  });
+
+  it("renders repeat and disclosure as separate sibling controls", () => {
+    const onToggle = vi.fn();
+    render(
+      <StackedTransactionItem
+        group={baseGroup}
+        expanded={false}
+        onToggle={onToggle}
+      />,
+    );
+    const row = screen.getByTestId("transaction-group-row");
+    const main = screen.getByTestId("transaction-group-main");
+    const disclosure = screen.getByTestId("transaction-group-disclosure");
+
+    expect(row.children).toHaveLength(2);
+    expect(main.parentElement).toBe(row);
+    expect(disclosure.parentElement).toBe(row);
+
+    fireEvent.click(main);
+    expect(screen.getByTestId("modal")).toBeDefined();
+    expect(onToggle).not.toHaveBeenCalled();
+
+    fireEvent.click(disclosure);
+    expect(onToggle).toHaveBeenCalledOnce();
+  });
+
+  it("animates one compact down chevron between disclosure states", () => {
+    const start = vi.fn();
+    const stop = vi.fn();
+    const timing = vi
+      .spyOn(Animated, "timing")
+      .mockReturnValue({ start, stop } as unknown as Animated.CompositeAnimation);
+    const { rerender } = render(
+      <StackedTransactionItem
+        group={baseGroup}
+        expanded={false}
+        onToggle={vi.fn()}
+      />,
+    );
+
+    rerender(
+      <StackedTransactionItem
+        group={baseGroup}
+        expanded
+        onToggle={vi.fn()}
+      />,
+    );
+
+    const chevrons = screen
+      .getAllByTestId("mock-icon")
+      .filter((icon) => icon.getAttribute("data-name") === "chevron-down");
+    expect(chevrons).toHaveLength(1);
+    expect(chevrons[0].getAttribute("data-size")).toBe("12");
+    expect(timing).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({ toValue: 1, useNativeDriver: true }),
+    );
+    expect(start).toHaveBeenCalled();
+
+    timing.mockRestore();
   });
 
   it("renders normally when expanded (no crash)", () => {

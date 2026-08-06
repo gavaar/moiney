@@ -1,6 +1,13 @@
 import type { Doc, Id } from "@convex/_generated/dataModel";
+import {
+  resolveTransactionKind,
+  transactionGroupId,
+  type TransactionKind,
+} from "@/lib/transactions/identity";
 
 export type TransactionGroup = {
+  id: string;
+  kind: TransactionKind;
   transactions: Doc<"transactions">[];
   count: number;
   title: string;
@@ -13,17 +20,13 @@ export type TransactionGroup = {
 
 export type TransactionListItem = Doc<"transactions"> | TransactionGroup;
 
-function compositeKey(tx: Doc<"transactions">): string {
-  return `${tx.title}|${tx.value}|${tx.from ?? ""}|${tx.to ?? ""}`;
-}
-
 export function groupTransactions(
   transactions: Doc<"transactions">[],
 ): TransactionListItem[] {
   const groups = new Map<string, Doc<"transactions">[]>();
 
   for (const tx of transactions) {
-    const key = compositeKey(tx);
+    const key = transactionGroupId(tx);
     const list = groups.get(key);
     if (list) {
       list.push(tx);
@@ -34,7 +37,7 @@ export function groupTransactions(
 
   const items: TransactionListItem[] = [];
 
-  for (const [, txs] of groups) {
+  for (const [id, txs] of groups) {
     if (txs.length === 1) {
       items.push(txs[0]);
     } else {
@@ -46,6 +49,8 @@ export function groupTransactions(
       }
       const first = txs[0];
       items.push({
+        id,
+        kind: resolveTransactionKind(first),
         transactions: txs,
         count: txs.length,
         title: first.title,

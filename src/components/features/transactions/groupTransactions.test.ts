@@ -15,6 +15,7 @@ function tx(
     to: undefined,
     userId: "" as Id<"users">,
     ...overrides,
+    kind: overrides.kind ?? "expense",
   };
 }
 
@@ -37,6 +38,25 @@ describe("groupTransactions", () => {
     expect(group.oldestDate).toBe(100);
     expect(group.latestDate).toBe(200);
     expect(group.transactions).toHaveLength(2);
+  });
+
+  it("groups expense provenance together under one canonical identity", () => {
+    const t1 = tx({
+      date: 200,
+      paidFrom: "salary" as Id<"pipes">,
+    });
+    const t2 = tx({
+      date: 100,
+      paidFrom: "savings" as Id<"pipes">,
+    });
+
+    const [group] = groupTransactions([t1, t2]) as any[];
+
+    expect(group).toMatchObject({
+      count: 2,
+      kind: "expense",
+      id: JSON.stringify(["expense", "coffee", -5, "pipe-a", null]),
+    });
   });
 
   it("returns separate groups for different titles", () => {
@@ -63,8 +83,8 @@ describe("groupTransactions", () => {
   });
 
   it("returns separate groups for different to pipes", () => {
-    const t1 = tx({ title: "coffee", from: "pipe-a" as Id<"pipes">, to: "pipe-b" as Id<"pipes">, date: 100 });
-    const t2 = tx({ title: "coffee", from: "pipe-a" as Id<"pipes">, to: "pipe-c" as Id<"pipes">, date: 200 });
+    const t1 = tx({ kind: "transfer", title: "coffee", from: "pipe-a" as Id<"pipes">, to: "pipe-b" as Id<"pipes">, date: 100 });
+    const t2 = tx({ kind: "transfer", title: "coffee", from: "pipe-a" as Id<"pipes">, to: "pipe-c" as Id<"pipes">, date: 200 });
     const result = groupTransactions([t1, t2]);
     expect(result).toHaveLength(2);
   });

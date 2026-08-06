@@ -6,6 +6,7 @@ import { ModalShell } from '../Modal';
 import { AmountForm } from '@features/components/AmountForm';
 import { useState } from 'react';
 import { usePipeSelection } from '@features/pipes/context/PipeSelectionContext';
+import { resolveTransactionKind } from "@/lib/transactions/identity";
 
 type TransactionItemProps = {
   transaction: Doc<"transactions">;
@@ -18,9 +19,10 @@ const DATE_FORMAT: Intl.DateTimeFormatOptions = {
 };
 
 export function TransactionItem({ transaction }: TransactionItemProps) {
-  const isFeed = !transaction.from && !!transaction.to;
-  const isTransfer = !!transaction.from && !!transaction.to;
-  const isPayByTransfer = !!transaction.from && !!transaction.paidFrom;
+  const kind = resolveTransactionKind(transaction);
+  const isFeed = kind === "feed";
+  const isTransfer = kind === "transfer";
+  const isPayByTransfer = kind === "expense" && !!transaction.paidFrom;
   const isNegative = transaction.value < 0;
   const [showForm, setShowForm] = useState(false);
   const [showDisabledInfo, setShowDisabledInfo] = useState(false);

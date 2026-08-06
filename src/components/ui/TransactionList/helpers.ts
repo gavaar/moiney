@@ -15,9 +15,9 @@ export function buildFlatItems(
 
   for (const item of items) {
     if ("count" in item) {
-      const isExpanded = expandedKeys.has(item.title + item.value + item.from + item.to);
+      const isExpanded = expandedKeys.has(item.id);
       result.push({
-        key: `group-${item.oldestDate}-${item.latestDate}`,
+        key: `group-${item.id}`,
         kind: "group",
         group: item,
         expanded: isExpanded,

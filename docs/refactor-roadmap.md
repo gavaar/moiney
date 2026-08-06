@@ -22,7 +22,7 @@ This roadmap persists the whole-project audit beyond any single chat session. Wo
 | 3B. Authentication provider decision | Deferred | Reevaluate managed auth before a public release | Update 3A |
 | 3C. Custom-auth hardening | Completed | Add rotation, replay detection, rate limits, recovery, and storage policy | Update 3A |
 | 4. Quality gates | Completed | Require tests and type checking before deploy; improve native and Convex boundary coverage | None |
-| 5. Transaction identity | Pending | Model transaction kinds and collision-free grouping, including `paidFrom` | D003 |
+| 5. Transaction identity | Completed | Model transaction kinds and collision-free grouping, including `paidFrom` | D003, D007 |
 | 6. Pipe deletion contract | Pending | Implement optional complete history purge and return subtree balance to the parent | D002, money command contract |
 | 7. Independent correctness fixes | Pending | Repair selection, back handling, description clearing, cron diff, input handlers, and loading states | Relevant focused tests |
 | 8. Shared domain core | Pending | Introduce deep pure modules for money, transactions, pipe graph, and cron schedules | D001-D003 |
@@ -63,6 +63,5 @@ Update 15 must report before-and-after measurements rather than relying only on 
 
 ## Current Next Step
 
-Present Update 5 transaction identity for discussion. Update 4 now gates pull
-requests and deployments on frozen installation, tests, and type checking, and
-adds Android back-handler and realistic Convex authorization/atomicity coverage.
+Await the user's additional requested change before presenting or starting
+Update 6.

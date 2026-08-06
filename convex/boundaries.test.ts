@@ -101,4 +101,58 @@ describe("Convex boundaries", () => {
     expect(stateAfterDuplicate.users).toHaveLength(1);
     expect(stateAfterDuplicate.sessions).toHaveLength(1);
   });
+
+  it("filters transactions through from, to, and paidFrom involvement", async () => {
+    const t = convexTest(schema, modules);
+    const { userId, selectedPipeId } = await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", {
+        username: "alice",
+        email: "alice@example.com",
+        password: "hash",
+      });
+      const selectedPipeId = await ctx.db.insert("pipes", {
+        userId,
+        name: "Selected",
+        icon: "pipe",
+        priority: 0,
+        capacity: 100,
+        fed: 0,
+        spent: 0,
+      });
+      const otherPipeId = await ctx.db.insert("pipes", {
+        userId,
+        name: "Other",
+        icon: "pipe",
+        priority: 0,
+        capacity: 100,
+        fed: 0,
+        spent: 0,
+      });
+      const rows = [
+        { title: "from", kind: "expense" as const, from: selectedPipeId },
+        { title: "to", kind: "feed" as const, to: selectedPipeId },
+        { title: "paid", kind: "expense" as const, from: otherPipeId, paidFrom: selectedPipeId },
+        { title: "unrelated", kind: "expense" as const, from: otherPipeId },
+      ];
+      for (const [index, row] of rows.entries()) {
+        await ctx.db.insert("transactions", {
+          ...row,
+          userId,
+          value: -1,
+          date: index,
+        });
+      }
+      return { userId, selectedPipeId };
+    });
+
+    const transactions = await t
+      .withIdentity({ subject: userId })
+      .query(api.transactions.listTransactions, {
+        pipeIds: [selectedPipeId],
+      });
+
+    expect(transactions.map((transaction: { title: string }) => transaction.title).sort()).toEqual(
+      ["from", "paid", "to"],
+    );
+  });
 });

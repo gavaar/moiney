@@ -20,21 +20,17 @@ export function useTransactions() {
   return useContext(TransactionsContext);
 }
 
-export function getLeafDescendantIds(
+export function getSubtreePipeIds(
   childrenByParent: Map<Id<"pipes">, Doc<"pipes">[]>,
   selectedPipeId: Id<"pipes"> | null,
 ): Id<"pipes">[] | null {
   if (!selectedPipeId) return null;
 
-  const children = childrenByParent.get(selectedPipeId);
-  if (!children || children.length === 0) return [selectedPipeId];
-
   const result: Id<"pipes">[] = [];
   function dfs(nodeId: Id<"pipes">) {
+    result.push(nodeId);
     const nodeChildren = childrenByParent.get(nodeId);
-    if (!nodeChildren || nodeChildren.length === 0) {
-      result.push(nodeId);
-    } else {
+    if (nodeChildren) {
       for (const child of nodeChildren) {
         dfs(child._id);
       }
@@ -54,7 +50,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
 
   const pipeIds = useMemo(() => {
     if (!allPipes) return undefined;
-    if (selectedPipeId) return getLeafDescendantIds(childrenByParent, selectedPipeId);
+    if (selectedPipeId) return getSubtreePipeIds(childrenByParent, selectedPipeId);
     return null;
   }, [allPipes, childrenByParent, selectedPipeId]);
 

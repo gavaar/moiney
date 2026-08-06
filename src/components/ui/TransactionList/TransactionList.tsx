@@ -34,7 +34,7 @@ export function TransactionList({
   );
 
   function toggleGroup(group: TransactionGroup) {
-    const key = group.title + group.value + group.from + group.to;
+    const key = group.id;
     setExpandedKeys((prev) => {
       const next = new Set(prev);
       if (next.has(key)) {

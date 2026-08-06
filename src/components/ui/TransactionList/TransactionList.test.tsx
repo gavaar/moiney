@@ -17,6 +17,7 @@ function tx(
     to: undefined,
     userId: "" as Id<"users">,
     ...overrides,
+    kind: overrides.kind ?? "expense",
   };
 }
 

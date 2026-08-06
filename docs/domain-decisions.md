@@ -50,7 +50,7 @@ The operation must preserve accounting conservation, clean related derived recor
 
 ## D003: Transaction Involvement
 
-Status: Accepted, not implemented
+Status: In progress
 
 A transaction involves a pipe when that pipe appears in any of these roles:
 
@@ -58,7 +58,8 @@ A transaction involves a pipe when that pipe appears in any of these roles:
 - `to`
 - `paidFrom`
 
-Filtering, grouping, deletion, snapshots, and query projections must account for all applicable roles. The current implementation omits some roles in several paths; these are tracked in the roadmap.
+Filtering and grouping account for all applicable roles. Deletion and snapshot
+behavior remain pending in Update 6.
 
 ## D004: Username Canonicalization
 
@@ -92,3 +93,24 @@ credential reset must revoke every active session for the account.
 There is no public password-recovery endpoint and no email-based reset flow.
 Before a public release, replace this process with an auditable recovery flow or
 an authentication provider that demonstrates recovery across native and web.
+
+## D007: Transaction Identity And Grouping
+
+Status: Implemented
+
+Transactions use three structural kinds: `feed`, `expense`, and `transfer`.
+Pay-by-transfer is an expense with optional `paidFrom` provenance, not a
+separate kind. Refunds retain the same structural kind and reverse monetary
+polarity.
+
+Expense grouping intentionally ignores `paidFrom`; matching ordinary and
+pay-by-transfer expenses group together across dates. Group identity includes
+kind, title, value, `from`, and `to` through a collision-free encoding. A
+collapsed expense group repeats a generic expense without `paidFrom`; expanding
+the group exposes individual transactions that preserve their payer.
+
+Group expansion uses a dedicated accessible count-and-chevron control. Tapping
+the main group row continues to open the generic repeat form.
+
+All persisted environments were migrated. `kind` is required, and the
+deprecated `type` field and legacy fallback have been removed.

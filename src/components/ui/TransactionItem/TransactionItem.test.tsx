@@ -8,6 +8,7 @@ const baseTx = {
   _id: "tx1" as any,
   _creationTime: 0,
   title: "shopping mall",
+  kind: "expense" as const,
   value: -50,
   date: new Date("2024-03-15").getTime(),
   from: "pipe-1" as Id<"pipes">,
@@ -36,6 +37,7 @@ const transferTx = {
   _id: "tx-transfer" as any,
   _creationTime: 0,
   title: "send to rent",
+  kind: "transfer" as const,
   value: -50,
   date: new Date("2024-03-15").getTime(),
   from: "salary-pipe" as Id<"pipes">,
@@ -53,6 +55,7 @@ const feedTx = {
   _id: "tx-feed" as any,
   _creationTime: 0,
   title: "weekly salary",
+  kind: "feed" as const,
   value: 1000,
   date: new Date("2024-03-15").getTime(),
   pipeId: "pipe-1" as Id<"pipes">,
@@ -69,6 +72,15 @@ vi.mock("@features/pipes/context/PipeSelectionContext", () => ({
 vi.mock("@ui/Icon", () => ({
   Icon: ({ name }: any) => <span data-testid="mock-icon" data-name={name} />,
   safeIconName: (name: string | undefined | null): string => name ?? "pipe",
+}));
+
+vi.mock("@features/components/AmountForm", () => ({
+  AmountForm: ({ initState }: any) => (
+    <div
+      data-testid="amount-form"
+      data-paid-from={initState?.paidFrom}
+    />
+  ),
 }));
 
 describe("TransactionItem", () => {
@@ -260,5 +272,26 @@ describe("TransactionItem pay-by-transfer variant", () => {
 
     expect(screen.getAllByTestId("mock-icon").map((icon) => icon.getAttribute("data-name")))
       .toEqual(["cash-outline", "ray-start-arrow", "home-outline"]);
+  });
+
+  it("opens repeat with the individual paidFrom provenance", () => {
+    mockUsePipeSelection.mockReturnValue({
+      pipesById: {
+        "salary-pipe": salaryPipe,
+        "rent-pipe": rentPipe,
+      },
+      childrenByParent: new Map(),
+    });
+    const tx = {
+      ...baseTx,
+      from: "rent-pipe" as Id<"pipes">,
+      paidFrom: "salary-pipe" as Id<"pipes">,
+    };
+
+    render(<TransactionItem transaction={tx} />);
+    fireEvent.click(screen.getByText("Shopping mall"));
+
+    expect(screen.getByTestId("amount-form").getAttribute("data-paid-from"))
+      .toBe("salary-pipe");
   });
 });

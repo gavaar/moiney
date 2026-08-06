@@ -4,7 +4,7 @@ import { render, screen } from "@testing-library/react";
 import {
   TransactionsProvider,
   useTransactions,
-  getLeafDescendantIds,
+  getSubtreePipeIds,
 } from "./TransactionsContext";
 import type { Doc, Id } from "@convex/_generated/dataModel";
 
@@ -73,30 +73,43 @@ function buildChildrenMap(
   return map;
 }
 
-describe("getLeafDescendantIds", () => {
+describe("getSubtreePipeIds", () => {
+  it("includes the selected pipe and every descendant", () => {
+    const pipes = [
+      pipe("b", "a"),
+      pipe("c", "b"),
+      pipe("d", "a"),
+    ];
+    const map = buildChildrenMap(pipes);
+
+    expect(getSubtreePipeIds(map, "a" as Id<"pipes">)?.sort()).toEqual(
+      ["a", "b", "c", "d"].sort(),
+    );
+  });
+
   it("returns null when selectedPipeId is null", () => {
     const map = buildChildrenMap([]);
-    expect(getLeafDescendantIds(map, null)).toBeNull();
+    expect(getSubtreePipeIds(map, null)).toBeNull();
   });
 
   it("returns [pipeId] for a leaf pipe (no children)", () => {
     const pipes = [pipe("a")];
     const map = buildChildrenMap(pipes);
-    expect(getLeafDescendantIds(map, "a" as Id<"pipes">)).toEqual([
+    expect(getSubtreePipeIds(map, "a" as Id<"pipes">)).toEqual([
       "a" as Id<"pipes">,
     ]);
   });
 
-  it("returns direct children for a parent with only leaf children", () => {
+  it("returns the selected parent and direct children", () => {
     const pipes = [pipe("b", "a"), pipe("c", "a")];
     const map = buildChildrenMap(pipes);
-    const result = getLeafDescendantIds(map, "a" as Id<"pipes">);
+    const result = getSubtreePipeIds(map, "a" as Id<"pipes">);
     expect(result!.sort()).toEqual(
-      ["b" as Id<"pipes">, "c" as Id<"pipes">].sort(),
+      ["a" as Id<"pipes">, "b" as Id<"pipes">, "c" as Id<"pipes">].sort(),
     );
   });
 
-  it("returns nested leaf descendants (DFS)", () => {
+  it("returns nested descendants in DFS order", () => {
     const pipes = [
       pipe("b", "a"),
       pipe("c", "b"),
@@ -104,13 +117,13 @@ describe("getLeafDescendantIds", () => {
       pipe("e", "a"),
     ];
     const map = buildChildrenMap(pipes);
-    const result = getLeafDescendantIds(map, "a" as Id<"pipes">);
+    const result = getSubtreePipeIds(map, "a" as Id<"pipes">);
     expect(result!.sort()).toEqual(
-      ["c" as Id<"pipes">, "d" as Id<"pipes">, "e" as Id<"pipes">].sort(),
+      ["a", "b", "c", "d", "e"].sort(),
     );
   });
 
-  it("skips parent children, only returns leaves", () => {
+  it("returns parents and leaves", () => {
     const pipes = [
       pipe("b", "a"),
       pipe("c", "b"),
@@ -118,16 +131,13 @@ describe("getLeafDescendantIds", () => {
       pipe("e", "a"),
     ];
     const map = buildChildrenMap(pipes);
-    const result = getLeafDescendantIds(map, "a" as Id<"pipes">);
-    expect(result!.sort()).toEqual([
-      "d" as Id<"pipes">,
-      "e" as Id<"pipes">,
-    ]);
+    const result = getSubtreePipeIds(map, "a" as Id<"pipes">);
+    expect(result!.sort()).toEqual(["a", "b", "c", "d", "e"].sort());
   });
 
   it("returns [pipeId] when selected pipe has no known parent entry", () => {
     const map = buildChildrenMap([]);
-    expect(getLeafDescendantIds(map, "x" as Id<"pipes">)).toEqual([
+    expect(getSubtreePipeIds(map, "x" as Id<"pipes">)).toEqual([
       "x" as Id<"pipes">,
     ]);
   });
@@ -140,8 +150,12 @@ describe("getLeafDescendantIds", () => {
       pipe("e", "d"),
     ];
     const map = buildChildrenMap(pipes);
-    expect(getLeafDescendantIds(map, "a" as Id<"pipes">)).toEqual([
-      "e" as Id<"pipes">,
+    expect(getSubtreePipeIds(map, "a" as Id<"pipes">)).toEqual([
+      "a",
+      "b",
+      "c",
+      "d",
+      "e",
     ]);
   });
 });
@@ -196,7 +210,7 @@ describe("TransactionsProvider", () => {
     );
   });
 
-  it("passes leaf pipeIds when a parent pipe is selected", () => {
+  it("passes the selected parent and descendants", () => {
     const pipes = [pipe("b", "a"), pipe("c", "a")];
     const map = buildChildrenMap(pipes);
 
@@ -218,7 +232,7 @@ describe("TransactionsProvider", () => {
     expect(screen.getByTestId("pipe-ids").textContent).toContain("c");
     expect(mockUseQuery).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ pipeIds: expect.arrayContaining(["b" as Id<"pipes">, "c" as Id<"pipes">]) }),
+      expect.objectContaining({ pipeIds: expect.arrayContaining(["a" as Id<"pipes">, "b" as Id<"pipes">, "c" as Id<"pipes">]) }),
     );
   });
 

@@ -54,6 +54,7 @@ describe("createTransaction", () => {
         date: 1000,
         from: "pipe-1",
         to: undefined,
+        kind: "expense",
         userId: "user-1",
       });
     });
@@ -84,6 +85,7 @@ describe("createTransaction", () => {
         date: 2000,
         from: "pipe-1",
         to: "pipe-2",
+        kind: "transfer",
         userId: "user-1",
       });
     });
@@ -108,6 +110,7 @@ describe("createTransaction", () => {
         date: 3000,
         from: undefined,
         to: "pipe-1",
+        kind: "feed",
         userId: "user-1",
       });
     });
@@ -142,6 +145,7 @@ describe("createTransaction", () => {
         date: 3500,
         from: "pipe-1",
         paidFrom: "pipe-2",
+        kind: "expense",
         userId: "user-1",
       });
     });

@@ -13,6 +13,7 @@ import {
   recascadeTree,
   resolveTopMostAncestor,
 } from "./lib/pipes";
+import { deriveTransactionKind } from "../src/lib/transactions/identity";
 
 function transactionsQuery(ctx: any, userId: string, pipeIds: string[] | undefined) {
   let q = ctx.db
@@ -24,6 +25,7 @@ function transactionsQuery(ctx: any, userId: string, pipeIds: string[] | undefin
       fq.or(
         ...pipeIds.flatMap((id) => [
           fq.eq(fq.field("from"), id),
+          fq.eq(fq.field("to"), id),
           fq.eq(fq.field("paidFrom"), id),
         ]),
       ),
@@ -52,6 +54,7 @@ export const createTransaction = mutation({
     if (!args.from && !args.to) {
       throw new Error("Either 'from' or 'to' must be provided");
     }
+    const kind = deriveTransactionKind(args);
 
     // Feed: no source pipe — money flows into `to`
     if (!args.from && args.to) {
@@ -67,6 +70,7 @@ export const createTransaction = mutation({
         title: args.title.toLowerCase(),
         value: args.value,
         date: args.date,
+        kind,
         from: undefined,
         to: args.to,
         userId,
@@ -143,6 +147,7 @@ export const createTransaction = mutation({
         title: args.title.toLowerCase(),
         value: args.value,
         date: args.date,
+        kind,
         from: pipeId,
         paidFrom: args.paidFrom,
         userId,
@@ -194,6 +199,7 @@ export const createTransaction = mutation({
       title: args.title.toLowerCase(),
       value: args.value,
       date: args.date,
+      kind,
       from: pipeId,
       to: args.to,
       userId,
