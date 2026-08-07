@@ -8,7 +8,7 @@ export default function Profile() {
   const router = useRouter();
 
   return (
-    <SafeAreaView className="flex-1 bg-background">
+    <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-background">
       <ScreenHeader title="Profile" />
 
       <ScrollView className="flex-1" contentContainerClassName="items-center justify-center flex-1">

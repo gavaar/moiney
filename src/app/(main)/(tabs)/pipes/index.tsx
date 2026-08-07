@@ -28,7 +28,7 @@ export default function Pipes() {
   }, [selectedPipePath, selectPipe]);
 
   return (
-    <SafeAreaView className="flex-1 bg-background px-4">
+    <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-background px-4 pb-1">
       <ScreenHeader
         title="Pipes"
         right={
