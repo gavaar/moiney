@@ -38,7 +38,6 @@ export function ProfileView() {
       });
       await setPicture({ storageId });
       showAlert.success("Profile picture updated");
-      setEditing(false);
     } catch (error) {
       showAlert.error(error instanceof Error ? error.message : "Something went wrong");
     } finally {
@@ -51,7 +50,6 @@ export function ProfileView() {
     try {
       await removePicture();
       showAlert.success("Profile picture removed");
-      setEditing(false);
     } catch (error) {
       showAlert.error(error instanceof Error ? error.message : "Something went wrong");
     } finally {
@@ -79,28 +77,38 @@ export function ProfileView() {
       </Text>
 
       <ModalShell visible={editing} onClose={() => setEditing(false)}>
-        <View className="gap-3">
-          <Text className="text-text font-semibold text-base text-center">
-            Profile picture
-          </Text>
-          <Button
-            title="Choose photo"
-            onPress={handleChoosePhoto}
-            loading={busy}
-            disabled={busy}
-            testID="choose-photo-button"
-          />
-          {profile?.pictureUrl ? (
+        <View className="items-center gap-3">
+          <View
+            className="w-full overflow-hidden rounded-full border-2 border-border"
+            style={{ aspectRatio: 1 }}
+          >
+            <Image
+              testID="profile-picture-preview"
+              source={profile?.pictureUrl ? { uri: profile.pictureUrl } : APP_ICON}
+              style={{ width: "100%", height: "100%" }}
+              accessibilityLabel="Profile picture preview"
+            />
+          </View>
+          <View className="w-full flex-row gap-3">
+            {profile?.pictureUrl ? (
+              <Button
+                title="Remove photo"
+                variant="error"
+                onPress={handleRemovePhoto}
+                loading={busy}
+                disabled={busy}
+                testID="remove-photo-button"
+              />
+            ) : null}
             <Button
-              title="Remove photo"
-              variant="error"
-              onPress={handleRemovePhoto}
+              title="Update image"
+              onPress={handleChoosePhoto}
               loading={busy}
               disabled={busy}
-              testID="remove-photo-button"
+              testID="choose-photo-button"
+              className="ml-auto"
             />
-          ) : null}
-          <Button title="Cancel" variant="muted" onPress={() => setEditing(false)} />
+          </View>
         </View>
       </ModalShell>
     </View>
