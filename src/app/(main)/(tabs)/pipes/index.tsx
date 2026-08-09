@@ -1,8 +1,18 @@
 import { useEffect, useState } from "react";
-import { BackHandler, Text, View } from "react-native";
+import { BackHandler, Pressable, Text } from "react-native";
+import Animated, {
+  FadeInDown,
+  FadeOutUp,
+  LinearTransition,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ScreenHeader } from "@ui/ScreenHeader/ScreenHeader";
 import { SlideToggle } from "@ui/SlideToggle";
+import { Icon } from "@ui/Icon";
+import { colors } from "@/lib/styles";
 import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
 import { useTransactions } from "@features/transactions/context/TransactionsContext";
 import { InnerPipesScreen } from "@features/pipes/InnerPipesScreen";
@@ -12,8 +22,22 @@ import { TransactionList } from "@ui/TransactionList";
 
 export default function Pipes() {
   const [treeMode, setTreeMode] = useState(false);
+  const [latestExpanded, setLatestExpanded] = useState(true);
+  const open = useSharedValue(1);
   const { feeds, isLoading, selectedName, selectedPipePath, selectPipe, deselectPipe } = usePipeSelection();
   const { transactions, isLoading: transactionLoading } = useTransactions();
+
+  useEffect(() => {
+    open.value = withTiming(latestExpanded ? 1 : 0, { duration: 220 });
+  }, [latestExpanded, open]);
+
+  useEffect(() => {
+    setLatestExpanded(!treeMode);
+  }, [treeMode]);
+
+  const chevronStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${open.value * 180}deg` }],
+  }));
 
   useEffect(() => {
     const onBackPress = () => {
@@ -46,7 +70,10 @@ export default function Pipes() {
         }
       />
 
-      <View style={{ flex: 2 }}>
+      <Animated.View
+        style={{ flex: 2 }}
+        layout={LinearTransition.duration(220)}
+      >
         {treeMode ? (
           <PipeTreeView
             onSelectPipe={(path) => {
@@ -63,17 +90,43 @@ export default function Pipes() {
             onSelectFeed={(id) => selectPipe([id])}
           />
         )}
-      </View>
+      </Animated.View>
 
-      {!treeMode && (
-        <View style={{ flex: 1 }}>
-          <Text className="text-text font-semibold text-base my-2 px-2">Latest transactions</Text>
-          <TransactionList
-            transactions={transactions}
-            isLoading={transactionLoading}
-          />
-        </View>
-      )}
+      <Animated.View
+        layout={LinearTransition.duration(220)}
+        style={{ flex: latestExpanded ? 1 : 0, overflow: "hidden" }}
+      >
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={
+              latestExpanded
+                ? "Collapse latest transactions"
+                : "Expand latest transactions"
+            }
+            accessibilityState={{ expanded: latestExpanded }}
+            onPress={() => setLatestExpanded((v) => !v)}
+            className="flex-row items-center justify-between bg-surface px-3 py-2 my-2 rounded-md"
+          >
+            <Text className="text-text font-semibold text-base">
+              Latest transactions
+            </Text>
+            <Animated.View style={chevronStyle}>
+              <Icon name="chevron-down" size={18} color={colors.text} />
+            </Animated.View>
+          </Pressable>
+          {latestExpanded ? (
+            <Animated.View
+              className="flex-1"
+              entering={FadeInDown.duration(220)}
+              exiting={FadeOutUp.duration(220)}
+            >
+              <TransactionList
+                transactions={transactions}
+                isLoading={transactionLoading}
+              />
+            </Animated.View>
+          ) : null}
+        </Animated.View>
     </SafeAreaView>
   );
 }

@@ -15,7 +15,8 @@
       "@features/*": [
         "./src/components/features/*"
       ]
-    }
+    },
+    "types": ["node"]
   },
   "include": [
     "src/**/*.ts",
