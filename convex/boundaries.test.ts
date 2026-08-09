@@ -155,4 +155,36 @@ describe("Convex boundaries", () => {
       ["from", "paid", "to"],
     );
   });
+
+  it("returns only the authenticated user's profile without credentials", async () => {
+    const t = convexTest(schema, modules);
+    const aliceId = await t.run(async (ctx) =>
+      ctx.db.insert("users", {
+        username: "alice",
+        email: "alice@example.com",
+        password: "hash-a",
+      }),
+    );
+    await t.run(async (ctx) =>
+      ctx.db.insert("users", {
+        username: "bob",
+        email: "bob@example.com",
+        password: "hash-b",
+      }),
+    );
+
+    const profile = await t
+      .withIdentity({ subject: aliceId })
+      .query(api.profile.getMyProfile);
+
+    expect(profile).toEqual({ username: "alice", pictureUrl: null });
+    expect(profile).not.toHaveProperty("email");
+    expect(profile).not.toHaveProperty("password");
+  });
+
+  it("requires authentication to read the profile", async () => {
+    const t = convexTest(schema, modules);
+
+    await expect(t.query(api.profile.getMyProfile)).rejects.toThrow("Not authenticated");
+  });
 });

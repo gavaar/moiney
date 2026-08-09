@@ -23,6 +23,7 @@ export default defineSchema({
     username: v.string(),
     email: v.string(),
     password: v.string(),
+    picture: v.optional(v.id("_storage")),
   }).index("by_username", ["username"]),
   sessions: defineTable({
     userId: v.id("users"),

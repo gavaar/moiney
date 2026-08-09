@@ -6,6 +6,7 @@ import { useForm } from "@/lib/forms";
 import { AuthScreenLayout } from "@ui/AuthScreenLayout";
 import { Link } from "expo-router";
 import { useState } from "react";
+import { colors } from "@/lib/styles";
 
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
@@ -29,12 +30,14 @@ export default function Login() {
       title="Sign In"
       subtitle="Welcome back to moiney"
       footer={
-        <View className="flex-row justify-center gap-1">
-          <Text className="text-sm text-secondary">
-            Don't have an account?
-          </Text>
-          <Link href="/sign-up" replace className="text-sm font-medium text-primary">
-            Sign Up
+        <View className="items-center">
+          <Link
+            href="/sign-up"
+            replace
+            style={{ color: colors.secondary }}
+            className="text-sm font-medium"
+          >
+            Don't have an account? Sign Up
           </Link>
         </View>
       }

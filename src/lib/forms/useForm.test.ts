@@ -67,6 +67,24 @@ describe("useForm", () => {
     expect(result.current.errors.email).toBe("Invalid email");
   });
 
+  it("clears a stale cross-field error when a related field is updated", () => {
+    const { result } = renderHook(() =>
+      useForm({
+        initialValues: { password: "", confirm: "" },
+        validate: (v) =>
+          v.password !== v.confirm ? { confirm: "Passwords do not match" } : {},
+        onSubmit: vi.fn(),
+      }),
+    );
+    act(() => result.current.setField("password", "abc"));
+    act(() => result.current.setField("confirm", "xyz"));
+    act(() => result.current.validateField("confirm"));
+    expect(result.current.errors.confirm).toBe("Passwords do not match");
+
+    act(() => result.current.setField("password", "xyz"));
+    expect(result.current.errors.confirm).toBeUndefined();
+  });
+
   it("clears field error when validation passes on blur", () => {
     const { result } = renderHook(() =>
       useForm({

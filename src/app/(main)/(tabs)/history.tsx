@@ -12,7 +12,7 @@ export default function History() {
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-background">
+    <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-background">
       <ScreenHeader title="History" />
 
       <TransactionList

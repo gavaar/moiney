@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { View } from "react-native";
+import { ScrollView, View } from "react-native";
 import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
 import { type Id } from "@convex/_generated/dataModel";
 import { PipesList, type Pipe as PipesListPipe } from "@features/pipes/components/PipesList";
@@ -57,7 +57,9 @@ export function InnerPipesScreen() {
 
       <View className="flex-1">
         {children.length === 0 && selectedPipe ? (
-          <AmountForm pipeId={selectedPipe._id} variant="spend" />
+          <ScrollView contentContainerStyle={{ flexGrow: 1}}>
+            <AmountForm pipeId={selectedPipe._id} variant="spend" />
+          </ScrollView>
         ) : null}
         <PipesList
           pipes={children}

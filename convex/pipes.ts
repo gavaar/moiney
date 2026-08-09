@@ -207,7 +207,7 @@ export const updatePipeRule = mutation({
 
     const patch: Record<string, unknown> = {
       rule: args.rule ?? undefined,
-      capUpdateValue: undefined,
+      capUpdateValue: args.rule != null ? args.capUpdateValue : undefined,
       cronNextDate: undefined,
       cronInterval: undefined,
     };
@@ -220,7 +220,6 @@ export const updatePipeRule = mutation({
       ) {
         throw new Error("Cron rule requires interval, unit, and starting");
       }
-      patch.capUpdateValue = args.capUpdateValue;
       patch.cronInterval = { interval: args.interval, unit: args.unit };
       patch.cronNextDate = computeCronNextDate(
         args.starting,

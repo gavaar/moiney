@@ -171,6 +171,19 @@ describe("hasRuleDiff", () => {
     ).toBe(true);
   });
 
+  it("returns true when a spend rule's cap update changed", () => {
+    expect(
+      hasRuleDiff({
+        selectedRule: "spend_overflow",
+        isCron: false,
+        capNumber: 75,
+        interval: 1,
+        unit: "months",
+        pipe: { ...basePipe, rule: "spend_overflow", capUpdateValue: 25 },
+      }),
+    ).toBe(true);
+  });
+
   it("treats a cron rule without stored options as a diff", () => {
     expect(
       hasRuleDiff({

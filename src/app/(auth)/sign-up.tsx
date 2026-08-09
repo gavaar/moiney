@@ -9,6 +9,7 @@ import { useDebounce } from "@/lib/hooks";
 import { AuthScreenLayout } from "@ui/AuthScreenLayout";
 import { Link } from "expo-router";
 import { useState } from "react";
+import { colors } from "@/lib/styles";
 
 export default function SignUp() {
   const [showPassword, setShowPassword] = useState(false);
@@ -86,12 +87,14 @@ export default function SignUp() {
       title="Create Account"
       subtitle="Start tracking your finances"
       footer={
-        <View className="flex-row justify-center gap-1">
-          <Text className="text-sm text-secondary">
-            Already have an account?
-          </Text>
-          <Link href="/login" replace className="text-sm font-medium text-primary">
-            Sign In
+        <View className="items-center">
+          <Link
+            href="/login"
+            replace
+            style={{ color: colors.secondary }}
+            className="text-sm font-medium"
+          >
+            Already have an account? Sign In
           </Link>
         </View>
       }
