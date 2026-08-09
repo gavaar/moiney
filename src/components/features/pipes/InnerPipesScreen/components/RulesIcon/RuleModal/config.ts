@@ -12,9 +12,9 @@ export const RULE_OPTIONS: readonly RuleOption[] = [
 ];
 
 export const RULE_DESCRIPTIONS: Record<RuleId, string> = {
-  none: "No automatic rule. This pipe behaves like a regular pipe.",
-  any_spend: "Reacts every time money is spent from this pipe.",
-  spend_overflow: "Reacts when this pipe's spent amount reaches its capacity.",
+  none: "No automatic rule. Manual runs will consume fed by spent amount, requiring new top-ups to refill capacity.",
+  any_spend: "Reacts every time money is spent from this pipe and can update capacity.",
+  spend_overflow: "Reacts when this pipe's spent amount reaches its capacity and can update capacity.",
   cron: "Reacts on a recurring schedule and can top up capacity.",
 };
 

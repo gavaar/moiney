@@ -63,8 +63,10 @@ Update 15 must report before-and-after measurements rather than relying only on 
 
 ## Current Next Step
 
-Await the user's additional requested change before presenting or starting
-Update 6.
+The requested rule change is complete: `any_spend` and `spend_overflow` accept
+`capUpdateValue`, and rule execution consolidates `fed = fed - spent` and sets
+`capacity = capacity - spent + capUpdateValue` when set, applied uniformly
+including cron (recorded as D008). Next is Update 6.
 
 ## Completed Accessibility Layout Work
 

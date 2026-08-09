@@ -81,6 +81,42 @@ describe("updatePipeRule", () => {
     });
   });
 
+  it("persists capUpdateValue for spend_overflow", async () => {
+    const ctx = mockCtx();
+    ctx.db.get.mockResolvedValue(A_PIPE);
+
+    await (updatePipeRule as any)._handler(ctx, {
+      pipeId: "pipe-1",
+      rule: "spend_overflow",
+      capUpdateValue: 25,
+    });
+
+    expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+      rule: "spend_overflow",
+      capUpdateValue: 25,
+      cronNextDate: undefined,
+      cronInterval: undefined,
+    });
+  });
+
+  it("persists capUpdateValue for any_spend", async () => {
+    const ctx = mockCtx();
+    ctx.db.get.mockResolvedValue(A_PIPE);
+
+    await (updatePipeRule as any)._handler(ctx, {
+      pipeId: "pipe-1",
+      rule: "any_spend",
+      capUpdateValue: -10,
+    });
+
+    expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+      rule: "any_spend",
+      capUpdateValue: -10,
+      cronNextDate: undefined,
+      cronInterval: undefined,
+    });
+  });
+
   it("sets any_spend and clears rule options", async () => {
     const ctx = mockCtx();
     ctx.db.get.mockResolvedValue(A_PIPE);
@@ -286,7 +322,7 @@ describe("executePipeRuleNow", () => {
     expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
       fed: 60,
       spent: 0,
-      capacity: 110,
+      capacity: 510,
     });
   });
 

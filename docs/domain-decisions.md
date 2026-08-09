@@ -94,7 +94,25 @@ There is no public password-recovery endpoint and no email-based reset flow.
 Before a public release, replace this process with an auditable recovery flow or
 an authentication provider that demonstrates recovery across native and web.
 
-## D007: Transaction Identity And Grouping
+## D008: Rule Execution And Cap Update
+
+Status: Implemented
+
+`any_spend` and `spend_overflow` rules accept the same optional `capUpdateValue` as cron rules, governing how capacity changes when the rule runs.
+
+When a rule runs and `capUpdateValue` is not set, the pipe consolidates to `fed = fed - spent` and `spent = 0`, leaving capacity unchanged at `pipe.capacity`.
+
+When `capUpdateValue` is set, the rule applies to every rule kind (including cron):
+
+- `leftoverFed = fed - spent`
+- `missingCap = capacity - fed`
+- `capacity = missingCap + leftoverFed + capUpdateValue`, equivalently `capacity - spent + capUpdateValue`
+- `fed = leftoverFed`
+- `spent = 0`
+
+`spent` accumulates positively for spending on storage, and the formula uses that stored sign.
+
+## D009: (reserved)
 
 Status: Implemented
 

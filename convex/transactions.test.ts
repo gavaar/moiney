@@ -293,6 +293,30 @@ describe("createTransaction", () => {
       expect(ctx.db.patch).toHaveBeenCalledTimes(1);
       expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", { spent: 130 });
     });
+
+    it("applies the cap update formula when spend_overflow triggers with capUpdateValue", async () => {
+      const ctx = mockCtx();
+      ctx.db.get.mockResolvedValue({
+        ...A_PIPE,
+        rule: "spend_overflow",
+        capacity: 100,
+        capUpdateValue: 50,
+      });
+
+      await (createTransaction as any)._handler(ctx, {
+        title: "groceries",
+        value: -30,
+        date: 1000,
+        from: "pipe-1",
+      });
+
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", { spent: 130 });
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+        fed: 400,
+        spent: 0,
+        capacity: 50,
+      });
+    });
   });
 
   describe("validation", () => {

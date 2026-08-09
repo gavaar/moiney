@@ -78,13 +78,13 @@ describe("RuleModal", () => {
   it("shows the description for the selected rule", () => {
     renderModal(basePipe());
     expect(
-      screen.getByText("No automatic rule. This pipe behaves like a regular pipe."),
+      screen.getByText("No automatic rule. Manual runs will consume fed by spent amount, requiring new top-ups to refill capacity."),
     ).toBeTruthy();
 
     fireEvent.click(screen.getAllByTestId("select-trigger")[0]);
     fireEvent.click(screen.getByText("Any spend"));
     expect(
-      screen.getByText("Reacts every time money is spent from this pipe."),
+      screen.getByText("Reacts every time money is spent from this pipe and can update capacity."),
     ).toBeTruthy();
   });
 
@@ -182,11 +182,53 @@ describe("RuleModal", () => {
     expect(screen.queryByText(/Capacity will update by/)).toBeNull();
   });
 
-  it("hides cap update for non-cron rules", () => {
+  it("hides cap update when no rule is selected", () => {
+    renderModal(basePipe());
+    expect(screen.queryByText("Cap update")).toBeNull();
+  });
+
+  it("shows cap update for any_spend", () => {
     renderModal(basePipe());
     fireEvent.click(screen.getAllByTestId("select-trigger")[0]);
     fireEvent.click(screen.getByText("Any spend"));
-    expect(screen.queryByText("Cap update")).toBeNull();
+    expect(screen.getByText("Cap update")).toBeTruthy();
+  });
+
+  it("shows cap update for spend_overflow", () => {
+    renderModal(basePipe());
+    fireEvent.click(screen.getAllByTestId("select-trigger")[0]);
+    fireEvent.click(screen.getByText("Spend overflow"));
+    expect(screen.getByText("Cap update")).toBeTruthy();
+  });
+
+  it("shows a reset placeholder and message when cap update is not set", () => {
+    renderModal(basePipe({ rule: "any_spend", capacity: 100 }));
+    expect(screen.getByPlaceholderText("reset cap to 100.00")).toBeTruthy();
+    expect(
+      screen.getByText("Cap will reset to 100.00 after every rule run."),
+    ).toBeTruthy();
+  });
+
+  it("shows an update message when cap update is set", () => {
+    renderModal(basePipe({ rule: "any_spend", capacity: 100, capUpdateValue: 25 }));
+    expect(
+      screen.getByText("Cap will update leftover value by 25.00 after every rule run."),
+    ).toBeTruthy();
+  });
+
+  it("saves a cap update value for any_spend", async () => {
+    renderModal(basePipe({ rule: "any_spend", capacity: 100 }));
+    fireEvent.change(screen.getByPlaceholderText("reset cap to 100.00"), {
+      target: { value: "50" },
+    });
+
+    await clickAndFlush(screen.getByText("Save rule"));
+
+    expect(h.updatePipeRule).toHaveBeenCalledWith({
+      pipeId: pId("pipe-1"),
+      rule: "any_spend",
+      capUpdateValue: 50,
+    });
   });
 
   it("shows Run now with water icon when nothing changed and rule is not cron", async () => {
@@ -313,7 +355,7 @@ describe("RuleModal", () => {
     const starting = new Date(Date.UTC(2026, 0, 15, 12));
     const elapsed = computeElapsedIntervals(starting.getTime(), 1, "months");
 
-    fireEvent.change(screen.getByPlaceholderText("0.00"), {
+    fireEvent.change(screen.getByPlaceholderText("reset cap to 0.00"), {
       target: { value: "100" },
     });
 
@@ -333,7 +375,7 @@ describe("RuleModal", () => {
         cronNextDate: Date.UTC(2026, 0, 15, 12),
       }),
     );
-    fireEvent.change(screen.getByPlaceholderText("0.00"), {
+    fireEvent.change(screen.getByPlaceholderText("reset cap to 0.00"), {
       target: { value: "0" },
     });
     expect(screen.queryByText(/saving this rule will automatically add/)).toBeNull();

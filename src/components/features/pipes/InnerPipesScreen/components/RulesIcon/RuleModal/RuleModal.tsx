@@ -10,6 +10,7 @@ import { ModalShell } from "@ui/Modal";
 import { useAlert } from "@ui/Alert";
 import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
 import { colors } from "@/lib/styles";
+import { formatAmount } from "@/lib/format";
 import { computeElapsedIntervals, type CronUnit } from "@convex/lib/pipes";
 import {
   RULE_DESCRIPTIONS,
@@ -183,16 +184,26 @@ export function RuleModal({ visible, onClose, pipeId }: Props) {
             {RULE_DESCRIPTIONS[selectedRule]}
           </Text>
 
-          {isCron ? (
+          {selectedRule !== "none" ? (
             <>
               <Input
                 type="decimal"
                 label="Cap update"
                 value={capValue}
                 onChange={setCapValue}
-                placeholder="0.00"
+                placeholder={`reset cap to ${formatAmount(pipe?.capacity ?? 0)}`}
               />
 
+              <Text className="text-xs italic text-muted">
+                {capNumber != null
+                  ? `Cap will update leftover value by ${formatAmount(capNumber)} after every rule run.`
+                  : `Cap will reset to ${formatAmount(pipe?.capacity ?? 0)} after every rule run.`}
+              </Text>
+            </>
+          ) : null}
+
+          {isCron ? (
+            <>
               <View className="flex-row gap-4">
                 <View className="flex-1">
                   <Input
