@@ -6,8 +6,6 @@ import { colors } from "@/lib/styles";
 import { type Id } from "@convex/_generated/dataModel";
 
 const BAR_WIDTH = 100;
-const MONO_W = 8.4;
-const NAME_W = 9.6;
 
 type TreeRowData = {
   id: Id<"pipes">;
@@ -87,15 +85,6 @@ function buildTreeRows(
   return rows;
 }
 
-function maxLeftWidth(rows: TreeRowData[]): number {
-  let max = 0;
-  for (const row of rows) {
-    const w = row.prefix.length * MONO_W + 18 + row.pipe.name.length * NAME_W + 4;
-    if (w > max) max = w;
-  }
-  return max;
-}
-
 type PipeTreeViewProps = {
   onSelectPipe: (path: Id<"pipes">[]) => void;
 };
@@ -111,28 +100,27 @@ export function PipeTreeView({ onSelectPipe }: PipeTreeViewProps) {
     return map;
   }, [childrenByParent]);
 
-  const { rows, leftWidth } = useMemo(() => {
-    const rows = buildTreeRows(feeds, childPipesById);
-    const leftWidth = maxLeftWidth(rows);
-    return { rows, leftWidth };
-  }, [feeds, childPipesById]);
+  const rows = useMemo(() => buildTreeRows(feeds, childPipesById), [
+    feeds,
+    childPipesById,
+  ]);
 
   return (
     <ScrollView className="flex-1">
       {rows.map((row) => (
-        <TreeRow key={row.id} row={row} leftWidth={leftWidth} onPress={() => onSelectPipe(row.path)} />
+        <TreeRow key={row.id} row={row} onPress={() => onSelectPipe(row.path)} />
       ))}
     </ScrollView>
   );
 }
 
-function TreeRow({ row, leftWidth, onPress }: { row: TreeRowData; leftWidth: number; onPress: () => void }) {
+function TreeRow({ row, onPress }: { row: TreeRowData; onPress: () => void }) {
   const { prefix, pipe, groupMax, isLeaf } = row;
 
   return (
     <Pressable onPress={onPress} className="flex-row items-center py-1">
-      <View className="flex-row items-center" style={{ width: leftWidth }}>
-        <Text className="text-muted font-mono text-sm">{prefix}</Text>
+      <View className="flex-1 flex-row items-center">
+        <Text className="text-muted font-mono text-sm shrink-0">{prefix}</Text>
         <Icon name={pipe.icon as any} size={18} />
         <Text className="text-text text-base ml-1 shrink" numberOfLines={1}>
           {pipe.name}

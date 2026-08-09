@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
-import { render } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -20,14 +22,28 @@ vi.mock("react-native-safe-area-context", () => ({
   ),
 }));
 
-vi.mock("@ui/ScreenHeader/ScreenHeader", () => ({ ScreenHeader: () => null }));
-vi.mock("@ui/SlideToggle", () => ({ SlideToggle: () => null }));
+vi.mock("@ui/ScreenHeader/ScreenHeader", () => ({
+  ScreenHeader: ({ right }: { right: React.ReactNode }) => <div>{right}</div>,
+}));
+vi.mock("@ui/SlideToggle", () => ({
+  SlideToggle: ({ onChange, value }: { onChange: (v: string) => void; value: string }) => (
+    <button
+      data-testid="mode-toggle"
+      onClick={() => onChange(value === "tree" ? "bar" : "tree")}
+    />
+  ),
+}));
 vi.mock("@features/pipes/InnerPipesScreen", () => ({
   InnerPipesScreen: () => null,
 }));
 vi.mock("@features/pipes/PipeTreeView", () => ({ PipeTreeView: () => null }));
 vi.mock("@features/pipes/FeedListScreen", () => ({ FeedListScreen: () => null }));
-vi.mock("@ui/TransactionList", () => ({ TransactionList: () => null }));
+vi.mock("@ui/TransactionList", () => ({
+  TransactionList: () => <div data-testid="latest-list" />,
+}));
+vi.mock("@ui/Icon", () => ({
+  Icon: ({ testID }: any) => <span data-testid={testID ?? "icon"} />,
+}));
 vi.mock("@features/transactions/context/TransactionsContext", () => ({
   useTransactions: () => ({ transactions: [], isLoading: false }),
 }));
@@ -66,5 +82,47 @@ describe("Pipes Android back handling", () => {
 
     unmount();
     expect(mocks.remove).toHaveBeenCalledTimes(2);
+  });
+
+  it("collapses and expands the latest transactions section", async () => {
+    const user = userEvent.setup();
+    render(<Pipes />);
+
+    expect(screen.getByTestId("latest-list")).toBeDefined();
+    await user.click(screen.getByRole("button", { name: "Collapse latest transactions" }));
+    await waitFor(() => expect(screen.queryByTestId("latest-list")).toBeNull());
+    await user.click(screen.getByRole("button", { name: "Expand latest transactions" }));
+    expect(screen.getByTestId("latest-list")).toBeDefined();
+  });
+
+  it("minimizes the latest transactions section in tree view instead of removing it", async () => {
+    const user = userEvent.setup();
+    render(<Pipes />);
+
+    expect(screen.getByTestId("latest-list")).toBeDefined();
+    expect(
+      screen.getByRole("button", { name: "Collapse latest transactions" }),
+    ).toBeDefined();
+
+    await user.click(screen.getByTestId("mode-toggle"));
+    await waitFor(() => expect(screen.queryByTestId("latest-list")).toBeNull());
+    expect(
+      screen.getByRole("button", { name: "Expand latest transactions" }),
+    ).toBeDefined();
+
+    await user.click(screen.getByTestId("mode-toggle"));
+    await waitFor(() => expect(screen.getByTestId("latest-list")).toBeDefined());
+  });
+
+  it("styles the latest transactions bar as a tappable surface with a rotating chevron", () => {
+    const source = readFileSync(
+      "src/app/(main)/(tabs)/pipes/index.tsx",
+      "utf8",
+    );
+
+    expect(source).toContain("bg-surface");
+    expect(source).toContain("px-3");
+    expect(source).toContain('name="chevron-down"');
+    expect(source).not.toContain("chevron-up");
   });
 });

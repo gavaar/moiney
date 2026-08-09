@@ -49,7 +49,7 @@ export async function executePipeRule(
   };
 
   if (pipe.capUpdateValue != null) {
-    patch.capacity = leftoverFed + pipe.capUpdateValue;
+    patch.capacity = pipe.capacity - pipe.spent + pipe.capUpdateValue;
   }
 
   if (pipe.rule === "cron" && pipe.cronInterval && pipe.cronNextDate != null) {

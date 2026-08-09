@@ -31,6 +31,12 @@
       "expo-secure-store",
       "expo-status-bar",
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Moiney to access your photos."
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "image": "./assets/splash-icon.png",

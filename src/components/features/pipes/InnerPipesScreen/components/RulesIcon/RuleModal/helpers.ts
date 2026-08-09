@@ -75,6 +75,13 @@ export function hasRuleDiff(deps: {
     if (interval !== pipe?.cronInterval?.interval) return true;
     if (unit !== pipe?.cronInterval?.unit) return true;
   }
+  if (
+    !isCron &&
+    (selectedRule === "any_spend" || selectedRule === "spend_overflow") &&
+    capNumber !== pipe?.capUpdateValue
+  ) {
+    return true;
+  }
   return false;
 }
 

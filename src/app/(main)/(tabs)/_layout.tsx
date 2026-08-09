@@ -2,6 +2,7 @@ import { Icon } from "@ui/Icon";
 import { Tabs } from "expo-router";
 import { PipeSelectionProvider } from "@features/pipes/context/PipeSelectionContext";
 import { TransactionsProvider } from "@features/transactions/context/TransactionsContext";
+import { colors } from '@/lib/styles';
 
 export default function TabLayout() {
   return (
@@ -11,7 +12,7 @@ export default function TabLayout() {
           screenOptions={{
             headerShown: false,
             tabBarShowLabel: false,
-            tabBarStyle: { backgroundColor: "#1A1B1E", borderTopColor: "#2C2D31", height: 60 },
+            tabBarStyle: { backgroundColor: colors.background, borderTopColor: colors.muted },
             tabBarActiveTintColor: "#F8F8F8",
             tabBarInactiveTintColor: "#9CA3AF",
           }}

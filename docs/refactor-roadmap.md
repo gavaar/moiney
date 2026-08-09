@@ -63,5 +63,37 @@ Update 15 must report before-and-after measurements rather than relying only on 
 
 ## Current Next Step
 
-Await the user's additional requested change before presenting or starting
-Update 6.
+The requested rule change is complete: `any_spend` and `spend_overflow` accept
+`capUpdateValue`, and rule execution consolidates `fed = fed - spent` and sets
+`capacity = capacity - spent + capUpdateValue` when set, applied uniformly
+including cron (recorded as D008). Next is Update 6.
+
+## Completed Accessibility Layout Work
+
+Implemented ahead of Update 16 to keep large-font layouts usable. **Prune this
+section when Update 16 is marked Completed.**
+
+- `PipeTreeView` rows now give the name column all available horizontal space (`flex-1`) with a fixed right-side mini bar, and pipe names clamp via `numberOfLines={1}` instead of wrapping or overflowing a precomputed fixed width.
+- The leaf `AmountForm` in `InnerPipesScreen` scrolls within its bounded region so expanding `Paid from another pipe?` no longer bleeds into the Latest transactions section.
+- The Latest transactions section is collapsible. The title row is a full-width `bg-surface` bar (accessible disclosure button, `expanded` state) that defaults to open; when collapsed the pipe area reclaims the vertical space. The chevron rotates with `react-native-reanimated` (`LinearTransition` + `FadeInDown`/`FadeOutUp`). The pipe area and transaction section both carry a layout transition so the collapse animates both regions together instead of snapping the feed list. In tree view the section is minimized (collapsed) rather than removed: switching to tree collapses it and switching back to list view re-opens it.
+
+Verified with behavioral tests in `src/app-tests/main/pipes.test.tsx` and a source-structure layout assertion in `PipeTreeView.test.tsx` (matching the `AddPipeModal.test.tsx` precedent). Full suite and type check are green.
+
+## Animation Approach
+
+`react-native-reanimated` is the standard animation library. `vitest.setup.ts`
+provides a lightweight Reanimated mock so existing and new animation tests run
+in jsdom. Migrate remaining built-in RN `Animated` usages (e.g.,
+`StackedTransactionItem` disclosure) to Reanimated incrementally as their
+components are touched.
+
+Worklets `bundleMode` is disabled (`babel.config.js` and `metro.config.js`
+use plain `react-native-worklets/plugin`) because worklets 0.10.1's Bundle
+Mode crashes Android startup under Expo OTA/Expo Go ("Bundle Mode + Expo OTA
+startup crash on Android", fixed upstream in worklets 0.10.2). Expo Go freezes
+the native side at worklets 0.10.1 / reanimated 4.5.1 and both packages enforce
+exact JS=native version equality, so the fix is unreachable without a native
+build. Re-enable `bundleMode` only once the SDK-pinned worklets includes the
+0.10.2 fix or the project moves to a development build. The
+`patches/metro@0.84.4.patch` stays in place defensively (only relevant to
+bundle mode's `.worklets/*.js` indexing); classic mode does not need it.

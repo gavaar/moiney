@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { type Id } from "@convex/_generated/dataModel";
@@ -108,5 +109,15 @@ describe("PipeTreeView", () => {
     render(<PipeTreeView onSelectPipe={vi.fn()} />);
     expect(screen.getByText("Electricity")).toBeDefined();
     expect(screen.getByText("Water")).toBeDefined();
+  });
+
+  it("lets the name column grow and keeps the name clamped", () => {
+    const source = readFileSync(
+      "src/components/features/pipes/PipeTreeView/PipeTreeView.tsx",
+      "utf8",
+    );
+
+    expect(source).toContain('className="flex-1 flex-row items-center');
+    expect(source).toContain("numberOfLines={1}");
   });
 });

@@ -14,5 +14,11 @@ crons.daily(
   internal.pipes.runDueCronRules,
   {},
 );
+crons.daily(
+  "cleanup orphaned profile pictures",
+  { hourUTC: 4, minuteUTC: 0 },
+  internal.profile.cleanupOrphanedProfilePictures,
+  {},
+);
 
 export default crons;

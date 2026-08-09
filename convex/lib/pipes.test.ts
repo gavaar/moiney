@@ -1081,6 +1081,31 @@ describe("executePipeRule", () => {
     });
   });
 
+  it.each([
+    { label: "no spent", fed: 50, spent: 0, capacity: 100, capUpdateValue: 10, fedExpected: 50, capacityExpected: 110 },
+    { label: "spent", fed: 50, spent: 25, capacity: 100, capUpdateValue: 0, fedExpected: 25, capacityExpected: 75 },
+    { label: "negative capacity below fed", fed: -300, spent: -50, capacity: -300, capUpdateValue: 0, fedExpected: -250, capacityExpected: -250 },
+  ])(
+    "applies the new capacity formula when capUpdateValue is set ($label)",
+    async ({ fed, spent, capacity, capUpdateValue, fedExpected, capacityExpected }) => {
+      const ctx = mockCtx({
+        _id: "pipe-1",
+        fed,
+        spent,
+        capacity,
+        capUpdateValue,
+      });
+
+      await executePipeRule(ctx, "pipe-1" as any);
+
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+        fed: fedExpected,
+        spent: 0,
+        capacity: capacityExpected,
+      });
+    },
+  );
+
   it("updates capacity when capUpdateValue is set", async () => {
     const ctx = mockCtx({
       _id: "pipe-1",
@@ -1095,7 +1120,7 @@ describe("executePipeRule", () => {
     expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
       fed: 300,
       spent: 0,
-      capacity: 400,
+      capacity: 900,
     });
   });
 
@@ -1116,7 +1141,7 @@ describe("executePipeRule", () => {
     expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
       fed: 300,
       spent: 0,
-      capacity: 400,
+      capacity: 900,
       cronNextDate: Date.UTC(2099, 0, 1, 5),
     });
   });
