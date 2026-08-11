@@ -2,10 +2,11 @@ import { createContext, useContext, useMemo, type ReactNode } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { type Id, type Doc } from "@convex/_generated/dataModel";
+import type { TransactionWithPipeIcons } from "@/lib/transactions/types";
 import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
 
 type TransactionsContextValue = {
-  transactions: Doc<"transactions">[] | undefined;
+  transactions: TransactionWithPipeIcons[] | undefined;
   isLoading: boolean;
   pipeIds: Id<"pipes">[] | undefined | null;
 };

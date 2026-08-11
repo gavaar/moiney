@@ -111,7 +111,7 @@ export default function Pipes() {
               Latest transactions
             </Text>
             <Animated.View style={chevronStyle}>
-              <Icon name="chevron-down" size={18} color={colors.text} />
+              <Icon name="chevron-up" size={18} color={colors.text} />
             </Animated.View>
           </Pressable>
           {latestExpanded ? (

@@ -109,4 +109,24 @@ describe("PipeSelectionContext", () => {
     expect(screen.getByTestId("path-length").textContent).toBe("0");
     expect(screen.getByTestId("selected-name").textContent).toBe("(none)");
   });
+
+  it("returns to the surviving parent when the selected pipe disappears", async () => {
+    const user = userEvent.setup();
+    mockUseQuery.mockReturnValue([mockPipe("pipe-1", "Groceries")]);
+    const view = render(
+      <PipeSelectionProvider>
+        <TestConsumer />
+      </PipeSelectionProvider>,
+    );
+
+    await user.click(screen.getByTestId("select"));
+    mockUseQuery.mockReturnValue([]);
+    view.rerender(
+      <PipeSelectionProvider>
+        <TestConsumer />
+      </PipeSelectionProvider>,
+    );
+
+    expect(screen.getByTestId("path-length").textContent).toBe("0");
+  });
 });

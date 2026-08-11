@@ -11,6 +11,7 @@ vi.mock("@ui/PipeBox", () => ({
       data-testid="feed-box"
       data-name={props.name}
       data-icon={props.icon}
+      data-show-priority={props.showPriority ? "true" : "false"}
       onClick={() => props.onPress?.()}
     >
       {props.name}
@@ -36,6 +37,21 @@ describe("PipesList", () => {
     expect(boxes[0].getAttribute("data-name")).toBe("Groceries");
     expect(boxes[0].getAttribute("data-icon")).toBe("cart-outline");
     expect(boxes[1].getAttribute("data-name")).toBe("Salary");
+  });
+
+  it("only shows priority markers when requested", () => {
+    const pipes = [
+      ...mockPipes,
+      { _id: "3" as Id<"pipes">, name: "Rent", icon: "home-outline", priority: 1, capacity: 0, fed: 0, spent: 0 },
+    ];
+
+    const { rerender } = render(<PipesList pipes={pipes} />);
+    expect(screen.getAllByTestId("feed-box").map((box) => box.getAttribute("data-show-priority")))
+      .toEqual(["false", "false", "false"]);
+
+    rerender(<PipesList pipes={pipes} priority />);
+    expect(screen.getAllByTestId("feed-box").map((box) => box.getAttribute("data-show-priority")))
+      .toEqual(["true", "false", "true"]);
   });
 
   it("calls onSelectPipe when a PipeBox is pressed", async () => {

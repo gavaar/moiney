@@ -7,9 +7,10 @@ import { AmountForm } from '@features/components/AmountForm';
 import { useState } from 'react';
 import { usePipeSelection } from '@features/pipes/context/PipeSelectionContext';
 import { resolveTransactionKind } from "@/lib/transactions/identity";
+import type { TransactionWithPipeIcons } from "@/lib/transactions/types";
 
 type TransactionItemProps = {
-  transaction: Doc<"transactions">;
+  transaction: TransactionWithPipeIcons;
 };
 
 const DATE_FORMAT: Intl.DateTimeFormatOptions = {
@@ -31,10 +32,32 @@ export function TransactionItem({ transaction }: TransactionItemProps) {
   const sourcePipe = transaction.from ? pipesById?.[transaction.from] : undefined;
   const destPipe = transaction.to ? pipesById?.[transaction.to] : undefined;
   const paidFromPipe = transaction.paidFrom ? pipesById?.[transaction.paidFrom] : undefined;
-  const fromValid = !!sourcePipe && (childrenByParent.get(sourcePipe._id)?.length ?? 0) === 0;
-  const toValid = !!destPipe && destPipe.parentId === undefined;
-  const paidFromValid = !!paidFromPipe && (childrenByParent.get(paidFromPipe._id)?.length ?? 0) === 0;
+  const fromValid =
+    !!sourcePipe &&
+    !sourcePipe.deletionJobId &&
+    (childrenByParent.get(sourcePipe._id)?.length ?? 0) === 0;
+  const toValid = !!destPipe && !destPipe.deletionJobId && destPipe.parentId === undefined;
+  const paidFromValid =
+    !!paidFromPipe &&
+    !paidFromPipe.deletionJobId &&
+    (childrenByParent.get(paidFromPipe._id)?.length ?? 0) === 0;
+  const viewOnly = !!transaction.fromIcon || !!transaction.toIcon || !!transaction.paidFromIcon;
+  const icons = {
+    from: {
+      name: sourcePipe?.icon ?? transaction.fromIcon ?? "pipe-disconnected",
+      color: sourcePipe || transaction.fromIcon ? colors.muted : colors.surface,
+    },
+    to: {
+      name: destPipe?.icon ?? transaction.toIcon ?? "pipe-disconnected",
+      color: destPipe || transaction.toIcon ? colors.muted : colors.surface,
+    },
+    paidFrom: {
+      name: paidFromPipe?.icon ?? transaction.paidFromIcon ?? "pipe-disconnected",
+      color: paidFromPipe || transaction.paidFromIcon ? colors.muted : colors.surface,
+    },
+  };
   const disabled =
+    viewOnly ||
     (!!transaction.from && !fromValid) ||
     (!!transaction.to && !toValid) ||
     (!!transaction.paidFrom && !paidFromValid);
@@ -48,7 +71,7 @@ export function TransactionItem({ transaction }: TransactionItemProps) {
         : isPayByTransfer
           ? "bg-success/30"
           : "bg-primary/30";
-  const amountFormInitState = primaryPipe ? {
+  const amountFormInitState = primaryPipe && !viewOnly ? {
     pipeIcon: primaryPipe.icon,
     pipeName: primaryPipe.name,
     title: transaction.title,
@@ -77,15 +100,19 @@ export function TransactionItem({ transaction }: TransactionItemProps) {
       onPress={handlePress}
     >
       <Icon
-        name={safeIconName(isFeed ? destPipe?.icon : isPayByTransfer ? paidFromPipe?.icon : sourcePipe?.icon)}
+        name={safeIconName(isFeed ? icons.to.name : isPayByTransfer ? icons.paidFrom.name : icons.from.name)}
         size={16}
-        color={colors.muted}
+        color={isFeed ? icons.to.color : isPayByTransfer ? icons.paidFrom.color : icons.from.color}
       />
 
       {isTransfer || isPayByTransfer ? (
         <>
           <Icon name={isNegative ? "ray-start-arrow" : "ray-end-arrow"} size={14} color={colors.muted} />
-          <Icon name={safeIconName(isPayByTransfer ? sourcePipe?.icon : destPipe?.icon)} size={16} color={colors.muted} />
+          <Icon
+            name={safeIconName(isPayByTransfer ? icons.from.name : icons.to.name)}
+            size={16}
+            color={isPayByTransfer ? icons.from.color : icons.to.color}
+          />
         </>
       ) : null}
 
@@ -118,8 +145,9 @@ export function TransactionItem({ transaction }: TransactionItemProps) {
         <View className="p-4">
           <Text className="text-text font-bold text-lg mb-2">Cannot repeat transaction</Text>
           <Text className="text-muted text-sm leading-5">
-            This transaction was from a pipe that does not exist or cannot accept transactions anymore
-            (probably due to now having child pipes).
+            {viewOnly
+              ? "This is preserved history from a deleted pipe. Preserved history is view-only."
+              : "This transaction was from a pipe that does not exist or cannot accept transactions anymore (probably due to now having children pipes)."}
           </Text>
         </View>
       </ModalShell>

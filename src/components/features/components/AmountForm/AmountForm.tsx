@@ -226,7 +226,7 @@ export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: 
             <Icon name={initState.pipeIcon} size={24} color={colors.muted} />
             <Text className="text-md font-medium text-muted">{initState.pipeName}</Text>
           </View>
-          {isTransactionVariant && (
+          {isTransactionVariant && initState?.transactionId && (
             <SlideToggle
               options={[
                 { value: "repeat", icon: "repeat-once" },

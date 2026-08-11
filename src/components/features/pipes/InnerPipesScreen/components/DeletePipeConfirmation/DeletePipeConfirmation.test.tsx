@@ -5,10 +5,12 @@ import { type Id } from "@convex/_generated/dataModel";
 
 const pId = (id: string) => id as Id<"pipes">;
 
-const mockDeletePipe = vi.fn();
+const mockStartPipeDeletion = vi.fn();
+const mockDeletionStatus = vi.fn();
 
 vi.mock("convex/react", () => ({
-  useMutation: () => mockDeletePipe,
+  useMutation: () => mockStartPipeDeletion,
+  useQuery: () => mockDeletionStatus(),
 }));
 
 const mockShowAlert = { success: vi.fn(), error: vi.fn() };
@@ -42,12 +44,12 @@ import { DeletePipeConfirmation } from "./DeletePipeConfirmation";
 
 describe("DeletePipeConfirmation", () => {
   beforeEach(() => {
-    vi.useFakeTimers();
-    mockDeletePipe.mockResolvedValue(undefined);
+    mockStartPipeDeletion.mockResolvedValue({ jobId: pId("job-1"), phase: "processingTransactions" });
+    mockDeletionStatus.mockReturnValue(undefined);
   });
 
   afterEach(() => {
-    vi.useRealTimers();
+    vi.clearAllMocks();
   });
 
   it("renders pipe name and descendant list", () => {
@@ -72,48 +74,107 @@ describe("DeletePipeConfirmation", () => {
     render(
       <DeletePipeConfirmation visible={true} onClose={() => {}} pipeId={pId("pipe_root")} onDeleted={() => {}} />,
     );
-    expect(screen.getByText("Also delete pipe's transactions")).toBeTruthy();
+    expect(screen.getByText("Delete orphaned transaction history")).toBeTruthy();
   });
 
-  it("disables confirm button for 2 seconds then enables", () => {
+  it("enables deletion immediately", () => {
     render(
       <DeletePipeConfirmation visible={true} onClose={() => {}} pipeId={pId("pipe_root")} onDeleted={() => {}} />,
     );
-    const button = screen.getByText("Confirm deletion");
+    const button = screen.getByText("Delete 4 pipes");
     expect(button).toBeTruthy();
-    act(() => { vi.advanceTimersByTime(2000); });
   });
 
-  it("calls deletePipe mutation on confirm", async () => {
+  it("starts a deletion job on confirm", async () => {
     const onDeleted = vi.fn();
     render(
       <DeletePipeConfirmation visible={true} onClose={() => {}} pipeId={pId("pipe_root")} onDeleted={onDeleted} />,
     );
-    act(() => { vi.advanceTimersByTime(2000); });
-    fireEvent.click(screen.getByText("Confirm deletion"));
-    expect(mockDeletePipe).toHaveBeenCalledWith({ pipeId: pId("pipe_root"), deleteTransactions: false });
+    await act(async () => {
+      fireEvent.click(screen.getByText("Delete 4 pipes"));
+    });
+    expect(mockStartPipeDeletion).toHaveBeenCalledWith({ pipeId: pId("pipe_root"), deleteTransactions: false });
   });
 
-  it("calls deletePipe with deleteTransactions when checkbox checked", async () => {
+  it("starts a purge job when checkbox is checked", async () => {
     const onDeleted = vi.fn();
     render(
       <DeletePipeConfirmation visible={true} onClose={() => {}} pipeId={pId("pipe_root")} onDeleted={onDeleted} />,
     );
-    act(() => { vi.advanceTimersByTime(2000); });
-    fireEvent.click(screen.getByText("Also delete pipe's transactions"));
-    fireEvent.click(screen.getByText("Confirm deletion"));
-    expect(mockDeletePipe).toHaveBeenCalledWith({ pipeId: pId("pipe_root"), deleteTransactions: true });
+    fireEvent.click(screen.getByText("Delete orphaned transaction history"));
+    await act(async () => {
+      fireEvent.click(screen.getByText("Delete 4 pipes"));
+    });
+    expect(mockStartPipeDeletion).toHaveBeenCalledWith({ pipeId: pId("pipe_root"), deleteTransactions: true });
   });
 
-  it("calls onDeleted and onClose on successful deletion", async () => {
+  it("allows the modal to be dismissed while the job continues", async () => {
+    const onClose = vi.fn();
+    render(
+      <DeletePipeConfirmation visible={true} onClose={onClose} pipeId={pId("pipe_root")} onDeleted={() => {}} />,
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByText("Delete 4 pipes"));
+    });
+    fireEvent.click(screen.getByTestId("modal-backdrop"));
+
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("shows deletion progress while the worker is running", async () => {
+    mockDeletionStatus.mockReturnValue({
+      jobId: pId("job-1"),
+      phase: "processingTransactions",
+      deleteTransactions: true,
+      totalMembers: 4,
+      completedMembers: 1,
+    });
+    render(
+      <DeletePipeConfirmation visible={true} onClose={() => {}} pipeId={pId("pipe_root")} onDeleted={() => {}} />,
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByText("Delete 4 pipes"));
+    });
+
+    expect(screen.getByText("Deleting 1 of 4 pipes...")).toBeTruthy();
+  });
+
+  it("shows all pipes processed while finalization is ready", async () => {
+    mockDeletionStatus.mockReturnValue({
+      jobId: pId("job-1"),
+      phase: "readyToFinalize",
+      deleteTransactions: false,
+      totalMembers: 4,
+      completedMembers: 0,
+    });
+    render(
+      <DeletePipeConfirmation visible={true} onClose={() => {}} pipeId={pId("pipe_root")} onDeleted={() => {}} />,
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByText("Delete 4 pipes"));
+    });
+
+    expect(screen.getByText("Deleting 4 of 4 pipes...")).toBeTruthy();
+  });
+
+  it("closes after the deletion status reaches complete", async () => {
     const onDeleted = vi.fn();
     const onClose = vi.fn();
+    mockDeletionStatus.mockReturnValue({
+      jobId: pId("job-1"),
+      phase: "complete",
+      deleteTransactions: false,
+      totalMembers: 4,
+      completedMembers: 4,
+    });
     render(
       <DeletePipeConfirmation visible={true} onClose={onClose} pipeId={pId("pipe_root")} onDeleted={onDeleted} />,
     );
-    act(() => { vi.advanceTimersByTime(2000); });
     await act(async () => {
-      fireEvent.click(screen.getByText("Confirm deletion"));
+      fireEvent.click(screen.getByText("Delete 4 pipes"));
     });
     expect(onDeleted).toHaveBeenCalled();
     expect(onClose).toHaveBeenCalled();

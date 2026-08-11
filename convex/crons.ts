@@ -15,6 +15,12 @@ crons.daily(
   {},
 );
 crons.daily(
+  "cleanup stale transaction titles",
+  { hourUTC: 4, minuteUTC: 0 },
+  internal.transactions.cleanupStaleTitleUsage,
+  {},
+);
+crons.daily(
   "cleanup orphaned profile pictures",
   { hourUTC: 4, minuteUTC: 0 },
   internal.profile.cleanupOrphanedProfilePictures,

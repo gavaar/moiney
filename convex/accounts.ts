@@ -23,17 +23,15 @@ export const getUserByUsername = internalQuery({
     v.null(),
     v.object({
       _id: v.id("users"),
-      _creationTime: v.number(),
-      username: v.string(),
-      email: v.string(),
       password: v.string(),
     }),
   ),
   handler: async (ctx, args) => {
-    return await ctx.db
+    const user = await ctx.db
       .query("users")
       .withIndex("by_username", (q) => q.eq("username", args.username))
       .unique();
+    return user ? { _id: user._id, password: user.password } : null;
   },
 });
 

@@ -1,9 +1,11 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { type Id, type Doc } from "@convex/_generated/dataModel";
 
-export type Pipe = Doc<"pipes">;
+export type Pipe = Doc<"pipes"> & {
+  deletionJobId?: Id<"pipeDeletionJobs">;
+};
 
 type PipeSelectionContextValue = {
   selectedPipePath: Id<"pipes">[];
@@ -17,8 +19,6 @@ type PipeSelectionContextValue = {
   selectedPipe: Pipe | null;
   selectedName: string | null;
 };
-
-const EMPTY_PIPES: Pipe[] = [];
 
 const defaultVal: PipeSelectionContextValue = {
   selectedPipePath: [],
@@ -45,15 +45,24 @@ export function PipeSelectionProvider({ children }: { children: ReactNode }) {
 
   const isLoading = allPipes === undefined;
 
-  const allPipesFlat = allPipes ?? EMPTY_PIPES;
+  const allPipesFlat = allPipes ?? [];
+
+  useEffect(() => {
+    if (!allPipes) return;
+    const existingIds = new Set(allPipes.map((pipe) => pipe._id));
+    const firstMissingIndex = selectedPipePath.findIndex((id) => !existingIds.has(id));
+    if (firstMissingIndex >= 0) {
+      setSelectedPipePath((current) => current.slice(0, firstMissingIndex));
+    }
+  }, [allPipes, selectedPipePath]);
 
   const pipesById = useMemo(
-    () => Object.fromEntries(allPipesFlat.map((p) => [p._id, p])) as Record<Id<"pipes">, Doc<"pipes">>,
+    () => Object.fromEntries(allPipesFlat.map((p) => [p._id, p])) as Record<Id<"pipes">, Pipe>,
     [allPipesFlat],
   );
 
   const childrenByParent = useMemo(() => {
-    const map = new Map<Id<"pipes">, Doc<"pipes">[]>();
+    const map = new Map<Id<"pipes">, Pipe[]>();
     for (const pipe of allPipesFlat) {
       if (pipe.parentId) {
         const siblings = map.get(pipe.parentId) ?? [];

@@ -1,21 +1,23 @@
 import { memo, type ReactNode } from "react";
 import { ScrollView, View } from "react-native";
-import { type Id } from "@convex/_generated/dataModel";
+import { type Doc, type Id } from "@convex/_generated/dataModel";
 import { PipeBox, type ChildSnapshot } from "@ui/PipeBox";
 import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
 
-export type Pipe = {
-  _id: Id<"pipes">;
-  name: string;
-  icon: string;
-  priority: number;
-  capacity: number;
-  fed: number;
-  spent: number;
-  rule?: "spend_overflow" | "any_spend" | "cron";
-  cronNextDate?: number;
-  cronInterval?: { interval: number; unit: "days" | "months" | "years" };
-};
+export type Pipe = Pick<
+  Doc<"pipes">,
+  | "_id"
+  | "name"
+  | "icon"
+  | "priority"
+  | "capacity"
+  | "fed"
+  | "spent"
+  | "deletionJobId"
+  | "rule"
+  | "cronNextDate"
+  | "cronInterval"
+>;
 
 type PipesListProps = {
   pipes: Pipe[];
@@ -26,7 +28,14 @@ type PipesListProps = {
   footer?: ReactNode;
 };
 
-export const PipesList = memo(function PipesList({ pipes, onSelectPipe, leading, trailing, footer }: PipesListProps) {
+export const PipesList = memo(function PipesList({
+  pipes,
+  onSelectPipe,
+  leading,
+  trailing,
+  priority = false,
+  footer,
+}: PipesListProps) {
   const { childrenByParent } = usePipeSelection();
 
   return (
@@ -49,7 +58,7 @@ export const PipesList = memo(function PipesList({ pipes, onSelectPipe, leading,
               capacity={item.capacity}
               fed={item.fed}
               spent={item.spent}
-              showPriority={item.priority !== pipes[idx - 1]?.priority}
+              showPriority={priority && item.priority !== pipes[idx - 1]?.priority}
               children={childBoxes}
               onPress={() => onSelectPipe?.(item._id)}
             />

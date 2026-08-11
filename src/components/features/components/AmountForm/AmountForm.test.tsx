@@ -239,6 +239,24 @@ describe("buildPipeItems", () => {
     });
   });
 
+  it("excludes pipes that are being deleted from feed options", () => {
+    const result = buildPipeItems(
+      [
+        ...allPipes,
+        {
+          _id: "deleting-feed" as Id<"pipes">,
+          parentId: undefined,
+          name: "Deleting feed",
+          icon: "trash",
+          deletionJobId: "job-1" as Id<"pipeDeletionJobs">,
+        },
+      ],
+      "pipe-1" as Id<"pipes">,
+    );
+
+    expect(result.map((item) => item.name)).not.toContain("Deleting feed");
+  });
+
   it("handles null allPipes gracefully", () => {
     const result = buildPipeItems(null, "pipe-1" as Id<"pipes">);
     expect(result).toHaveLength(1);
@@ -272,6 +290,21 @@ describe("buildPaidFromPipeItems", () => {
         { id: "feed-2", name: "Freelance", icon: "laptop-outline" },
         { id: "feed-3", name: "Savings", icon: "wallet-outline" },
       ]);
+  });
+
+  it("excludes deleting pipes from payer and refund options", () => {
+    const deletingPipes = allPipes.map((pipe) =>
+      pipe._id === "feed-2"
+        ? { ...pipe, deletionJobId: "job-1" as Id<"pipeDeletionJobs"> }
+        : pipe,
+    );
+
+    expect(
+      buildPaidFromPipeItems(deletingPipes, "child-1" as Id<"pipes">, true),
+    ).not.toContainEqual({ id: "feed-2", name: "Freelance", icon: "laptop-outline" });
+    expect(
+      buildPaidFromPipeItems(deletingPipes, "child-1" as Id<"pipes">, false),
+    ).not.toContainEqual({ id: "feed-2", name: "Freelance", icon: "laptop-outline" });
   });
 });
 
@@ -894,7 +927,7 @@ describe("AmountForm", () => {
       expect(screen.queryByTestId("slide-toggle-transfer")).toBeNull();
     });
 
-    it("shows the repeat/edit toggle even for feed-type transactions", () => {
+    it("does not expose edit mode for feed-type repeats without an id", () => {
       render(
         <AmountForm
           pipeId={PIPE_ID}
@@ -902,8 +935,22 @@ describe("AmountForm", () => {
           initState={{ pipeIcon: "cash", pipeName: "Salary", title: "pay", value: "1000", isFeed: true }}
         />,
       );
-      expect(screen.getByTestId("slide-toggle-repeat")).toBeTruthy();
-      expect(screen.getByTestId("slide-toggle-edit")).toBeTruthy();
+      expect(screen.queryByTestId("slide-toggle-repeat")).toBeNull();
+      expect(screen.queryByTestId("slide-toggle-edit")).toBeNull();
+      expect(screen.getByText("Feed")).toBeTruthy();
+    });
+
+    it("only offers repeat mode when no transaction id is provided", () => {
+      render(
+        <AmountForm
+          pipeId={PIPE_ID}
+          variant="transaction"
+          initState={{ pipeIcon: "cart", pipeName: "Groceries", title: "coffee", value: "-5" }}
+        />,
+      );
+
+      expect(screen.queryByTestId("slide-toggle-edit")).toBeNull();
+      expect(screen.getByText("Add expense")).toBeTruthy();
     });
 
     it("defaults to repeat intent", () => {

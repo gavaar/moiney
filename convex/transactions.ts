@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { internalMutation, mutation, query } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { paginationOptsValidator } from "convex/server";
 import { requireAuth } from "./lib/auth";
 import {
@@ -14,6 +15,9 @@ import {
   resolveTopMostAncestor,
 } from "./lib/pipes";
 import { deriveTransactionKind } from "../src/lib/transactions/identity";
+
+const TITLE_USAGE_RETENTION_MS = 365 * 24 * 60 * 60 * 1000;
+const TITLE_USAGE_CLEANUP_BATCH_SIZE = 100;
 
 function transactionsQuery(ctx: any, userId: string, pipeIds: string[] | undefined) {
   let q = ctx.db
@@ -46,6 +50,7 @@ export const createTransaction = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await requireAuth(ctx);
+    const usageNow = Date.now();
 
     if (args.paidFrom && (!args.from || args.to)) {
       throw new Error("Pay by transfer requires from and paidFrom only");
@@ -55,6 +60,11 @@ export const createTransaction = mutation({
       throw new Error("Either 'from' or 'to' must be provided");
     }
     const kind = deriveTransactionKind(args);
+    for (const pipeId of new Set([args.from, args.to, args.paidFrom])) {
+      if (!pipeId) continue;
+      const pipe = await ctx.db.get("pipes", pipeId);
+      if (pipe?.deletionJobId) throw new Error("Pipe is being deleted");
+    }
 
     // Feed: no source pipe — money flows into `to`
     if (!args.from && args.to) {
@@ -80,7 +90,7 @@ export const createTransaction = mutation({
         pipeId: args.to,
         userId,
         title: args.title,
-        date: args.date,
+        now: usageNow,
       });
 
       await recascadeTree(ctx, userId);
@@ -156,7 +166,7 @@ export const createTransaction = mutation({
         pipeId,
         userId,
         title: args.title,
-        date: args.date,
+        now: usageNow,
       });
       return;
     }
@@ -179,8 +189,6 @@ export const createTransaction = mutation({
       if (pipe.rule === "any_spend") {
         await executePipeRule(ctx, pipeId);
       }
-
-      await recascadeTree(ctx, userId);
     } else {
       const newSpent = calculateSpentUpdate(pipe.spent, args.value);
       await ctx.db.patch(pipeId, {
@@ -194,6 +202,8 @@ export const createTransaction = mutation({
         await executePipeRule(ctx, pipeId);
       }
     }
+
+    await recascadeTree(ctx, userId);
 
     await ctx.db.insert("transactions", {
       title: args.title.toLowerCase(),
@@ -209,7 +219,7 @@ export const createTransaction = mutation({
       pipeId,
       userId,
       title: args.title,
-      date: args.date,
+      now: usageNow,
     });
   },
 });
@@ -227,6 +237,18 @@ export const editTransaction = mutation({
     const tx = await ctx.db.get(args.transactionId);
     if (!tx) throw new Error("Transaction not found");
     if (tx.userId !== userId) throw new Error("Not authorized");
+    if (
+      tx.fromIcon !== undefined ||
+      tx.toIcon !== undefined ||
+      tx.paidFromIcon !== undefined
+    ) {
+      throw new Error("Transaction is view-only");
+    }
+    for (const pipeId of new Set([tx.from, tx.to, tx.paidFrom])) {
+      if (!pipeId) continue;
+      const pipe = await ctx.db.get("pipes", pipeId);
+      if (pipe?.deletionJobId) throw new Error("Pipe is being deleted");
+    }
 
     const valueDiff = args.value - tx.value;
 
@@ -277,6 +299,7 @@ export const editTransaction = mutation({
         await ctx.db.patch(tx.from, {
           spent: calculateSpentUpdate(pipe.spent, valueDiff),
         });
+        await recascadeTree(ctx, userId);
       } else if (tx.to) {
         const pipe = await ctx.db.get(tx.to);
         if (!pipe) throw new Error("Pipe not found");
@@ -289,13 +312,6 @@ export const editTransaction = mutation({
     await ctx.db.patch(args.transactionId, {
       title: args.title.toLowerCase(),
       value: args.value,
-      date: args.date,
-    });
-
-    await updateOrCreateTitleUsage(ctx, {
-      pipeId: tx.from ?? tx.to!,
-      userId,
-      title: args.title,
       date: args.date,
     });
   },
@@ -340,5 +356,33 @@ export const listTransactionsPaginated = query({
     const userId = await requireAuth(ctx);
     const q = transactionsQuery(ctx, userId, args.pipeIds);
     return await q.paginate(args.paginationOpts);
+  },
+});
+
+export const cleanupStaleTitleUsage = internalMutation({
+  args: { now: v.optional(v.number()) },
+  returns: v.object({ deleted: v.number(), hasMore: v.boolean() }),
+  handler: async (ctx, args) => {
+    const now = args.now ?? Date.now();
+    const staleRows = await ctx.db
+      .query("transactionTitleUsage")
+      .withIndex("by_lastUsedAt", (q) =>
+        q.lt("lastUsedAt", now - TITLE_USAGE_RETENTION_MS),
+      )
+      .take(TITLE_USAGE_CLEANUP_BATCH_SIZE);
+
+    for (const row of staleRows) {
+      await ctx.db.delete("transactionTitleUsage", row._id);
+    }
+
+    const hasMore = staleRows.length === TITLE_USAGE_CLEANUP_BATCH_SIZE;
+    if (hasMore) {
+      await ctx.scheduler.runAfter(
+        0,
+        internal.transactions.cleanupStaleTitleUsage,
+        { now },
+      );
+    }
+    return { deleted: staleRows.length, hasMore };
   },
 });

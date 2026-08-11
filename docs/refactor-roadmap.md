@@ -23,7 +23,8 @@ This roadmap persists the whole-project audit beyond any single chat session. Wo
 | 3C. Custom-auth hardening | Completed | Add rotation, replay detection, rate limits, recovery, and storage policy | Update 3A |
 | 4. Quality gates | Completed | Require tests and type checking before deploy; improve native and Convex boundary coverage | None |
 | 5. Transaction identity | Completed | Model transaction kinds and collision-free grouping, including `paidFrom` | D003, D007 |
-| 6. Pipe deletion contract | Pending | Implement optional complete history purge and return subtree balance to the parent | D002, money command contract |
+| 6. Pipe deletion contract | Completed | Process orphaned history in bounded pages, preserve deleted-role icons, and return subtree balance to the parent | D002, money command contract |
+| 6a. Pipe module boundaries | Completed | Separate shared pipe logic and deletion operations while preserving Convex registration paths | Update 6 |
 | 7. Independent correctness fixes | Pending | Repair selection, back handling, description clearing, cron diff, input handlers, and loading states | Relevant focused tests |
 | 8. Shared domain core | Pending | Introduce deep pure modules for money, transactions, pipe graph, and cron schedules | D001-D003 |
 | 9. Integer cents migration | Pending | Replace floating-point monetary persistence and arithmetic with integer cents | Update 8, D001 |
@@ -63,10 +64,12 @@ Update 15 must report before-and-after measurements rather than relying only on 
 
 ## Current Next Step
 
-The requested rule change is complete: `any_spend` and `spend_overflow` accept
-`capUpdateValue`, and rule execution consolidates `fed = fed - spent` and sets
-`capacity = capacity - spent + capUpdateValue` when set, applied uniformly
-including cron (recorded as D008). Next is Update 6.
+Update 6 is complete: orphaned transaction history is processed in bounded
+role-indexed pages, preserved transactions store deleted-role icons directly,
+and subtree balance is credited to the immediate parent. Update 6a keeps the
+implementation under `convex/lib/pipes/` and `convex/lib/pipes/delete/` while
+preserving Convex registration paths. The next roadmap update requires user
+approval before work begins.
 
 ## Completed Accessibility Layout Work
 

@@ -1,4 +1,5 @@
-import type { Doc, Id } from "@convex/_generated/dataModel";
+import type { Id } from "@convex/_generated/dataModel";
+import type { TransactionWithPipeIcons } from "@/lib/transactions/types";
 import {
   resolveTransactionKind,
   transactionGroupId,
@@ -8,7 +9,7 @@ import {
 export type TransactionGroup = {
   id: string;
   kind: TransactionKind;
-  transactions: Doc<"transactions">[];
+  transactions: TransactionWithPipeIcons[];
   count: number;
   title: string;
   value: number;
@@ -18,12 +19,12 @@ export type TransactionGroup = {
   latestDate: number;
 };
 
-export type TransactionListItem = Doc<"transactions"> | TransactionGroup;
+export type TransactionListItem = TransactionWithPipeIcons | TransactionGroup;
 
 export function groupTransactions(
-  transactions: Doc<"transactions">[],
+  transactions: TransactionWithPipeIcons[],
 ): TransactionListItem[] {
-  const groups = new Map<string, Doc<"transactions">[]>();
+  const groups = new Map<string, TransactionWithPipeIcons[]>();
 
   for (const tx of transactions) {
     const key = transactionGroupId(tx);

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   calculatePipeAllocations,
+  buildChildrenMap,
   collectChildSubtree,
   computeCronIntervalProgress,
   computeCronNextDate,
@@ -9,10 +10,75 @@ import {
   computePipeTree,
   executePipeRule,
   recalcPipeSubtree,
+  recascadeTree,
   recalculatePipes,
   resolveTopMostAncestor,
   splitEvenly,
 } from "./pipes";
+
+describe("recascadeTree deletion safety", () => {
+  it("rejects before patching when a user pipe is being deleted", async () => {
+    const patch = vi.fn();
+    const ctx = {
+      db: {
+        query: vi.fn(() => ({
+          withIndex: vi.fn(() => ({
+            collect: vi.fn().mockResolvedValue([
+              { _id: "survivor", userId: "user-1", fed: 0, spent: 0, capacity: 10 },
+              { _id: "deleting", userId: "user-1", deletionJobId: "job-1", fed: 10, spent: 0, capacity: 10 },
+            ]),
+          })),
+        })),
+        patch,
+      },
+    } as any;
+
+    await expect(recascadeTree(ctx, "user-1" as any)).rejects.toThrow(
+      "Pipe is being deleted",
+    );
+    expect(patch).not.toHaveBeenCalled();
+  });
+
+  it("rejects subtree recalculation before patching a deleting member", async () => {
+    const patch = vi.fn();
+    const root = { _id: "root", parentId: undefined, fed: 0, spent: 0, capacity: 10 };
+    const child = { _id: "child", parentId: "root", deletionJobId: "job-1", fed: 10, spent: 0, capacity: 10 };
+    let hasChild = true;
+    const ctx = {
+      db: {
+        get: vi.fn().mockResolvedValue(root),
+        query: vi.fn(() => ({
+          withIndex: vi.fn((index: string) => ({
+            collect: vi.fn().mockResolvedValue(
+              index === "by_parentId" && hasChild ? ((hasChild = false), [child]) : [],
+            ),
+          })),
+        })),
+        patch,
+      },
+    } as any;
+
+    await expect(recalcPipeSubtree(ctx, "root" as any)).rejects.toThrow(
+      "Pipe is being deleted",
+    );
+    expect(patch).not.toHaveBeenCalled();
+  });
+});
+
+describe("buildChildrenMap", () => {
+  it("groups full child records by parent while preserving input order", () => {
+    const root = { _id: "root" as const };
+    const firstChild = { _id: "child-1" as const, parentId: "root" as const, priority: 2 };
+    const secondChild = { _id: "child-2" as const, parentId: "root" as const, priority: 1 };
+    const grandchild = { _id: "grandchild" as const, parentId: "child-1" as const, priority: 0 };
+
+    const result = buildChildrenMap([root, firstChild, secondChild, grandchild]);
+
+    expect(result.get("root")).toEqual([firstChild, secondChild]);
+    expect(result.get("child-1")).toEqual([grandchild]);
+    expect(result.has("child-2")).toBe(false);
+  });
+});
 
 describe("splitEvenly", () => {
   it("splits budget evenly when all shortfalls exceed fair share", () => {

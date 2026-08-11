@@ -20,8 +20,20 @@ vi.mock("@ui/Icon", () => ({
 }));
 
 vi.mock("@features/pipes/InnerPipesScreen/components/DeletePipeConfirmation", () => ({
-  DeletePipeConfirmation: ({ visible, pipeId }: any) =>
-    visible ? <div data-testid="delete-confirmation">Delete {pipeId}</div> : null,
+  DeletePipeConfirmation: ({ visible, pipeId, onDeleted }: any) =>
+    visible ? (
+      <button data-testid="delete-confirmation" onClick={onDeleted}>
+        Delete {pipeId}
+      </button>
+    ) : null,
+}));
+
+const mockSelectPipe = vi.fn();
+vi.mock("@features/pipes/context/PipeSelectionContext", () => ({
+  usePipeSelection: () => ({
+    selectedPipePath: ["parent-pipe", "test-pipe"],
+    selectPipe: mockSelectPipe,
+  }),
 }));
 
 vi.mock("@features/pipes/InnerPipesScreen/components/EditPipeModal", () => ({
@@ -46,6 +58,18 @@ describe("OptionsButton", () => {
     const icons = screen.getAllByTestId("icon");
     const gear = icons.find((i) => i.getAttribute("data-name") === "settings-outline");
     expect(gear).toBeDefined();
+  });
+
+  it("does not open options for a frozen pipe", async () => {
+    const user = userEvent.setup();
+    render(<OptionsButton pipeId={pipeId} disabled />);
+    const gear = screen
+      .getAllByTestId("icon")
+      .find((i) => i.getAttribute("data-name") === "settings-outline")!;
+
+    await user.click(gear);
+
+    expect(screen.queryByTestId("options-popover")).toBeNull();
   });
 
   it("opens popover showing add, edit and delete labels on gear tap", async () => {
@@ -99,5 +123,19 @@ describe("OptionsButton", () => {
     );
     await user.click(screen.getByText("Delete"));
     expect(screen.getByTestId("delete-confirmation").textContent).toBe(`Delete ${pipeId}`);
+  });
+
+  it("selects the parent after deletion completes", async () => {
+    const user = userEvent.setup();
+    render(<OptionsButton pipeId={pipeId} />);
+    await user.click(
+      screen
+        .getAllByTestId("icon")
+        .find((i) => i.getAttribute("data-name") === "settings-outline")!,
+    );
+    await user.click(screen.getByText("Delete"));
+    await user.click(screen.getByTestId("delete-confirmation"));
+
+    expect(mockSelectPipe).toHaveBeenCalledWith(["parent-pipe"]);
   });
 });

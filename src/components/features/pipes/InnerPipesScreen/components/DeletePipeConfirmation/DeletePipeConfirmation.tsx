@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { type Id, type Doc } from "@convex/_generated/dataModel";
 import { Button } from "@ui/Button";
@@ -41,22 +41,15 @@ function collectDescendants(
 
 export function DeletePipeConfirmation({ visible, onClose, pipeId, onDeleted }: Props) {
   const { pipesById, childrenByParent } = usePipeSelection();
-  const [isEnabled, setIsEnabled] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteTransactions, setDeleteTransactions] = useState(false);
+  const [jobId, setJobId] = useState<Id<"pipeDeletionJobs"> | null>(null);
   const showAlert = useAlert();
-  const deletePipe = useMutation(api.pipes.deletePipe);
-
-  useEffect(() => {
-    setIsEnabled(false);
-    const timer = setTimeout(() => setIsEnabled(true), 2000);
-    return () => clearTimeout(timer);
-  }, [visible, pipeId]);
-
-  useEffect(() => {
-    setDeleteTransactions(false);
-  }, [visible]);
-
+  const startPipeDeletion = useMutation(api.pipes.startPipeDeletion);
+  const deletionStatus = useQuery(
+    api.pipes.getPipeDeletionStatus,
+    jobId ? { jobId } : "skip",
+  );
   const pipe = pipeId ? pipesById?.[pipeId] ?? null : null;
 
   const descendants = useMemo(
@@ -64,13 +57,40 @@ export function DeletePipeConfirmation({ visible, onClose, pipeId, onDeleted }: 
     [pipeId, childrenByParent],
   );
 
+  useEffect(() => {
+    if (!visible && !jobId) {
+      setIsDeleting(false);
+      setDeleteTransactions(false);
+    }
+  }, [jobId, visible]);
+
+  useEffect(() => {
+    if (!jobId || !deletionStatus) return;
+    if (deletionStatus.phase === "complete") {
+      showAlert.success(
+        `Deleted ${descendants.length ? "pipe subtree." : "pipe."}${
+          deletionStatus.deleteTransactions ? " Orphaned history was deleted" : ""
+        }`,
+      );
+      setJobId(null);
+      setIsDeleting(false);
+      onDeleted();
+      onClose();
+    }
+  }, [
+    deletionStatus,
+    descendants.length,
+    jobId,
+    onClose,
+    onDeleted,
+    showAlert,
+  ]);
+
   const handleConfirm = async () => {
     setIsDeleting(true);
     try {
-      await deletePipe({ pipeId, deleteTransactions });
-      showAlert.success(`Pipe ${pipe?.name}${descendants.length ? ' and children' : ''} deleted${deleteTransactions ? '. Transactions were also deleted' : ''}`);
-      onDeleted();
-      onClose();
+      const result = await startPipeDeletion({ pipeId, deleteTransactions });
+      setJobId(result.jobId);
     } catch (error) {
       showAlert.error(`${error}`);
       setIsDeleting(false);
@@ -113,15 +133,27 @@ export function DeletePipeConfirmation({ visible, onClose, pipeId, onDeleted }: 
 
         <Input
           type="checkbox"
-          label="Also delete pipe's transactions"
+          label="Delete orphaned transaction history"
           checked={deleteTransactions}
           onChange={setDeleteTransactions}
+          disabled={isDeleting}
         />
+        <Text className="text-muted text-xs">
+          Shared transactions are preserved for surviving pipes.
+        </Text>
+
+        {isDeleting && deletionStatus ? (
+          <Text className="text-muted text-sm">
+            Deleting {deletionStatus.phase === "readyToFinalize"
+              ? deletionStatus.totalMembers
+              : deletionStatus.completedMembers} of {deletionStatus.totalMembers} pipes...
+          </Text>
+        ) : null}
 
         <Button
           variant="error"
-          title="Confirm deletion"
-          disabled={!isEnabled}
+          title={`Delete ${descendants.length + 1} pipes`}
+          disabled={isDeleting}
           loading={isDeleting}
           onPress={handleConfirm}
         />

@@ -48,6 +48,7 @@ export function StackedTransactionItem({
 }: StackedTransactionItemProps) {
   const isNegative = group.value < 0;
   const [showForm, setShowForm] = useState(false);
+  const [showDisabledInfo, setShowDisabledInfo] = useState(false);
   const disclosureRotation = useRef(
     new Animated.Value(expanded ? 1 : 0),
   ).current;
@@ -84,16 +85,38 @@ export function StackedTransactionItem({
     }
   }, [group.kind, isNegative]);
 
+  const firstTx = group.transactions[0];
   const sourcePipe = group.from ? pipesById?.[group.from] : undefined;
   const destPipe = group.to ? pipesById?.[group.to] : undefined;
+  const deletedIcons = {
+    from: group.transactions.find((transaction) => transaction.fromIcon)?.fromIcon,
+    to: group.transactions.find((transaction) => transaction.toIcon)?.toIcon,
+    paidFrom: group.transactions.find((transaction) => transaction.paidFromIcon)?.paidFromIcon,
+  };
+  const icons = {
+    from: {
+      name: sourcePipe?.icon ?? deletedIcons.from ?? "pipe-disconnected",
+      color: sourcePipe || deletedIcons.from ? colors.muted : colors.surface,
+    },
+    to: {
+      name: destPipe?.icon ?? deletedIcons.to ?? "pipe-disconnected",
+      color: destPipe || deletedIcons.to ? colors.muted : colors.surface,
+    },
+    paidFrom: {
+      name: deletedIcons.paidFrom ?? "pipe-disconnected",
+      color: deletedIcons.paidFrom ? colors.muted : colors.surface,
+    },
+  };
   const fromValid =
-    !!sourcePipe && (childrenByParent.get(sourcePipe._id)?.length ?? 0) === 0;
-  const toValid = !!destPipe && destPipe.parentId === undefined;
+    !!sourcePipe &&
+    !sourcePipe.deletionJobId &&
+    (childrenByParent.get(sourcePipe._id)?.length ?? 0) === 0;
+  const toValid = !!destPipe && !destPipe.deletionJobId && destPipe.parentId === undefined;
+  const viewOnly = !!deletedIcons.from || !!deletedIcons.to || !!deletedIcons.paidFrom;
   const disabled =
-    (!!group.from && !fromValid) || (!!group.to && !toValid);
+    viewOnly || (!!group.from && !fromValid) || (!!group.to && !toValid);
   const primaryPipe = sourcePipe || destPipe;
-  const firstTx = group.transactions[0];
-  const amountFormInitState = primaryPipe
+  const amountFormInitState = primaryPipe && !viewOnly
     ? {
         pipeIcon: primaryPipe.icon,
         pipeName: primaryPipe.name,
@@ -101,13 +124,15 @@ export function StackedTransactionItem({
         value: `${firstTx.value}`,
         ...(group.kind === "transfer" && destPipe ? { to: destPipe._id } : {}),
         isFeed: group.kind === "feed",
-        transactionId: firstTx._id,
-        date: firstTx.date,
       }
     : undefined;
 
   function handlePress() {
-    setShowForm(true);
+    if (disabled && !viewOnly) {
+      setShowDisabledInfo(true);
+    } else {
+      setShowForm(true);
+    }
   }
 
   return (
@@ -125,9 +150,9 @@ export function StackedTransactionItem({
           onPress={handlePress}
         >
           <Icon
-            name={safeIconName(group.kind === "feed" ? destPipe?.icon : sourcePipe?.icon)}
+            name={safeIconName(group.kind === "feed" ? icons.to.name : icons.from.name)}
             size={16}
-            color={colors.muted}
+            color={group.kind === "feed" ? icons.to.color : icons.from.color}
           />
 
           {group.kind === "transfer" ? (
@@ -137,7 +162,7 @@ export function StackedTransactionItem({
                 size={14}
                 color={colors.muted}
               />
-              <Icon name={safeIconName(destPipe?.icon)} size={16} color={colors.muted} />
+              <Icon name={safeIconName(icons.to.name)} size={16} color={icons.to.color} />
             </>
           ) : null}
 
@@ -189,9 +214,23 @@ export function StackedTransactionItem({
       </View>
 
       <ModalShell visible={showForm} onClose={() => setShowForm(false)}>
-        {primaryPipe && (
+        {viewOnly ? (
+          <View className="p-4">
+            <Text className="text-text font-bold text-lg mb-2">Preserved history</Text>
+            <Text className="text-muted text-sm">Preserved history is view-only.</Text>
+          </View>
+        ) : primaryPipe ? (
           <AmountForm variant="transaction" pipeId={primaryPipe._id} initState={amountFormInitState} />
-        )}
+        ) : null}
+      </ModalShell>
+
+      <ModalShell visible={showDisabledInfo} onClose={() => setShowDisabledInfo(false)}>
+        <View className="p-4">
+          <Text className="text-text font-bold text-lg mb-2">Cannot repeat transaction</Text>
+          <Text className="text-muted text-sm leading-5">
+            This transaction was from a pipe that does not exist or cannot accept transactions anymore (probably due to now having children pipes).
+          </Text>
+        </View>
       </ModalShell>
     </>
   );
