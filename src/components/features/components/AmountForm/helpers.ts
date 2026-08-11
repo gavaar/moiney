@@ -6,6 +6,7 @@ type PipeReference = {
   parentId?: Id<"pipes">;
   name: string;
   icon: string;
+  deletionJobId?: string;
 };
 
 export function getTopmostPipeId(
@@ -71,7 +72,7 @@ export function buildPipeItems(
   }
 
   const feeds = pipes.filter(
-    (p) => !p.parentId && !ancestorIds.has(p._id),
+    (p) => !p.parentId && !p.deletionJobId && !ancestorIds.has(p._id),
   );
 
   return [
@@ -95,9 +96,15 @@ export function buildPaidFromPipeItems(
     ? pipes.filter(
         (pipe) =>
           !parentIds.has(pipe._id) &&
+          !pipe.deletionJobId &&
           getTopmostPipeId(pipes, pipe._id) !== topmostPipeId,
       )
-    : pipes.filter((pipe) => !pipe.parentId && pipe._id !== topmostPipeId);
+    : pipes.filter(
+        (pipe) =>
+          !pipe.parentId &&
+          !pipe.deletionJobId &&
+          pipe._id !== topmostPipeId,
+      );
 
   return [
     { id: "", name: "None", icon: "close-circle" },

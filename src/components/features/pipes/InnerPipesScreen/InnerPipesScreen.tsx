@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { ScrollView, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
 import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
 import { type Id } from "@convex/_generated/dataModel";
 import { PipesList, type Pipe as PipesListPipe } from "@features/pipes/components/PipesList";
@@ -16,6 +16,7 @@ export function InnerPipesScreen() {
   const fed = selectedPipe?.fed ?? 0;
   const spent = selectedPipe?.spent ?? 0;
   const capacity = selectedPipe?.capacity ?? 0;
+  const isDeleting = Boolean(selectedPipe?.deletionJobId);
 
   const selectedId = selectedPipePath[selectedPipePath.length - 1];
   const children = childrenByParent.get(selectedId) ?? [];
@@ -35,7 +36,7 @@ export function InnerPipesScreen() {
         spent={pipe.spent}
         cronNextDate={pipe.cronNextDate}
         cronInterval={pipe.cronInterval}
-        disabled={(childrenByParent.get(pipe._id)?.length ?? 0) > 0}
+        disabled={(childrenByParent.get(pipe._id)?.length ?? 0) > 0 || Boolean(pipe.deletionJobId)}
       />
     ),
     [childrenByParent],
@@ -50,13 +51,17 @@ export function InnerPipesScreen() {
           <View className="flex-1">
             <StatisticsRow fed={fed} spent={spent} />
           </View>
-          <OptionsButton pipeId={selectedId} />
+          <OptionsButton pipeId={selectedId} disabled={isDeleting} />
         </View>
         <View className="border-b self-center border-muted/50 mb-3 w-3/4" />
       </View>
 
       <View className="flex-1">
-        {children.length === 0 && selectedPipe ? (
+        {isDeleting ? (
+          <View className="items-center justify-center p-6">
+            <Text className="text-muted text-sm">Pipe deletion in progress</Text>
+          </View>
+        ) : children.length === 0 && selectedPipe ? (
           <ScrollView contentContainerStyle={{ flexGrow: 1}}>
             <AmountForm pipeId={selectedPipe._id} variant="spend" />
           </ScrollView>

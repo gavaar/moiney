@@ -35,22 +35,27 @@ Until implemented, do not add another monetary representation and do not claim t
 
 ## D002: Pipe Deletion And Transaction History
 
-Status: Accepted, not implemented
+Status: Implemented
 
 Deleting a pipe always deletes the selected pipe and all descendants.
 
-The deletion confirmation includes a checkbox controlling transaction history:
+The deletion confirmation includes a checkbox controlling orphaned transaction history:
 
-- When checked, delete every transaction involving the selected subtree through `from`, `to`, or `paidFrom`.
-- When unchecked, preserve those transactions and enough pipe snapshot data to render meaningful history after the pipes are gone.
+- When checked, delete only transactions with no surviving involved pipe.
+- A feed is orphaned when its `to` pipe does not survive.
+- An ordinary expense is orphaned when its `from` pipe does not survive.
+- A pay-by-transfer expense is orphaned when neither `from` nor `paidFrom` survives.
+- A transfer is orphaned when neither `from` nor `to` survives.
+- When unchecked, preserve all transactions and store deleted-role icons directly on the transaction.
+- Preserved transactions are view-only.
 
 Before deleting the subtree, compute the selected subtree's aggregate `fed - spent`. Credit that amount exactly once to the immediate parent when one exists. A deleted root has no parent to credit.
 
-The operation must preserve accounting conservation, clean related derived records when history is purged, and use bounded work for large histories.
+The implementation creates an idempotent deletion job, freezes the selected subtree, and processes role-indexed transaction pages and finalization in bounded scheduled batches. Preserved transactions render embedded role icons without additional history reads. The job credits the immediate parent exactly once with the planned subtree balance and records completion for safe retries. Title-usage cleanup remains owned by its existing stale-usage maintenance job.
 
 ## D003: Transaction Involvement
 
-Status: In progress
+Status: Implemented
 
 A transaction involves a pipe when that pipe appears in any of these roles:
 
@@ -58,8 +63,8 @@ A transaction involves a pipe when that pipe appears in any of these roles:
 - `to`
 - `paidFrom`
 
-Filtering and grouping account for all applicable roles. Deletion and snapshot
-behavior remain pending in Update 6.
+Filtering, grouping, deletion, and snapshot behavior account for all applicable
+roles.
 
 ## D004: Username Canonicalization
 

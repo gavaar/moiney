@@ -1,5 +1,5 @@
-import type { Doc, Id } from "../_generated/dataModel";
-import type { MutationCtx } from "../_generated/server";
+import type { Doc, Id } from "../../_generated/dataModel";
+import type { MutationCtx } from "../../_generated/server";
 
 export type CronUnit = "days" | "months" | "years";
 
@@ -235,8 +235,8 @@ export function calculatePipeAllocations<TPipeId extends string>(
 
 // ── Tree computation ──
 
-function buildChildrenMap<TPipe extends { _id: string; parentId?: string }>(
-  pipes: TPipe[],
+export function buildChildrenMap<TPipe extends { _id: string; parentId?: string }>(
+  pipes: readonly TPipe[],
 ): Map<TPipe["_id"], TPipe[]> {
   const map = new Map<TPipe["_id"], TPipe[]>();
   for (const pipe of pipes) {
@@ -413,23 +413,6 @@ export function recalculatePipes<TPipeId extends string>(
 
 // ── DB operations ──
 
-export async function addFeedToPipe(
-  ctx: MutationCtx,
-  userId: Id<"users">,
-  pipeId: Id<"pipes">,
-  amount: number,
-) {
-  if (amount === 0) throw new Error("Amount must be non-zero");
-
-  const pipe = await ctx.db.get(pipeId);
-  if (!pipe) throw new Error("Pipe not found");
-  if (pipe.userId !== userId) throw new Error("Not authorized");
-
-  await ctx.db.patch(pipeId, {
-    fed: pipe.fed + amount,
-  });
-}
-
 export async function recascadeTree(
   ctx: MutationCtx,
   userId: Id<"users">,
@@ -438,6 +421,10 @@ export async function recascadeTree(
     .query("pipes")
     .withIndex("by_userId", (q) => q.eq("userId", userId))
     .collect();
+
+  if (allPipes.some((pipe) => pipe.deletionJobId)) {
+    throw new Error("Pipe is being deleted");
+  }
 
   const updates = recalculatePipes(allPipes);
 
@@ -509,6 +496,10 @@ export async function recalcPipeSubtree(
   const root = await ctx.db.get(rootId);
   const children = await collectChildSubtree(ctx, rootId);
   const subtree: Doc<"pipes">[] = root ? [root, ...children] : [];
+
+  if (subtree.some((pipe) => pipe.deletionJobId)) {
+    throw new Error("Pipe is being deleted");
+  }
 
   const updates = recalculatePipes(subtree);
   const currentFed = new Map(subtree.map((p) => [p._id, p.fed]));

@@ -122,7 +122,6 @@ describe("Pipes Android back handling", () => {
 
     expect(source).toContain("bg-surface");
     expect(source).toContain("px-3");
-    expect(source).toContain('name="chevron-down"');
-    expect(source).not.toContain("chevron-up");
+    expect(source).toContain('name="chevron-up"');
   });
 });

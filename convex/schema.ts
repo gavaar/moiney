@@ -14,9 +14,14 @@ export default defineSchema({
     from: v.optional(v.id("pipes")),
     to: v.optional(v.id("pipes")),
     paidFrom: v.optional(v.id("pipes")),
+    fromIcon: v.optional(v.string()),
+    toIcon: v.optional(v.string()),
+    paidFromIcon: v.optional(v.string()),
     userId: v.id("users"),
   })
     .index("by_from", ["from"])
+    .index("by_to", ["to"])
+    .index("by_paidFrom", ["paidFrom"])
     .index("by_userId", ["userId"])
     .index("by_userId_date", ["userId", "date"]),
   users: defineTable({
@@ -53,7 +58,25 @@ export default defineSchema({
       "userId",
       "count",
       "lastUsedAt",
-    ]),
+    ])
+    .index("by_lastUsedAt", ["lastUsedAt"]),
+  pipeDeletionJobs: defineTable({
+    userId: v.id("users"),
+    parentPipeId: v.optional(v.id("pipes")),
+    deleteTransactions: v.boolean(),
+    memberPipeIds: v.array(v.id("pipes")),
+    initialBalance: v.number(),
+    phase: v.union(
+      v.literal("processingTransactions"),
+      v.literal("readyToFinalize"),
+      v.literal("complete"),
+    ),
+    memberIndex: v.number(),
+    role: v.optional(
+      v.union(v.literal("from"), v.literal("to"), v.literal("paidFrom")),
+    ),
+    cursor: v.optional(v.string()),
+  }),
   pipes: defineTable({
     userId: v.id("users"),
     parentId: v.optional(v.id("pipes")),
@@ -64,6 +87,7 @@ export default defineSchema({
     capacity: v.number(),
     fed: v.number(),
     spent: v.number(),
+    deletionJobId: v.optional(v.id("pipeDeletionJobs")),
     rule: v.optional(v.union(v.literal("spend_overflow"), v.literal("any_spend"), v.literal("cron"))),
     // rule options
     capUpdateValue: v.optional(v.number()),

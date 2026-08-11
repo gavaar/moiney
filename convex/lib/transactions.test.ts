@@ -1,7 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   calculatePayByTransferUpdate,
   calculateSpentUpdate,
+  getTitleUsagePipeId,
+  updateOrCreateTitleUsage,
 } from "./transactions";
 import { recalculatePipes } from "./pipes";
 
@@ -43,6 +45,48 @@ describe("calculatePayByTransferUpdate", () => {
     spent = calculatePayByTransferUpdate(100, spent, 100, 3).fromSpent;
 
     expect(spent).toBe(20);
+  });
+});
+
+describe("updateOrCreateTitleUsage", () => {
+  it("records creation time instead of the transaction's effective date", async () => {
+    const existing = { _id: "usage-1", count: 2, lastUsedAt: 100 };
+    const chain = {
+      withIndex: vi.fn(() => ({
+        first: vi.fn().mockResolvedValue(existing),
+      })),
+    };
+    const ctx = {
+      db: {
+        query: vi.fn(() => chain),
+        patch: vi.fn(),
+        insert: vi.fn(),
+      },
+    };
+
+    await updateOrCreateTitleUsage(ctx as any, {
+      pipeId: "pipe-1" as any,
+      userId: "user-1" as any,
+      title: "Coffee",
+      now: 5_000,
+    });
+
+    expect(ctx.db.patch).toHaveBeenCalledWith("usage-1", {
+      count: 3,
+      lastUsedAt: 5_000,
+    });
+  });
+});
+
+describe("getTitleUsagePipeId", () => {
+  it("uses from for expenses and transfers, otherwise to for feeds", () => {
+    expect(getTitleUsagePipeId({ from: "expense", to: undefined })).toBe(
+      "expense",
+    );
+    expect(getTitleUsagePipeId({ from: "source", to: "destination" })).toBe(
+      "source",
+    );
+    expect(getTitleUsagePipeId({ from: undefined, to: "feed" })).toBe("feed");
   });
 });
 

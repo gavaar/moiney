@@ -7,12 +7,15 @@ import { colors } from "@/lib/styles";
 import { DeletePipeConfirmation } from "@features/pipes/InnerPipesScreen/components/DeletePipeConfirmation";
 import { EditPipeModal } from "@features/pipes/InnerPipesScreen/components/EditPipeModal";
 import { AddPipeModal } from "@features/pipes/InnerPipesScreen/components/AddPipeModal";
+import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
 
 type OptionsButtonProps = {
   pipeId: Id<"pipes">;
+  disabled?: boolean;
 };
 
-export function OptionsButton({ pipeId }: OptionsButtonProps) {
+export function OptionsButton({ pipeId, disabled = false }: OptionsButtonProps) {
+  const { selectedPipePath, selectPipe } = usePipeSelection();
   const [showOptions, setShowOptions] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -21,7 +24,12 @@ export function OptionsButton({ pipeId }: OptionsButtonProps) {
 
   return (
     <>
-      <Pressable ref={gearRef} onPress={() => setShowOptions(true)}>
+      <Pressable
+        ref={gearRef}
+        disabled={disabled}
+        className={disabled ? "opacity-50" : undefined}
+        onPress={() => setShowOptions(true)}
+      >
         <Icon name="settings-outline" size={16} color={colors.muted} />
       </Pressable>
 
@@ -83,7 +91,10 @@ export function OptionsButton({ pipeId }: OptionsButtonProps) {
         visible={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
         pipeId={pipeId}
-        onDeleted={() => setShowDeleteModal(false)}
+        onDeleted={() => {
+          selectPipe(selectedPipePath.slice(0, -1));
+          setShowDeleteModal(false);
+        }}
       />
     </>
   );

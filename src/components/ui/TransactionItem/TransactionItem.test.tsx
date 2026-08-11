@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { TransactionItem } from "./TransactionItem";
 import type { Id } from "@convex/_generated/dataModel";
+import { colors } from "@/lib/styles";
 
 const baseTx = {
   _id: "tx1" as any,
@@ -70,7 +71,7 @@ vi.mock("@features/pipes/context/PipeSelectionContext", () => ({
 }));
 
 vi.mock("@ui/Icon", () => ({
-  Icon: ({ name }: any) => <span data-testid="mock-icon" data-name={name} />,
+  Icon: ({ name, color }: any) => <span data-testid="mock-icon" data-name={name} data-color={color} />,
   safeIconName: (name: string | undefined | null): string => name ?? "pipe",
 }));
 
@@ -144,8 +145,29 @@ describe("TransactionItem", () => {
     });
 
     render(<TransactionItem transaction={baseTx} />);
+    expect(screen.getByTestId("mock-icon")).toMatchObject({
+      dataset: { name: "pipe-disconnected", color: colors.surface },
+    });
     fireEvent.click(screen.getByText("Shopping mall"));
     expect(screen.getByText("Cannot repeat transaction")).toBeDefined();
+  });
+
+  it("renders preserved history from a deleted pipe as view-only", () => {
+    mockUsePipeSelection.mockReturnValue({
+      pipesById: {},
+      childrenByParent: new Map(),
+    });
+    const transaction = {
+      ...baseTx,
+      fromIcon: "cart-outline",
+    };
+
+    render(<TransactionItem transaction={transaction} />);
+
+    expect(screen.getByTestId("mock-icon").getAttribute("data-name")).toBe("cart-outline");
+    fireEvent.click(screen.getByText("Shopping mall"));
+    expect(screen.getByText(/Preserved history is view-only/)).toBeDefined();
+    expect(screen.queryByTestId("amount-form")).toBeNull();
   });
 
   it("shows disabled info modal when pipe has children", () => {
@@ -161,6 +183,26 @@ describe("TransactionItem", () => {
     fireEvent.click(screen.getByText("Shopping mall"));
     expect(screen.getByText("Cannot repeat transaction")).toBeDefined();
     expect(screen.getByText(/cannot accept transactions anymore/)).toBeDefined();
+  });
+
+  it("shows disabled info when the source pipe is being deleted", () => {
+    mockUsePipeSelection.mockReturnValue({
+      pipesById: {
+        "pipe-1": {
+          _id: "pipe-1" as Id<"pipes">,
+          icon: pipeInfo.icon,
+          name: pipeInfo.name,
+          deletionJobId: "job-1",
+        },
+      },
+      childrenByParent: new Map(),
+    });
+
+    render(<TransactionItem transaction={baseTx} />);
+    fireEvent.click(screen.getByText("Shopping mall"));
+
+    expect(screen.getByText(/cannot accept transactions anymore/)).toBeDefined();
+    expect(screen.queryByTestId("amount-form")).toBeNull();
   });
 });
 

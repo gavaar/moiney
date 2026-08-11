@@ -4,12 +4,12 @@ import { TransactionItem } from "@ui/TransactionItem";
 import { StackedTransactionItem } from "./components";
 import { groupTransactions } from "@features/transactions/groupTransactions";
 import type { TransactionGroup } from "@features/transactions/groupTransactions";
-import type { Doc } from "@convex/_generated/dataModel";
+import type { TransactionWithPipeIcons } from "@/lib/transactions/types";
 import { colors } from "@/lib/styles";
 import { buildFlatItems } from './helpers';
 
 type TransactionListProps = {
-  transactions: Doc<"transactions">[] | undefined;
+  transactions: TransactionWithPipeIcons[] | undefined;
   isLoading?: boolean;
   onLoadMore?: () => void;
   loadMoreStatus?: "LoadingFirstPage" | "CanLoadMore" | "LoadingMore" | "Exhausted";

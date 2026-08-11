@@ -66,8 +66,14 @@ vi.mock("@ui/Modal", () => ({
 }));
 
 vi.mock("@features/components/AmountForm", () => ({
-  AmountForm: ({ variant, pipeId }: any) => (
-    <div data-testid="amount-form" data-variant={variant} data-pipe-id={pipeId} />
+  AmountForm: ({ variant, pipeId, initState }: any) => (
+    <div
+      data-testid="amount-form"
+      data-variant={variant}
+      data-pipe-id={pipeId}
+      data-transaction-id={initState?.transactionId}
+      data-date={initState?.date}
+    />
   ),
 }));
 
@@ -178,6 +184,69 @@ describe("StackedTransactionItem", () => {
     expect(screen.queryByTestId("modal")).toBeNull();
     fireEvent.click(screen.getByText("Coffee"));
     expect(screen.getByTestId("modal")).toBeDefined();
+  });
+
+  it("opens a grouped transaction in repeat mode without historical identity", () => {
+    render(
+      <StackedTransactionItem
+        group={baseGroup}
+        expanded={false}
+        onToggle={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByText("Coffee"));
+
+    const form = screen.getByTestId("amount-form");
+    expect(form.getAttribute("data-transaction-id")).toBeNull();
+    expect(form.getAttribute("data-date")).toBeNull();
+  });
+
+  it("renders a deleted-pipe group as view-only history", () => {
+    mockUsePipeSelection.mockReturnValue({
+      pipesById: {},
+      childrenByParent: new Map(),
+    });
+    const group: TransactionGroup = {
+      ...baseGroup,
+      transactions: baseGroup.transactions.map((transaction) => ({
+        ...transaction,
+        fromIcon: "cart-outline",
+      })),
+    };
+
+    render(
+      <StackedTransactionItem
+        group={group}
+        expanded={false}
+        onToggle={vi.fn()}
+      />,
+    );
+
+    expect(screen.getAllByTestId("mock-icon")[0].getAttribute("data-name")).toBe("cart-outline");
+    fireEvent.click(screen.getByText("Coffee"));
+    expect(screen.getByText(/Preserved history is view-only/)).toBeDefined();
+  });
+
+  it("does not open repeat for a group whose source pipe is being deleted", () => {
+    mockUsePipeSelection.mockReturnValue({
+      pipesById: { "pipe-1": { ...pipeInfo, deletionJobId: "job-1" } },
+      childrenByParent: new Map(),
+    });
+
+    render(
+      <StackedTransactionItem
+        group={baseGroup}
+        expanded={false}
+        onToggle={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByText("Coffee"));
+
+    expect(screen.getByText("Cannot repeat transaction")).toBeDefined();
+    expect(screen.getByText(/cannot accept transactions anymore/)).toBeDefined();
+    expect(screen.queryByTestId("amount-form")).toBeNull();
   });
 
   it("opens the modal without toggling when tapped while expanded", () => {

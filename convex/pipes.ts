@@ -1,17 +1,26 @@
 import { v } from "convex/values";
 import { internalMutation, mutation, query, type MutationCtx } from "./_generated/server";
+import { internal } from "./_generated/api";
 import type { Id, Doc } from "./_generated/dataModel";
 import { requireAuth } from "./lib/auth";
 import { MAX_PIPES_PER_USER } from "./lib/constants";
 import {
-  collectDescendants,
   computeCronNextDate,
   computeElapsedIntervals,
   computePipeTree,
+  collectChildSubtree,
   executePipeRule,
   recalcPipeSubtree,
   recascadeTree,
   resolveTopMostAncestor,
+} from "./lib/pipes";
+import {
+  assertPipeNotDeleting,
+  deletionStartResult,
+  deletionStatus,
+  getPipeDeletionStatusOperation,
+  processPipeDeletionOperation,
+  startPipeDeletionOperation,
 } from "./lib/pipes";
 
 async function checkPipeLimit(ctx: MutationCtx, userId: Id<"users">) {
@@ -25,6 +34,53 @@ async function checkPipeLimit(ctx: MutationCtx, userId: Id<"users">) {
     );
   }
 }
+
+function schedulePipeDeletion(
+  ctx: MutationCtx,
+  jobId: Id<"pipeDeletionJobs">,
+): Promise<unknown> {
+  return ctx.scheduler.runAfter(0, internal.pipes.processPipeDeletion, {
+    jobId,
+  });
+}
+
+export const startPipeDeletion = mutation({
+  args: {
+    pipeId: v.id("pipes"),
+    deleteTransactions: v.boolean(),
+  },
+  returns: deletionStartResult,
+  handler: async (ctx, args) => {
+    const userId = await requireAuth(ctx);
+    return await startPipeDeletionOperation(
+      ctx,
+      userId,
+      args,
+      schedulePipeDeletion,
+    );
+  },
+});
+
+export const getPipeDeletionStatus = query({
+  args: { jobId: v.id("pipeDeletionJobs") },
+  returns: deletionStatus,
+  handler: async (ctx, args) => {
+    const userId = await requireAuth(ctx);
+    return await getPipeDeletionStatusOperation(ctx, userId, args.jobId);
+  },
+});
+
+export const processPipeDeletion = internalMutation({
+  args: { jobId: v.id("pipeDeletionJobs") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    return await processPipeDeletionOperation(
+      ctx,
+      args.jobId,
+      schedulePipeDeletion,
+    );
+  },
+});
 
 export const addFeed = mutation({
   args: {
@@ -66,6 +122,7 @@ export const addPipe = mutation({
     if (!parent || parent.userId !== userId) {
       throw new Error("Parent pipe not found");
     }
+    assertPipeNotDeleting(parent);
 
     await checkPipeLimit(ctx, userId);
 
@@ -96,62 +153,6 @@ export const addPipe = mutation({
   },
 });
 
-export const deletePipe = mutation({
-  args: {
-    pipeId: v.id("pipes"),
-    deleteTransactions: v.optional(v.boolean()),
-  },
-  handler: async (ctx, args) => {
-    const userId = await requireAuth(ctx);
-
-    const pipe = await ctx.db.get(args.pipeId);
-    if (!pipe) throw new Error("Pipe not found");
-    if (pipe.userId !== userId) throw new Error("Not authorized");
-
-    const allPipes = await ctx.db
-      .query("pipes")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .collect();
-
-    const childrenByParent = new Map<Id<"pipes">, Id<"pipes">[]>();
-    for (const p of allPipes) {
-      if (p.parentId) {
-        const siblings = childrenByParent.get(p.parentId) ?? [];
-        siblings.push(p._id);
-        childrenByParent.set(p.parentId, siblings);
-      }
-    }
-
-    const descendants = collectDescendants(args.pipeId, childrenByParent);
-    const allToDelete = [args.pipeId, ...descendants];
-
-    if (args.deleteTransactions) {
-      const transactions = await ctx.db
-        .query("transactions")
-        .withIndex("by_userId", (q) => q.eq("userId", userId))
-        .filter((q) =>
-          q.or(...allToDelete.map((id) => q.eq(q.field("from"), id))),
-        )
-        .collect();
-      for (const t of transactions) {
-        await ctx.db.delete(t._id);
-      }
-    }
-
-    for (const id of descendants) {
-      await ctx.db.delete(id);
-    }
-    await ctx.db.delete(args.pipeId);
-
-    const remainingPipes = allPipes.filter(
-      (p) => !allToDelete.includes(p._id),
-    );
-    if (remainingPipes.length > 0) {
-      await recascadeTree(ctx, userId);
-    }
-  },
-});
-
 export const updatePipe = mutation({
   args: {
     pipeId: v.id("pipes"),
@@ -167,6 +168,7 @@ export const updatePipe = mutation({
     const pipe = await ctx.db.get(args.pipeId);
     if (!pipe) throw new Error("Pipe not found");
     if (pipe.userId !== userId) throw new Error("Not authorized");
+    assertPipeNotDeleting(pipe);
 
     const patch: Record<string, unknown> = {};
     if (args.name !== undefined) patch.name = args.name;
@@ -204,6 +206,7 @@ export const updatePipeRule = mutation({
     const pipe = await ctx.db.get(args.pipeId);
     if (!pipe) throw new Error("Pipe not found");
     if (pipe.userId !== userId) throw new Error("Not authorized");
+    assertPipeNotDeleting(pipe);
 
     const patch: Record<string, unknown> = {
       rule: args.rule ?? undefined,
@@ -233,6 +236,7 @@ export const updatePipeRule = mutation({
     }
 
     await ctx.db.patch(args.pipeId, patch);
+    await recascadeTree(ctx, userId);
   },
 });
 
@@ -246,6 +250,7 @@ export const executePipeRuleNow = mutation({
     const pipe = await ctx.db.get(args.pipeId);
     if (!pipe) throw new Error("Pipe not found");
     if (pipe.userId !== userId) throw new Error("Not authorized");
+    assertPipeNotDeleting(pipe);
 
     await executePipeRule(ctx, args.pipeId, { pipe });
     await recalcPipeSubtree(ctx, args.pipeId);
@@ -275,10 +280,23 @@ export const runDueCronRules = internalMutation({
 
     const rootCache = new Map<Id<"pipes">, Id<"pipes">>();
     const roots = new Set<Id<"pipes">>();
+    const blockedRoots = new Set<Id<"pipes">>();
+    const safeRoots = new Set<Id<"pipes">>();
 
     for (const pipe of pipes) {
+      const rootId = await resolveTopMostAncestor(ctx, pipe._id, rootCache);
+      if (blockedRoots.has(rootId)) continue;
+      if (!safeRoots.has(rootId)) {
+        const root = await ctx.db.get("pipes", rootId);
+        const children = await collectChildSubtree(ctx, rootId);
+        if (root?.deletionJobId || children.some((child) => child.deletionJobId)) {
+          blockedRoots.add(rootId);
+          continue;
+        }
+        safeRoots.add(rootId);
+      }
       await executePipeRule(ctx, pipe._id, { now, pipe });
-      roots.add(await resolveTopMostAncestor(ctx, pipe._id, rootCache));
+      roots.add(rootId);
     }
 
     for (const rootId of roots) {

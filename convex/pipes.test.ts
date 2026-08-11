@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { addPipe, updatePipeRule, executePipeRuleNow, runDueCronRules } from "./pipes";
+import {
+  addPipe,
+  executePipeRuleNow,
+  runDueCronRules,
+  updatePipeRule,
+} from "./pipes";
 import { computeElapsedIntervals } from "./lib/pipes";
 
 vi.mock("./lib/auth", () => ({
@@ -7,13 +12,17 @@ vi.mock("./lib/auth", () => ({
 }));
 
 function mockDb() {
+  const chain = {
+    collect: vi.fn().mockResolvedValue([]),
+  };
   return {
     get: vi.fn(),
     patch: vi.fn(),
     insert: vi.fn(),
     query: vi.fn(() => ({
-      withIndex: vi.fn(() => ({ collect: vi.fn().mockResolvedValue([]) })),
+      withIndex: vi.fn(() => chain),
     })),
+    _chain: chain,
   };
 }
 
@@ -155,6 +164,7 @@ describe("updatePipeRule", () => {
       cronNextDate: Date.UTC(2099, 8, 15, 5),
       cronInterval: { interval: 30, unit: "days" },
     });
+    expect(ctx.db._chain.collect).toHaveBeenCalled();
   });
 
   it("sets a cron rule without capUpdateValue", async () => {
@@ -451,6 +461,58 @@ describe("runDueCronRules", () => {
       spent: 0,
       cronNextDate: Date.UTC(2026, 5, 16, 5),
     });
+  });
+
+  it("skips a due rule when its root contains a deleting member", async () => {
+    const duePipe = {
+      ...dueToday,
+      _id: "due-pipe",
+      parentId: "root",
+    };
+    const root = {
+      _id: "root",
+      userId: "user-1",
+      fed: 0,
+      spent: 0,
+      capacity: 100,
+    };
+    const deletingChild = {
+      _id: "deleting-child",
+      parentId: "root",
+      deletionJobId: "job-1",
+      fed: 0,
+      spent: 0,
+      capacity: 100,
+    };
+    let parentId: string | undefined;
+    const query = vi.fn(() => ({
+      withIndex: vi.fn((name: string, predicate: (q: any) => void) => {
+        if (name === "by_parentId") {
+          const q = {
+            eq: vi.fn((_field: string, value: string) => {
+              parentId = value;
+              return q;
+            }),
+          };
+          predicate(q);
+          return {
+            collect: vi.fn().mockResolvedValue(parentId === "root" ? [deletingChild] : []),
+          };
+        }
+        return {
+          collect: vi.fn().mockResolvedValue([duePipe]),
+        };
+      }),
+    }));
+    const ctx = mockCtx();
+    ctx.db.query = query;
+    ctx.db.get.mockImplementation((id: string) =>
+      id === "due-pipe" ? duePipe : root,
+    );
+
+    await (runDueCronRules as any)._handler(ctx, { now: NOW });
+
+    expect(ctx.db.patch).not.toHaveBeenCalled();
   });
 });
 

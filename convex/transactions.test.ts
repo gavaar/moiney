@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createTransaction, editTransaction } from "./transactions";
+import {
+  cleanupStaleTitleUsage,
+  createTransaction,
+  editTransaction,
+} from "./transactions";
 
 vi.mock("./lib/auth", () => ({
   requireAuth: vi.fn().mockResolvedValue("user-1"),
@@ -241,6 +245,7 @@ describe("createTransaction", () => {
 
       expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", { spent: 130 });
       expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", { fed: 400, spent: 0 });
+      expect(ctx.db._chain.collect).toHaveBeenCalled();
     });
 
     it("executes any_spend rule on the source after a transfer", async () => {
@@ -373,6 +378,23 @@ describe("editTransaction", () => {
         date: 3000,
       });
       expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", { spent: 130 });
+      expect(ctx.db._chain.collect).toHaveBeenCalled();
+      expect(ctx.db.insert).not.toHaveBeenCalled();
+    });
+
+    it("rejects editing a transaction with an embedded deleted-role icon", async () => {
+      const ctx = mockCtx();
+      const tx = { ...BASE_TX, fromIcon: "pipe-disconnected" };
+      ctx.db.get.mockResolvedValue(tx);
+
+      await expect(
+        (editTransaction as any)._handler(ctx, {
+          transactionId: "tx-1",
+          title: "new title",
+          value: -80,
+          date: 3000,
+        }),
+      ).rejects.toThrow("Transaction is view-only");
     });
   });
 
@@ -539,5 +561,36 @@ describe("editTransaction", () => {
         }),
       ).rejects.toThrow("Not authorized");
     });
+  });
+});
+
+describe("cleanupStaleTitleUsage", () => {
+  it("deletes one bounded stale batch and schedules the next batch", async () => {
+    const staleRows = Array.from({ length: 100 }, (_, index) => ({
+      _id: `usage-${index}`,
+    }));
+    const take = vi.fn().mockResolvedValue(staleRows);
+    const withIndex = vi.fn((_name, range) => {
+      range({ lt: vi.fn() });
+      return { take };
+    });
+    const ctx = {
+      db: {
+        query: vi.fn(() => ({ withIndex })),
+        delete: vi.fn(),
+      },
+      scheduler: { runAfter: vi.fn() },
+    };
+
+    await (cleanupStaleTitleUsage as any)._handler(ctx, { now: 1_000_000 });
+
+    expect(withIndex).toHaveBeenCalledWith("by_lastUsedAt", expect.any(Function));
+    expect(take).toHaveBeenCalledWith(100);
+    expect(ctx.db.delete).toHaveBeenCalledTimes(100);
+    expect(ctx.scheduler.runAfter).toHaveBeenCalledWith(
+      0,
+      expect.anything(),
+      { now: 1_000_000 },
+    );
   });
 });

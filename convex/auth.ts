@@ -2,7 +2,7 @@
 import { action } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { ConvexError, v } from "convex/values";
-import type { Doc, Id } from "./_generated/dataModel";
+import type { Id } from "./_generated/dataModel";
 import {
   generateRefreshToken,
   generateSessionFamilyId,
@@ -98,7 +98,7 @@ export const signIn = action({
         retryAfter: rateLimit.retryAfter,
       });
     }
-    const user: Doc<"users"> | null = await ctx.runQuery(
+    const user: { _id: Id<"users">; password: string } | null = await ctx.runQuery(
       internal.accounts.getUserByUsername,
       { username },
     );

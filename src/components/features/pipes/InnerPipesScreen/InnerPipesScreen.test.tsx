@@ -8,6 +8,7 @@ const mockAddPipe = vi.fn();
 
 vi.mock("convex/react", () => ({
   useMutation: () => mockAddPipe,
+  useQuery: () => undefined,
 }));
 
 vi.mock("@convex/_generated/api", () => ({
@@ -235,6 +236,25 @@ describe("InnerPipesScreen", () => {
 
     render(<InnerPipesScreen />);
     expect(screen.getByTestId("spent-form")).toBeDefined();
+  });
+
+  it("keeps a frozen pipe visible without spend controls", () => {
+    mockUsePipeSelection.mockReturnValue({
+      ...baseMock,
+      selectedPipePath: ["pipe-1"],
+      selectedPipe: {
+        _id: "pipe-1",
+        name: "Groceries",
+        icon: "pipe",
+        deletionJobId: "job-1",
+      },
+      selectedName: "Groceries",
+    });
+
+    render(<InnerPipesScreen />);
+
+    expect(screen.queryByTestId("spent-form")).toBeNull();
+    expect(screen.getByText("Pipe deletion in progress")).toBeDefined();
   });
 
   it("does not render AmountForm when pipe has children", () => {

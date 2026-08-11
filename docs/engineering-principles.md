@@ -82,6 +82,8 @@ Registered Convex functions are security and consistency boundaries.
 
 Indexes and denormalized projections are introduced for demonstrated access patterns, not by reflex. When added, writes, backfills, fallback reads, and cutover must be planned together.
 
+Persisted-contract discipline applies to fields, indexes, status values, background phases, and API result fields: each must have an identified current consumer or enforced invariant. Speculative observability, recovery, or future filtering does not justify adding it, and unused persisted structure should be removed when its consumer disappears.
+
 ## Performance Method
 
 Use the sequence Measure, Optimize, Remeasure, Validate.
