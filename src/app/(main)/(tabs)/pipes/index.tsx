@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { BackHandler, Pressable, Text } from "react-native";
+import { useFocusEffect } from "expo-router/react-navigation";
 import Animated, {
   FadeInDown,
   FadeOutUp,
@@ -39,17 +40,22 @@ export default function Pipes() {
     transform: [{ rotate: `${open.value * 180}deg` }],
   }));
 
-  useEffect(() => {
-    const onBackPress = () => {
-      if (selectedPipePath.length > 0) {
-        selectPipe(selectedPipePath.slice(0, -1));
-        return true;
-      }
-      return false;
-    };
-    const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress);
-    return () => subscription.remove();
-  }, [selectedPipePath, selectPipe]);
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        if (selectedPipePath.length > 0) {
+          selectPipe(selectedPipePath.slice(0, -1));
+          return true;
+        }
+        return false;
+      };
+      const subscription = BackHandler.addEventListener(
+        "hardwareBackPress",
+        onBackPress,
+      );
+      return () => subscription.remove();
+    }, [selectedPipePath, selectPipe]),
+  );
 
   return (
     <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-background px-4 pb-1">

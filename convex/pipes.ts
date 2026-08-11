@@ -158,10 +158,11 @@ export const updatePipe = mutation({
     pipeId: v.id("pipes"),
     name: v.optional(v.string()),
     icon: v.optional(v.string()),
-    description: v.optional(v.string()),
+    description: v.optional(v.union(v.string(), v.null())),
     priority: v.optional(v.number()),
     capacity: v.optional(v.number()),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
     const userId = await requireAuth(ctx);
 
@@ -173,12 +174,15 @@ export const updatePipe = mutation({
     const patch: Record<string, unknown> = {};
     if (args.name !== undefined) patch.name = args.name;
     if (args.icon !== undefined) patch.icon = args.icon;
-    if (args.description !== undefined) patch.description = args.description;
+    if (args.description !== undefined) {
+      patch.description = args.description ?? undefined;
+    }
     if (args.priority !== undefined) patch.priority = args.priority;
     if (args.capacity !== undefined) patch.capacity = args.capacity;
 
     await ctx.db.patch(args.pipeId, patch);
     await recascadeTree(ctx, userId);
+    return null;
   },
 });
 

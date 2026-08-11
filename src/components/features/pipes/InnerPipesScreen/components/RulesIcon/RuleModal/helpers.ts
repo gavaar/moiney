@@ -59,21 +59,34 @@ export function parseCapValue(value: string): number | undefined {
   return Number.isNaN(n) ? undefined : n;
 }
 
+function utcDay(timestamp: number): number {
+  const date = new Date(timestamp);
+  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+}
+
 export function hasRuleDiff(deps: {
   selectedRule: RuleId;
   isCron: boolean;
   capNumber: number | undefined;
   interval: number;
   unit: CronUnit;
+  starting?: number;
   pipe?: Doc<"pipes">;
 }): boolean {
-  const { selectedRule, isCron, capNumber, interval, unit, pipe } = deps;
+  const { selectedRule, isCron, capNumber, interval, unit, starting, pipe } = deps;
   const intendedRule = selectedRule === "none" ? undefined : selectedRule;
   if (intendedRule !== pipe?.rule) return true;
   if (isCron) {
     if (capNumber !== pipe?.capUpdateValue) return true;
     if (interval !== pipe?.cronInterval?.interval) return true;
     if (unit !== pipe?.cronInterval?.unit) return true;
+    if (
+      starting !== undefined &&
+      (pipe?.cronNextDate === undefined ||
+        utcDay(starting) !== utcDay(pipe.cronNextDate))
+    ) {
+      return true;
+    }
   }
   if (
     !isCron &&

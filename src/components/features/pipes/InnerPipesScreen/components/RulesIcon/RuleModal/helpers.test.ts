@@ -171,6 +171,46 @@ describe("hasRuleDiff", () => {
     ).toBe(true);
   });
 
+  it("returns true when only the cron starting day changed", () => {
+    expect(
+      hasRuleDiff({
+        selectedRule: "cron",
+        isCron: true,
+        capNumber: 50,
+        interval: 1,
+        unit: "months",
+        starting: Date.UTC(2026, 5, 16, 12),
+        pipe: {
+          ...basePipe,
+          rule: "cron",
+          capUpdateValue: 50,
+          cronInterval: { interval: 1, unit: "months" },
+          cronNextDate: Date.UTC(2026, 5, 15, 5),
+        },
+      }),
+    ).toBe(true);
+  });
+
+  it("ignores clock differences on the same cron starting day", () => {
+    expect(
+      hasRuleDiff({
+        selectedRule: "cron",
+        isCron: true,
+        capNumber: 50,
+        interval: 1,
+        unit: "months",
+        starting: Date.UTC(2026, 5, 15, 12),
+        pipe: {
+          ...basePipe,
+          rule: "cron",
+          capUpdateValue: 50,
+          cronInterval: { interval: 1, unit: "months" },
+          cronNextDate: Date.UTC(2026, 5, 15, 5),
+        },
+      }),
+    ).toBe(false);
+  });
+
   it("returns true when a spend rule's cap update changed", () => {
     expect(
       hasRuleDiff({

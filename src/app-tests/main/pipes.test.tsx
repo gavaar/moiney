@@ -9,6 +9,8 @@ const mocks = vi.hoisted(() => ({
   remove: vi.fn(),
   selectPipe: vi.fn(),
   selectedPipePath: [] as string[],
+  useFocusEffect: vi.fn(),
+  focusEffect: undefined as undefined | (() => void | (() => void)),
 }));
 
 vi.mock("react-native", async (importOriginal) => ({
@@ -20,6 +22,10 @@ vi.mock("react-native-safe-area-context", () => ({
   SafeAreaView: ({ children }: { children: React.ReactNode }) => (
     <div>{children}</div>
   ),
+}));
+
+vi.mock("expo-router/react-navigation", () => ({
+  useFocusEffect: mocks.useFocusEffect,
 }));
 
 vi.mock("@ui/ScreenHeader/ScreenHeader", () => ({
@@ -65,22 +71,31 @@ describe("Pipes Android back handling", () => {
     vi.clearAllMocks();
     mocks.selectedPipePath = [];
     mocks.addEventListener.mockReturnValue({ remove: mocks.remove });
+    mocks.useFocusEffect.mockImplementation((effect) => {
+      mocks.focusEffect = effect;
+    });
   });
 
-  it("navigates to the parent, falls through at root, and removes its listener", () => {
+  it("navigates to the parent, falls through at root, and scopes its listener to focus", () => {
     mocks.selectedPipePath = ["root", "child"];
-    const { rerender, unmount } = render(<Pipes />);
+    const { rerender } = render(<Pipes />);
+    expect(mocks.addEventListener).not.toHaveBeenCalled();
+
+    const removeNestedListener = mocks.focusEffect?.();
     const nestedBackHandler = mocks.addEventListener.mock.calls[0][1];
 
     expect(nestedBackHandler()).toBe(true);
     expect(mocks.selectPipe).toHaveBeenCalledWith(["root"]);
+    removeNestedListener?.();
+    expect(mocks.remove).toHaveBeenCalledOnce();
 
     mocks.selectedPipePath = [];
     rerender(<Pipes />);
+    const removeRootListener = mocks.focusEffect?.();
     const rootBackHandler = mocks.addEventListener.mock.calls[1][1];
     expect(rootBackHandler()).toBe(false);
 
-    unmount();
+    removeRootListener?.();
     expect(mocks.remove).toHaveBeenCalledTimes(2);
   });
 

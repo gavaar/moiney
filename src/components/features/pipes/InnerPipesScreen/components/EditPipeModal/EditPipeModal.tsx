@@ -50,7 +50,7 @@ export function EditPipeModal({ visible, onClose, pipeId }: EditPipeModalProps) 
         pipeId,
         name: name.trim(),
         icon: icon || "pipe",
-        description: description || undefined,
+        description: description.trim() === "" ? null : description,
         priority,
         capacity: capacity ? Number(capacity) : undefined,
       });
