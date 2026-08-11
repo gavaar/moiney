@@ -79,6 +79,25 @@ describe("TransactionList", () => {
     expect(screen.getByTestId("loading-indicator")).toBeDefined();
   });
 
+  it.each([
+    { isLoading: true, loadMoreStatus: undefined },
+    { isLoading: false, loadMoreStatus: "LoadingFirstPage" as const },
+  ])(
+    "shows initial loading instead of empty state for $loadMoreStatus",
+    ({ isLoading, loadMoreStatus }) => {
+      render(
+        <TransactionList
+          transactions={[]}
+          isLoading={isLoading}
+          loadMoreStatus={loadMoreStatus}
+        />,
+      );
+
+      expect(screen.getByTestId("loading-indicator")).toBeDefined();
+      expect(screen.queryByText("No transactions yet")).toBeNull();
+    },
+  );
+
   it("shows loading more indicator when loadMoreStatus is LoadingMore", () => {
     const t1 = tx("tx1", { date: 100 });
     render(

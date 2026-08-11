@@ -1,8 +1,14 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TextInput } from "./TextInput";
+
+const getBorderStyle = vi.fn((..._args: unknown[]) => "");
+
+vi.mock("../../input.config", () => ({
+  getBorderStyle: (...args: unknown[]) => getBorderStyle(...args),
+}));
 
 describe("TextInput", () => {
   it("renders label and input", () => {
@@ -47,5 +53,42 @@ describe("TextInput", () => {
   it("shows unavailable status", () => {
     render(<TextInput label="Username" status="unavailable" />);
     expect(screen.getByTestId("status-unavailable")).toBeTruthy();
+  });
+
+  it("composes consumer focus handlers with internal focus state", () => {
+    const onFocus = vi.fn();
+    const onBlur = vi.fn();
+    render(
+      <TextInput
+        label="Name"
+        placeholder="Enter name"
+        onFocus={onFocus}
+        onBlur={onBlur}
+      />,
+    );
+    const input = screen.getByPlaceholderText("Enter name");
+
+    fireEvent.focus(input);
+    expect(onFocus).toHaveBeenCalledOnce();
+    expect(getBorderStyle).toHaveBeenLastCalledWith(undefined, true, undefined);
+
+    fireEvent.blur(input);
+    expect(onBlur).toHaveBeenCalledOnce();
+    expect(getBorderStyle).toHaveBeenLastCalledWith(undefined, false, undefined);
+  });
+
+  it("keeps disabled authoritative over the editable prop", () => {
+    render(
+      <TextInput
+        label="Name"
+        placeholder="Enter name"
+        disabled
+        editable
+      />,
+    );
+
+    expect(
+      (screen.getByPlaceholderText("Enter name") as HTMLInputElement).readOnly,
+    ).toBe(true);
   });
 });

@@ -3,6 +3,7 @@ import {
   addPipe,
   executePipeRuleNow,
   runDueCronRules,
+  updatePipe,
   updatePipeRule,
 } from "./pipes";
 import { computeElapsedIntervals } from "./lib/pipes";
@@ -34,6 +35,25 @@ function mockCtx() {
 }
 
 const A_PIPE = { _id: "pipe-1", userId: "user-1", capacity: 500 };
+
+describe("updatePipe", () => {
+  it("clears an existing description when explicitly requested", async () => {
+    const ctx = mockCtx();
+    ctx.db.get.mockResolvedValue({
+      ...A_PIPE,
+      description: "Old description",
+    });
+
+    await (updatePipe as any)._handler(ctx, {
+      pipeId: "pipe-1",
+      description: null,
+    });
+
+    expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+      description: undefined,
+    });
+  });
+});
 
 describe("updatePipeRule", () => {
   beforeEach(() => {

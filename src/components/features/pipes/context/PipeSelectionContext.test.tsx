@@ -24,8 +24,19 @@ function TestConsumer() {
       <span data-testid="is-loading">{isLoading ? "true" : "false"}</span>
       <span data-testid="feeds-count">{feeds.length}</span>
       <span data-testid="selected-name">{selectedName ?? "(none)"}</span>
+      <span data-testid="selected-path">{selectedPipePath.join(",")}</span>
       <button data-testid="select" onClick={() => selectPipe(["pipe-1" as Id<"pipes">])}>
         Select
+      </button>
+      <button
+        data-testid="select-nested"
+        onClick={() =>
+          selectPipe(
+            ["root", "child", "grandchild"].map((id) => id as Id<"pipes">),
+          )
+        }
+      >
+        Select nested
       </button>
       <button data-testid="deselect" onClick={deselectPipe}>
         Deselect
@@ -128,5 +139,36 @@ describe("PipeSelectionContext", () => {
     );
 
     expect(screen.getByTestId("path-length").textContent).toBe("0");
+  });
+
+  it("returns a nested selection to the nearest surviving ancestor", async () => {
+    const user = userEvent.setup();
+    mockUseQuery.mockReturnValue([
+      mockPipe("root", "Root"),
+      { ...mockPipe("child", "Child"), parentId: "root" as Id<"pipes"> },
+      {
+        ...mockPipe("grandchild", "Grandchild"),
+        parentId: "child" as Id<"pipes">,
+      },
+    ]);
+    const view = render(
+      <PipeSelectionProvider>
+        <TestConsumer />
+      </PipeSelectionProvider>,
+    );
+
+    await user.click(screen.getByTestId("select-nested"));
+    mockUseQuery.mockReturnValue([
+      mockPipe("root", "Root"),
+      { ...mockPipe("child", "Child"), parentId: "root" as Id<"pipes"> },
+    ]);
+    view.rerender(
+      <PipeSelectionProvider>
+        <TestConsumer />
+      </PipeSelectionProvider>,
+    );
+
+    expect(screen.getByTestId("selected-path").textContent).toBe("root,child");
+    expect(screen.getByTestId("selected-name").textContent).toBe("Child");
   });
 });

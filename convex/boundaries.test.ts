@@ -7,6 +7,36 @@ import schema from "./schema";
 import { modules } from "./test.setup";
 
 describe("Convex boundaries", () => {
+  it("clears a pipe description through the registered mutation contract", async () => {
+    const t = convexTest(schema, modules);
+    const { userId, pipeId } = await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", {
+        username: "alice",
+        email: "alice@example.com",
+        password: "hash",
+      });
+      const pipeId = await ctx.db.insert("pipes", {
+        userId,
+        name: "Groceries",
+        icon: "cart",
+        description: "Old description",
+        priority: 0,
+        capacity: 100,
+        fed: 0,
+        spent: 0,
+      });
+      return { userId, pipeId };
+    });
+
+    await t.withIdentity({ subject: userId }).mutation(api.pipes.updatePipe, {
+      pipeId,
+      description: null,
+    });
+
+    const pipe = await t.run((ctx) => ctx.db.get("pipes", pipeId));
+    expect(pipe).not.toHaveProperty("description");
+  });
+
   it("rejects creating a pipe beneath another user's parent without writes", async () => {
     const t = convexTest(schema, modules);
     const { userA, parentId } = await t.run(async (ctx) => {

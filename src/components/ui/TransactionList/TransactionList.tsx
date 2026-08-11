@@ -52,7 +52,11 @@ export function TransactionList({
     }
   }
 
-  if (isLoading && !transactions) {
+  const isInitialLoading =
+    (isLoading || loadMoreStatus === "LoadingFirstPage") &&
+    (!transactions || transactions.length === 0);
+
+  if (isInitialLoading) {
     return (
       <View className="flex-1 items-center justify-center">
         <ActivityIndicator

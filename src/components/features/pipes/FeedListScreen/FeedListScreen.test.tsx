@@ -38,7 +38,7 @@ const mockPipes = [
 ] as Pipe[];
 
 describe("FeedListScreen", () => {
-  it("renders loading spinner and AddFeedButton when isLoading is true", () => {
+  it("renders only the loading state while the initial query is pending", () => {
     const { container } = render(
       <FeedListScreen
         isLoading={true}
@@ -47,7 +47,7 @@ describe("FeedListScreen", () => {
       />,
     );
     expect(screen.queryByTestId("pipes-list")).toBeNull();
-    expect(screen.getByTestId("add-feed-button")).toBeDefined();
+    expect(screen.queryByTestId("add-feed-button")).toBeNull();
     expect(container.querySelector("[data-testid=loading-indicator]")).toBeTruthy();
   });
 

@@ -62,7 +62,10 @@ export function InnerPipesScreen() {
             <Text className="text-muted text-sm">Pipe deletion in progress</Text>
           </View>
         ) : children.length === 0 && selectedPipe ? (
-          <ScrollView contentContainerStyle={{ flexGrow: 1}}>
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{ flexGrow: 1 }}
+          >
             <AmountForm pipeId={selectedPipe._id} variant="spend" />
           </ScrollView>
         ) : null}

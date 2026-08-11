@@ -72,9 +72,10 @@ export function RuleModal({ visible, onClose, pipeId }: Props) {
         capNumber: effectiveCron.capUpdateValue,
         interval: effectiveCron.interval,
         unit: effectiveCron.unit,
+        starting: starting.getTime(),
         pipe,
       }),
-    [selectedRule, isCron, effectiveCron, pipe],
+    [selectedRule, isCron, effectiveCron, starting, pipe],
   );
 
   const elapsedIntervals = useMemo(() => {

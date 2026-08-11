@@ -4,6 +4,15 @@ import { describe, expect, it, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { TextSelectInput } from "./TextSelectInput";
 
+vi.mock("react-native", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("react-native")>()),
+  Pressable: ({ children, onPress, ...props }: any) => (
+    <div onClick={onPress} {...props}>
+      {children}
+    </div>
+  ),
+}));
+
 const defaultOptions = ["groceries", "gas", "rent"];
 
 function ControlledWrapper({ options, initialValue }: { options?: string[]; initialValue?: string }) {
@@ -88,10 +97,13 @@ describe("TextSelectInput", () => {
 
   it("calls onOptionSelect when tapping an option and hides the list", () => {
     render(<ControlledWrapper />);
-    const input = screen.getByPlaceholderText("What was this for?");
+    const input = screen.getByPlaceholderText(
+      "What was this for?",
+    ) as HTMLInputElement;
     fireEvent.focus(input);
 
     fireEvent.click(screen.getByText("gas"));
+    expect(input.value).toBe("gas");
     expect(screen.queryByText("groceries")).toBeNull();
     expect(screen.queryByText("gas")).toBeNull();
     expect(screen.queryByText("rent")).toBeNull();

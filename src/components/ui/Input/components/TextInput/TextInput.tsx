@@ -21,7 +21,20 @@ type Props = TextInputProps & {
   maxLength?: number;
 };
 
-export function TextInput({ label, error, className, disabled, endIcon, onEndIconPress, status, maxLength, ...props }: Props) {
+export function TextInput({
+  label,
+  error,
+  className,
+  disabled,
+  endIcon,
+  onEndIconPress,
+  status,
+  maxLength,
+  editable,
+  onFocus,
+  onBlur,
+  ...props
+}: Props) {
   const [focused, setFocused] = useState(false);
 
   const borderStyle = getBorderStyle(disabled, focused, error);
@@ -34,6 +47,7 @@ export function TextInput({ label, error, className, disabled, endIcon, onEndIco
       <Text className="text-sm font-medium text-text">{label}</Text>
       <View className="relative">
         <RNTextInput
+          {...props}
           className={cn(
             "rounded-lg border bg-surface px-3 py-2.5 text-base text-text",
             hasTrailing && "pr-10",
@@ -42,10 +56,15 @@ export function TextInput({ label, error, className, disabled, endIcon, onEndIco
             className,
           )}
           placeholderTextColor="#9CA3AF"
-          editable={!disabled}
-          onFocus={() => !disabled && setFocused(true)}
-          onBlur={() => setFocused(false)}
-          {...props}
+          editable={disabled ? false : editable}
+          onFocus={(event) => {
+            if (!disabled) setFocused(true);
+            onFocus?.(event);
+          }}
+          onBlur={(event) => {
+            setFocused(false);
+            onBlur?.(event);
+          }}
         />
         {hasTrailing ? (
           <View className="absolute right-3 top-0 bottom-0 flex-row items-center gap-1">

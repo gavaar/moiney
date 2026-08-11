@@ -61,11 +61,11 @@ export function FeedListScreen({
           </Pressable>
         </View>
       )}
-      {!isLoading && pipes.length > 0 ? null : (
+      {!isLoading && pipes.length === 0 ? (
         <View className="items-center py-2 border-t border-border/30">
           <AddFeedButton />
         </View>
-      )}
+      ) : null}
 
       <ModalShell visible={showFeedInfo} onClose={() => setShowFeedInfo(false)}>
         <FeedDescription />

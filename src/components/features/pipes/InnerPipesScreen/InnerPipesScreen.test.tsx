@@ -4,6 +4,18 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { InnerPipesScreen } from "./InnerPipesScreen";
 
+vi.mock("react-native", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("react-native")>()),
+  ScrollView: ({ children, keyboardShouldPersistTaps }: any) => (
+    <div
+      data-testid="amount-form-scroll"
+      data-keyboard-should-persist-taps={keyboardShouldPersistTaps}
+    >
+      {children}
+    </div>
+  ),
+}));
+
 const mockAddPipe = vi.fn();
 
 vi.mock("convex/react", () => ({
@@ -236,6 +248,23 @@ describe("InnerPipesScreen", () => {
 
     render(<InnerPipesScreen />);
     expect(screen.getByTestId("spent-form")).toBeDefined();
+  });
+
+  it("preserves handled keyboard taps around the leaf AmountForm", () => {
+    mockUsePipeSelection.mockReturnValue({
+      ...baseMock,
+      selectedPipePath: ["pipe-1"],
+      selectedPipe: { _id: "pipe-1", name: "Groceries", icon: "pipe" },
+      selectedName: "Groceries",
+    });
+
+    render(<InnerPipesScreen />);
+
+    expect(
+      screen
+        .getByTestId("amount-form-scroll")
+        .getAttribute("data-keyboard-should-persist-taps"),
+    ).toBe("handled");
   });
 
   it("keeps a frozen pipe visible without spend controls", () => {
