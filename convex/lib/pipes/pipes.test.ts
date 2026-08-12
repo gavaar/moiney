@@ -1,20 +1,24 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  calculatePipeAllocations,
-  buildChildrenMap,
   collectChildSubtree,
-  computeCronIntervalProgress,
-  computeCronNextDate,
-  computeElapsedIntervals,
-  computePipeDerivedValues,
-  computePipeTree,
   executePipeRule,
   recalcPipeSubtree,
   recascadeTree,
-  recalculatePipes,
   resolveTopMostAncestor,
-  splitEvenly,
 } from "./pipes";
+import {
+  buildChildrenMap,
+  calculatePipeAllocations,
+  computePipeDerivedValues,
+  computePipeTree,
+  recalculatePipes,
+  splitEvenly,
+} from "../../../domain/pipes";
+import {
+  computeCronIntervalProgress,
+  computeCronNextDate,
+  computeElapsedIntervals,
+} from "../../../domain/scheduling";
 
 describe("recascadeTree deletion safety", () => {
   it("rejects before patching when a user pipe is being deleted", async () => {

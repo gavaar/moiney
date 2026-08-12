@@ -137,3 +137,16 @@ the main group row continues to open the generic repeat form.
 
 All persisted environments were migrated. `kind` is required, and the
 deprecated `type` field and legacy fallback have been removed.
+
+## D010: Shared Domain Core
+
+Status: Implemented
+
+Pure transaction identity, role involvement, accounting effects, pipe graph
+reconciliation, and cron schedule calculations live under the framework-
+independent root `domain/` boundary. Convex modules retain database reads,
+writes, authorization, and scheduling orchestration; UI modules consume the
+domain APIs without importing Convex implementation modules.
+
+This extraction does not change the current monetary representation. Values
+remain JavaScript floating-point numbers until D001 is implemented.

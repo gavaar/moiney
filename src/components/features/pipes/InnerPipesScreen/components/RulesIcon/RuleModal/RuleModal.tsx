@@ -11,7 +11,7 @@ import { useAlert } from "@ui/Alert";
 import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
 import { colors } from "@/lib/styles";
 import { formatAmount } from "@/lib/format";
-import { computeElapsedIntervals, type CronUnit } from "@convex/lib/pipes";
+import { computeElapsedIntervals, type CronUnit } from "@domain/scheduling";
 import {
   RULE_DESCRIPTIONS,
   RULE_OPTIONS,
@@ -84,6 +84,7 @@ export function RuleModal({ visible, onClose, pipeId }: Props) {
       starting.getTime(),
       effectiveCron.interval,
       effectiveCron.unit,
+      Date.now(),
     );
   }, [isCron, starting, effectiveCron]);
 

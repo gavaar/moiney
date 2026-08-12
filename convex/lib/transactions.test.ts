@@ -5,7 +5,7 @@ import {
   getTitleUsagePipeId,
   updateOrCreateTitleUsage,
 } from "./transactions";
-import { recalculatePipes } from "./pipes";
+import { recalculatePipes } from "../../domain/pipes";
 
 describe("calculateSpentUpdate", () => {
   it("spent increases by -value when value is negative", () => {

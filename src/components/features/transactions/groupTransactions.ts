@@ -4,7 +4,7 @@ import {
   resolveTransactionKind,
   transactionGroupId,
   type TransactionKind,
-} from "@/lib/transactions/identity";
+} from "@domain/transactions";
 
 export type TransactionGroup = {
   id: string;

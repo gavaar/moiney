@@ -8,13 +8,18 @@ export default defineConfig({
       "@convex": path.resolve(__dirname, "./convex"),
       "@ui": path.resolve(__dirname, "./src/components/ui"),
       "@features": path.resolve(__dirname, "./src/components/features"),
+      "@domain": path.resolve(__dirname, "./domain"),
       "react-native": "react-native-web",
     },
   },
   test: {
     globals: true,
     environment: "node",
-    include: ["src/**/*.test.{ts,tsx}", "convex/**/*.test.{ts,tsx}"],
+    include: [
+      "src/**/*.test.{ts,tsx}",
+      "convex/**/*.test.{ts,tsx}",
+      "domain/**/*.test.{ts,tsx}",
+    ],
     setupFiles: ["./vitest.setup.ts"],
   },
 });

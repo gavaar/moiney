@@ -26,7 +26,7 @@ This roadmap persists the whole-project audit beyond any single chat session. Wo
 | 6. Pipe deletion contract | Completed | Process orphaned history in bounded pages, preserve deleted-role icons, and return subtree balance to the parent | D002, money command contract |
 | 6a. Pipe module boundaries | Completed | Separate shared pipe logic and deletion operations while preserving Convex registration paths | Update 6 |
 | 7. Independent correctness fixes | Completed | Repair selection, back handling, description clearing, cron diff, input handlers, recent-title selection, and loading states | Relevant focused tests |
-| 8. Shared domain core | Pending | Introduce deep pure modules for money, transactions, pipe graph, and cron schedules | D001-D003 |
+| 8. Shared domain core | Completed | Introduce deep pure modules for transaction identity/accounting, pipe graph/reconciliation, and cron schedules without changing monetary representation | D001-D003 |
 | 9. Integer cents migration | Pending | Replace floating-point monetary persistence and arithmetic with integer cents | Update 8, D001 |
 | 10. Financial mutation semantics | Pending | Define corrections, rule effects, idempotency, and accounting projections | Updates 8-9 |
 | 11. Convex model boundaries | Pending | Make registered functions thin, validated, authorized wrappers over deep model operations | Updates 1-3, 8-10 |
@@ -64,13 +64,17 @@ Update 15 must report before-and-after measurements rather than relying only on 
 
 ## Current Next Step
 
-Update 7 is complete. Nested selections recover to the nearest surviving pipe,
+Update 8 is complete. Nested selections recover to the nearest surviving pipe,
 Android Back handling is scoped to the focused Pipes screen, descriptions can
 be explicitly cleared, cron starting-day changes are detected, shared text
 inputs compose focus handlers safely, recent-title touches populate before
-Android blur, and initial loading states no longer flash empty controls. The
-next roadmap update is Update 8, shared domain core, and requires user approval
-before work begins.
+Android blur, and initial loading states no longer flash empty controls.
+Transaction identity, role involvement, accounting effects, pipe graph
+reconciliation, and explicit-clock cron calculations now live in the
+framework-independent root `domain/` boundary. Monetary values remain
+JavaScript floating-point numbers; the accepted integer-cents target remains
+D001 and is not part of this update. The next roadmap update is Update 9, the
+integer-cents migration.
 
 ## Completed Accessibility Layout Work
 
