@@ -1,7 +1,10 @@
 import type { Id } from "../../../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../../../_generated/server";
 import { planPipeDeletion } from "./plan";
-import { computePipeTree, recalculatePipes } from "../pipes";
+import {
+  computePipeTree,
+  recalculatePipes,
+} from "../../../../domain/pipes";
 import {
   planTransactionDisposition,
   type DeletionPipeState,

@@ -6,7 +6,7 @@ import {
   updatePipe,
   updatePipeRule,
 } from "./pipes";
-import { computeElapsedIntervals } from "./lib/pipes";
+import { computeElapsedIntervals } from "../domain/scheduling";
 
 vi.mock("./lib/auth", () => ({
   requireAuth: vi.fn().mockResolvedValue("user-1"),
@@ -261,7 +261,7 @@ describe("updatePipeRule", () => {
       capUpdateValue: 50,
     });
 
-    const elapsed = computeElapsedIntervals(starting, 1, "months");
+    const elapsed = computeElapsedIntervals(starting, 1, "months", Date.now());
     expect(ctx.db.patch).toHaveBeenCalledWith(
       "pipe-1",
       expect.objectContaining({

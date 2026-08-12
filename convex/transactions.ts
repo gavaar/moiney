@@ -3,18 +3,18 @@ import { internalMutation, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { paginationOptsValidator } from "convex/server";
 import { requireAuth } from "./lib/auth";
-import {
-  calculatePayByTransferUpdate,
-  calculateSpentUpdate,
-  updateOrCreateTitleUsage,
-} from "./lib/transactions";
+import { updateOrCreateTitleUsage } from "./lib/transactions";
 import {
   executePipeRule,
   recalcPipeSubtree,
   recascadeTree,
   resolveTopMostAncestor,
 } from "./lib/pipes";
-import { deriveTransactionKind } from "../src/lib/transactions/identity";
+import {
+  deriveTransactionKind,
+  transactionAccountingEffects,
+  transactionRoleNames,
+} from "../domain/transactions";
 
 const TITLE_USAGE_RETENTION_MS = 365 * 24 * 60 * 60 * 1000;
 const TITLE_USAGE_CLEANUP_BATCH_SIZE = 100;
@@ -27,11 +27,9 @@ function transactionsQuery(ctx: any, userId: string, pipeIds: string[] | undefin
   if (pipeIds && pipeIds.length > 0) {
     q = q.filter((fq: any) =>
       fq.or(
-        ...pipeIds.flatMap((id) => [
-          fq.eq(fq.field("from"), id),
-          fq.eq(fq.field("to"), id),
-          fq.eq(fq.field("paidFrom"), id),
-        ]),
+        ...pipeIds.flatMap((id) =>
+          transactionRoleNames.map((role) => fq.eq(fq.field(role), id)),
+        ),
       ),
     );
   }
@@ -73,7 +71,9 @@ export const createTransaction = mutation({
       if (destPipe.userId !== userId) throw new Error("Not authorized");
 
       await ctx.db.patch(args.to, {
-        fed: destPipe.fed + args.value,
+        fed:
+          destPipe.fed +
+          transactionAccountingEffects({ to: args.to }, args.value).to.fedDelta,
       });
 
       await ctx.db.insert("transactions", {
@@ -141,17 +141,18 @@ export const createTransaction = mutation({
         }
       }
 
-      const update = calculatePayByTransferUpdate(
-        pipe.fed,
-        pipe.spent,
-        paidFromPipe.fed,
-        args.value,
-      );
+      const { from, paidFrom: paidFrom } =
+        transactionAccountingEffects(
+          { from: pipeId, paidFrom: args.paidFrom },
+          args.value,
+        );
       await ctx.db.patch(pipeId, {
-        fed: update.fromFed,
-        spent: update.fromSpent,
+        fed: pipe.fed + from.fedDelta,
+        spent: pipe.spent + from.spentDelta,
       });
-      await ctx.db.patch(args.paidFrom, { fed: update.paidFromFed });
+      await ctx.db.patch(args.paidFrom, {
+        fed: paidFromPipe.fed + paidFrom.fedDelta,
+      });
       await recalcPipeSubtree(ctx, args.paidFrom);
       await ctx.db.insert("transactions", {
         title: args.title.toLowerCase(),
@@ -179,18 +180,24 @@ export const createTransaction = mutation({
       if (!destPipe) throw new Error("Destination pipe not found");
       if (destPipe.userId !== userId) throw new Error("Not authorized");
 
-      await ctx.db.patch(pipeId, {
-        fed: pipe.fed + args.value,
-      });
+      const { from, to: to } = transactionAccountingEffects(
+        { from: pipeId, to: args.to },
+        args.value,
+      );
+      await ctx.db.patch(pipeId, { fed: pipe.fed + from.fedDelta });
       await ctx.db.patch(args.to, {
-        fed: destPipe.fed - args.value,
+        fed: destPipe.fed + to.fedDelta,
       });
 
       if (pipe.rule === "any_spend") {
         await executePipeRule(ctx, pipeId);
       }
     } else {
-      const newSpent = calculateSpentUpdate(pipe.spent, args.value);
+      const { from } = transactionAccountingEffects(
+        { from: pipeId },
+        args.value,
+      );
+      const newSpent = pipe.spent + from.spentDelta;
       await ctx.db.patch(pipeId, {
         spent: newSpent,
       });
@@ -272,39 +279,50 @@ export const editTransaction = mutation({
           }
         }
 
-        const update = calculatePayByTransferUpdate(
-          fromPipe.fed,
-          fromPipe.spent,
-          paidFromPipe.fed,
-          valueDiff,
-        );
+        const { from, paidFrom: paidFrom } =
+          transactionAccountingEffects(
+            { from: tx.from, paidFrom: tx.paidFrom },
+            valueDiff,
+          );
         await ctx.db.patch(tx.from, {
-          fed: update.fromFed,
-          spent: update.fromSpent,
+          fed: fromPipe.fed + from.fedDelta,
+          spent: fromPipe.spent + from.spentDelta,
         });
-        await ctx.db.patch(tx.paidFrom, { fed: update.paidFromFed });
+        await ctx.db.patch(tx.paidFrom, {
+          fed: paidFromPipe.fed + paidFrom.fedDelta,
+        });
         await recalcPipeSubtree(ctx, tx.paidFrom);
       } else if (tx.from && tx.to) {
         const src = await ctx.db.get(tx.from);
         const dst = await ctx.db.get(tx.to);
         if (!src || !dst) throw new Error("Pipe not found");
 
-        await ctx.db.patch(tx.from, { fed: src.fed + valueDiff });
-        await ctx.db.patch(tx.to, { fed: dst.fed - valueDiff });
+        const { from, to } = transactionAccountingEffects(
+          { from: tx.from, to: tx.to },
+          valueDiff,
+        );
+        await ctx.db.patch(tx.from, { fed: src.fed + from.fedDelta });
+        await ctx.db.patch(tx.to, { fed: dst.fed + to.fedDelta });
         await recascadeTree(ctx, userId);
       } else if (tx.from) {
         const pipe = await ctx.db.get(tx.from);
         if (!pipe) throw new Error("Pipe not found");
 
-        await ctx.db.patch(tx.from, {
-          spent: calculateSpentUpdate(pipe.spent, valueDiff),
-        });
+        const { from } = transactionAccountingEffects(
+          { from: tx.from },
+          valueDiff,
+        );
+        await ctx.db.patch(tx.from, { spent: pipe.spent + from.spentDelta });
         await recascadeTree(ctx, userId);
       } else if (tx.to) {
         const pipe = await ctx.db.get(tx.to);
         if (!pipe) throw new Error("Pipe not found");
 
-        await ctx.db.patch(tx.to, { fed: pipe.fed + valueDiff });
+        const { to } = transactionAccountingEffects(
+          { to: tx.to },
+          valueDiff,
+        );
+        await ctx.db.patch(tx.to, { fed: pipe.fed + to.fedDelta });
         await recascadeTree(ctx, userId);
       }
     }

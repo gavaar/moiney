@@ -3,11 +3,13 @@ import { internalMutation, mutation, query, type MutationCtx } from "./_generate
 import { internal } from "./_generated/api";
 import type { Id, Doc } from "./_generated/dataModel";
 import { requireAuth } from "./lib/auth";
-import { MAX_PIPES_PER_USER } from "./lib/constants";
 import {
   computeCronNextDate,
   computeElapsedIntervals,
-  computePipeTree,
+} from "../domain/scheduling";
+import { computePipeTree } from "../domain/pipes";
+import { MAX_PIPES_PER_USER } from "./lib/constants";
+import {
   collectChildSubtree,
   executePipeRule,
   recalcPipeSubtree,
@@ -206,6 +208,7 @@ export const updatePipeRule = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await requireAuth(ctx);
+    const now = Date.now();
 
     const pipe = await ctx.db.get(args.pipeId);
     if (!pipe) throw new Error("Pipe not found");
@@ -232,9 +235,15 @@ export const updatePipeRule = mutation({
         args.starting,
         args.interval,
         args.unit,
+        now,
       );
       if (args.capUpdateValue != null) {
-        const intervals = computeElapsedIntervals(args.starting, args.interval, args.unit);
+        const intervals = computeElapsedIntervals(
+          args.starting,
+          args.interval,
+          args.unit,
+          now,
+        );
         patch.capacity = pipe.capacity + intervals * args.capUpdateValue;
       }
     }

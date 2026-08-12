@@ -6,7 +6,7 @@ import { ModalShell } from '../Modal';
 import { AmountForm } from '@features/components/AmountForm';
 import { useState } from 'react';
 import { usePipeSelection } from '@features/pipes/context/PipeSelectionContext';
-import { resolveTransactionKind } from "@/lib/transactions/identity";
+import { resolveTransactionKind } from "@domain/transactions";
 import type { TransactionWithPipeIcons } from "@/lib/transactions/types";
 
 type TransactionItemProps = {

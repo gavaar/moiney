@@ -1,6 +1,6 @@
 import { type Doc } from "@convex/_generated/dataModel";
 import { type IconName } from "@ui/Icon";
-import { type CronUnit } from "@convex/lib/pipes";
+import { type CronUnit } from "@domain/scheduling";
 import { type RuleId } from "./config";
 
 export type Pacing = "months" | "years";

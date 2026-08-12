@@ -1,3 +1,5 @@
+import { transactionRoleEntries } from "../../../../domain/transactions";
+
 export type DeletionPipeState = {
   status?: "survives" | "deleting";
   icon?: string;
@@ -26,29 +28,15 @@ export function planTransactionDisposition(
   pipes: Partial<Record<string, DeletionPipeState>>,
   deleteTransactions: boolean,
 ): TransactionDisposition {
-  const roles =
-    transaction.kind === "feed"
-      ? [{ id: transaction.to, patch: "toIcon" as const }]
-      : transaction.kind === "transfer"
-        ? [
-            { id: transaction.from, patch: "fromIcon" as const },
-            { id: transaction.to, patch: "toIcon" as const },
-          ]
-        : [
-            { id: transaction.from, patch: "fromIcon" as const },
-            { id: transaction.paidFrom, patch: "paidFromIcon" as const },
-          ];
-
   const patches: TransactionIconPatches = {};
   let hasSurvivingPipe = false;
 
-  for (const role of roles) {
-    if (!role.id) continue;
-    const pipe = pipes[role.id];
+  for (const role of transactionRoleEntries(transaction)) {
+    const pipe = pipes[role.pipeId];
     if (pipe?.status === "survives") {
       hasSurvivingPipe = true;
     } else if (pipe?.icon) {
-      patches[role.patch] = pipe.icon;
+      patches[`${role.role}Icon`] = pipe.icon;
     }
   }
 

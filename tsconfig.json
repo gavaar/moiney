@@ -14,6 +14,9 @@
       ],
       "@features/*": [
         "./src/components/features/*"
+      ],
+      "@domain/*": [
+        "./domain/*"
       ]
     },
     "types": ["node"]
@@ -21,6 +24,7 @@
   "include": [
     "src/**/*.ts",
     "src/**/*.tsx",
+    "domain/**/*.ts",
     "convex/**/*.ts",
     "convex/**/*.tsx",
     "nativewind-env.d.ts",

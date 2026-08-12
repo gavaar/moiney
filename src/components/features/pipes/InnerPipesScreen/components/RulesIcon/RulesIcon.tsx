@@ -4,7 +4,10 @@ import { Icon } from "@ui/Icon";
 import { ProgressRing } from "@ui/ProgressRing";
 import { colors } from "@/lib/styles";
 import { type Id } from "@convex/_generated/dataModel";
-import { computeCronIntervalProgress, type CronUnit } from "@convex/lib/pipes";
+import {
+  computeCronIntervalProgress,
+  type CronUnit,
+} from "@domain/scheduling";
 import { RuleModal } from "./RuleModal";
 import { RULE_OPTIONS } from "./RuleModal/config";
 

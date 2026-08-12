@@ -2,7 +2,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { act, render, screen, fireEvent } from "@testing-library/react";
 import { type Id } from "@convex/_generated/dataModel";
-import { computeElapsedIntervals } from "@convex/lib/pipes";
+import { computeElapsedIntervals } from "@domain/scheduling";
 
 const h = vi.hoisted(() => ({
   api: {
@@ -158,7 +158,12 @@ describe("RuleModal", () => {
     fireEvent.click(screen.getAllByTestId("select-trigger")[2]);
     fireEvent.click(screen.getByText("Monthly"));
 
-    const elapsed = computeElapsedIntervals(starting.getTime(), 1, "months");
+    const elapsed = computeElapsedIntervals(
+      starting.getTime(),
+      1,
+      "months",
+      Date.now(),
+    );
     expect(
       screen.getByText(
         `saving this rule will automatically add ${(elapsed * 100).toFixed(2)} cap to account for the ${elapsed} months that have passed from the starting date`,
@@ -334,7 +339,12 @@ describe("RuleModal", () => {
       }),
     );
     const starting = new Date(Date.UTC(2026, 0, 15, 12));
-    const elapsed = computeElapsedIntervals(starting.getTime(), 1, "months");
+    const elapsed = computeElapsedIntervals(
+      starting.getTime(),
+      1,
+      "months",
+      Date.now(),
+    );
     const credit = (elapsed * 50).toFixed(2);
     expect(
       screen.getByText(
@@ -353,7 +363,12 @@ describe("RuleModal", () => {
       }),
     );
     const starting = new Date(Date.UTC(2026, 0, 15, 12));
-    const elapsed = computeElapsedIntervals(starting.getTime(), 1, "months");
+    const elapsed = computeElapsedIntervals(
+      starting.getTime(),
+      1,
+      "months",
+      Date.now(),
+    );
 
     fireEvent.change(screen.getByPlaceholderText("reset cap to 0.00"), {
       target: { value: "100" },

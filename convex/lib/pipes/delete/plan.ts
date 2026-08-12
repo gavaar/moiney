@@ -1,4 +1,4 @@
-import { buildChildrenMap, computePipeTree } from "../pipes";
+import { buildChildrenMap, computePipeTree } from "../../../../domain/pipes";
 
 type DeletionPipe<TPipeId extends string> = {
   _id: TPipeId;
