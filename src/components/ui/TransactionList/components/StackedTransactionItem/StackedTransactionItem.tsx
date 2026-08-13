@@ -6,6 +6,7 @@ import { ModalShell } from "@ui/Modal";
 import { AmountForm } from "@features/components/AmountForm";
 import type { TransactionGroup } from "@features/transactions/groupTransactions";
 import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
+import { formatAmount } from "@/lib/format";
 
 type StackedTransactionItemProps = {
   group: TransactionGroup;
@@ -121,7 +122,7 @@ export function StackedTransactionItem({
         pipeIcon: primaryPipe.icon,
         pipeName: primaryPipe.name,
         title: firstTx.title,
-        value: `${firstTx.value}`,
+        value: formatAmount(firstTx.value),
         ...(group.kind === "transfer" && destPipe ? { to: destPipe._id } : {}),
         isFeed: group.kind === "feed",
       }
@@ -190,7 +191,7 @@ export function StackedTransactionItem({
               disabled ? "text-muted" : "text-white",
             )}
           >
-            {group.value.toFixed(2)}
+            {formatAmount(group.value)}
           </Text>
         </Pressable>
 

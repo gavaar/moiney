@@ -10,6 +10,7 @@ import { useAlert } from "@ui/Alert";
 import { type Id } from "@convex/_generated/dataModel";
 import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
 import { colors } from "@/lib/styles";
+import { formatCents, parseCents } from "@domain/money";
 
 type EditPipeModalProps = {
   visible: boolean;
@@ -25,7 +26,9 @@ export function EditPipeModal({ visible, onClose, pipeId }: EditPipeModalProps) 
   const [icon, setIcon] = useState<IconName | "">((pipe?.icon as IconName) ?? "pipe");
   const [description, setDescription] = useState(pipe?.description ?? "");
   const [priority, setPriority] = useState(pipe?.priority ?? 0);
-  const [capacity, setCapacity] = useState(pipe?.capacity?.toString() ?? "");
+  const [capacity, setCapacity] = useState(
+    pipe ? formatCents(pipe.capacity) : "",
+  );
   const [nameError, setNameError] = useState<string | undefined>(undefined);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const showAlert = useAlert();
@@ -52,7 +55,7 @@ export function EditPipeModal({ visible, onClose, pipeId }: EditPipeModalProps) 
         icon: icon || "pipe",
         description: description.trim() === "" ? null : description,
         priority,
-        capacity: capacity ? Number(capacity) : undefined,
+         capacityCents: capacity ? parseCents(capacity) : undefined,
       });
       onClose();
     } catch (error) {

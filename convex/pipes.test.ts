@@ -117,7 +117,7 @@ describe("updatePipeRule", () => {
     await (updatePipeRule as any)._handler(ctx, {
       pipeId: "pipe-1",
       rule: "spend_overflow",
-      capUpdateValue: 25,
+      capUpdateValueCents: 25,
     });
 
     expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
@@ -135,7 +135,7 @@ describe("updatePipeRule", () => {
     await (updatePipeRule as any)._handler(ctx, {
       pipeId: "pipe-1",
       rule: "any_spend",
-      capUpdateValue: -10,
+      capUpdateValueCents: -10,
     });
 
     expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
@@ -174,7 +174,7 @@ describe("updatePipeRule", () => {
       interval: 30,
       unit: "days",
       starting,
-      capUpdateValue: 500,
+      capUpdateValueCents: 500,
     });
 
     expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
@@ -258,7 +258,7 @@ describe("updatePipeRule", () => {
       interval: 1,
       unit: "months",
       starting,
-      capUpdateValue: 50,
+      capUpdateValueCents: 50,
     });
 
     const elapsed = computeElapsedIntervals(starting, 1, "months", Date.now());
@@ -279,7 +279,7 @@ describe("updatePipeRule", () => {
       interval: 1,
       unit: "months",
       starting: Date.UTC(2026, 0, 15),
-      capUpdateValue: 50,
+      capUpdateValueCents: 50,
     };
 
     await (updatePipeRule as any)._handler(ctx, args);
@@ -550,7 +550,7 @@ describe("addPipe", () => {
         name: "Child",
         icon: "pipe",
         priority: 1,
-        capacity: 50,
+        capacityCents: 50,
         parentId: "missing-parent",
       }),
     ).rejects.toThrow("Parent pipe not found");
@@ -571,7 +571,7 @@ describe("addPipe", () => {
         name: "Child",
         icon: "pipe",
         priority: 1,
-        capacity: 50,
+        capacityCents: 50,
         parentId: "foreign-parent",
       }),
     ).rejects.toThrow("Parent pipe not found");
@@ -605,14 +605,21 @@ describe("addPipe", () => {
 
     const childId = await (addPipe as any)._handler(ctx, {
       name: "Child",
-      icon: "pipe",
-      priority: 1,
-      capacity: 50,
+        icon: "pipe",
+        priority: 1,
+        capacityCents: 50,
       parentId: "parent-1",
     });
 
     expect(childId).toBe("child-1");
     expect(ctx.db.get).toHaveBeenCalledWith("pipes", "parent-1");
+    expect(ctx.db.insert).toHaveBeenCalledWith(
+      "pipes",
+      expect.objectContaining({
+        capacity: 50,
+        moneyMigrationVersion: 1,
+      }),
+    );
     expect(ctx.db.get.mock.invocationCallOrder[0]).toBeLessThan(
       ctx.db.insert.mock.invocationCallOrder[0],
     );

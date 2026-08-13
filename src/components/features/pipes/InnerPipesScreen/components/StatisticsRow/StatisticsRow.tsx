@@ -94,7 +94,7 @@ export function StatisticsRow({ fed, spent }: Props) {
                   </>
                 ) : (
                   <>
-                    {stat.label}: {formatAmount(stat.value)}
+                    {stat.label}: {formatAmount(Math.round(stat.value))}
                   </>
                 )}
               </Text>

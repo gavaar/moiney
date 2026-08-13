@@ -83,9 +83,9 @@ const baseMock = {
   selectedPipe: null,
 };
 
-const childPipe1 = { _id: "child-1", name: "Rent", icon: "home-outline", capacity: 1000, fed: 800, spent: 600 };
-const childPipe2 = { _id: "child-2", name: "Food", icon: "restaurant-outline", capacity: 500, fed: 400, spent: 300 };
-const grandchildPipe = { _id: "grand-1", name: "Sub", icon: "pipe", capacity: 100, fed: 0, spent: 0 };
+const childPipe1 = { _id: "child-1", name: "Rent", icon: "home-outline", capacity: 100000, fed: 80000, spent: 60000 };
+const childPipe2 = { _id: "child-2", name: "Food", icon: "restaurant-outline", capacity: 50000, fed: 40000, spent: 30000 };
+const grandchildPipe = { _id: "grand-1", name: "Sub", icon: "pipe", capacity: 10000, fed: 0, spent: 0 };
 
 describe("InnerPipesScreen", () => {
   beforeEach(() => {
@@ -111,9 +111,9 @@ describe("InnerPipesScreen", () => {
         _id: "pipe-1",
         name: "Groceries",
         icon: "pipe",
-        capacity: 2000,
-        fed: 1500,
-        spent: 1200,
+        capacity: 200000,
+        fed: 150000,
+        spent: 120000,
       },
       selectedName: "Groceries",
     });
@@ -131,8 +131,8 @@ describe("InnerPipesScreen", () => {
         _id: "pipe-1",
         name: "Groceries",
         icon: "pipe",
-        capacity: 2000,
-        fed: 1500,
+        capacity: 200000,
+        fed: 150000,
         spent: 0,
         rule: "any_spend",
       },
@@ -161,7 +161,7 @@ describe("InnerPipesScreen", () => {
     mockUsePipeSelection.mockReturnValue({
       ...baseMock,
       selectedPipePath: ["pipe-1"],
-      selectedPipe: { _id: "pipe-1", name: "Groceries", icon: "pipe", capacity: 2000, fed: 1500, spent: 1200 },
+       selectedPipe: { _id: "pipe-1", name: "Groceries", icon: "pipe", capacity: 200000, fed: 150000, spent: 120000 },
       selectedName: "Groceries",
       childrenByParent,
     });
@@ -178,7 +178,7 @@ describe("InnerPipesScreen", () => {
     mockUsePipeSelection.mockReturnValue({
       ...baseMock,
       selectedPipePath: ["pipe-1"],
-      selectedPipe: { _id: "pipe-1", name: "Groceries", icon: "pipe", capacity: 2000, fed: 1500, spent: 1200 },
+       selectedPipe: { _id: "pipe-1", name: "Groceries", icon: "pipe", capacity: 200000, fed: 150000, spent: 120000 },
       selectedName: "Groceries",
       childrenByParent,
     });
@@ -196,7 +196,7 @@ describe("InnerPipesScreen", () => {
     mockUsePipeSelection.mockReturnValue({
       ...baseMock,
       selectedPipePath: ["pipe-1"],
-      selectedPipe: { _id: "pipe-1", name: "Groceries", icon: "pipe", capacity: 2000, fed: 1500, spent: 1200 },
+       selectedPipe: { _id: "pipe-1", name: "Groceries", icon: "pipe", capacity: 200000, fed: 150000, spent: 120000 },
       selectedName: "Groceries",
       childrenByParent,
     });
@@ -218,7 +218,7 @@ describe("InnerPipesScreen", () => {
       selectedPipePath: ["pipe-1"],
       selectPipe,
       childrenByParent,
-      selectedPipe: { _id: "pipe-1", name: "Groceries", icon: "pipe", capacity: 2000, fed: 1500, spent: 1200 },
+       selectedPipe: { _id: "pipe-1", name: "Groceries", icon: "pipe", capacity: 200000, fed: 150000, spent: 120000 },
       selectedName: "Groceries",
     });
 
@@ -293,7 +293,7 @@ describe("InnerPipesScreen", () => {
     mockUsePipeSelection.mockReturnValue({
       ...baseMock,
       selectedPipePath: ["pipe-1"],
-      selectedPipe: { _id: "pipe-1", name: "Groceries", icon: "pipe", capacity: 2000, fed: 1500, spent: 1200 },
+       selectedPipe: { _id: "pipe-1", name: "Groceries", icon: "pipe", capacity: 200000, fed: 150000, spent: 120000 },
       selectedName: "Groceries",
       childrenByParent,
     });

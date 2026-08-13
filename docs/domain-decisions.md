@@ -16,9 +16,9 @@ Agents must not describe an accepted target as current behavior until its status
 
 ## D001: Monetary Representation
 
-Status: Accepted, not implemented
+Status: In progress
 
-Moiney currently stores and calculates monetary values with JavaScript floating-point numbers.
+The application code now accepts and calculates new monetary inputs as whole integer cents, and the versioned migration definitions are ready to convert legacy persisted transactions and pipe trees in place. The `pipeDeletionJobs` table is empty in the migration deployment, so it is intentionally excluded from the backfill; new deletion jobs are written in cents and do not carry a migration marker. Existing persisted documents remain mixed until the migration is run and verified.
 
 The accepted target is a single currency represented as whole integer cents. For example, `12.34` is stored as `1234` cents and `-15.99` as `-1599` cents.
 
@@ -31,7 +31,7 @@ The implementation must define and test:
 - persistence migration or an explicitly approved reset of disposable data
 - conservation across feeds, spending, transfers, refunds, and allocation
 
-Until implemented, do not add another monetary representation and do not claim that persisted values are cents.
+Until the migration completes, do not claim that every persisted value is cents or remove the migration-window markers and safeguards.
 
 ## D002: Pipe Deletion And Transaction History
 

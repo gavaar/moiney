@@ -2,6 +2,7 @@ import { type Doc } from "@convex/_generated/dataModel";
 import { type IconName } from "@ui/Icon";
 import { type CronUnit } from "@domain/scheduling";
 import { type RuleId } from "./config";
+import { divideCents, formatCents, parseCents } from "@domain/money";
 
 export type Pacing = "months" | "years";
 
@@ -24,7 +25,12 @@ export function calculateEffectiveCron({
   interval: number;
   unit: CronUnit;
   pacing: Pacing | undefined;
-}): { capUpdateValue: number | undefined; interval: number; unit: CronUnit } {
+}): {
+  capUpdateValue: number | undefined;
+  interval: number;
+  unit: CronUnit;
+  pacingDrift?: number;
+} {
   if (capUpdateValue == null || capUpdateValue === 0 || pacing == null) {
     return { capUpdateValue, interval, unit };
   }
@@ -38,7 +44,13 @@ export function calculateEffectiveCron({
 
   if (pacingPeriods == null) return { capUpdateValue, interval, unit };
 
-  return { capUpdateValue: capUpdateValue / pacingPeriods, interval: 1, unit: pacing };
+  const divided = divideCents(capUpdateValue, pacingPeriods);
+  return {
+    capUpdateValue: divided.rounded,
+    interval: 1,
+    unit: pacing,
+    ...(divided.drift !== 0 ? { pacingDrift: divided.drift } : {}),
+  };
 }
 
 export function todayMidday(): Date {
@@ -55,8 +67,11 @@ export function unitPlural(count: number, unit: CronUnit): string {
 
 export function parseCapValue(value: string): number | undefined {
   if (value.trim() === "") return undefined;
-  const n = Number(value);
-  return Number.isNaN(n) ? undefined : n;
+  try {
+    return parseCents(value);
+  } catch {
+    return undefined;
+  }
 }
 
 function utcDay(timestamp: number): number {
@@ -111,7 +126,7 @@ export function formatCapCredit(
   elapsedIntervals: number,
   capNumber: number | undefined,
 ): string {
-  return (elapsedIntervals * (capNumber ?? 0)).toFixed(2);
+  return formatCents(elapsedIntervals * (capNumber ?? 0));
 }
 
 export function shouldShowCapWarning(deps: {

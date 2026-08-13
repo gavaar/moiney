@@ -8,6 +8,7 @@ import { Input } from "@ui/Input";
 import { ModalShell } from "@ui/Modal";
 import { type Id } from "@convex/_generated/dataModel";
 import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
+import { parseCents } from "@domain/money";
 
 type AddPipeModalProps = {
   parentId: Id<"pipes">;
@@ -70,7 +71,7 @@ export function AddPipeModal({ parentId, visible, onClose }: AddPipeModalProps) 
         icon: icon || "pipe",
         description: description || undefined,
         priority,
-        capacity: capacity ? Number(capacity) : 0,
+         capacityCents: capacity ? parseCents(capacity) : 0,
         parentId,
       });
       onClose();

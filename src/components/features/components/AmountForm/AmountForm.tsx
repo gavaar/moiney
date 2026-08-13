@@ -15,6 +15,7 @@ import { Input } from "@ui/Input";
 import { SlideToggle } from "@ui/SlideToggle";
 import { useAlert } from "@ui/Alert";
 import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
+import { parseCents } from "@domain/money";
 import {
   buildPipeItems,
   buildPaidFromPipeItems,
@@ -70,9 +71,12 @@ export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: 
 
   const isValidAmount = useMemo(() => {
     if (value === "" || value === "-") return false;
-    const n = parseFloat(value);
-    if (isNaN(n)) return false;
-    return isFeed ? n > 0 : n !== 0;
+    try {
+      const cents = parseCents(value);
+      return isFeed ? cents > 0 : cents !== 0;
+    } catch {
+      return false;
+    }
   }, [value, isFeed]);
 
   const isValid =
@@ -162,11 +166,11 @@ export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: 
   const editTransaction = useMutation(api.transactions.editTransaction);
 
   const handleEditSubmit = useCallback(async () => {
-    const parsedValue = parseFloat(value);
+    const valueCents = parseCents(value);
     await editTransaction({
       transactionId: initState?.transactionId!,
       title,
-      value: parsedValue,
+      valueCents,
       date: date.getTime(),
     });
     resetForm();
@@ -174,18 +178,18 @@ export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: 
   }, [title, value, date, initState?.transactionId, onSuccess, resetForm, editTransaction]);
 
   const handleRepeatSubmit = useCallback(async () => {
-    const parsedValue = parseFloat(value);
+    const valueCents = parseCents(value);
     if (isFeed) {
       await createTransaction({
         title: title.trim(),
-        value: parsedValue,
+        valueCents,
         date: date.getTime(),
         to: pipeId,
       });
     } else {
       await createTransaction({
         title,
-        value: parsedValue,
+        valueCents,
         date: date.getTime(),
         from: pipeId,
         ...(spendMode === "transfer" && sentToPipeId ? { to: sentToPipeId } : {}),

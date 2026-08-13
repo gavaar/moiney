@@ -40,13 +40,31 @@ describe("createTransaction", () => {
   });
 
   describe("spend (from only)", () => {
+    it("accepts integer cents and persists the cents value", async () => {
+      const ctx = mockCtx();
+      ctx.db.get.mockResolvedValue({ ...A_PIPE, fed: 500, spent: 100 });
+
+      await (createTransaction as any)._handler(ctx, {
+        title: "groceries",
+        valueCents: -3000,
+        date: 1000,
+        from: "pipe-1",
+      });
+
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", { spent: 3100 });
+      expect(ctx.db.insert).toHaveBeenCalledWith(
+        "transactions",
+        expect.objectContaining({ value: -3000 }),
+      );
+    });
+
     it("patches from.spent and inserts transaction with no to", async () => {
       const ctx = mockCtx();
       ctx.db.get.mockResolvedValue(A_PIPE);
 
       await (createTransaction as any)._handler(ctx, {
         title: "groceries",
-        value: -30,
+        valueCents: -30,
         date: 1000,
         from: "pipe-1",
       });
@@ -59,6 +77,7 @@ describe("createTransaction", () => {
         from: "pipe-1",
         to: undefined,
         kind: "expense",
+        moneyMigrationVersion: 1,
         userId: "user-1",
       });
     });
@@ -75,7 +94,7 @@ describe("createTransaction", () => {
 
       await (createTransaction as any)._handler(ctx, {
         title: "transfer",
-        value: -50,
+        valueCents: -50,
         date: 2000,
         from: "pipe-1",
         to: "pipe-2",
@@ -90,6 +109,7 @@ describe("createTransaction", () => {
         from: "pipe-1",
         to: "pipe-2",
         kind: "transfer",
+        moneyMigrationVersion: 1,
         userId: "user-1",
       });
     });
@@ -102,7 +122,7 @@ describe("createTransaction", () => {
 
       await (createTransaction as any)._handler(ctx, {
         title: "salary",
-        value: 1000,
+        valueCents: 1000,
         date: 3000,
         to: "pipe-1",
       });
@@ -115,6 +135,7 @@ describe("createTransaction", () => {
         from: undefined,
         to: "pipe-1",
         kind: "feed",
+        moneyMigrationVersion: 1,
         userId: "user-1",
       });
     });
@@ -131,7 +152,7 @@ describe("createTransaction", () => {
 
       await (createTransaction as any)._handler(ctx, {
         title: "coffee",
-        value: -30,
+        valueCents: -30,
         date: 3500,
         from: "pipe-1",
         paidFrom: "pipe-2",
@@ -150,6 +171,7 @@ describe("createTransaction", () => {
         from: "pipe-1",
         paidFrom: "pipe-2",
         kind: "expense",
+        moneyMigrationVersion: 1,
         userId: "user-1",
       });
     });
@@ -160,7 +182,7 @@ describe("createTransaction", () => {
       await expect(
         (createTransaction as any)._handler(ctx, {
           title: "coffee",
-          value: -30,
+          valueCents: -30,
           date: 3500,
           from: "pipe-1",
           paidFrom: "pipe-1",
@@ -182,7 +204,7 @@ describe("createTransaction", () => {
       await expect(
         (createTransaction as any)._handler(ctx, {
           title: "coffee refund",
-          value: 30,
+          valueCents: 30,
           date: 3500,
           from: "pipe-1",
           paidFrom: "pipe-2",
@@ -203,7 +225,7 @@ describe("createTransaction", () => {
       await expect(
         (createTransaction as any)._handler(ctx, {
           title: "coffee",
-          value: -30,
+          valueCents: -30,
           date: 3500,
           from: "pipe-1",
           paidFrom: "pipe-2",
@@ -221,7 +243,7 @@ describe("createTransaction", () => {
 
       await (createTransaction as any)._handler(ctx, {
         title: "coffee",
-        value: -30,
+        valueCents: -30,
         date: 3500,
         from: "pipe-1",
         paidFrom: "pipe-2",
@@ -238,7 +260,7 @@ describe("createTransaction", () => {
 
       await (createTransaction as any)._handler(ctx, {
         title: "groceries",
-        value: -30,
+        valueCents: -30,
         date: 1000,
         from: "pipe-1",
       });
@@ -258,7 +280,7 @@ describe("createTransaction", () => {
 
       await (createTransaction as any)._handler(ctx, {
         title: "transfer",
-        value: -50,
+        valueCents: -50,
         date: 2000,
         from: "pipe-1",
         to: "pipe-2",
@@ -275,7 +297,7 @@ describe("createTransaction", () => {
 
       await (createTransaction as any)._handler(ctx, {
         title: "groceries",
-        value: -30,
+        valueCents: -30,
         date: 1000,
         from: "pipe-1",
       });
@@ -290,7 +312,7 @@ describe("createTransaction", () => {
 
       await (createTransaction as any)._handler(ctx, {
         title: "groceries",
-        value: -30,
+        valueCents: -30,
         date: 1000,
         from: "pipe-1",
       });
@@ -310,7 +332,7 @@ describe("createTransaction", () => {
 
       await (createTransaction as any)._handler(ctx, {
         title: "groceries",
-        value: -30,
+        valueCents: -30,
         date: 1000,
         from: "pipe-1",
       });
@@ -331,7 +353,7 @@ describe("createTransaction", () => {
       await expect(
         (createTransaction as any)._handler(ctx, {
           title: "nowhere",
-          value: 0,
+          valueCents: 0,
           date: 4000,
         }),
       ).rejects.toThrow("Either 'from' or 'to' must be provided");
@@ -368,7 +390,7 @@ describe("editTransaction", () => {
       await (editTransaction as any)._handler(ctx, {
         transactionId: "tx-1",
         title: "new title",
-        value: -80,
+        valueCents: -80,
         date: 3000,
       });
 
@@ -376,6 +398,7 @@ describe("editTransaction", () => {
         title: "new title",
         value: -80,
         date: 3000,
+        moneyMigrationVersion: 1,
       });
       expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", { spent: 130 });
       expect(ctx.db._chain.collect).toHaveBeenCalled();
@@ -391,7 +414,7 @@ describe("editTransaction", () => {
         (editTransaction as any)._handler(ctx, {
           transactionId: "tx-1",
           title: "new title",
-          value: -80,
+          valueCents: -80,
           date: 3000,
         }),
       ).rejects.toThrow("Transaction is view-only");
@@ -411,7 +434,7 @@ describe("editTransaction", () => {
       await (editTransaction as any)._handler(ctx, {
         transactionId: "tx-1",
         title: "bonus",
-        value: 1200,
+        valueCents: 1200,
         date: 4000,
       });
 
@@ -419,6 +442,7 @@ describe("editTransaction", () => {
         title: "bonus",
         value: 1200,
         date: 4000,
+        moneyMigrationVersion: 1,
       });
       expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", { fed: 700 });
     });
@@ -438,7 +462,7 @@ describe("editTransaction", () => {
       await (editTransaction as any)._handler(ctx, {
         transactionId: "tx-1",
         title: "new transfer",
-        value: -80,
+        valueCents: -80,
         date: 5000,
       });
 
@@ -446,6 +470,7 @@ describe("editTransaction", () => {
         title: "new transfer",
         value: -80,
         date: 5000,
+        moneyMigrationVersion: 1,
       });
       expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", { fed: 470 });
       expect(ctx.db.patch).toHaveBeenCalledWith("pipe-2", { fed: 230 });
@@ -471,7 +496,7 @@ describe("editTransaction", () => {
       await (editTransaction as any)._handler(ctx, {
         transactionId: "tx-1",
         title: "more coffee",
-        value: -80,
+        valueCents: -80,
         date: 5000,
       });
 
@@ -500,7 +525,7 @@ describe("editTransaction", () => {
       await (editTransaction as any)._handler(ctx, {
         transactionId: "tx-1",
         title: "coffee",
-        value: -80,
+        valueCents: -80,
         date: 5000,
       });
 
@@ -526,7 +551,7 @@ describe("editTransaction", () => {
         (editTransaction as any)._handler(ctx, {
           transactionId: "tx-1",
           title: "coffee refund",
-          value: 30,
+          valueCents: 30,
           date: 5000,
         }),
       ).rejects.toThrow("Refund destination must be a root outside the transaction tree");
@@ -542,7 +567,7 @@ describe("editTransaction", () => {
         (editTransaction as any)._handler(ctx, {
           transactionId: "nonexistent",
           title: "test",
-          value: 0,
+          valueCents: 0,
           date: 1000,
         }),
       ).rejects.toThrow("Transaction not found");
@@ -556,7 +581,7 @@ describe("editTransaction", () => {
         (editTransaction as any)._handler(ctx, {
           transactionId: "tx-1",
           title: "test",
-          value: 0,
+          valueCents: 0,
           date: 1000,
         }),
       ).rejects.toThrow("Not authorized");
