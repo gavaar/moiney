@@ -8,7 +8,11 @@ import {
   computeElapsedIntervals,
 } from "../domain/scheduling";
 import { computePipeTree } from "../domain/pipes";
-import { MAX_PIPES_PER_USER } from "./lib/constants";
+import { validateCents } from "../domain/money";
+import {
+  MAX_PIPES_PER_USER,
+  MONEY_MIGRATION_VERSION,
+} from "./lib/constants";
 import {
   collectChildSubtree,
   executePipeRule,
@@ -104,6 +108,7 @@ export const addFeed = mutation({
       capacity: 0,
       fed: 0,
       spent: 0,
+      moneyMigrationVersion: MONEY_MIGRATION_VERSION,
     });
   },
 });
@@ -114,7 +119,7 @@ export const addPipe = mutation({
     icon: v.string(),
     description: v.optional(v.string()),
     priority: v.number(),
-    capacity: v.number(),
+    capacityCents: v.number(),
     parentId: v.id("pipes"),
   },
   returns: v.id("pipes"),
@@ -135,9 +140,10 @@ export const addPipe = mutation({
       icon: args.icon,
       description: args.description,
       priority: args.priority,
-      capacity: args.capacity,
+      capacity: validateCents(args.capacityCents),
       fed: 0,
       spent: 0,
+      moneyMigrationVersion: MONEY_MIGRATION_VERSION,
     });
 
     await ctx.db.patch("pipes", parent._id, {
@@ -162,7 +168,7 @@ export const updatePipe = mutation({
     icon: v.optional(v.string()),
     description: v.optional(v.union(v.string(), v.null())),
     priority: v.optional(v.number()),
-    capacity: v.optional(v.number()),
+    capacityCents: v.optional(v.number()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -180,7 +186,9 @@ export const updatePipe = mutation({
       patch.description = args.description ?? undefined;
     }
     if (args.priority !== undefined) patch.priority = args.priority;
-    if (args.capacity !== undefined) patch.capacity = args.capacity;
+    if (args.capacityCents !== undefined) {
+      patch.capacity = validateCents(args.capacityCents);
+    }
 
     await ctx.db.patch(args.pipeId, patch);
     await recascadeTree(ctx, userId);
@@ -204,7 +212,7 @@ export const updatePipeRule = mutation({
       v.union(v.literal("days"), v.literal("months"), v.literal("years")),
     ),
     starting: v.optional(v.number()),
-    capUpdateValue: v.optional(v.number()),
+    capUpdateValueCents: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const userId = await requireAuth(ctx);
@@ -217,7 +225,10 @@ export const updatePipeRule = mutation({
 
     const patch: Record<string, unknown> = {
       rule: args.rule ?? undefined,
-      capUpdateValue: args.rule != null ? args.capUpdateValue : undefined,
+      capUpdateValue:
+        args.rule != null && args.capUpdateValueCents !== undefined
+          ? validateCents(args.capUpdateValueCents)
+          : undefined,
       cronNextDate: undefined,
       cronInterval: undefined,
     };
@@ -237,14 +248,15 @@ export const updatePipeRule = mutation({
         args.unit,
         now,
       );
-      if (args.capUpdateValue != null) {
+      if (args.capUpdateValueCents != null) {
         const intervals = computeElapsedIntervals(
           args.starting,
           args.interval,
           args.unit,
           now,
         );
-        patch.capacity = pipe.capacity + intervals * args.capUpdateValue;
+        patch.capacity =
+          pipe.capacity + intervals * validateCents(args.capUpdateValueCents);
       }
     }
 

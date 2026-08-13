@@ -10,7 +10,7 @@ const baseTx = {
   _creationTime: 0,
   title: "shopping mall",
   kind: "expense" as const,
-  value: -50,
+  value: -5000,
   date: new Date("2024-03-15").getTime(),
   from: "pipe-1" as Id<"pipes">,
   userId: "" as Id<"users">,
@@ -39,7 +39,7 @@ const transferTx = {
   _creationTime: 0,
   title: "send to rent",
   kind: "transfer" as const,
-  value: -50,
+  value: -5000,
   date: new Date("2024-03-15").getTime(),
   from: "salary-pipe" as Id<"pipes">,
   to: "rent-pipe" as Id<"pipes">,
@@ -57,7 +57,7 @@ const feedTx = {
   _creationTime: 0,
   title: "weekly salary",
   kind: "feed" as const,
-  value: 1000,
+  value: 100000,
   date: new Date("2024-03-15").getTime(),
   pipeId: "pipe-1" as Id<"pipes">,
   from: undefined,
@@ -114,7 +114,7 @@ describe("TransactionItem", () => {
   });
 
   it("renders positive value without sign", () => {
-    const tx = { ...baseTx, value: 120.5 };
+    const tx = { ...baseTx, value: 12050 };
     render(<TransactionItem transaction={tx} />);
     expect(screen.getByText("120.50")).toBeDefined();
   });
@@ -133,7 +133,7 @@ describe("TransactionItem", () => {
   });
 
   it("renders value in white for positive", () => {
-    const tx = { ...baseTx, value: 75 };
+    const tx = { ...baseTx, value: 7500 };
     render(<TransactionItem transaction={tx} />);
     expect(screen.getByText("75.00")).toBeDefined();
   });
@@ -235,7 +235,7 @@ describe("TransactionItem transfer variant", () => {
   });
 
   it("uses ray-end-arrow for positive value (source receives)", () => {
-    const tx = { ...transferTx, value: 100 };
+    const tx = { ...transferTx, value: 10000 };
     render(<TransactionItem transaction={tx} />);
     const icons = screen.getAllByTestId("mock-icon");
     const iconNames = icons.map((i) => i.getAttribute("data-name"));
@@ -280,7 +280,7 @@ describe("TransactionItem feed variant", () => {
     render(<TransactionItem transaction={feedTx} />);
     expect(screen.getByText("Weekly salary")).toBeDefined();
     expect(screen.getByText("Mar 15, 2024")).toBeDefined();
-    expect(screen.getByText("1000.00")).toBeDefined();
+    expect(screen.getByText("1,000.00")).toBeDefined();
   });
 
   it("shows disabled info modal when fed pipe does not exist", () => {

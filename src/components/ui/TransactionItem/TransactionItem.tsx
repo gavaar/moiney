@@ -7,6 +7,7 @@ import { AmountForm } from '@features/components/AmountForm';
 import { useState } from 'react';
 import { usePipeSelection } from '@features/pipes/context/PipeSelectionContext';
 import { resolveTransactionKind } from "@domain/transactions";
+import { formatAmount } from "@/lib/format";
 import type { TransactionWithPipeIcons } from "@/lib/transactions/types";
 
 type TransactionItemProps = {
@@ -75,7 +76,7 @@ export function TransactionItem({ transaction }: TransactionItemProps) {
     pipeIcon: primaryPipe.icon,
     pipeName: primaryPipe.name,
     title: transaction.title,
-    value: `${transaction.value}`,
+    value: formatAmount(transaction.value),
     ...(isTransfer && destPipe ? { to: destPipe._id } : {}),
     ...(isPayByTransfer && paidFromPipe ? { paidFrom: paidFromPipe._id } : {}),
     isFeed,
@@ -134,7 +135,7 @@ export function TransactionItem({ transaction }: TransactionItemProps) {
           disabled ? "text-muted" : "text-white",
         )}
       >
-        {transaction.value.toFixed(2)}
+        {formatAmount(transaction.value)}
       </Text>
 
       <ModalShell visible={showForm} onClose={() => setShowForm(false)}>

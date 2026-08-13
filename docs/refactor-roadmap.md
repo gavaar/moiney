@@ -27,7 +27,7 @@ This roadmap persists the whole-project audit beyond any single chat session. Wo
 | 6a. Pipe module boundaries | Completed | Separate shared pipe logic and deletion operations while preserving Convex registration paths | Update 6 |
 | 7. Independent correctness fixes | Completed | Repair selection, back handling, description clearing, cron diff, input handlers, recent-title selection, and loading states | Relevant focused tests |
 | 8. Shared domain core | Completed | Introduce deep pure modules for transaction identity/accounting, pipe graph/reconciliation, and cron schedules without changing monetary representation | D001-D003 |
-| 9. Integer cents migration | Pending | Replace floating-point monetary persistence and arithmetic with integer cents | Update 8, D001 |
+| 9. Integer cents migration | In progress | Replace floating-point monetary persistence and arithmetic with integer cents | Update 8, D001 |
 | 10. Financial mutation semantics | Pending | Define corrections, rule effects, idempotency, and accounting projections | Updates 8-9 |
 | 11. Convex model boundaries | Pending | Make registered functions thin, validated, authorized wrappers over deep model operations | Updates 1-3, 8-10 |
 | 12. Bounded backend work | Pending | Scope recascade, batch cleanup/crons/deletion, and index hot transaction queries | Updates 6, 10-11 plus measurements |
@@ -64,17 +64,15 @@ Update 15 must report before-and-after measurements rather than relying only on 
 
 ## Current Next Step
 
-Update 8 is complete. Nested selections recover to the nearest surviving pipe,
-Android Back handling is scoped to the focused Pipes screen, descriptions can
-be explicitly cleared, cron starting-day changes are detected, shared text
-inputs compose focus handlers safely, recent-title touches populate before
-Android blur, and initial loading states no longer flash empty controls.
-Transaction identity, role involvement, accounting effects, pipe graph
-reconciliation, and explicit-clock cron calculations now live in the
-framework-independent root `domain/` boundary. Monetary values remain
-JavaScript floating-point numbers; the accepted integer-cents target remains
-D001 and is not part of this update. The next roadmap update is Update 9, the
-integer-cents migration.
+Update 9 is in progress. The framework-independent money core parses and formats
+cents, backend mutation arguments use cents-specific names, UI inputs convert at
+the boundary, and versioned resumable migrations cover transactions and pipes.
+The empty `pipeDeletionJobs` table is intentionally excluded from the backfill;
+new transaction, pipe, and user writes carry migration markers, and new deletion
+jobs are written directly in cents. Mixed legacy/new pipe trees are handled
+without double conversion. The next step is a dry run and invariant verification
+against the development deployment, followed by the persisted-data cutover;
+version/update gating remains explicitly deferred.
 
 ## Completed Accessibility Layout Work
 

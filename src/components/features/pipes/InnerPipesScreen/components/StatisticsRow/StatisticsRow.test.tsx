@@ -42,14 +42,14 @@ describe("StatisticsRow", () => {
   });
 
   it("renders all three stat labels", () => {
-    render(<StatisticsRow fed={1000} spent={400} />);
+    render(<StatisticsRow fed={100000} spent={40000} />);
     expect(screen.getByText(/L2S:/)).toBeDefined();
     expect(screen.getByText(/StM:/)).toBeDefined();
     expect(screen.getByText(/StMpD:/)).toBeDefined();
   });
 
   it("renders correct computed values", () => {
-    render(<StatisticsRow fed={1000} spent={400} />);
+    render(<StatisticsRow fed={100000} spent={40000} />);
     expect(screen.getByText(/L2S: 600\.00/)).toBeDefined();
     expect(screen.getByText(/StM: 400\.00/)).toBeDefined();
     expect(screen.getByText(/StMpD: 13\.33/)).toBeDefined();
@@ -57,14 +57,14 @@ describe("StatisticsRow", () => {
 
   it("opens stat description popover on tap", async () => {
     const user = userEvent.setup();
-    render(<StatisticsRow fed={1000} spent={400} />);
+    render(<StatisticsRow fed={100000} spent={40000} />);
     await user.click(screen.getByText(/L2S: 600\.00/));
     expect(screen.getByText(/Left to spend \(L2S\):/)).toBeDefined();
   });
 
   it("closes stat popover on backdrop tap", async () => {
     const user = userEvent.setup();
-    render(<StatisticsRow fed={1000} spent={400} />);
+    render(<StatisticsRow fed={100000} spent={40000} />);
     await user.click(screen.getByText(/StM: 400\.00/));
     expect(screen.getByText(/Spent this month \(StM\):/)).toBeDefined();
     await user.click(screen.getByTestId("popover-backdrop"));
@@ -72,7 +72,7 @@ describe("StatisticsRow", () => {
   });
 
   it("renders separators between stats", () => {
-    render(<StatisticsRow fed={1000} spent={400} />);
+    render(<StatisticsRow fed={100000} spent={40000} />);
     const separators = screen.getAllByText("|");
     expect(separators.length).toBe(2);
   });
@@ -90,7 +90,7 @@ describe("StatisticsRow", () => {
       },
     };
 
-    render(<StatisticsRow fed={1000} spent={400} />);
+    render(<StatisticsRow fed={100000} spent={40000} />);
 
     const timerIcon = screen
       .getAllByTestId("icon")
@@ -112,13 +112,13 @@ describe("StatisticsRow", () => {
       },
     };
 
-    render(<StatisticsRow fed={1000} spent={400} />);
+    render(<StatisticsRow fed={100000} spent={40000} />);
 
     expect(screen.getByText("0")).toBeDefined();
   });
 
   it("renders no timer-outline chip for non-cron pipes", () => {
-    render(<StatisticsRow fed={1000} spent={400} />);
+    render(<StatisticsRow fed={100000} spent={40000} />);
 
     const timerIcon = screen
       .queryAllByTestId("icon")

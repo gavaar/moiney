@@ -12,6 +12,7 @@ import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
 import { colors } from "@/lib/styles";
 import { formatAmount } from "@/lib/format";
 import { computeElapsedIntervals, type CronUnit } from "@domain/scheduling";
+import { formatCents, parseCents } from "@domain/money";
 import {
   RULE_DESCRIPTIONS,
   RULE_OPTIONS,
@@ -46,7 +47,7 @@ export function RuleModal({ visible, onClose, pipeId }: Props) {
 
   const [selectedRule, setSelectedRule] = useState<RuleId>(pipe?.rule ?? "none");
   const [capValue, setCapValue] = useState<string>(
-    pipe?.capUpdateValue != null ? String(pipe.capUpdateValue) : "",
+    pipe?.capUpdateValue != null ? formatCents(pipe.capUpdateValue) : "",
   );
   const [interval, setInterval] = useState<number>(pipe?.cronInterval?.interval ?? 1);
   const [unit, setUnit] = useState<CronUnit>(pipe?.cronInterval?.unit ?? "months");
@@ -112,13 +113,13 @@ export function RuleModal({ visible, onClose, pipeId }: Props) {
           interval: effectiveCron.interval,
           unit: effectiveCron.unit,
           starting: starting.getTime(),
-          capUpdateValue: effectiveCron.capUpdateValue,
+           capUpdateValueCents: effectiveCron.capUpdateValue,
         });
       } else {
         await updatePipeRule({
           pipeId,
           rule: selectedRule,
-          capUpdateValue: capNumber,
+           capUpdateValueCents: capNumber,
         });
       }
       if (isCron) onClose();
@@ -182,9 +183,15 @@ export function RuleModal({ visible, onClose, pipeId }: Props) {
             onSelect={(id) => setSelectedRule(id as RuleId)}
           />
 
-          <Text className="text-xs italic text-muted">
+           <Text className="text-xs italic text-muted">
             {RULE_DESCRIPTIONS[selectedRule]}
-          </Text>
+           </Text>
+           {effectiveCron.pacingDrift ? (
+             <Text className="text-xs text-warning">
+               This pacing rounds to {formatCents(effectiveCron.capUpdateValue ?? 0)} per period
+               and drifts by {formatCents(effectiveCron.pacingDrift)} over the selected interval.
+             </Text>
+           ) : null}
 
           {selectedRule !== "none" ? (
             <>
@@ -252,7 +259,7 @@ export function RuleModal({ visible, onClose, pipeId }: Props) {
 
               {showPacingPreview ? (
                 <Text className="text-sm text-muted">
-                  Capacity will update by {effectiveCron.capUpdateValue?.toFixed(2)} every{" "}
+                   Capacity will update by {formatCents(effectiveCron.capUpdateValue ?? 0)} every{" "}
                   {unitPlural(1, effectiveCron.unit)}.
                 </Text>
               ) : null}

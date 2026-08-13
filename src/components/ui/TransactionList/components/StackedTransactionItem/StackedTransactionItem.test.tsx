@@ -7,7 +7,7 @@ import type { TransactionGroup } from "@features/transactions/groupTransactions"
 import type { Id } from "@convex/_generated/dataModel";
 
 const baseGroup: TransactionGroup = {
-  id: '["expense","coffee",-5,"pipe-1",null]',
+  id: '["expense","coffee",-500,"pipe-1",null]',
   kind: "expense",
   transactions: [
     {
@@ -15,7 +15,7 @@ const baseGroup: TransactionGroup = {
       _creationTime: 0,
       title: "coffee",
       kind: "expense",
-      value: -5,
+       value: -500,
       date: new Date("2024-03-15").getTime(),
       from: "pipe-1" as Id<"pipes">,
       to: undefined,
@@ -26,7 +26,7 @@ const baseGroup: TransactionGroup = {
       _creationTime: 0,
       title: "coffee",
       kind: "expense",
-      value: -5,
+       value: -500,
       date: new Date("2024-03-20").getTime(),
       from: "pipe-1" as Id<"pipes">,
       to: undefined,
@@ -35,7 +35,7 @@ const baseGroup: TransactionGroup = {
   ],
   count: 2,
   title: "coffee",
-  value: -5,
+   value: -500,
   from: "pipe-1" as Id<"pipes">,
   to: undefined,
   oldestDate: new Date("2024-03-15").getTime(),

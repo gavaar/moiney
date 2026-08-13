@@ -5,8 +5,12 @@ export function splitEvenly<TPipeId extends string>(
   if (budget === 0 || children.length === 0) return [];
 
   if (budget < 0) {
-    const share = budget / children.length;
-    return children.map((c) => ({ childId: c.id, amount: share }));
+    const share = Math.trunc(budget / children.length);
+    const remainder = budget - share * children.length;
+    return children.map((child, index) => ({
+      childId: child.id,
+      amount: share + (index < Math.abs(remainder) ? -1 : 0),
+    }));
   }
 
   const withShortfall = children.map((c) => ({
@@ -18,26 +22,41 @@ export function splitEvenly<TPipeId extends string>(
   }));
   withShortfall.sort((a, b) => a.shortfall - b.shortfall);
 
-  const allocations: Array<{ childId: TPipeId; amount: number }> = [];
+  const allocations = new Map<TPipeId, number>();
   let remaining = budget;
-  const n = withShortfall.length;
+  let eligible = withShortfall.filter((child) => child.shortfall > 0);
 
-  for (let i = 0; i < n; i++) {
-    const fairShare = remaining / (n - i);
-    const child = withShortfall[i];
-
-    if (child.shortfall >= fairShare) {
-      for (let j = i; j < n; j++) {
-        allocations.push({ childId: withShortfall[j].id, amount: fairShare });
+  while (remaining > 0 && eligible.length > 0) {
+    const fairShare = Math.floor(remaining / eligible.length);
+    if (fairShare === 0) {
+      for (const child of eligible.slice(0, remaining)) {
+        allocations.set(child.id, (allocations.get(child.id) ?? 0) + 1);
       }
       break;
-    } else if (child.shortfall > 0) {
-      allocations.push({ childId: child.id, amount: child.shortfall });
-      remaining -= child.shortfall;
     }
+
+    const capped = eligible.find(
+      (child) => child.shortfall - (allocations.get(child.id) ?? 0) < fairShare,
+    );
+    if (capped) {
+      allocations.set(capped.id, (allocations.get(capped.id) ?? 0) + capped.shortfall);
+      remaining -= capped.shortfall;
+      eligible = eligible.filter((child) => child.id !== capped.id);
+      continue;
+    }
+
+    const baseAllocated = fairShare * eligible.length;
+    remaining -= baseAllocated;
+    for (const child of eligible) {
+      allocations.set(child.id, (allocations.get(child.id) ?? 0) + fairShare);
+    }
+    eligible = eligible.filter((child) => child.shortfall > (allocations.get(child.id) ?? 0));
   }
 
-  return allocations;
+  return withShortfall.flatMap((child) => {
+    const amount = allocations.get(child.id) ?? 0;
+    return amount > 0 ? [{ childId: child.id, amount }] : [];
+  });
 }
 
 export function calculatePipeAllocations<TPipeId extends string>(

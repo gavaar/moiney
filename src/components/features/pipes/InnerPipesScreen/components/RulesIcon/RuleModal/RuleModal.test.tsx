@@ -92,13 +92,13 @@ describe("RuleModal", () => {
     renderModal(
       basePipe({
         rule: "cron",
-        capUpdateValue: 100,
+        capUpdateValue: 10000,
         cronInterval: { interval: 2, unit: "years" },
         cronNextDate: Date.UTC(2026, 5, 15, 12),
       }),
     );
     expect(screen.getAllByText("Cron").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByDisplayValue("100")).toBeTruthy();
+    expect(screen.getByDisplayValue("100.00")).toBeTruthy();
     expect(screen.getByDisplayValue("2")).toBeTruthy();
     expect(screen.getAllByText("Year").length).toBeGreaterThanOrEqual(1);
   });
@@ -121,7 +121,7 @@ describe("RuleModal", () => {
     renderModal(
       basePipe({
         rule: "cron",
-        capUpdateValue: 1200,
+        capUpdateValue: 120000,
         cronInterval: { interval: 1, unit: "years" },
         cronNextDate: Date.UTC(2099, 0, 15, 12),
       }),
@@ -137,7 +137,7 @@ describe("RuleModal", () => {
 
     expect(h.updatePipeRule).toHaveBeenCalledWith(
       expect.objectContaining({
-        capUpdateValue: 100,
+        capUpdateValueCents: 10000,
         interval: 1,
         unit: "months",
       }),
@@ -149,7 +149,7 @@ describe("RuleModal", () => {
     renderModal(
       basePipe({
         rule: "cron",
-        capUpdateValue: 1200,
+        capUpdateValue: 120000,
         cronInterval: { interval: 1, unit: "years" },
         cronNextDate: starting.getTime(),
       }),
@@ -207,7 +207,7 @@ describe("RuleModal", () => {
   });
 
   it("shows a reset placeholder and message when cap update is not set", () => {
-    renderModal(basePipe({ rule: "any_spend", capacity: 100 }));
+    renderModal(basePipe({ rule: "any_spend", capacity: 10000 }));
     expect(screen.getByPlaceholderText("reset cap to 100.00")).toBeTruthy();
     expect(
       screen.getByText("Cap will reset to 100.00 after every rule run."),
@@ -215,14 +215,14 @@ describe("RuleModal", () => {
   });
 
   it("shows an update message when cap update is set", () => {
-    renderModal(basePipe({ rule: "any_spend", capacity: 100, capUpdateValue: 25 }));
+    renderModal(basePipe({ rule: "any_spend", capacity: 10000, capUpdateValue: 2500 }));
     expect(
       screen.getByText("Cap will update leftover value by 25.00 after every rule run."),
     ).toBeTruthy();
   });
 
   it("saves a cap update value for any_spend", async () => {
-    renderModal(basePipe({ rule: "any_spend", capacity: 100 }));
+    renderModal(basePipe({ rule: "any_spend", capacity: 10000 }));
     fireEvent.change(screen.getByPlaceholderText("reset cap to 100.00"), {
       target: { value: "50" },
     });
@@ -232,7 +232,7 @@ describe("RuleModal", () => {
     expect(h.updatePipeRule).toHaveBeenCalledWith({
       pipeId: pId("pipe-1"),
       rule: "any_spend",
-      capUpdateValue: 50,
+      capUpdateValueCents: 5000,
     });
   });
 
@@ -265,7 +265,7 @@ describe("RuleModal", () => {
     expect(h.updatePipeRule).toHaveBeenCalledWith({
       pipeId: pId("pipe-1"),
       rule: "any_spend",
-      capUpdateValue: undefined,
+      capUpdateValueCents: undefined,
     });
     expect(onClose).not.toHaveBeenCalled();
   });
@@ -288,7 +288,7 @@ describe("RuleModal", () => {
     renderModal(
       basePipe({
         rule: "cron",
-        capUpdateValue: 50,
+        capUpdateValue: 5000,
         cronInterval: { interval: 1, unit: "months" },
         cronNextDate: Date.UTC(2026, 0, 15, 12),
       }),
@@ -305,7 +305,7 @@ describe("RuleModal", () => {
         rule: "cron",
         interval: 2,
         unit: "months",
-        capUpdateValue: 50,
+        capUpdateValueCents: 5000,
         starting: expect.any(Number),
       }),
     );
@@ -316,7 +316,7 @@ describe("RuleModal", () => {
     renderModal(
       basePipe({
         rule: "cron",
-        capUpdateValue: 50,
+      capUpdateValueCents: 5000,
         cronInterval: { interval: 1, unit: "months" },
         cronNextDate: Date.UTC(2026, 0, 15, 12),
       }),
@@ -333,7 +333,7 @@ describe("RuleModal", () => {
     renderModal(
       basePipe({
         rule: "cron",
-        capUpdateValue: 50,
+        capUpdateValue: 5000,
         cronInterval: { interval: 1, unit: "months" },
         cronNextDate: Date.UTC(2026, 0, 15, 12),
       }),
@@ -357,7 +357,7 @@ describe("RuleModal", () => {
     renderModal(
       basePipe({
         rule: "cron",
-        capUpdateValue: 50,
+        capUpdateValue: 5000,
         cronInterval: { interval: 1, unit: "months" },
         cronNextDate: Date.UTC(2026, 0, 15, 12),
       }),
@@ -385,7 +385,7 @@ describe("RuleModal", () => {
     renderModal(
       basePipe({
         rule: "cron",
-        capUpdateValue: 50,
+        capUpdateValue: 5000,
         cronInterval: { interval: 1, unit: "months" },
         cronNextDate: Date.UTC(2026, 0, 15, 12),
       }),
@@ -400,7 +400,7 @@ describe("RuleModal", () => {
     renderModal(
       basePipe({
         rule: "cron",
-        capUpdateValue: 50,
+        capUpdateValue: 5000,
         cronInterval: { interval: 1, unit: "months" },
         cronNextDate: Date.UTC(2099, 0, 15, 12),
       }),
