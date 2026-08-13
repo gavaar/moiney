@@ -68,7 +68,7 @@ describe("Convex boundaries", () => {
         name: "Unauthorized child",
         icon: "pipe",
         priority: 1,
-        capacityCents: 25,
+        capacity: 25,
         parentId,
       }),
     ).rejects.toThrow("Parent pipe not found");
@@ -288,7 +288,6 @@ describe("Convex boundaries", () => {
       child: await ctx.db.get("pipes", childId),
     }));
     expect(state.jobs).toHaveLength(1);
-    expect(state.jobs[0]).not.toHaveProperty("moneyMigrationVersion");
     expect(first).toMatchObject({ jobId: state.jobs[0]._id, phase: "processingTransactions" });
     expect(state.root?.deletionJobId).toBe(first.jobId);
     expect(state.child?.deletionJobId).toBe(first.jobId);
@@ -551,7 +550,7 @@ describe("Convex boundaries", () => {
     await expect(
       asUser.mutation(api.transactions.createTransaction, {
         title: "new expense",
-        valueCents: -10,
+        value: -10,
         date: 100,
         from: pipeId,
       }),
@@ -630,7 +629,7 @@ describe("Convex boundaries", () => {
       asUser.mutation(api.transactions.editTransaction, {
         transactionId,
         title: "new",
-        valueCents: -10,
+        value: -10,
         date: 200,
       }),
     ).rejects.toThrow("Pipe is being deleted");

@@ -6,7 +6,7 @@ const MONEY_FORMATTER = new Intl.NumberFormat("en-US", {
 
 export function formatAmount(value: number): string {
   if (!Number.isSafeInteger(value)) {
-    throw new Error("Money must be a safe integer number of cents");
+    throw new Error("Money must be a safe integer amount");
   }
   return MONEY_FORMATTER.format(value / 100);
 }

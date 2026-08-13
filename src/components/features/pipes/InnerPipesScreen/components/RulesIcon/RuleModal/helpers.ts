@@ -2,7 +2,7 @@ import { type Doc } from "@convex/_generated/dataModel";
 import { type IconName } from "@ui/Icon";
 import { type CronUnit } from "@domain/scheduling";
 import { type RuleId } from "./config";
-import { divideCents, formatCents, parseCents } from "@domain/money";
+import { divideMoney, formatMoneyInput, parseMoney } from "@domain/money";
 
 export type Pacing = "months" | "years";
 
@@ -44,7 +44,7 @@ export function calculateEffectiveCron({
 
   if (pacingPeriods == null) return { capUpdateValue, interval, unit };
 
-  const divided = divideCents(capUpdateValue, pacingPeriods);
+  const divided = divideMoney(capUpdateValue, pacingPeriods);
   return {
     capUpdateValue: divided.rounded,
     interval: 1,
@@ -68,7 +68,7 @@ export function unitPlural(count: number, unit: CronUnit): string {
 export function parseCapValue(value: string): number | undefined {
   if (value.trim() === "") return undefined;
   try {
-    return parseCents(value);
+    return parseMoney(value);
   } catch {
     return undefined;
   }
@@ -126,7 +126,7 @@ export function formatCapCredit(
   elapsedIntervals: number,
   capNumber: number | undefined,
 ): string {
-  return formatCents(elapsedIntervals * (capNumber ?? 0));
+  return formatMoneyInput(elapsedIntervals * (capNumber ?? 0));
 }
 
 export function shouldShowCapWarning(deps: {

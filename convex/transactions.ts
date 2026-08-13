@@ -15,8 +15,7 @@ import {
   transactionAccountingEffects,
   transactionRoleNames,
 } from "../domain/transactions";
-import { validateTransactionCents } from "../domain/money";
-import { MONEY_MIGRATION_VERSION } from "./lib/constants";
+import { validateTransactionAmount } from "../domain/money";
 
 const TITLE_USAGE_RETENTION_MS = 365 * 24 * 60 * 60 * 1000;
 const TITLE_USAGE_CLEANUP_BATCH_SIZE = 100;
@@ -42,7 +41,7 @@ function transactionsQuery(ctx: any, userId: string, pipeIds: string[] | undefin
 export const createTransaction = mutation({
   args: {
     title: v.string(),
-    valueCents: v.number(),
+    value: v.number(),
     date: v.number(),
     from: v.optional(v.id("pipes")),
     to: v.optional(v.id("pipes")),
@@ -51,7 +50,7 @@ export const createTransaction = mutation({
   handler: async (ctx, args) => {
     const userId = await requireAuth(ctx);
     const usageNow = Date.now();
-    const value = args.valueCents;
+    const value = args.value;
 
     if (args.paidFrom && (!args.from || args.to)) {
       throw new Error("Pay by transfer requires from and paidFrom only");
@@ -61,7 +60,7 @@ export const createTransaction = mutation({
       throw new Error("Either 'from' or 'to' must be provided");
     }
     const kind = deriveTransactionKind(args);
-    validateTransactionCents(value, kind === "feed" ? "feed" : "transaction");
+    validateTransactionAmount(value, kind === "feed" ? "feed" : "transaction");
     for (const pipeId of new Set([args.from, args.to, args.paidFrom])) {
       if (!pipeId) continue;
       const pipe = await ctx.db.get("pipes", pipeId);
@@ -87,7 +86,6 @@ export const createTransaction = mutation({
         kind,
         from: undefined,
         to: args.to,
-        moneyMigrationVersion: MONEY_MIGRATION_VERSION,
         userId,
       });
 
@@ -166,7 +164,6 @@ export const createTransaction = mutation({
         kind,
         from: pipeId,
         paidFrom: args.paidFrom,
-        moneyMigrationVersion: MONEY_MIGRATION_VERSION,
         userId,
       });
       await updateOrCreateTitleUsage(ctx, {
@@ -225,7 +222,6 @@ export const createTransaction = mutation({
       kind,
       from: pipeId,
       to: args.to,
-      moneyMigrationVersion: MONEY_MIGRATION_VERSION,
       userId,
     });
 
@@ -242,7 +238,7 @@ export const editTransaction = mutation({
   args: {
     transactionId: v.id("transactions"),
     title: v.string(),
-    valueCents: v.number(),
+    value: v.number(),
     date: v.number(),
   },
   handler: async (ctx, args) => {
@@ -264,9 +260,9 @@ export const editTransaction = mutation({
       if (pipe?.deletionJobId) throw new Error("Pipe is being deleted");
     }
 
-    const valueDiff = args.valueCents - tx.value;
-    validateTransactionCents(
-      args.valueCents,
+    const valueDiff = args.value - tx.value;
+    validateTransactionAmount(
+      args.value,
       tx.kind === "feed" ? "feed" : "transaction",
     );
 
@@ -276,7 +272,7 @@ export const editTransaction = mutation({
         const paidFromPipe = await ctx.db.get(tx.paidFrom);
         if (!fromPipe || !paidFromPipe) throw new Error("Pipe not found");
 
-        if (args.valueCents > 0) {
+        if (args.value > 0) {
           if (paidFromPipe.parentId) {
             throw new Error("Refund destination must be a root outside the transaction tree");
           }
@@ -340,9 +336,8 @@ export const editTransaction = mutation({
 
     await ctx.db.patch(args.transactionId, {
       title: args.title.toLowerCase(),
-      value: args.valueCents,
+      value: args.value,
       date: args.date,
-      moneyMigrationVersion: MONEY_MIGRATION_VERSION,
     });
   },
 });

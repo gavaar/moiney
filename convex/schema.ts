@@ -17,7 +17,6 @@ export default defineSchema({
     fromIcon: v.optional(v.string()),
     toIcon: v.optional(v.string()),
     paidFromIcon: v.optional(v.string()),
-    moneyMigrationVersion: v.optional(v.number()),
     userId: v.id("users"),
   })
     .index("by_from", ["from"])
@@ -30,7 +29,6 @@ export default defineSchema({
     email: v.string(),
     password: v.string(),
     picture: v.optional(v.id("_storage")),
-    moneyMigrationVersion: v.optional(v.number()),
   }).index("by_username", ["username"]),
   sessions: defineTable({
     userId: v.id("users"),
@@ -90,7 +88,6 @@ export default defineSchema({
     fed: v.number(),
     spent: v.number(),
     deletionJobId: v.optional(v.id("pipeDeletionJobs")),
-    moneyMigrationVersion: v.optional(v.number()),
     rule: v.optional(v.union(v.literal("spend_overflow"), v.literal("any_spend"), v.literal("cron"))),
     // rule options
     capUpdateValue: v.optional(v.number()),

@@ -1,131 +1,93 @@
 import { describe, expect, it } from "vitest";
 import {
-  MAX_CENTS,
-  formatCents,
-  migrateNumberToCents,
-  parseCents,
-  allocateRoundedCents,
-  migratePipeForest,
-  resolveCents,
-  validateTransactionCents,
+  MAX_AMOUNT,
+  assertAmountLimit,
+  divideMoney,
+  formatMoneyInput,
+  parseMoney,
+  validateTransactionAmount,
 } from "./money";
 
-describe("parseCents", () => {
+describe("parseMoney", () => {
+  it("returns a plain number", () => {
+    type IsExactlyNumber<T> = [T] extends [number]
+      ? [number] extends [T]
+        ? true
+        : false
+      : false;
+
+    const result: IsExactlyNumber<ReturnType<typeof parseMoney>> = true;
+    expect(result).toBe(true);
+  });
+
   it.each([
     ["12.34", 1234],
     ["-0.05", -5],
     ["0", 0],
     ["1000000000.00", 100000000000],
-  ])("parses %s as %s cents", (input, expected) => {
-    expect(parseCents(input)).toBe(expected);
+  ])("parses %s as %s", (input, expected) => {
+    expect(parseMoney(input)).toBe(expected);
   });
 
-  it.each(["", "-", "1.234", "1000000000.01", "12e2"]) (
+  it.each(["", "-", "1.234", "1000000000.01", "12e2"])(
     "rejects invalid amount %s",
     (input) => {
-      expect(() => parseCents(input)).toThrow();
+      expect(() => parseMoney(input)).toThrow();
     },
   );
 });
 
-describe("validateTransactionCents", () => {
-  it("accepts positive feed amounts and nonzero signed transaction amounts", () => {
-    expect(validateTransactionCents(1, "feed")).toBe(1);
-    expect(validateTransactionCents(-1, "transaction")).toBe(-1);
-    expect(validateTransactionCents(1, "transaction")).toBe(1);
+describe("assertAmountLimit", () => {
+  it("accepts safe integer amounts within the configured limit", () => {
+    expect(assertAmountLimit(1234)).toBe(1234);
+  });
+
+  it.each([1.5, MAX_AMOUNT + 1])("rejects invalid amount %s", (amount) => {
+    expect(() => assertAmountLimit(amount)).toThrow();
+  });
+});
+
+describe("validateTransactionAmount", () => {
+  it("accepts positive feeds and nonzero signed transactions", () => {
+    expect(validateTransactionAmount(1, "feed")).toBe(1);
+    expect(validateTransactionAmount(-1, "transaction")).toBe(-1);
+    expect(validateTransactionAmount(1, "transaction")).toBe(1);
   });
 
   it.each([
     [0, "feed"],
     [0, "transaction"],
     [1.5, "transaction"],
-    [MAX_CENTS + 1, "transaction"],
+    [MAX_AMOUNT + 1, "transaction"],
   ] as const)("rejects invalid amount %s for %s", (value, kind) => {
-    expect(() => validateTransactionCents(value, kind)).toThrow();
+    expect(() => validateTransactionAmount(value, kind)).toThrow();
   });
 });
 
-describe("migrateNumberToCents", () => {
-  it.each([
-    [1.005, 101],
-    [-1.005, -101],
-    [12.345, 1235],
-    [-12.345, -1235],
-    [0.004, 0],
-    [-0.005, -1],
-  ])("rounds %s half away from zero to %s cents", (input, expected) => {
-    expect(migrateNumberToCents(input)).toBe(expected);
-  });
-});
-
-describe("formatCents", () => {
+describe("formatMoneyInput", () => {
   it.each([
     [1234, "12.34"],
     [-5, "-0.05"],
     [0, "0.00"],
-  ])("formats %s cents as %s", (input, expected) => {
-    expect(formatCents(input)).toBe(expected);
+  ])("formats %s as %s", (input, expected) => {
+    expect(formatMoneyInput(input)).toBe(expected);
   });
 });
 
-describe("resolveCents", () => {
-  it("prefers an already migrated cents value", () => {
-    expect(resolveCents(1234, 99.99)).toBe(1234);
+describe("divideMoney", () => {
+  it("rounds to the nearest integer amount and reports drift", () => {
+    expect(divideMoney(100, 3)).toEqual({
+      rounded: 33,
+      remainder: 1,
+      drift: -1,
+    });
   });
 
-  it("converts a legacy major-unit value when cents are absent", () => {
-    expect(resolveCents(undefined, 12.34)).toBe(1234);
-  });
-});
-
-describe("allocateRoundedCents", () => {
-  it("preserves a rounded total with stable remainder assignment", () => {
-    expect(
-      allocateRoundedCents([
-        { id: "b", value: 0.005 },
-        { id: "a", value: 0.005 },
-        { id: "c", value: 0 },
-      ]),
-    ).toEqual([
-      { id: "b", cents: 0 },
-      { id: "a", cents: 1 },
-      { id: "c", cents: 0 },
-    ]);
-  });
-
-  it("preserves a rounded negative total with stable remainder assignment", () => {
-    expect(
-      allocateRoundedCents([
-        { id: "b", value: -0.005 },
-        { id: "a", value: -0.005 },
-        { id: "c", value: 0 },
-      ]),
-    ).toEqual([
-      { id: "b", cents: 0 },
-      { id: "a", cents: -1 },
-      { id: "c", cents: 0 },
-    ]);
-  });
-});
-
-describe("migratePipeForest", () => {
-  it("converts each root tree while preserving its rounded fed total", () => {
-    expect(
-      migratePipeForest([
-        { id: "root", fed: 0.005, capacity: 1, spent: 0 },
-        { id: "child", parentId: "root", fed: 0.005, capacity: 1, spent: 0 },
-      ]),
-    ).toEqual([
-      { id: "root", parentId: undefined, fedCents: 0, capacityCents: 100, spentCents: 0 },
-      { id: "child", parentId: "root", fedCents: 1, capacityCents: 100, spentCents: 0 },
-    ]);
-  });
-
-  it("rejects an invalid pipe topology", () => {
-    expect(() =>
-      migratePipeForest([
-        { id: "root", parentId: "missing", fed: 0, capacity: 1, spent: 0 },
-      ]),
-    ).toThrow("Pipe parent not found");
+  it("rounds negative values away from zero at a half", () => {
+    expect(divideMoney(-5, 2)).toEqual({
+      rounded: -3,
+      remainder: -1,
+      drift: -1,
+    });
   });
 });

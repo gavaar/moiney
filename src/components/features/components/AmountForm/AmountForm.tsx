@@ -15,7 +15,7 @@ import { Input } from "@ui/Input";
 import { SlideToggle } from "@ui/SlideToggle";
 import { useAlert } from "@ui/Alert";
 import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
-import { parseCents } from "@domain/money";
+import { parseMoney } from "@domain/money";
 import {
   buildPipeItems,
   buildPaidFromPipeItems,
@@ -72,8 +72,8 @@ export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: 
   const isValidAmount = useMemo(() => {
     if (value === "" || value === "-") return false;
     try {
-      const cents = parseCents(value);
-      return isFeed ? cents > 0 : cents !== 0;
+      const amount = parseMoney(value);
+      return isFeed ? amount > 0 : amount !== 0;
     } catch {
       return false;
     }
@@ -166,11 +166,11 @@ export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: 
   const editTransaction = useMutation(api.transactions.editTransaction);
 
   const handleEditSubmit = useCallback(async () => {
-    const valueCents = parseCents(value);
+    const amount = parseMoney(value);
     await editTransaction({
       transactionId: initState?.transactionId!,
       title,
-      valueCents,
+      value: amount,
       date: date.getTime(),
     });
     resetForm();
@@ -178,18 +178,18 @@ export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: 
   }, [title, value, date, initState?.transactionId, onSuccess, resetForm, editTransaction]);
 
   const handleRepeatSubmit = useCallback(async () => {
-    const valueCents = parseCents(value);
+    const amount = parseMoney(value);
     if (isFeed) {
       await createTransaction({
         title: title.trim(),
-        valueCents,
+        value: amount,
         date: date.getTime(),
         to: pipeId,
       });
     } else {
       await createTransaction({
         title,
-        valueCents,
+        value: amount,
         date: date.getTime(),
         from: pipeId,
         ...(spendMode === "transfer" && sentToPipeId ? { to: sentToPipeId } : {}),

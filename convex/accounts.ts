@@ -1,7 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery, query } from "./_generated/server";
 import { canonicalizeUsername } from "./lib/usernames";
-import { MONEY_MIGRATION_VERSION } from "./lib/constants";
 
 export const isUsernameAvailable = query({
   args: { username: v.string() },
@@ -61,7 +60,6 @@ export const registerWithSession = internalMutation({
       username,
       email: args.email,
       password: args.password,
-      moneyMigrationVersion: MONEY_MIGRATION_VERSION,
     });
     const sessionId = await ctx.db.insert("sessions", {
       userId,

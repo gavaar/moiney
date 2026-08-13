@@ -477,7 +477,7 @@ describe("AmountForm", () => {
       await waitFor(() => {
         expect(mockCreateTransaction).toHaveBeenCalledWith({
           title: "groceries",
-          valueCents: 10050,
+          value: 10050,
           date: date.getTime(),
           to: PIPE_ID,
         });
@@ -675,7 +675,7 @@ describe("AmountForm", () => {
       await waitFor(() => {
         expect(mockCreateTransaction).toHaveBeenCalledWith({
           title: "Lunch",
-          valueCents: -1250,
+          value: -1250,
           date: date.getTime(),
           from: PIPE_ID,
         });
@@ -702,7 +702,7 @@ describe("AmountForm", () => {
       await waitFor(() => {
         expect(mockCreateTransaction).toHaveBeenCalledWith({
           title: "Lunch",
-          valueCents: -1250,
+          value: -1250,
           date: date.getTime(),
           from: PIPE_ID,
           to: "feed-1",
@@ -788,7 +788,7 @@ describe("AmountForm", () => {
       await waitFor(() => {
         expect(mockCreateTransaction).toHaveBeenCalledWith({
           title: "Coffee",
-          valueCents: -500,
+          value: -500,
           date: date.getTime(),
           from: PIPE_ID,
           paidFrom: "feed-2",
@@ -980,7 +980,7 @@ describe("AmountForm", () => {
         await waitFor(() => {
           expect(mockCreateTransaction).toHaveBeenCalledWith({
             title: "salary",
-            valueCents: 100000,
+            value: 100000,
             date: date.getTime(),
             to: PIPE_ID,
           });
@@ -1012,7 +1012,7 @@ describe("AmountForm", () => {
         await waitFor(() => {
           expect(mockCreateTransaction).toHaveBeenCalledWith({
             title: "lunch",
-            valueCents: 1550,
+            value: 1550,
             date: date.getTime(),
             from: PIPE_ID,
           });
@@ -1048,7 +1048,7 @@ describe("AmountForm", () => {
         await waitFor(() => {
           expect(mockCreateTransaction).toHaveBeenCalledWith({
             title: "transfer",
-            valueCents: -5000,
+            value: -5000,
             date: date.getTime(),
             from: PIPE_ID,
             to: "feed-1",
@@ -1099,7 +1099,7 @@ describe("AmountForm", () => {
           expect(mockEditTransactionFn).toHaveBeenCalledWith({
             transactionId: "tx-1",
             title: "new lunch",
-            valueCents: 2000,
+            value: 2000,
             date: date.getTime(),
           });
         });
@@ -1151,7 +1151,7 @@ describe("AmountForm", () => {
         await waitFor(() => {
           expect(mockCreateTransaction).toHaveBeenCalledWith({
             title: "rent",
-            valueCents: -5000,
+            value: -5000,
             date: date.getTime(),
             from: "child-1",
             paidFrom: "feed-2",

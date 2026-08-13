@@ -27,7 +27,7 @@ This roadmap persists the whole-project audit beyond any single chat session. Wo
 | 6a. Pipe module boundaries | Completed | Separate shared pipe logic and deletion operations while preserving Convex registration paths | Update 6 |
 | 7. Independent correctness fixes | Completed | Repair selection, back handling, description clearing, cron diff, input handlers, recent-title selection, and loading states | Relevant focused tests |
 | 8. Shared domain core | Completed | Introduce deep pure modules for transaction identity/accounting, pipe graph/reconciliation, and cron schedules without changing monetary representation | D001-D003 |
-| 9. Integer cents migration | In progress | Replace floating-point monetary persistence and arithmetic with integer cents | Update 8, D001 |
+| 9. Integer cents migration | Completed | Replace floating-point monetary persistence and arithmetic with integer cents | Update 8, D001 |
 | 10. Financial mutation semantics | Pending | Define corrections, rule effects, idempotency, and accounting projections | Updates 8-9 |
 | 11. Convex model boundaries | Pending | Make registered functions thin, validated, authorized wrappers over deep model operations | Updates 1-3, 8-10 |
 | 12. Bounded backend work | Pending | Scope recascade, batch cleanup/crons/deletion, and index hot transaction queries | Updates 6, 10-11 plus measurements |
@@ -40,7 +40,6 @@ This roadmap persists the whole-project audit beyond any single chat session. Wo
 
 - Backend financial and topology invariants are incomplete.
 - Transaction involvement is inconsistent across grouping, filtering, and deletion.
-- Floating-point monetary arithmetic cannot guarantee exact conservation.
 - Several maintenance functions and transaction scans are unbounded.
 
 ## Refactor Targets
@@ -64,15 +63,10 @@ Update 15 must report before-and-after measurements rather than relying only on 
 
 ## Current Next Step
 
-Update 9 is in progress. The framework-independent money core parses and formats
-cents, backend mutation arguments use cents-specific names, UI inputs convert at
-the boundary, and versioned resumable migrations cover transactions and pipes.
-The empty `pipeDeletionJobs` table is intentionally excluded from the backfill;
-new transaction, pipe, and user writes carry migration markers, and new deletion
-jobs are written directly in cents. Mixed legacy/new pipe trees are handled
-without double conversion. The next step is a dry run and invariant verification
-against the development deployment, followed by the persisted-data cutover;
-version/update gating remains explicitly deferred.
+Update 9 is complete. The framework-independent money core parses, validates,
+and formats integer-cents amounts; backend mutation arguments use canonical
+names; and persisted monetary values have been migrated and verified. Future
+work continues with Update 10 financial mutation semantics.
 
 ## Completed Accessibility Layout Work
 
