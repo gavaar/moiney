@@ -137,7 +137,7 @@ describe("RuleModal", () => {
 
     expect(h.updatePipeRule).toHaveBeenCalledWith(
       expect.objectContaining({
-        capUpdateValueCents: 10000,
+        capUpdateValue: 10000,
         interval: 1,
         unit: "months",
       }),
@@ -232,7 +232,7 @@ describe("RuleModal", () => {
     expect(h.updatePipeRule).toHaveBeenCalledWith({
       pipeId: pId("pipe-1"),
       rule: "any_spend",
-      capUpdateValueCents: 5000,
+      capUpdateValue: 5000,
     });
   });
 
@@ -265,7 +265,7 @@ describe("RuleModal", () => {
     expect(h.updatePipeRule).toHaveBeenCalledWith({
       pipeId: pId("pipe-1"),
       rule: "any_spend",
-      capUpdateValueCents: undefined,
+      capUpdateValue: undefined,
     });
     expect(onClose).not.toHaveBeenCalled();
   });
@@ -305,7 +305,7 @@ describe("RuleModal", () => {
         rule: "cron",
         interval: 2,
         unit: "months",
-        capUpdateValueCents: 5000,
+        capUpdateValue: 5000,
         starting: expect.any(Number),
       }),
     );
@@ -316,7 +316,7 @@ describe("RuleModal", () => {
     renderModal(
       basePipe({
         rule: "cron",
-      capUpdateValueCents: 5000,
+      capUpdateValue: 5000,
         cronInterval: { interval: 1, unit: "months" },
         cronNextDate: Date.UTC(2026, 0, 15, 12),
       }),

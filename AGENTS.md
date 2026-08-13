@@ -70,6 +70,7 @@ The current structure contains known boundary violations and oversized modules. 
 - Keep genuine UI primitives independent of feature modules and generated Convex document types.
 - Normalize backend data at feature boundaries instead of scattering casts through render code.
 - Prefer deep modules that hide representation and invariants over many pass-through wrappers.
+- Remove functions that only return a call to another function; call the underlying function directly unless the wrapper adds meaningful behavior or establishes a necessary boundary.
 - Keep pure domain calculations separate from React state and Convex database orchestration.
 - Split components by responsibility and state ownership, not by a line-count rule alone.
 - Keep contexts narrow, fail loudly outside providers, and scope providers to actual consumers.
@@ -98,8 +99,8 @@ Known violations remain in the backlog. Fix them in the agreed order rather than
 ## Financial Domain Rules
 
 - Consult `docs/domain-decisions.md`; it distinguishes current behavior from accepted target behavior.
-- Money currently uses floating-point values. Integer cents are accepted but not yet implemented.
-- Do not introduce another monetary representation or assume the cents migration is complete.
+- Money is persisted and calculated as whole integer cents.
+- Do not introduce another monetary representation or convert integer cents back to major-unit decimals.
 - Any accounting mutation must have tests for conservation, negative values, and boundary cases.
 - Consider `from`, `to`, and `paidFrom` whenever determining transaction involvement.
 - Enforce pipe topology and transaction eligibility on the backend, not only in the UI.

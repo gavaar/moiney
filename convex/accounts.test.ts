@@ -122,7 +122,6 @@ describe("registerWithSession", () => {
       username: "alice",
       email: "alice@example.com",
       password: "password-hash",
-      moneyMigrationVersion: 1,
     });
     expect(insert).toHaveBeenNthCalledWith(
       2,

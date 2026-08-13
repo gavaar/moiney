@@ -101,7 +101,7 @@ describe("AddPipeModal", () => {
         icon: "pipe",
         description: undefined,
         priority: 0,
-        capacityCents: 0,
+        capacity: 0,
         parentId,
       });
     });

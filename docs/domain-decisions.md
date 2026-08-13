@@ -16,9 +16,12 @@ Agents must not describe an accepted target as current behavior until its status
 
 ## D001: Monetary Representation
 
-Status: In progress
+Status: Implemented
 
-The application code now accepts and calculates new monetary inputs as whole integer cents, and the versioned migration definitions are ready to convert legacy persisted transactions and pipe trees in place. The `pipeDeletionJobs` table is empty in the migration deployment, so it is intentionally excluded from the backfill; new deletion jobs are written in cents and do not carry a migration marker. Existing persisted documents remain mixed until the migration is run and verified.
+All persisted monetary values are whole integer amounts of cents. The completed
+data migration converted existing transactions and pipe trees, and the
+migration markers and temporary migration machinery were then removed. New
+deletion jobs store their accounting values in cents directly.
 
 The accepted target is a single currency represented as whole integer cents. For example, `12.34` is stored as `1234` cents and `-15.99` as `-1599` cents.
 
@@ -31,7 +34,8 @@ The implementation must define and test:
 - persistence migration or an explicitly approved reset of disposable data
 - conservation across feeds, spending, transfers, refunds, and allocation
 
-Until the migration completes, do not claim that every persisted value is cents or remove the migration-window markers and safeguards.
+The migration window is complete. New code must preserve the integer-cents
+representation and its conservation, validation, and boundary rules.
 
 ## D002: Pipe Deletion And Transaction History
 
@@ -148,5 +152,5 @@ independent root `domain/` boundary. Convex modules retain database reads,
 writes, authorization, and scheduling orchestration; UI modules consume the
 domain APIs without importing Convex implementation modules.
 
-This extraction does not change the current monetary representation. Values
-remain JavaScript floating-point numbers until D001 is implemented.
+This extraction uses the integer-cents monetary representation established by
+D001.
