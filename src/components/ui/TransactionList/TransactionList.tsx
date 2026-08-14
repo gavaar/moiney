@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { ActivityIndicator, FlatList, Text, View } from "react-native";
+import type { Id } from "@convex/_generated/dataModel";
 import { TransactionItem } from "@ui/TransactionItem";
 import { StackedTransactionItem } from "./components";
 import { groupTransactions } from "@features/transactions/groupTransactions";
@@ -8,11 +9,12 @@ import type { TransactionWithPipeIcons } from "@/lib/transactions/types";
 import { colors } from "@/lib/styles";
 import { buildFlatItems } from './helpers';
 
-type TransactionListProps = {
+export type TransactionListProps = {
   transactions: TransactionWithPipeIcons[] | undefined;
   isLoading?: boolean;
   onLoadMore?: () => void;
   loadMoreStatus?: "LoadingFirstPage" | "CanLoadMore" | "LoadingMore" | "Exhausted";
+  onShowEditHistory?: (transactionId: Id<"transactions">) => void;
 };
 
 export function TransactionList({
@@ -20,6 +22,7 @@ export function TransactionList({
   isLoading,
   onLoadMore,
   loadMoreStatus,
+  onShowEditHistory,
 }: TransactionListProps) {
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
 
@@ -94,14 +97,14 @@ export function TransactionList({
             />
           );
         }
-        if (item.kind === "child") {
-          return (
-            <View className="ml-4">
-              <TransactionItem transaction={item.transaction} />
-            </View>
-          );
-        }
-        return <TransactionItem transaction={item.transaction} />;
+        return (
+          <View className={item.kind === "child" ? "ml-4" : ""}>
+            <TransactionItem
+              transaction={item.transaction}
+              onShowEditHistory={onShowEditHistory}
+            />
+          </View>
+        );
       }}
       ListFooterComponent={() =>
         loadMoreStatus === "LoadingMore" ? (

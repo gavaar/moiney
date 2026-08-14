@@ -154,3 +154,18 @@ domain APIs without importing Convex implementation modules.
 
 This extraction uses the integer-cents monetary representation established by
 D001.
+
+## D011: Transaction Edit History
+
+Status: Implemented
+
+Editing a transaction updates its current snapshot and records one linked
+correction document containing the previous and current title, value, and date.
+The normal transaction list shows only the current snapshot and exposes an
+`Edited` history control. Correction history is paginated, authorized through
+the owning transaction, and displayed in a read-only modal. Correction
+documents do not appear as ordinary transaction rows or affect grouping.
+
+Broader accounting semantics for edits across rule-execution boundaries remain
+part of Update 10; the current feature preserves the existing balance-adjustment
+behavior while making the edit history visible and auditable.

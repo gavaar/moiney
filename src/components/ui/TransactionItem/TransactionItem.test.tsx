@@ -113,6 +113,22 @@ describe("TransactionItem", () => {
     expect(screen.getByText("-50.00")).toBeDefined();
   });
 
+  it("opens edit history from the Edited control", () => {
+    const onShowEditHistory = vi.fn();
+    const transaction = { ...baseTx, editedAt: Date.now() };
+
+    render(
+      <TransactionItem
+        transaction={transaction}
+        onShowEditHistory={onShowEditHistory}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("transaction-edit-history"));
+
+    expect(onShowEditHistory).toHaveBeenCalledWith(transaction._id);
+  });
+
   it("renders positive value without sign", () => {
     const tx = { ...baseTx, value: 12050 };
     render(<TransactionItem transaction={tx} />);

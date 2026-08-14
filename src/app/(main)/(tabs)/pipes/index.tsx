@@ -19,7 +19,7 @@ import { useTransactions } from "@features/transactions/context/TransactionsCont
 import { InnerPipesScreen } from "@features/pipes/InnerPipesScreen";
 import { PipeTreeView } from "@features/pipes/PipeTreeView";
 import { FeedListScreen } from "@features/pipes/FeedListScreen";
-import { TransactionList } from "@ui/TransactionList";
+import { TransactionListWithHistory } from "@features/transactions/TransactionListWithHistory";
 
 export default function Pipes() {
   const [treeMode, setTreeMode] = useState(false);
@@ -126,7 +126,7 @@ export default function Pipes() {
               entering={FadeInDown.duration(220)}
               exiting={FadeOutUp.duration(220)}
             >
-              <TransactionList
+              <TransactionListWithHistory
                 transactions={transactions}
                 isLoading={transactionLoading}
               />
