@@ -17,6 +17,7 @@ export default defineSchema({
     fromIcon: v.optional(v.string()),
     toIcon: v.optional(v.string()),
     paidFromIcon: v.optional(v.string()),
+    editedAt: v.optional(v.number()),
     userId: v.id("users"),
   })
     .index("by_from", ["from"])
@@ -24,6 +25,21 @@ export default defineSchema({
     .index("by_paidFrom", ["paidFrom"])
     .index("by_userId", ["userId"])
     .index("by_userId_date", ["userId", "date"]),
+  transactionCorrections: defineTable({
+    transactionId: v.id("transactions"),
+    userId: v.id("users"),
+    editedAt: v.number(),
+    previous: v.object({
+      title: v.string(),
+      value: v.number(),
+      date: v.number(),
+    }),
+    current: v.object({
+      title: v.string(),
+      value: v.number(),
+      date: v.number(),
+    }),
+  }).index("by_transactionId", ["transactionId", "editedAt"]),
   users: defineTable({
     username: v.string(),
     email: v.string(),
