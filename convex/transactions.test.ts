@@ -3,6 +3,7 @@ import {
   cleanupStaleTitleUsage,
   createTransaction,
   editTransaction,
+  listTransactionCorrectionsPaginated,
 } from "./transactions";
 
 vi.mock("./lib/auth", () => ({
@@ -17,6 +18,11 @@ function mockDb() {
     first: vi.fn().mockResolvedValue(null),
     collect: vi.fn().mockResolvedValue([]),
     take: vi.fn().mockResolvedValue([]),
+    paginate: vi.fn().mockResolvedValue({
+      page: [],
+      isDone: true,
+      continueCursor: "done",
+    }),
   };
   return {
     get: vi.fn(),
@@ -374,6 +380,31 @@ describe("editTransaction", () => {
   });
 
   describe("spend transaction", () => {
+    it("records one correction when the transaction is edited", async () => {
+      const ctx = mockCtx();
+      const tx = { ...BASE_TX, from: "pipe-1", to: undefined };
+      ctx.db.get.mockImplementation((id: string) => {
+        if (id === "tx-1") return tx;
+        if (id === "pipe-1") return { ...A_PIPE, spent: 100 };
+        return null;
+      });
+
+      await (editTransaction as any)._handler(ctx, {
+        transactionId: "tx-1",
+        title: "new title",
+        value: -80,
+        date: 3000,
+      });
+
+      expect(ctx.db.insert).toHaveBeenCalledWith("transactionCorrections", {
+        transactionId: "tx-1",
+        userId: "user-1",
+        editedAt: expect.any(Number),
+        previous: { title: "old title", value: -50, date: 2000 },
+        current: { title: "new title", value: -80, date: 3000 },
+      });
+    });
+
     it("patches transaction and adjusts from.spent when value changes", async () => {
       const ctx = mockCtx();
       const tx = { ...BASE_TX, from: "pipe-1", to: undefined };
@@ -390,14 +421,14 @@ describe("editTransaction", () => {
         date: 3000,
       });
 
-      expect(ctx.db.patch).toHaveBeenCalledWith("tx-1", {
+      expect(ctx.db.patch).toHaveBeenCalledWith("tx-1", expect.objectContaining({
         title: "new title",
         value: -80,
         date: 3000,
-      });
+        editedAt: expect.any(Number),
+      }));
       expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", { spent: 130 });
       expect(ctx.db._chain.collect).toHaveBeenCalled();
-      expect(ctx.db.insert).not.toHaveBeenCalled();
     });
 
     it("rejects editing a transaction with an embedded deleted-role icon", async () => {
@@ -433,11 +464,12 @@ describe("editTransaction", () => {
         date: 4000,
       });
 
-      expect(ctx.db.patch).toHaveBeenCalledWith("tx-1", {
+      expect(ctx.db.patch).toHaveBeenCalledWith("tx-1", expect.objectContaining({
         title: "bonus",
         value: 1200,
         date: 4000,
-      });
+        editedAt: expect.any(Number),
+      }));
       expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", { fed: 700 });
     });
   });
@@ -460,11 +492,12 @@ describe("editTransaction", () => {
         date: 5000,
       });
 
-      expect(ctx.db.patch).toHaveBeenCalledWith("tx-1", {
+      expect(ctx.db.patch).toHaveBeenCalledWith("tx-1", expect.objectContaining({
         title: "new transfer",
         value: -80,
         date: 5000,
-      });
+        editedAt: expect.any(Number),
+      }));
       expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", { fed: 470 });
       expect(ctx.db.patch).toHaveBeenCalledWith("pipe-2", { fed: 230 });
     });
@@ -579,6 +612,55 @@ describe("editTransaction", () => {
         }),
       ).rejects.toThrow("Not authorized");
     });
+  });
+});
+
+describe("listTransactionCorrectionsPaginated", () => {
+  it("returns only the authorized transaction's correction history", async () => {
+    const ctx = mockCtx();
+    ctx.db.get.mockResolvedValue({ userId: "user-1" });
+    ctx.db._chain.paginate.mockResolvedValue({
+      page: [
+        {
+          _id: "correction-1",
+          editedAt: 3000,
+          previous: { title: "old", value: -50, date: 2000 },
+          current: { title: "new", value: -80, date: 3000 },
+        },
+      ],
+      isDone: true,
+      continueCursor: "done",
+    });
+
+    await expect(
+      (listTransactionCorrectionsPaginated as any)._handler(ctx, {
+        transactionId: "tx-1",
+        paginationOpts: { numItems: 20, cursor: null },
+      }),
+    ).resolves.toEqual({
+      page: [
+        {
+          correctionId: "correction-1",
+          editedAt: 3000,
+          previous: { title: "old", value: -50, date: 2000 },
+          current: { title: "new", value: -80, date: 3000 },
+        },
+      ],
+      isDone: true,
+      continueCursor: "done",
+    });
+  });
+
+  it("rejects a correction history request for another user's transaction", async () => {
+    const ctx = mockCtx();
+    ctx.db.get.mockResolvedValue({ userId: "other-user" });
+
+    await expect(
+      (listTransactionCorrectionsPaginated as any)._handler(ctx, {
+        transactionId: "tx-1",
+        paginationOpts: { numItems: 20, cursor: null },
+      }),
+    ).rejects.toThrow("Not authorized");
   });
 });
 

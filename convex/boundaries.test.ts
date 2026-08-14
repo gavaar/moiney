@@ -634,4 +634,42 @@ describe("Convex boundaries", () => {
       }),
     ).rejects.toThrow("Pipe is being deleted");
   });
+
+  it("accepts Convex pagination metadata for correction history", async () => {
+    const t = convexTest(schema, modules);
+    const { userId, transactionId } = await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", {
+        username: "alice",
+        email: "alice@example.com",
+        password: "hash",
+      });
+      const transactionId = await ctx.db.insert("transactions", {
+        userId,
+        title: "old",
+        kind: "expense",
+        value: -10,
+        date: 100,
+      });
+      await ctx.db.insert("transactionCorrections", {
+        transactionId,
+        userId,
+        editedAt: 200,
+        previous: { title: "old", value: -10, date: 100 },
+        current: { title: "new", value: -12, date: 200 },
+      });
+      return { userId, transactionId };
+    });
+
+    const result = await t.withIdentity({ subject: userId }).query(
+      api.transactions.listTransactionCorrectionsPaginated,
+      {
+        transactionId,
+        paginationOpts: { numItems: 20, cursor: null },
+      },
+    );
+
+    expect(result.page).toHaveLength(1);
+    expect(result.pageStatus).toBeNull();
+    expect(result.splitCursor).toBeNull();
+  });
 });

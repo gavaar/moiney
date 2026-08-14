@@ -1,7 +1,7 @@
 import { Pressable, Text, View } from "react-native";
 import { Icon, safeIconName } from "@ui/Icon";
 import { cn, colors } from "@/lib/styles";
-import type { Doc } from "@convex/_generated/dataModel";
+import type { Id } from "@convex/_generated/dataModel";
 import { ModalShell } from '../Modal';
 import { AmountForm } from '@features/components/AmountForm';
 import { useState } from 'react';
@@ -12,6 +12,7 @@ import type { TransactionWithPipeIcons } from "@/lib/transactions/types";
 
 type TransactionItemProps = {
   transaction: TransactionWithPipeIcons;
+  onShowEditHistory?: (transactionId: Id<"transactions">) => void;
 };
 
 const DATE_FORMAT: Intl.DateTimeFormatOptions = {
@@ -20,7 +21,7 @@ const DATE_FORMAT: Intl.DateTimeFormatOptions = {
   year: "numeric",
 };
 
-export function TransactionItem({ transaction }: TransactionItemProps) {
+export function TransactionItem({ transaction, onShowEditHistory }: TransactionItemProps) {
   const kind = resolveTransactionKind(transaction);
   const isFeed = kind === "feed";
   const isTransfer = kind === "transfer";
@@ -93,50 +94,65 @@ export function TransactionItem({ transaction }: TransactionItemProps) {
   }
 
   return (
-    <Pressable
-      className={cn(
-        "flex-row gap-1 items-center rounded-2xl border border-border px-2 py-2",
-        bgClass,
-      )}
-      onPress={handlePress}
-    >
-      <Icon
-        name={safeIconName(isFeed ? icons.to.name : isPayByTransfer ? icons.paidFrom.name : icons.from.name)}
-        size={16}
-        color={isFeed ? icons.to.color : isPayByTransfer ? icons.paidFrom.color : icons.from.color}
-      />
+    <View className="flex-row gap-1 items-center">
+      <Pressable
+        className={cn(
+          "flex-1 flex-row gap-1 items-center rounded-2xl border border-border px-2 py-2",
+          bgClass,
+        )}
+        onPress={handlePress}
+      >
+        <Icon
+          name={safeIconName(isFeed ? icons.to.name : isPayByTransfer ? icons.paidFrom.name : icons.from.name)}
+          size={16}
+          color={isFeed ? icons.to.color : isPayByTransfer ? icons.paidFrom.color : icons.from.color}
+        />
 
-      {isTransfer || isPayByTransfer ? (
-        <>
-          <Icon name={isNegative ? "ray-start-arrow" : "ray-end-arrow"} size={14} color={colors.muted} />
-          <Icon
-            name={safeIconName(isPayByTransfer ? icons.from.name : icons.to.name)}
-            size={16}
-            color={isPayByTransfer ? icons.from.color : icons.to.color}
-          />
-        </>
+        {isTransfer || isPayByTransfer ? (
+          <>
+            <Icon name={isNegative ? "ray-start-arrow" : "ray-end-arrow"} size={14} color={colors.muted} />
+            <Icon
+              name={safeIconName(isPayByTransfer ? icons.from.name : icons.to.name)}
+              size={16}
+              color={isPayByTransfer ? icons.from.color : icons.to.color}
+            />
+          </>
+        ) : null}
+
+        <Text
+          className={cn(
+            "font-bold text-sm flex-1 ml-0.5",
+            disabled ? "text-muted" : "text-text",
+          )}
+          numberOfLines={1}
+        >
+          {transaction.title.charAt(0).toUpperCase() + transaction.title.slice(1)}
+        </Text>
+        <Text className={cn("text-xs mr-4", disabled ? "text-muted" : "text-white")}>
+          {new Date(transaction.date).toLocaleDateString("en-US", DATE_FORMAT)}
+        </Text>
+        <Text
+          className={cn(
+            "text-sm font-bold w-16 mr-2 text-right",
+            disabled ? "text-muted" : "text-white",
+          )}
+        >
+          {formatAmount(transaction.value)}
+        </Text>
+      </Pressable>
+
+      {transaction.editedAt && onShowEditHistory ? (
+        <Pressable
+          testID="transaction-edit-history"
+          className="items-center justify-center rounded-2xl border border-border bg-surface px-2"
+          accessibilityRole="button"
+          accessibilityLabel={`View edit history for ${transaction.title}`}
+          onPress={() => onShowEditHistory(transaction._id)}
+        >
+          <Icon name="history" size={15} color={colors.muted} />
+          <Text className="text-muted text-[10px]">Edited</Text>
+        </Pressable>
       ) : null}
-
-      <Text
-        className={cn(
-          "font-bold text-sm flex-1 ml-0.5",
-          disabled ? "text-muted" : "text-text",
-        )}
-        numberOfLines={1}
-      >
-        {transaction.title.charAt(0).toUpperCase() + transaction.title.slice(1)}
-      </Text>
-      <Text className={cn("text-xs mr-4", disabled ? "text-muted" : "text-white")}>
-        {new Date(transaction.date).toLocaleDateString("en-US", DATE_FORMAT)}
-      </Text>
-      <Text
-        className={cn(
-          "text-sm font-bold w-16 mr-2 text-right",
-          disabled ? "text-muted" : "text-white",
-        )}
-      >
-        {formatAmount(transaction.value)}
-      </Text>
 
       <ModalShell visible={showForm} onClose={() => setShowForm(false)}>
         {primaryPipe && <AmountForm variant="transaction" pipeId={primaryPipe._id} initState={amountFormInitState} />}
@@ -152,6 +168,6 @@ export function TransactionItem({ transaction }: TransactionItemProps) {
           </Text>
         </View>
       </ModalShell>
-    </Pressable>
+    </View>
   );
 }

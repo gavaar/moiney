@@ -1,7 +1,10 @@
 import { v } from "convex/values";
 import { internalMutation, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { paginationOptsValidator } from "convex/server";
+import {
+  paginationOptsValidator,
+  paginationResultValidator,
+} from "convex/server";
 import { requireAuth } from "./lib/auth";
 import { updateOrCreateTitleUsage } from "./lib/transactions";
 import {
@@ -19,6 +22,17 @@ import { validateTransactionAmount } from "../domain/money";
 
 const TITLE_USAGE_RETENTION_MS = 365 * 24 * 60 * 60 * 1000;
 const TITLE_USAGE_CLEANUP_BATCH_SIZE = 100;
+const correctionSnapshot = v.object({
+  title: v.string(),
+  value: v.number(),
+  date: v.number(),
+});
+const correctionHistoryItem = v.object({
+  correctionId: v.id("transactionCorrections"),
+  editedAt: v.number(),
+  previous: correctionSnapshot,
+  current: correctionSnapshot,
+});
 
 function transactionsQuery(ctx: any, userId: string, pipeIds: string[] | undefined) {
   let q = ctx.db
@@ -334,11 +348,65 @@ export const editTransaction = mutation({
       }
     }
 
+    const currentTitle = args.title.toLowerCase();
+    const hasCorrection =
+      currentTitle !== tx.title || args.value !== tx.value || args.date !== tx.date;
+    const editedAt = hasCorrection ? Date.now() : undefined;
+
+    if (editedAt !== undefined) {
+      await ctx.db.insert("transactionCorrections", {
+        transactionId: args.transactionId,
+        userId,
+        editedAt,
+        previous: {
+          title: tx.title,
+          value: tx.value,
+          date: tx.date,
+        },
+        current: {
+          title: currentTitle,
+          value: args.value,
+          date: args.date,
+        },
+      });
+    }
+
     await ctx.db.patch(args.transactionId, {
-      title: args.title.toLowerCase(),
+      title: currentTitle,
       value: args.value,
       date: args.date,
+      ...(editedAt !== undefined ? { editedAt } : {}),
     });
+  },
+});
+
+export const listTransactionCorrectionsPaginated = query({
+  args: {
+    transactionId: v.id("transactions"),
+    paginationOpts: paginationOptsValidator,
+  },
+  returns: paginationResultValidator(correctionHistoryItem),
+  handler: async (ctx, args) => {
+    const userId = await requireAuth(ctx);
+    const transaction = await ctx.db.get("transactions", args.transactionId);
+    if (!transaction) throw new Error("Transaction not found");
+    if (transaction.userId !== userId) throw new Error("Not authorized");
+
+    const page = await ctx.db
+      .query("transactionCorrections")
+      .withIndex("by_transactionId", (q) => q.eq("transactionId", args.transactionId))
+      .order("desc")
+      .paginate(args.paginationOpts);
+
+    return {
+      ...page,
+      page: page.page.map((correction) => ({
+        correctionId: correction._id,
+        editedAt: correction.editedAt,
+        previous: correction.previous,
+        current: correction.current,
+      })),
+    };
   },
 });
 

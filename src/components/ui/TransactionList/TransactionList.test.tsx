@@ -61,6 +61,22 @@ describe("TransactionList", () => {
     expect(screen.getByText("Bagel")).toBeDefined();
   });
 
+  it("forwards the edit history callback for edited transactions", () => {
+    const onShowEditHistory = vi.fn();
+    const edited = tx("tx-edited", { date: 100, editedAt: 300 });
+
+    render(
+      <TransactionList
+        transactions={[edited]}
+        onShowEditHistory={onShowEditHistory}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("transaction-edit-history"));
+
+    expect(onShowEditHistory).toHaveBeenCalledWith("tx-edited");
+  });
+
   it("groups matching transactions into a stacked item", () => {
     const t1 = tx("tx1", { title: "coffee", date: 100 });
     const t2 = tx("tx2", { title: "coffee", date: 200 });

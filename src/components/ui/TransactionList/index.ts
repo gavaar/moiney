@@ -1,1 +1,1 @@
-export { TransactionList } from "./TransactionList";
+export { TransactionList, type TransactionListProps } from "./TransactionList";
