@@ -103,15 +103,28 @@ export default defineSchema({
     capacity: v.number(),
     fed: v.number(),
     spent: v.number(),
+    pendingFedAdjustment: v.optional(v.number()),
     deletionJobId: v.optional(v.id("pipeDeletionJobs")),
-    rule: v.optional(v.union(v.literal("spend_overflow"), v.literal("any_spend"), v.literal("cron"))),
+    rule: v.optional(
+      v.union(
+        v.literal("spend_overflow"),
+        v.literal("any_spend"),
+        v.literal("cron"),
+      ),
+    ),
     // rule options
     capUpdateValue: v.optional(v.number()),
     cronNextDate: v.optional(v.number()),
-    cronInterval: v.optional(v.object({
-      interval: v.number(),
-      unit: v.union(v.literal("days"), v.literal("months"), v.literal("years")),
-    })),
+    cronInterval: v.optional(
+      v.object({
+        interval: v.number(),
+        unit: v.union(
+          v.literal("days"),
+          v.literal("months"),
+          v.literal("years"),
+        ),
+      }),
+    ),
   })
     .index("by_userId", ["userId"])
     .index("by_parentId", ["parentId"])

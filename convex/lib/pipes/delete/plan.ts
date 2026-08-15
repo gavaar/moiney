@@ -7,6 +7,7 @@ type DeletionPipe<TPipeId extends string> = {
   capacity?: number;
   fed?: number;
   spent?: number;
+  pendingFedAdjustment?: number;
 };
 
 export function planPipeDeletion<TPipeId extends string>(
@@ -29,6 +30,6 @@ export function planPipeDeletion<TPipeId extends string>(
   return {
     memberIds,
     parentId: root.parentId,
-    balance: derived.fed - derived.spent,
+    balance: derived.fed + (derived.pendingFedAdjustment ?? 0) - derived.spent,
   };
 }

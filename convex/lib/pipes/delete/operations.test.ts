@@ -17,7 +17,12 @@ describe("processPipeDeletionOperation transaction batches", () => {
     };
     const transactions = [
       { _id: "orphan", kind: "expense", from: "pipe-1" },
-      { _id: "cross-boundary", kind: "transfer", from: "pipe-1", to: "survivor" },
+      {
+        _id: "cross-boundary",
+        kind: "transfer",
+        from: "pipe-1",
+        to: "survivor",
+      },
     ];
     const paginate = vi.fn().mockResolvedValue({
       page: transactions,
@@ -28,7 +33,8 @@ describe("processPipeDeletionOperation transaction batches", () => {
       db: {
         get: vi.fn((_table: string, id: string) => {
           if (id === "job-1") return job;
-          if (id === "pipe-1") return { _id: id, deletionJobId: "job-1", icon: "deleted-icon" };
+          if (id === "pipe-1")
+            return { _id: id, deletionJobId: "job-1", icon: "deleted-icon" };
           if (id === "survivor") return { _id: id, icon: "survivor-icon" };
           return null;
         }),
@@ -41,12 +47,20 @@ describe("processPipeDeletionOperation transaction batches", () => {
       scheduler: { runAfter: vi.fn() },
     };
 
-    await processPipeDeletionOperation(ctx as any, "job-1" as any, scheduleNext);
+    await processPipeDeletionOperation(
+      ctx as any,
+      "job-1" as any,
+      scheduleNext,
+    );
 
     expect(ctx.db.delete).toHaveBeenCalledWith("transactions", "orphan");
-    expect(ctx.db.patch).toHaveBeenCalledWith("transactions", "cross-boundary", {
-      fromIcon: "deleted-icon",
-    });
+    expect(ctx.db.patch).toHaveBeenCalledWith(
+      "transactions",
+      "cross-boundary",
+      {
+        fromIcon: "deleted-icon",
+      },
+    );
     expect(ctx.db.patch).toHaveBeenCalledWith("pipeDeletionJobs", "job-1", {
       role: "to",
       cursor: undefined,
@@ -80,7 +94,11 @@ describe("processPipeDeletionOperation transaction batches", () => {
       scheduler: { runAfter: vi.fn() },
     };
 
-    await processPipeDeletionOperation(ctx as any, "job-1" as any, scheduleNext);
+    await processPipeDeletionOperation(
+      ctx as any,
+      "job-1" as any,
+      scheduleNext,
+    );
 
     expect(paginate).toHaveBeenCalledWith({ numItems: 50, cursor: null });
     expect(ctx.db.patch).toHaveBeenCalledWith("pipeDeletionJobs", "job-1", {
@@ -117,7 +135,9 @@ describe("processPipeDeletionOperation finalization", () => {
       db: {
         get: vi.fn().mockResolvedValue(job),
         query: vi.fn(() => ({
-          withIndex: vi.fn(() => ({ collect: vi.fn().mockResolvedValue(allPipes) })),
+          withIndex: vi.fn(() => ({
+            collect: vi.fn().mockResolvedValue(allPipes),
+          })),
         })),
         delete: vi.fn(),
         patch: vi.fn(),
@@ -167,15 +187,63 @@ describe("processPipeDeletionOperation finalization", () => {
       scheduler: { runAfter: vi.fn() },
     };
 
-    await processPipeDeletionOperation(ctx as any, "job-1" as any, scheduleNext);
+    await processPipeDeletionOperation(
+      ctx as any,
+      "job-1" as any,
+      scheduleNext,
+    );
 
     expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "parent", { fed: 130 });
     expect(ctx.db.delete).toHaveBeenCalledWith("pipes", "child");
-    expect(ctx.db.patch).toHaveBeenCalledWith(
-      "pipeDeletionJobs",
-      "job-1",
-      { phase: "complete" },
-    );
+    expect(ctx.db.patch).toHaveBeenCalledWith("pipeDeletionJobs", "job-1", {
+      phase: "complete",
+    });
     expect(ctx.scheduler.runAfter).not.toHaveBeenCalled();
+  });
+
+  it("uses pending external adjustment when validating the final balance", async () => {
+    const job = {
+      _id: "job-1",
+      userId: "user-1",
+      parentPipeId: "parent",
+      memberPipeIds: ["child"],
+      initialBalance: 20,
+      phase: "readyToFinalize",
+      deleteTransactions: true,
+    };
+    const allPipes = [
+      { _id: "parent", userId: "user-1", priority: 0, fed: 100, spent: 0 },
+      {
+        _id: "child",
+        userId: "user-1",
+        parentId: "parent",
+        deletionJobId: "job-1",
+        priority: 0,
+        fed: 40,
+        spent: 10,
+        pendingFedAdjustment: -10,
+      },
+    ];
+    const ctx = {
+      db: {
+        get: vi.fn().mockResolvedValue(job),
+        query: vi.fn(() => ({
+          withIndex: vi.fn(() => ({
+            collect: vi.fn().mockResolvedValue(allPipes),
+          })),
+        })),
+        delete: vi.fn(),
+        patch: vi.fn(),
+      },
+      scheduler: { runAfter: vi.fn() },
+    };
+
+    await processPipeDeletionOperation(
+      ctx as any,
+      "job-1" as any,
+      scheduleNext,
+    );
+
+    expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "parent", { fed: 120 });
   });
 });

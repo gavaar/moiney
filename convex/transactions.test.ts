@@ -34,7 +34,10 @@ function mockDb() {
 }
 
 function mockCtx() {
-  return { db: mockDb(), auth: { getUserIdentity: vi.fn().mockResolvedValue({ subject: "user-1" }) } } as any;
+  return {
+    db: mockDb(),
+    auth: { getUserIdentity: vi.fn().mockResolvedValue({ subject: "user-1" }) },
+  } as any;
 }
 
 const A_PIPE = { _id: "pipe-1", userId: "user-1", fed: 500, spent: 100 };
@@ -145,7 +148,7 @@ describe("createTransaction", () => {
   });
 
   describe("pay by transfer", () => {
-    it("moves fed from the payer and records spend and fed on the category", async () => {
+    it("moves fed from the payer and records spend and an external adjustment on the category", async () => {
       const ctx = mockCtx();
       ctx.db.get.mockImplementation((id: string) => {
         if (id === "pipe-1") return A_PIPE;
@@ -162,8 +165,8 @@ describe("createTransaction", () => {
       });
 
       expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
-        fed: 530,
         spent: 130,
+        pendingFedAdjustment: 30,
       });
       expect(ctx.db.patch).toHaveBeenCalledWith("pipe-2", { fed: 170 });
       expect(ctx.db.patch).toHaveBeenCalledTimes(2);
@@ -268,7 +271,10 @@ describe("createTransaction", () => {
       });
 
       expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", { spent: 130 });
-      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", { fed: 400, spent: 0 });
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+        fed: 400,
+        spent: 0,
+      });
       expect(ctx.db._chain.collect).toHaveBeenCalled();
     });
 
@@ -290,12 +296,19 @@ describe("createTransaction", () => {
 
       expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", { fed: 450 });
       expect(ctx.db.patch).toHaveBeenCalledWith("pipe-2", { fed: 250 });
-      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", { fed: 400, spent: 0 });
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+        fed: 400,
+        spent: 0,
+      });
     });
 
     it("executes spend_overflow rule when the new spent reaches capacity", async () => {
       const ctx = mockCtx();
-      ctx.db.get.mockResolvedValue({ ...A_PIPE, rule: "spend_overflow", capacity: 100 });
+      ctx.db.get.mockResolvedValue({
+        ...A_PIPE,
+        rule: "spend_overflow",
+        capacity: 100,
+      });
 
       await (createTransaction as any)._handler(ctx, {
         title: "groceries",
@@ -305,12 +318,19 @@ describe("createTransaction", () => {
       });
 
       expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", { spent: 130 });
-      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", { fed: 400, spent: 0 });
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+        fed: 400,
+        spent: 0,
+      });
     });
 
     it("does not execute spend_overflow rule when the new spent is below capacity", async () => {
       const ctx = mockCtx();
-      ctx.db.get.mockResolvedValue({ ...A_PIPE, rule: "spend_overflow", capacity: 200 });
+      ctx.db.get.mockResolvedValue({
+        ...A_PIPE,
+        rule: "spend_overflow",
+        capacity: 200,
+      });
 
       await (createTransaction as any)._handler(ctx, {
         title: "groceries",
@@ -421,12 +441,15 @@ describe("editTransaction", () => {
         date: 3000,
       });
 
-      expect(ctx.db.patch).toHaveBeenCalledWith("tx-1", expect.objectContaining({
-        title: "new title",
-        value: -80,
-        date: 3000,
-        editedAt: expect.any(Number),
-      }));
+      expect(ctx.db.patch).toHaveBeenCalledWith(
+        "tx-1",
+        expect.objectContaining({
+          title: "new title",
+          value: -80,
+          date: 3000,
+          editedAt: expect.any(Number),
+        }),
+      );
       expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", { spent: 130 });
       expect(ctx.db._chain.collect).toHaveBeenCalled();
     });
@@ -450,7 +473,13 @@ describe("editTransaction", () => {
   describe("feed transaction", () => {
     it("patches transaction and adjusts to.fed when value changes", async () => {
       const ctx = mockCtx();
-      const tx = { ...BASE_TX, title: "salary", value: 1000, from: undefined, to: "pipe-1" };
+      const tx = {
+        ...BASE_TX,
+        title: "salary",
+        value: 1000,
+        from: undefined,
+        to: "pipe-1",
+      };
       ctx.db.get.mockImplementation((id: string) => {
         if (id === "tx-1") return tx;
         if (id === "pipe-1") return { ...A_PIPE, fed: 500 };
@@ -464,12 +493,15 @@ describe("editTransaction", () => {
         date: 4000,
       });
 
-      expect(ctx.db.patch).toHaveBeenCalledWith("tx-1", expect.objectContaining({
-        title: "bonus",
-        value: 1200,
-        date: 4000,
-        editedAt: expect.any(Number),
-      }));
+      expect(ctx.db.patch).toHaveBeenCalledWith(
+        "tx-1",
+        expect.objectContaining({
+          title: "bonus",
+          value: 1200,
+          date: 4000,
+          editedAt: expect.any(Number),
+        }),
+      );
       expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", { fed: 700 });
     });
   });
@@ -492,19 +524,22 @@ describe("editTransaction", () => {
         date: 5000,
       });
 
-      expect(ctx.db.patch).toHaveBeenCalledWith("tx-1", expect.objectContaining({
-        title: "new transfer",
-        value: -80,
-        date: 5000,
-        editedAt: expect.any(Number),
-      }));
+      expect(ctx.db.patch).toHaveBeenCalledWith(
+        "tx-1",
+        expect.objectContaining({
+          title: "new transfer",
+          value: -80,
+          date: 5000,
+          editedAt: expect.any(Number),
+        }),
+      );
       expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", { fed: 470 });
       expect(ctx.db.patch).toHaveBeenCalledWith("pipe-2", { fed: 230 });
     });
   });
 
   describe("pay by transfer transaction", () => {
-    it("adjusts all three balances by the edited value difference", async () => {
+    it("adjusts logical spending, external adjustment, and payer liquidity", async () => {
       const ctx = mockCtx();
       const tx = {
         ...BASE_TX,
@@ -527,8 +562,8 @@ describe("editTransaction", () => {
       });
 
       expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
-        fed: 530,
         spent: 130,
+        pendingFedAdjustment: 30,
       });
       expect(ctx.db.patch).toHaveBeenCalledWith("pipe-2", { fed: 170 });
     });
@@ -580,7 +615,9 @@ describe("editTransaction", () => {
           value: 30,
           date: 5000,
         }),
-      ).rejects.toThrow("Refund destination must be a root outside the transaction tree");
+      ).rejects.toThrow(
+        "Refund destination must be a root outside the transaction tree",
+      );
     });
   });
 
@@ -684,13 +721,14 @@ describe("cleanupStaleTitleUsage", () => {
 
     await (cleanupStaleTitleUsage as any)._handler(ctx, { now: 1_000_000 });
 
-    expect(withIndex).toHaveBeenCalledWith("by_lastUsedAt", expect.any(Function));
+    expect(withIndex).toHaveBeenCalledWith(
+      "by_lastUsedAt",
+      expect.any(Function),
+    );
     expect(take).toHaveBeenCalledWith(100);
     expect(ctx.db.delete).toHaveBeenCalledTimes(100);
-    expect(ctx.scheduler.runAfter).toHaveBeenCalledWith(
-      0,
-      expect.anything(),
-      { now: 1_000_000 },
-    );
+    expect(ctx.scheduler.runAfter).toHaveBeenCalledWith(0, expect.anything(), {
+      now: 1_000_000,
+    });
   });
 });

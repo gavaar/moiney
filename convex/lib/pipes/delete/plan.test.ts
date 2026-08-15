@@ -28,6 +28,23 @@ describe("planPipeDeletion", () => {
     });
   });
 
+  it("includes pending external adjustment in the deletion balance", () => {
+    expect(
+      planPipeDeletion(
+        [
+          {
+            _id: "pipe",
+            priority: 0,
+            fed: 100,
+            spent: 20,
+            pendingFedAdjustment: -30,
+          },
+        ],
+        "pipe",
+      ),
+    ).toMatchObject({ balance: 50 });
+  });
+
   it("credits no parent when deleting a root", () => {
     expect(planPipeDeletion(pipes, "root").parentId).toBeUndefined();
   });

@@ -39,7 +39,10 @@ export function splitEvenly<TPipeId extends string>(
       (child) => child.shortfall - (allocations.get(child.id) ?? 0) < fairShare,
     );
     if (capped) {
-      allocations.set(capped.id, (allocations.get(capped.id) ?? 0) + capped.shortfall);
+      allocations.set(
+        capped.id,
+        (allocations.get(capped.id) ?? 0) + capped.shortfall,
+      );
       remaining -= capped.shortfall;
       eligible = eligible.filter((child) => child.id !== capped.id);
       continue;
@@ -50,7 +53,9 @@ export function splitEvenly<TPipeId extends string>(
     for (const child of eligible) {
       allocations.set(child.id, (allocations.get(child.id) ?? 0) + fairShare);
     }
-    eligible = eligible.filter((child) => child.shortfall > (allocations.get(child.id) ?? 0));
+    eligible = eligible.filter(
+      (child) => child.shortfall > (allocations.get(child.id) ?? 0),
+    );
   }
 
   return withShortfall.flatMap((child) => {
@@ -96,9 +101,9 @@ export function calculatePipeAllocations<TPipeId extends string>(
   return allocations;
 }
 
-export function buildChildrenMap<TPipe extends { _id: string; parentId?: string }>(
-  pipes: readonly TPipe[],
-): Map<TPipe["_id"], TPipe[]> {
+export function buildChildrenMap<
+  TPipe extends { _id: string; parentId?: string },
+>(pipes: readonly TPipe[]): Map<TPipe["_id"], TPipe[]> {
   const map = new Map<TPipe["_id"], TPipe[]>();
   for (const pipe of pipes) {
     if (pipe.parentId) {
@@ -111,21 +116,43 @@ export function buildChildrenMap<TPipe extends { _id: string; parentId?: string 
 }
 
 export function computePipeDerivedValues(
-  pipe: { capacity?: number; spent?: number; fed?: number },
-  children: Array<{ capacity?: number; spent?: number; fed?: number }>,
-): { capacity?: number; spent: number; fed: number } {
+  pipe: {
+    capacity?: number;
+    spent?: number;
+    fed?: number;
+    pendingFedAdjustment?: number;
+  },
+  children: Array<{
+    capacity?: number;
+    spent?: number;
+    fed?: number;
+    pendingFedAdjustment?: number;
+  }>,
+): {
+  capacity?: number;
+  spent: number;
+  fed: number;
+  pendingFedAdjustment?: number;
+} {
   if (children.length === 0) {
+    const pendingFedAdjustment = pipe.pendingFedAdjustment ?? 0;
     return {
       capacity: pipe.capacity,
       spent: pipe.spent ?? 0,
       fed: pipe.fed ?? 0,
+      ...(pendingFedAdjustment === 0 ? {} : { pendingFedAdjustment }),
     };
   }
+
+  const pendingFedAdjustment =
+    children.reduce((s, c) => s + (c.pendingFedAdjustment ?? 0), 0) +
+    (pipe.pendingFedAdjustment ?? 0);
 
   return {
     capacity: children.reduce((s, c) => s + (c.capacity ?? Infinity), 0),
     spent: children.reduce((s, c) => s + (c.spent ?? 0), 0),
     fed: children.reduce((s, c) => s + (c.fed ?? 0), 0) + (pipe.fed ?? 0),
+    ...(pendingFedAdjustment === 0 ? {} : { pendingFedAdjustment }),
   };
 }
 
@@ -136,10 +163,27 @@ export function computePipeTree<TPipeId extends string>(
     capacity?: number;
     spent?: number;
     fed?: number;
+    pendingFedAdjustment?: number;
   }>,
-): Map<TPipeId, { capacity?: number; spent: number; fed: number }> {
+): Map<
+  TPipeId,
+  {
+    capacity?: number;
+    spent: number;
+    fed: number;
+    pendingFedAdjustment?: number;
+  }
+> {
   const childrenByParent = buildChildrenMap(pipes);
-  const computed = new Map<TPipeId, { capacity?: number; spent: number; fed: number }>();
+  const computed = new Map<
+    TPipeId,
+    {
+      capacity?: number;
+      spent: number;
+      fed: number;
+      pendingFedAdjustment?: number;
+    }
+  >();
 
   function computePipe(pipe: (typeof pipes)[number]) {
     if (computed.has(pipe._id)) return computed.get(pipe._id)!;
@@ -183,9 +227,8 @@ function collectExcess<TPipeId extends string>(
 
   const totalFed = nodeFed + descendantsFed;
   const capacity = state.computed.get(nodeId)?.capacity;
-  const excess = !isRoot && capacity !== undefined
-    ? Math.max(0, totalFed - capacity)
-    : 0;
+  const excess =
+    !isRoot && capacity !== undefined ? Math.max(0, totalFed - capacity) : 0;
 
   state.fedById.set(nodeId, nodeFed - excess);
   state.subtreeFedById.set(nodeId, totalFed - excess);

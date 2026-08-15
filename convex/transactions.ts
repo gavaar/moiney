@@ -9,7 +9,6 @@ import { requireAuth } from "./lib/auth";
 import { updateOrCreateTitleUsage } from "./lib/transactions";
 import {
   executePipeRule,
-  recalcPipeSubtree,
   recascadeTree,
   resolveTopMostAncestor,
 } from "./lib/pipes";
@@ -34,7 +33,11 @@ const correctionHistoryItem = v.object({
   current: correctionSnapshot,
 });
 
-function transactionsQuery(ctx: any, userId: string, pipeIds: string[] | undefined) {
+function transactionsQuery(
+  ctx: any,
+  userId: string,
+  pipeIds: string[] | undefined,
+) {
   let q = ctx.db
     .query("transactions")
     .withIndex("by_userId_date", (q: any) => q.eq("userId", userId));
@@ -146,7 +149,9 @@ export const createTransaction = mutation({
 
       if (value > 0) {
         if (paidFromPipe.parentId) {
-          throw new Error("Refund destination must be a root outside the transaction tree");
+          throw new Error(
+            "Refund destination must be a root outside the transaction tree",
+          );
         }
       } else {
         const paidFromChildren = await ctx.db
@@ -158,19 +163,28 @@ export const createTransaction = mutation({
         }
       }
 
-      const { from, paidFrom: paidFrom } =
-        transactionAccountingEffects(
-          { from: pipeId, paidFrom: args.paidFrom },
-          value,
-        );
+      const { from, paidFrom } = transactionAccountingEffects(
+        { from: pipeId, paidFrom: args.paidFrom },
+        value,
+      );
+      const newSpent = pipe.spent + from.spentDelta;
       await ctx.db.patch(pipeId, {
-        fed: pipe.fed + from.fedDelta,
-        spent: pipe.spent + from.spentDelta,
+        spent: newSpent,
+        pendingFedAdjustment: (pipe.pendingFedAdjustment ?? 0) + from.fedDelta,
       });
       await ctx.db.patch(args.paidFrom, {
         fed: paidFromPipe.fed + paidFrom.fedDelta,
       });
-      await recalcPipeSubtree(ctx, args.paidFrom);
+
+      const shouldRunRule =
+        from.spentDelta > 0 &&
+        (pipe.rule === "any_spend" ||
+          (pipe.rule === "spend_overflow" && newSpent >= pipe.capacity));
+      if (shouldRunRule) {
+        await executePipeRule(ctx, pipeId);
+      }
+      await recascadeTree(ctx, userId);
+
       await ctx.db.insert("transactions", {
         title: args.title.toLowerCase(),
         value,
@@ -190,8 +204,7 @@ export const createTransaction = mutation({
     }
 
     if (args.to) {
-      if (pipeId === args.to)
-        throw new Error("Cannot transfer to self");
+      if (pipeId === args.to) throw new Error("Cannot transfer to self");
 
       const destPipe = await ctx.db.get(args.to);
       if (!destPipe) throw new Error("Destination pipe not found");
@@ -210,10 +223,7 @@ export const createTransaction = mutation({
         await executePipeRule(ctx, pipeId);
       }
     } else {
-      const { from } = transactionAccountingEffects(
-        { from: pipeId },
-        value,
-      );
+      const { from } = transactionAccountingEffects({ from: pipeId }, value);
       const newSpent = pipe.spent + from.spentDelta;
       await ctx.db.patch(pipeId, {
         spent: newSpent,
@@ -288,7 +298,9 @@ export const editTransaction = mutation({
 
         if (args.value > 0) {
           if (paidFromPipe.parentId) {
-            throw new Error("Refund destination must be a root outside the transaction tree");
+            throw new Error(
+              "Refund destination must be a root outside the transaction tree",
+            );
           }
         } else {
           const paidFromChildren = await ctx.db
@@ -300,19 +312,19 @@ export const editTransaction = mutation({
           }
         }
 
-        const { from, paidFrom: paidFrom } =
-          transactionAccountingEffects(
-            { from: tx.from, paidFrom: tx.paidFrom },
-            valueDiff,
-          );
+        const { from, paidFrom: paidFrom } = transactionAccountingEffects(
+          { from: tx.from, paidFrom: tx.paidFrom },
+          valueDiff,
+        );
         await ctx.db.patch(tx.from, {
-          fed: fromPipe.fed + from.fedDelta,
           spent: fromPipe.spent + from.spentDelta,
+          pendingFedAdjustment:
+            (fromPipe.pendingFedAdjustment ?? 0) + from.fedDelta,
         });
         await ctx.db.patch(tx.paidFrom, {
           fed: paidFromPipe.fed + paidFrom.fedDelta,
         });
-        await recalcPipeSubtree(ctx, tx.paidFrom);
+        await recascadeTree(ctx, userId);
       } else if (tx.from && tx.to) {
         const src = await ctx.db.get(tx.from);
         const dst = await ctx.db.get(tx.to);
@@ -339,10 +351,7 @@ export const editTransaction = mutation({
         const pipe = await ctx.db.get(tx.to);
         if (!pipe) throw new Error("Pipe not found");
 
-        const { to } = transactionAccountingEffects(
-          { to: tx.to },
-          valueDiff,
-        );
+        const { to } = transactionAccountingEffects({ to: tx.to }, valueDiff);
         await ctx.db.patch(tx.to, { fed: pipe.fed + to.fedDelta });
         await recascadeTree(ctx, userId);
       }
@@ -350,7 +359,9 @@ export const editTransaction = mutation({
 
     const currentTitle = args.title.toLowerCase();
     const hasCorrection =
-      currentTitle !== tx.title || args.value !== tx.value || args.date !== tx.date;
+      currentTitle !== tx.title ||
+      args.value !== tx.value ||
+      args.date !== tx.date;
     const editedAt = hasCorrection ? Date.now() : undefined;
 
     if (editedAt !== undefined) {
@@ -394,7 +405,9 @@ export const listTransactionCorrectionsPaginated = query({
 
     const page = await ctx.db
       .query("transactionCorrections")
-      .withIndex("by_transactionId", (q) => q.eq("transactionId", args.transactionId))
+      .withIndex("by_transactionId", (q) =>
+        q.eq("transactionId", args.transactionId),
+      )
       .order("desc")
       .paginate(args.paginationOpts);
 
