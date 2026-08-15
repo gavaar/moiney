@@ -138,6 +138,9 @@ signed sum of the loaded transactions and uses the newest transaction's value
 for the generic repeat form. Expanding the group exposes individual
 transactions that preserve their payer and values.
 
+Transaction titles are canonicalized with `trim().toLowerCase()` before
+persistence and title-usage indexing. Whitespace-only titles are rejected.
+
 Group expansion uses a dedicated accessible count-and-chevron control. Tapping
 the main group row continues to open the generic repeat form.
 

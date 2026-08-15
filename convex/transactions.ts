@@ -13,6 +13,7 @@ import {
   resolveTopMostAncestor,
 } from "./lib/pipes";
 import {
+  canonicalizeTransactionTitle,
   deriveTransactionKind,
   transactionAccountingEffects,
   transactionRoleNames,
@@ -67,6 +68,7 @@ export const createTransaction = mutation({
   handler: async (ctx, args) => {
     const userId = await requireAuth(ctx);
     const usageNow = Date.now();
+    const title = canonicalizeTransactionTitle(args.title);
     const value = args.value;
 
     if (args.paidFrom && (!args.from || args.to)) {
@@ -97,7 +99,7 @@ export const createTransaction = mutation({
       });
 
       await ctx.db.insert("transactions", {
-        title: args.title.toLowerCase(),
+        title,
         value,
         date: args.date,
         kind,
@@ -109,7 +111,7 @@ export const createTransaction = mutation({
       await updateOrCreateTitleUsage(ctx, {
         pipeId: args.to,
         userId,
-        title: args.title,
+        title,
         now: usageNow,
       });
 
@@ -186,7 +188,7 @@ export const createTransaction = mutation({
       await recascadeTree(ctx, userId);
 
       await ctx.db.insert("transactions", {
-        title: args.title.toLowerCase(),
+        title,
         value,
         date: args.date,
         kind,
@@ -197,7 +199,7 @@ export const createTransaction = mutation({
       await updateOrCreateTitleUsage(ctx, {
         pipeId,
         userId,
-        title: args.title,
+        title,
         now: usageNow,
       });
       return;
@@ -240,7 +242,7 @@ export const createTransaction = mutation({
     await recascadeTree(ctx, userId);
 
     await ctx.db.insert("transactions", {
-      title: args.title.toLowerCase(),
+      title,
       value,
       date: args.date,
       kind,
@@ -252,7 +254,7 @@ export const createTransaction = mutation({
     await updateOrCreateTitleUsage(ctx, {
       pipeId,
       userId,
-      title: args.title,
+      title,
       now: usageNow,
     });
   },
@@ -271,6 +273,7 @@ export const editTransaction = mutation({
     const tx = await ctx.db.get(args.transactionId);
     if (!tx) throw new Error("Transaction not found");
     if (tx.userId !== userId) throw new Error("Not authorized");
+    const currentTitle = canonicalizeTransactionTitle(args.title);
     if (
       tx.fromIcon !== undefined ||
       tx.toIcon !== undefined ||
@@ -357,7 +360,6 @@ export const editTransaction = mutation({
       }
     }
 
-    const currentTitle = args.title.toLowerCase();
     const hasCorrection =
       currentTitle !== tx.title ||
       args.value !== tx.value ||
