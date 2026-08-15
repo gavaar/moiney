@@ -111,6 +111,13 @@ Do not use component count or an inline callback as sufficient evidence of a per
 
 Large test files should be reorganized by behavioral contract after production boundaries become clear, not split arbitrarily.
 
+## Modal Interaction
+
+Modal dismissal has one consistent interaction: tapping the backdrop closes the
+modal. Modal content should not contain a close button or close icon; controls
+inside the content should perform a domain action rather than duplicate
+dismissal.
+
 ## Change Discipline
 
 - Make the smallest complete change that establishes the agreed behavior.

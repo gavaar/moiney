@@ -85,6 +85,7 @@ const CURATED_ICONS = [
   { name: "upload", family: "MaterialCommunityIcons" as const },
   { name: "wallet-outline", family: "Ionicons" as const },
   { name: "water-outline", family: "Ionicons" as const },
+  { name: "warning-outline", family: "Ionicons" as const },
 ] satisfies CuratedIcon[];
 
 type IconName = (typeof CURATED_ICONS)[number]["name"];

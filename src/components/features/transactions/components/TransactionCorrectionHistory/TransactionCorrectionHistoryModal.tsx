@@ -1,5 +1,5 @@
 import { usePaginatedQuery } from "convex/react";
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, ScrollView, Text, View } from "react-native";
 import { api } from "@convex/_generated/api";
 import { type Id } from "@convex/_generated/dataModel";
 import { Button } from "@ui/Button";
@@ -50,14 +50,6 @@ export function TransactionCorrectionHistoryModal({
               {displayTitle(transactionTitle)}
             </Text>
           </View>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Close edit history"
-            hitSlop={8}
-            onPress={onClose}
-          >
-            <Text className="text-muted text-2xl">×</Text>
-          </Pressable>
         </View>
 
         {status === "LoadingFirstPage" ? (
