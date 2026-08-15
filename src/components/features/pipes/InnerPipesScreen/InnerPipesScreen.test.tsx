@@ -123,7 +123,7 @@ describe("InnerPipesScreen", () => {
     expect(screen.getByTestId("bar-capacity-fill")).toBeDefined();
   });
 
-  it("hides the spent bar when the selected pipe rule is any_spend", () => {
+  it("hides the spent bar when the selected pipe rule is instant_settlement", () => {
     mockUsePipeSelection.mockReturnValue({
       ...baseMock,
       selectedPipePath: ["pipe-1"],
@@ -134,7 +134,7 @@ describe("InnerPipesScreen", () => {
         capacity: 200000,
         fed: 150000,
         spent: 0,
-        rule: "any_spend",
+        rule: "instant_settlement",
       },
       selectedName: "Groceries",
     });

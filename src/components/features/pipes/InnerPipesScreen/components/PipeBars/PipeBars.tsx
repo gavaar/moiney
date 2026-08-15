@@ -6,7 +6,7 @@ type PipeBarsProps = {
   fed: number;
   spent: number;
   capacity: number;
-  rule?: "spend_overflow" | "any_spend" | "cron";
+  rule?: "spend_overflow" | "instant_settlement" | "cron";
 };
 
 function BarRow({
@@ -75,7 +75,7 @@ export function PipeBars({ fed, spent, capacity, rule }: PipeBarsProps) {
         maxAbs={maxAbs}
         color={fed < 0 ? colors.error : colors.primary}
       />
-      {rule !== "any_spend" ? (
+      {rule !== "instant_settlement" ? (
         <BarRow
           label="spent"
           value={spent}

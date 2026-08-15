@@ -6,7 +6,11 @@ import { computeCronNextDate } from "../../../domain/scheduling";
 export async function executePipeRule(
   ctx: MutationCtx,
   pipeId: Id<"pipes">,
-  opts: { now?: number; pipe?: Doc<"pipes"> } = {},
+  opts: {
+    now?: number;
+    pipe?: Doc<"pipes">;
+    capUpdateValue?: number;
+  } = {},
 ) {
   const { now = Date.now(), pipe: cachedPipe } = opts;
   const pipe = cachedPipe ?? (await ctx.db.get(pipeId));
@@ -21,8 +25,9 @@ export async function executePipeRule(
     patch.pendingFedAdjustment = 0;
   }
 
-  if (pipe.capUpdateValue != null) {
-    patch.capacity = pipe.capacity - pipe.spent + pipe.capUpdateValue;
+  const capUpdateValue = opts.capUpdateValue ?? pipe.capUpdateValue;
+  if (capUpdateValue != null) {
+    patch.capacity = pipe.capacity - pipe.spent + capUpdateValue;
   }
 
   if (pipe.rule === "cron" && pipe.cronInterval && pipe.cronNextDate != null) {

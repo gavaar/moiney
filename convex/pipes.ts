@@ -9,8 +9,8 @@ import { internal } from "./_generated/api";
 import type { Id, Doc } from "./_generated/dataModel";
 import { requireAuth } from "./lib/auth";
 import {
+  countDueCronOccurrences,
   computeCronNextDate,
-  computeElapsedIntervals,
 } from "../domain/scheduling";
 import { computePipeTree } from "../domain/pipes";
 import { assertAmountLimit } from "../domain/money";
@@ -39,6 +39,16 @@ async function checkPipeLimit(ctx: MutationCtx, userId: Id<"users">) {
   if (pipes.length >= MAX_PIPES_PER_USER) {
     throw new Error(`Pipe limit reached (max ${MAX_PIPES_PER_USER})`);
   }
+}
+
+function isSameUtcDay(left: number, right: number): boolean {
+  const leftDate = new Date(left);
+  const rightDate = new Date(right);
+  return (
+    leftDate.getUTCFullYear() === rightDate.getUTCFullYear() &&
+    leftDate.getUTCMonth() === rightDate.getUTCMonth() &&
+    leftDate.getUTCDate() === rightDate.getUTCDate()
+  );
 }
 
 function schedulePipeDeletion(
@@ -108,6 +118,7 @@ export const addFeed = mutation({
       capacity: 0,
       fed: 0,
       spent: 0,
+      pendingFedAdjustment: 0,
     });
   },
 });
@@ -132,6 +143,9 @@ export const addPipe = mutation({
 
     await checkPipeLimit(ctx, userId);
 
+    const settledFed =
+      parent.fed + (parent.pendingFedAdjustment ?? 0) - parent.spent;
+
     const childId = await ctx.db.insert("pipes", {
       userId,
       parentId: args.parentId,
@@ -142,11 +156,14 @@ export const addPipe = mutation({
       capacity: assertAmountLimit(args.capacity),
       fed: 0,
       spent: 0,
+      pendingFedAdjustment: 0,
     });
 
     await ctx.db.patch("pipes", parent._id, {
       capacity: 0,
+      fed: settledFed,
       spent: 0,
+      pendingFedAdjustment: 0,
       rule: undefined,
       capUpdateValue: undefined,
       cronNextDate: undefined,
@@ -201,7 +218,7 @@ export const updatePipeRule = mutation({
       v.union(
         v.null(),
         v.literal("spend_overflow"),
-        v.literal("any_spend"),
+        v.literal("instant_settlement"),
         v.literal("cron"),
       ),
     ),
@@ -221,6 +238,18 @@ export const updatePipeRule = mutation({
     if (pipe.userId !== userId) throw new Error("Not authorized");
     assertPipeNotDeleting(pipe);
 
+    if (
+      args.rule === "cron" &&
+      pipe.rule === "cron" &&
+      args.starting !== undefined &&
+      pipe.cronNextDate !== undefined &&
+      args.capUpdateValue === pipe.capUpdateValue &&
+      args.interval === pipe.cronInterval?.interval &&
+      args.unit === pipe.cronInterval?.unit &&
+      isSameUtcDay(args.starting, pipe.cronNextDate)
+    ) {
+      return;
+    }
     const patch: Record<string, unknown> = {
       rule: args.rule ?? undefined,
       capUpdateValue:
@@ -247,8 +276,14 @@ export const updatePipeRule = mutation({
         now,
       );
       if (args.capUpdateValue != null) {
-        const intervals = computeElapsedIntervals(
+        const firstOccurrence = computeCronNextDate(
           args.starting,
+          args.interval,
+          args.unit,
+          args.starting - 1,
+        );
+        const intervals = countDueCronOccurrences(
+          firstOccurrence,
           args.interval,
           args.unit,
           now,
@@ -321,7 +356,25 @@ export const runDueCronRules = internalMutation({
         }
         safeRoots.add(rootId);
       }
-      await executePipeRule(ctx, pipe._id, { now, pipe });
+      const dueOccurrences =
+        pipe.cronNextDate != null && pipe.cronInterval
+          ? countDueCronOccurrences(
+              pipe.cronNextDate,
+              pipe.cronInterval.interval,
+              pipe.cronInterval.unit,
+              now,
+            )
+          : 0;
+      if (dueOccurrences === 0) continue;
+
+      await executePipeRule(ctx, pipe._id, {
+        now,
+        pipe,
+        capUpdateValue:
+          pipe.capUpdateValue == null
+            ? undefined
+            : pipe.capUpdateValue * dueOccurrences,
+      });
       roots.add(rootId);
     }
 

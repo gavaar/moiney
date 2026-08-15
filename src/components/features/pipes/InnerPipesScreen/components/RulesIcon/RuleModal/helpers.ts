@@ -105,7 +105,7 @@ export function hasRuleDiff(deps: {
   }
   if (
     !isCron &&
-    (selectedRule === "any_spend" || selectedRule === "spend_overflow") &&
+    (selectedRule === "instant_settlement" || selectedRule === "spend_overflow") &&
     capNumber !== pipe?.capUpdateValue
   ) {
     return true;

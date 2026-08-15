@@ -1,5 +1,34 @@
 import { describe, expect, it } from "vitest";
-import { recalculatePipes, splitEvenly } from "./pipes";
+import {
+  recalculatePipes,
+  shouldTriggerPipeRule,
+  splitEvenly,
+} from "./pipes";
+
+describe("shouldTriggerPipeRule", () => {
+  it.each([
+    ["instant_settlement", -30, 70, 100],
+    ["instant_settlement", 30, 130, 100],
+  ] as const)("triggers instant settlement whenever spent changes", (rule, spentDelta, spent, capacity) => {
+    expect(shouldTriggerPipeRule(rule, spentDelta, spent, capacity)).toBe(true);
+  });
+
+  it("does not trigger overflow when spending shrinks", () => {
+    expect(shouldTriggerPipeRule("spend_overflow", -30, 70, 100)).toBe(false);
+  });
+
+  it("triggers overflow when positive spending reaches capacity", () => {
+    expect(shouldTriggerPipeRule("spend_overflow", 30, 130, 100)).toBe(true);
+  });
+
+  it.each([
+    ["instant_settlement", 0],
+    ["spend_overflow", 0],
+    ["cron", 0],
+  ] as const)("does not trigger a rule when spent does not change", (rule, spentDelta) => {
+    expect(shouldTriggerPipeRule(rule, spentDelta, 100, 100)).toBe(false);
+  });
+});
 
 describe("splitEvenly", () => {
   it("allocates indivisible positive cents deterministically", () => {
