@@ -47,8 +47,8 @@ describe("RulesIcon", () => {
     expect(icon.getAttribute("data-name")).toBe("timer-outline");
   });
 
-  it("renders pipe-disconnected when rule is any_spend", () => {
-    render(<RulesIcon pipeId={pId("pipe-1")} rule="any_spend" fed={50} capacity={100} />);
+  it("renders pipe-disconnected when rule is instant_settlement", () => {
+    render(<RulesIcon pipeId={pId("pipe-1")} rule="instant_settlement" fed={50} capacity={100} />);
     const icon = screen.getByTestId("icon");
     expect(icon.getAttribute("data-name")).toBe("pipe-disconnected");
   });
@@ -60,7 +60,7 @@ describe("RulesIcon", () => {
   });
 
   it("shows the rule icon instead of a lock when the pipe is full", () => {
-    render(<RulesIcon pipeId={pId("pipe-1")} rule="any_spend" fed={100} capacity={100} />);
+    render(<RulesIcon pipeId={pId("pipe-1")} rule="instant_settlement" fed={100} capacity={100} />);
     const icon = screen.getByTestId("icon");
     expect(icon.getAttribute("data-name")).toBe("pipe-disconnected");
   });
@@ -204,9 +204,9 @@ describe("RulesIcon", () => {
     expect(lastRingProps.progress).toBe(0);
   });
 
-  it("renders no ring for any_spend", () => {
+  it("renders no ring for instant_settlement", () => {
     render(
-      <RulesIcon pipeId={pId("pipe-1")} rule="any_spend" fed={50} capacity={100} />,
+      <RulesIcon pipeId={pId("pipe-1")} rule="instant_settlement" fed={50} capacity={100} />,
     );
     expect(screen.queryByTestId("progress-ring")).toBeNull();
   });

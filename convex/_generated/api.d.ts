@@ -27,6 +27,7 @@ import type * as lib_pipes_index from "../lib/pipes/index.js";
 import type * as lib_pipes_pipes from "../lib/pipes/pipes.js";
 import type * as lib_transactions from "../lib/transactions.js";
 import type * as lib_usernames from "../lib/usernames.js";
+import type * as migrations from "../migrations.js";
 import type * as pipes from "../pipes.js";
 import type * as profile from "../profile.js";
 import type * as sessions from "../sessions.js";
@@ -58,6 +59,7 @@ declare const fullApi: ApiFromModules<{
   "lib/pipes/pipes": typeof lib_pipes_pipes;
   "lib/transactions": typeof lib_transactions;
   "lib/usernames": typeof lib_usernames;
+  migrations: typeof migrations;
   pipes: typeof pipes;
   profile: typeof profile;
   sessions: typeof sessions;
@@ -91,5 +93,6 @@ export declare const internal: FilterApi<
 >;
 
 export declare const components: {
+  migrations: import("@convex-dev/migrations/_generated/component.js").ComponentApi<"migrations">;
   rateLimiter: import("@convex-dev/rate-limiter/_generated/component.js").ComponentApi<"rateLimiter">;
 };

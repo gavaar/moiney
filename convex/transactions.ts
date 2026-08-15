@@ -19,6 +19,7 @@ import {
   transactionRoleNames,
 } from "../domain/transactions";
 import { validateTransactionAmount } from "../domain/money";
+import { shouldTriggerPipeRule } from "../domain/pipes";
 
 const TITLE_USAGE_RETENTION_MS = 365 * 24 * 60 * 60 * 1000;
 const TITLE_USAGE_CLEANUP_BATCH_SIZE = 100;
@@ -92,11 +93,14 @@ export const createTransaction = mutation({
       if (!destPipe) throw new Error("Pipe not found");
       if (destPipe.userId !== userId) throw new Error("Not authorized");
 
+      const { to } = transactionAccountingEffects({ to: args.to }, value);
       await ctx.db.patch(args.to, {
-        fed:
-          destPipe.fed +
-          transactionAccountingEffects({ to: args.to }, value).to.fedDelta,
+        fed: destPipe.fed + to.fedDelta
       });
+
+      if (shouldTriggerPipeRule(destPipe.rule, to.spentDelta, destPipe.spent + to.spentDelta, destPipe.capacity)) {
+        await executePipeRule(ctx, args.to);
+      }
 
       await ctx.db.insert("transactions", {
         title,
@@ -178,11 +182,7 @@ export const createTransaction = mutation({
         fed: paidFromPipe.fed + paidFrom.fedDelta,
       });
 
-      const shouldRunRule =
-        from.spentDelta > 0 &&
-        (pipe.rule === "any_spend" ||
-          (pipe.rule === "spend_overflow" && newSpent >= pipe.capacity));
-      if (shouldRunRule) {
+      if (shouldTriggerPipeRule(pipe.rule, from.spentDelta, newSpent, pipe.capacity)) {
         await executePipeRule(ctx, pipeId);
       }
       await recascadeTree(ctx, userId);
@@ -221,7 +221,7 @@ export const createTransaction = mutation({
         fed: destPipe.fed + to.fedDelta,
       });
 
-      if (pipe.rule === "any_spend") {
+      if (shouldTriggerPipeRule(pipe.rule, from.spentDelta, pipe.spent, pipe.capacity)) {
         await executePipeRule(ctx, pipeId);
       }
     } else {
@@ -231,10 +231,7 @@ export const createTransaction = mutation({
         spent: newSpent,
       });
 
-      const shouldRunRule =
-        pipe.rule === "any_spend" ||
-        (pipe.rule === "spend_overflow" && newSpent >= pipe.capacity);
-      if (shouldRunRule) {
+      if (shouldTriggerPipeRule(pipe.rule, from.spentDelta, newSpent, pipe.capacity)) {
         await executePipeRule(ctx, pipeId);
       }
     }
@@ -319,14 +316,25 @@ export const editTransaction = mutation({
           { from: tx.from, paidFrom: tx.paidFrom },
           valueDiff,
         );
+        const newSpent = fromPipe.spent + from.spentDelta;
         await ctx.db.patch(tx.from, {
-          spent: fromPipe.spent + from.spentDelta,
+          spent: newSpent,
           pendingFedAdjustment:
             (fromPipe.pendingFedAdjustment ?? 0) + from.fedDelta,
         });
         await ctx.db.patch(tx.paidFrom, {
           fed: paidFromPipe.fed + paidFrom.fedDelta,
         });
+        if (
+          shouldTriggerPipeRule(
+            fromPipe.rule,
+            from.spentDelta,
+            newSpent,
+            fromPipe.capacity,
+          )
+        ) {
+          await executePipeRule(ctx, tx.from);
+        }
         await recascadeTree(ctx, userId);
       } else if (tx.from && tx.to) {
         const src = await ctx.db.get(tx.from);
@@ -339,6 +347,9 @@ export const editTransaction = mutation({
         );
         await ctx.db.patch(tx.from, { fed: src.fed + from.fedDelta });
         await ctx.db.patch(tx.to, { fed: dst.fed + to.fedDelta });
+        if (shouldTriggerPipeRule(src.rule, from.spentDelta, src.spent, src.capacity)) {
+          await executePipeRule(ctx, tx.from);
+        }
         await recascadeTree(ctx, userId);
       } else if (tx.from) {
         const pipe = await ctx.db.get(tx.from);
@@ -348,7 +359,11 @@ export const editTransaction = mutation({
           { from: tx.from },
           valueDiff,
         );
-        await ctx.db.patch(tx.from, { spent: pipe.spent + from.spentDelta });
+        const newSpent = pipe.spent + from.spentDelta;
+        await ctx.db.patch(tx.from, { spent: newSpent });
+        if (shouldTriggerPipeRule(pipe.rule, from.spentDelta, newSpent, pipe.capacity)) {
+          await executePipeRule(ctx, tx.from);
+        }
         await recascadeTree(ctx, userId);
       } else if (tx.to) {
         const pipe = await ctx.db.get(tx.to);
@@ -356,6 +371,9 @@ export const editTransaction = mutation({
 
         const { to } = transactionAccountingEffects({ to: tx.to }, valueDiff);
         await ctx.db.patch(tx.to, { fed: pipe.fed + to.fedDelta });
+        if (shouldTriggerPipeRule(pipe.rule, to.spentDelta, pipe.spent, pipe.capacity)) {
+          await executePipeRule(ctx, tx.to);
+        }
         await recascadeTree(ctx, userId);
       }
     }

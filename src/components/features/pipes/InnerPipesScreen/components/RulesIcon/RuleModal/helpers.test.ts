@@ -146,7 +146,7 @@ describe("hasRuleDiff", () => {
   it("returns true when the rule changed", () => {
     expect(
       hasRuleDiff({
-        selectedRule: "any_spend",
+        selectedRule: "instant_settlement",
         isCron: false,
         capNumber: undefined,
         interval: 1,
@@ -159,12 +159,12 @@ describe("hasRuleDiff", () => {
   it("returns false when nothing changed", () => {
     expect(
       hasRuleDiff({
-        selectedRule: "any_spend",
+        selectedRule: "instant_settlement",
         isCron: false,
         capNumber: undefined,
         interval: 1,
         unit: "months",
-        pipe: { ...basePipe, rule: "any_spend" },
+        pipe: { ...basePipe, rule: "instant_settlement" },
       }),
     ).toBe(false);
   });

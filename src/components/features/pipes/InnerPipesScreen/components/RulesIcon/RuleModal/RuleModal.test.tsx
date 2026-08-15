@@ -69,7 +69,7 @@ describe("RuleModal", () => {
     expect(screen.getByText("Groceries")).toBeTruthy();
 
     fireEvent.click(screen.getAllByTestId("select-trigger")[0]);
-    expect(screen.getByText("Any spend")).toBeTruthy();
+    expect(screen.getByText("Instant settlement")).toBeTruthy();
     expect(screen.getByText("Spend overflow")).toBeTruthy();
     expect(screen.getByText("Cron")).toBeTruthy();
     expect(screen.getAllByText("No rule").length).toBeGreaterThanOrEqual(1);
@@ -82,9 +82,9 @@ describe("RuleModal", () => {
     ).toBeTruthy();
 
     fireEvent.click(screen.getAllByTestId("select-trigger")[0]);
-    fireEvent.click(screen.getByText("Any spend"));
+    fireEvent.click(screen.getByText("Instant settlement"));
     expect(
-      screen.getByText("Reacts every time money is spent from this pipe and can update capacity."),
+      screen.getByText("Settles this pipe whenever its spending changes and can update capacity."),
     ).toBeTruthy();
   });
 
@@ -192,10 +192,10 @@ describe("RuleModal", () => {
     expect(screen.queryByText("Cap update")).toBeNull();
   });
 
-  it("shows cap update for any_spend", () => {
+  it("shows cap update for instant_settlement", () => {
     renderModal(basePipe());
     fireEvent.click(screen.getAllByTestId("select-trigger")[0]);
-    fireEvent.click(screen.getByText("Any spend"));
+    fireEvent.click(screen.getByText("Instant settlement"));
     expect(screen.getByText("Cap update")).toBeTruthy();
   });
 
@@ -207,7 +207,7 @@ describe("RuleModal", () => {
   });
 
   it("shows a reset placeholder and message when cap update is not set", () => {
-    renderModal(basePipe({ rule: "any_spend", capacity: 10000 }));
+    renderModal(basePipe({ rule: "instant_settlement", capacity: 10000 }));
     expect(screen.getByPlaceholderText("reset cap to 100.00")).toBeTruthy();
     expect(
       screen.getByText("Cap will reset to 100.00 after every rule run."),
@@ -215,14 +215,14 @@ describe("RuleModal", () => {
   });
 
   it("shows an update message when cap update is set", () => {
-    renderModal(basePipe({ rule: "any_spend", capacity: 10000, capUpdateValue: 2500 }));
+    renderModal(basePipe({ rule: "instant_settlement", capacity: 10000, capUpdateValue: 2500 }));
     expect(
       screen.getByText("Cap will update leftover value by 25.00 after every rule run."),
     ).toBeTruthy();
   });
 
-  it("saves a cap update value for any_spend", async () => {
-    renderModal(basePipe({ rule: "any_spend", capacity: 10000 }));
+  it("saves a cap update value for instant_settlement", async () => {
+    renderModal(basePipe({ rule: "instant_settlement", capacity: 10000 }));
     fireEvent.change(screen.getByPlaceholderText("reset cap to 100.00"), {
       target: { value: "50" },
     });
@@ -231,7 +231,7 @@ describe("RuleModal", () => {
 
     expect(h.updatePipeRule).toHaveBeenCalledWith({
       pipeId: pId("pipe-1"),
-      rule: "any_spend",
+      rule: "instant_settlement",
       capUpdateValue: 5000,
     });
   });
@@ -254,17 +254,17 @@ describe("RuleModal", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it("calls updatePipeRule with any_spend and keeps the modal open", async () => {
+  it("calls updatePipeRule with instant_settlement and keeps the modal open", async () => {
     const onClose = vi.fn();
     renderModal(basePipe(), onClose);
     fireEvent.click(screen.getAllByTestId("select-trigger")[0]);
-    fireEvent.click(screen.getByText("Any spend"));
+    fireEvent.click(screen.getByText("Instant settlement"));
 
     await clickAndFlush(screen.getByText("Save rule"));
 
     expect(h.updatePipeRule).toHaveBeenCalledWith({
       pipeId: pId("pipe-1"),
-      rule: "any_spend",
+      rule: "instant_settlement",
       capUpdateValue: undefined,
     });
     expect(onClose).not.toHaveBeenCalled();
@@ -411,7 +411,7 @@ describe("RuleModal", () => {
   it("shows an error alert and stays open when saving fails", async () => {
     h.updatePipeRule.mockRejectedValue(new Error("boom"));
     const onClose = vi.fn();
-    renderModal(basePipe({ rule: "any_spend" }), onClose);
+    renderModal(basePipe({ rule: "instant_settlement" }), onClose);
 
     fireEvent.click(screen.getAllByTestId("select-trigger")[0]);
     fireEvent.click(screen.getByText("No rule"));
