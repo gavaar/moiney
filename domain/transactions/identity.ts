@@ -39,7 +39,6 @@ export function transactionGroupId(transaction: GroupableTransaction): string {
   return JSON.stringify([
     resolveTransactionKind(transaction),
     transaction.title,
-    transaction.value,
     transaction.from ?? null,
     transaction.to ?? null,
   ]);
