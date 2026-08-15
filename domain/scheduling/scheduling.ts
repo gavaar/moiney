@@ -85,6 +85,30 @@ export function computeCronNextDate(
   return next;
 }
 
+export function countDueCronOccurrences(
+  nextDate: number,
+  interval: number,
+  unit: CronUnit,
+  now: number,
+): number {
+  if (nextDate > now) return 0;
+
+  if (unit === "days") {
+    const step = interval * 24 * 60 * 60 * 1000;
+    return Math.floor((now - nextDate) / step) + 1;
+  }
+
+  let count = 0;
+  let occurrence = nextDate;
+  while (occurrence <= now) {
+    count += 1;
+    const next = computeCronNextDate(occurrence, interval, unit, occurrence);
+    if (next <= occurrence) break;
+    occurrence = next;
+  }
+  return count;
+}
+
 export function computeCronIntervalProgress(
   cronNextDate: number,
   interval: number,

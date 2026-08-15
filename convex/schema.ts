@@ -108,7 +108,7 @@ export default defineSchema({
     rule: v.optional(
       v.union(
         v.literal("spend_overflow"),
-        v.literal("any_spend"),
+        v.literal("instant_settlement"),
         v.literal("cron"),
       ),
     ),

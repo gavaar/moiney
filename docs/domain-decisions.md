@@ -107,19 +107,32 @@ an authentication provider that demonstrates recovery across native and web.
 
 Status: Implemented
 
-`any_spend` and `spend_overflow` rules accept the same optional `capUpdateValue` as cron rules, governing how capacity changes when the rule runs.
+`instant_settlement` and `spend_overflow` rules accept the same optional `capUpdateValue` as cron rules, governing how capacity changes when the rule runs.
 
-When a rule runs and `capUpdateValue` is not set, the pipe consolidates to `fed = fed - spent` and `spent = 0`, leaving capacity unchanged at `pipe.capacity`.
+When a rule runs and `capUpdateValue` is not set, the pipe consolidates to
+`fed = fed + pendingFedAdjustment - spent`, clears `spent` and any pending
+adjustment, and leaves capacity unchanged at `pipe.capacity`. A missing pending
+adjustment is treated as zero.
 
 When `capUpdateValue` is set, the rule applies to every rule kind (including cron):
 
-- `leftoverFed = fed - spent`
-- `missingCap = capacity - fed`
-- `capacity = missingCap + leftoverFed + capUpdateValue`, equivalently `capacity - spent + capUpdateValue`
+- `leftoverFed = fed + pendingFedAdjustment - spent`
+- `capacity = capacity - spent + capUpdateValue`
 - `fed = leftoverFed`
 - `spent = 0`
+- `pendingFedAdjustment = 0` when the field exists
 
 `spent` accumulates positively for spending on storage, and the formula uses that stored sign.
+
+`instant_settlement` triggers whenever a transaction creation or value edit
+changes logical `spent`, in either direction. `spend_overflow` triggers when
+positive spending leaves `spent >= capacity`; refunds do not trigger it. Feeds
+and transfers currently have zero logical spending effects and therefore do not
+trigger these rules.
+
+When a cron execution is overdue for multiple occurrences, it settles the pipe
+once and applies `capUpdateValue` multiplied by the number of due occurrences.
+It then advances `cronNextDate` once beyond the explicit execution clock.
 
 ## D009: (reserved)
 
@@ -171,13 +184,14 @@ The normal transaction list shows only the current snapshot and exposes an
 the owning transaction, and displayed in a read-only modal. Correction
 documents do not appear as ordinary transaction rows or affect grouping.
 
-Broader accounting semantics for edits across rule-execution boundaries remain
-part of Update 10; the current feature preserves the existing balance-adjustment
-behavior while making the edit history visible and auditable.
+Edits across rule-execution boundaries apply their value delta to the current
+accounting period; historical periods are not restated. When the delta changes
+logical `spent`, edits use the same automatic rule-trigger policy as new
+transactions.
 
 ## D012: Pay-by-transfer Liquidity And Logical Spending
 
-Status: In progress
+Status: Implemented
 
 Pay-by-transfer transactions separate the pipe where spending is logically
 assigned from the pipe where real liquidity moves. The logical pipe's `fed`
@@ -213,3 +227,8 @@ When a leaf with pending accounting becomes a parent, its balance is settled as
 pay-by-transfer transaction applies only its value difference under the new
 model, preserving its pre-edit logical balance while making the new adjustment
 explicit.
+
+Convex client mutation retries and atomic cron schedule advancement provide
+transport-level idempotency. No operation identifiers are persisted for
+separate user submissions; manual rule execution remains intentionally
+repeatable.

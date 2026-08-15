@@ -6,7 +6,10 @@ import {
   updatePipe,
   updatePipeRule,
 } from "./pipes";
-import { computeElapsedIntervals } from "../domain/scheduling";
+import {
+  countDueCronOccurrences,
+  computeCronNextDate,
+} from "../domain/scheduling";
 
 vi.mock("./lib/auth", () => ({
   requireAuth: vi.fn().mockResolvedValue("user-1"),
@@ -128,35 +131,35 @@ describe("updatePipeRule", () => {
     });
   });
 
-  it("persists capUpdateValue for any_spend", async () => {
+  it("persists capUpdateValue for instant_settlement", async () => {
     const ctx = mockCtx();
     ctx.db.get.mockResolvedValue(A_PIPE);
 
     await (updatePipeRule as any)._handler(ctx, {
       pipeId: "pipe-1",
-      rule: "any_spend",
+      rule: "instant_settlement",
       capUpdateValue: -10,
     });
 
     expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
-      rule: "any_spend",
+       rule: "instant_settlement",
       capUpdateValue: -10,
       cronNextDate: undefined,
       cronInterval: undefined,
     });
   });
 
-  it("sets any_spend and clears rule options", async () => {
+  it("sets instant_settlement and clears rule options", async () => {
     const ctx = mockCtx();
     ctx.db.get.mockResolvedValue(A_PIPE);
 
     await (updatePipeRule as any)._handler(ctx, {
       pipeId: "pipe-1",
-      rule: "any_spend",
+      rule: "instant_settlement",
     });
 
     expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
-      rule: "any_spend",
+       rule: "instant_settlement",
       capUpdateValue: undefined,
       cronNextDate: undefined,
       cronInterval: undefined,
@@ -261,7 +264,8 @@ describe("updatePipeRule", () => {
       capUpdateValue: 50,
     });
 
-    const elapsed = computeElapsedIntervals(starting, 1, "months", Date.now());
+    const firstOccurrence = computeCronNextDate(starting, 1, "months", starting - 1);
+    const elapsed = countDueCronOccurrences(firstOccurrence, 1, "months", Date.now());
     expect(ctx.db.patch).toHaveBeenCalledWith(
       "pipe-1",
       expect.objectContaining({
@@ -270,7 +274,7 @@ describe("updatePipeRule", () => {
     );
   });
 
-  it("credits capacity again when the same cron rule is saved again", async () => {
+  it("does not credit capacity when the same cron rule is saved again", async () => {
     const ctx = mockCtx();
     ctx.db.get.mockResolvedValue({ _id: "pipe-1", userId: "user-1", capacity: 0 });
     const args = {
@@ -284,12 +288,20 @@ describe("updatePipeRule", () => {
 
     await (updatePipeRule as any)._handler(ctx, args);
     const first = ctx.db.patch.mock.calls[0][1].capacity;
+    const firstNextDate = ctx.db.patch.mock.calls[0][1].cronNextDate;
 
-    ctx.db.get.mockResolvedValue({ _id: "pipe-1", userId: "user-1", capacity: first });
-    await (updatePipeRule as any)._handler(ctx, args);
+    ctx.db.get.mockResolvedValue({
+      _id: "pipe-1",
+      userId: "user-1",
+      capacity: first,
+      rule: "cron",
+      capUpdateValue: 50,
+      cronInterval: { interval: 1, unit: "months" },
+      cronNextDate: firstNextDate,
+    });
+    await (updatePipeRule as any)._handler(ctx, { ...args, starting: firstNextDate });
 
-    expect(ctx.db.patch).toHaveBeenCalledTimes(2);
-    expect(ctx.db.patch.mock.calls[1][1].capacity).toBe(first * 2);
+    expect(ctx.db.patch).toHaveBeenCalledTimes(1);
   });
 
   it("does not credit capacity when capUpdateValue is not provided", async () => {
@@ -483,6 +495,27 @@ describe("runDueCronRules", () => {
     });
   });
 
+  it("coalesces missed daily occurrences into one settlement", async () => {
+    const stalePipe = {
+      ...dueToday,
+      cronNextDate: Date.UTC(2026, 5, 13, 5),
+      capUpdateValue: 10,
+    };
+    const { query } = mockQueryChain([stalePipe]);
+    const ctx = mockCtx();
+    ctx.db.query = query;
+    ctx.db.get.mockResolvedValue(stalePipe);
+
+    await (runDueCronRules as any)._handler(ctx, { now: NOW });
+
+    expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+      fed: 300,
+      spent: 0,
+      capacity: 830,
+      cronNextDate: Date.UTC(2026, 5, 16, 5),
+    });
+  });
+
   it("skips a due rule when its root contains a deleting member", async () => {
     const duePipe = {
       ...dueToday,
@@ -589,7 +622,7 @@ describe("addPipe", () => {
       capacity: 100,
       spent: 20,
       fed: 50,
-      rule: "any_spend",
+      rule: "instant_settlement",
       capUpdateValue: 10,
       cronNextDate: 1234,
       cronInterval: { interval: 1, unit: "days" },

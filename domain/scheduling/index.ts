@@ -1,4 +1,5 @@
 export {
+  countDueCronOccurrences,
   computeCronIntervalProgress,
   computeCronNextDate,
   computeElapsedIntervals,

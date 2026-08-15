@@ -9,11 +9,11 @@ import {
   type CronUnit,
 } from "@domain/scheduling";
 import { RuleModal } from "./RuleModal";
-import { RULE_OPTIONS } from "./RuleModal/config";
+import { RULE_OPTIONS, type RuleId } from "./RuleModal/config";
 
 type Props = {
   pipeId: Id<"pipes">;
-  rule?: "spend_overflow" | "any_spend" | "cron";
+  rule?: RuleId;
   fed: number;
   capacity: number;
   spent?: number;
@@ -33,7 +33,6 @@ export function RulesIcon({
   disabled,
 }: Props) {
   const [modalVisible, setModalVisible] = useState(false);
-
   const color = fed >= capacity ? colors.secondary : colors.text;
   const ruleIcon =
     rule != null ? RULE_OPTIONS.find((o) => o.id === rule)?.icon : undefined;

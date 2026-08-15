@@ -5,5 +5,6 @@ export {
   computePipeDerivedValues,
   computePipeTree,
   recalculatePipes,
+  shouldTriggerPipeRule,
   splitEvenly,
 } from "./pipes";

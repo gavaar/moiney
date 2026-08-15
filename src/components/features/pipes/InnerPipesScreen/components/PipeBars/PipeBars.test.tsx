@@ -42,8 +42,8 @@ describe("PipeBars", () => {
     expect(screen.getByTestId("bar-capacity-fill").style.borderTopStyle).toBe("dashed");
   });
 
-  it("hides the spent bar when rule is any_spend", () => {
-    render(<PipeBars fed={150000} spent={0} capacity={200000} rule="any_spend" />);
+  it("hides the spent bar when rule is instant_settlement", () => {
+    render(<PipeBars fed={150000} spent={0} capacity={200000} rule="instant_settlement" />);
     expect(screen.queryByText("spent")).toBeNull();
     expect(screen.queryByTestId("bar-spent-fill")).toBeNull();
     expect(screen.getByTestId("bar-fed-fill")).toBeDefined();

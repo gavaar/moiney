@@ -28,7 +28,7 @@ This roadmap persists the whole-project audit beyond any single chat session. Wo
 | 7. Independent correctness fixes | Completed | Repair selection, back handling, description clearing, cron diff, input handlers, recent-title selection, and loading states | Relevant focused tests |
 | 8. Shared domain core | Completed | Introduce deep pure modules for transaction identity/accounting, pipe graph/reconciliation, and cron schedules without changing monetary representation | D001-D003 |
 | 9. Integer cents migration | Completed | Replace floating-point monetary persistence and arithmetic with integer cents | Update 8, D001 |
-| 10. Financial mutation semantics | In progress | Define corrections, rule effects, idempotency, and accounting projections | Updates 8-9 |
+| 10. Financial mutation semantics | Completed | Define corrections, rule effects, idempotency, and accounting projections | Updates 8-9 |
 | 11. Convex model boundaries | Pending | Make registered functions thin, validated, authorized wrappers over deep model operations | Updates 1-3, 8-10 |
 | 12. Bounded backend work | Pending | Scope recascade, batch cleanup/crons/deletion, and index hot transaction queries | Updates 6, 10-11 plus measurements |
 | 13. Frontend ownership | Pending | Normalize backend models, narrow contexts/subscriptions, and restore dependency direction | Updates 5, 8, 11 |
@@ -63,18 +63,21 @@ Update 15 must report before-and-after measurements rather than relying only on 
 
 ## Current Next Step
 
-Update 9 is complete. The framework-independent money core parses, validates,
-and formats integer-cents amounts; backend mutation arguments use canonical
-names; and persisted monetary values have been migrated and verified. Update 10
-is in progress: pay-by-transfer now separates logical spending from external
-liquidity through `pendingFedAdjustment`, including settlement, tree
-aggregation, deletion balances, edits, detailed-pipe UI indication, and a
-preservation policy for legacy documents that omit the field. Leaf-to-parent
-transitions settle pending accounting before clearing the old leaf state.
+Updates 9 and 10 are complete. The framework-independent money core parses,
+validates, and formats integer-cents amounts; backend mutation arguments use
+canonical names; and persisted monetary values have been migrated and verified.
+Update 10 now includes pay-by-transfer settlement, tree aggregation, deletion
+balances, current-period edits, effect-based rule triggers, coalesced cron
+catch-up, past-start activation, unchanged-cron-save idempotency, and the
+preservation policy for legacy documents.
 
-The remaining Update 10 work includes consistent rule trigger semantics for
-every transaction shape, cron catch-up behavior, and idempotency decisions
-where Convex's transactional guarantees are insufficient.
+The `any_spend` to `instant_settlement` migration processed 32 development
+pipes. Migration-specific code was removed after completion, while the reusable
+migrations component remains installed for future work. Convex transport retry
+semantics, atomic cron schedule advancement, and UI submission guards are the
+chosen operation-idempotency boundary; no operation IDs are persisted.
+
+The next roadmap step is Update 11: Convex model boundaries.
 
 ## Completed Accessibility Layout Work
 

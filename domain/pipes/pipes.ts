@@ -64,6 +64,17 @@ export function splitEvenly<TPipeId extends string>(
   });
 }
 
+export function shouldTriggerPipeRule(
+  rule: string | undefined,
+  spentDelta: number,
+  resultingSpent: number,
+  capacity: number,
+): boolean {
+  if (spentDelta === 0) return false;
+  if (rule === "instant_settlement") return true;
+  return rule === "spend_overflow" && spentDelta > 0 && resultingSpent >= capacity;
+}
+
 export function calculatePipeAllocations<TPipeId extends string>(
   parentFed: number,
   children: Array<{
