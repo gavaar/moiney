@@ -35,6 +35,12 @@ export function resolveTransactionKind(
   return transaction.kind;
 }
 
+export function canonicalizeTransactionTitle(title: string): string {
+  const canonicalTitle = title.trim().toLowerCase();
+  if (!canonicalTitle) throw new Error("Transaction title cannot be empty");
+  return canonicalTitle;
+}
+
 export function transactionGroupId(transaction: GroupableTransaction): string {
   return JSON.stringify([
     resolveTransactionKind(transaction),
