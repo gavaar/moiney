@@ -83,6 +83,50 @@ describe("Convex boundaries", () => {
     });
   });
 
+  it("settles pending accounting before converting a leaf into a parent", async () => {
+    const t = convexTest(schema, modules);
+    const { userId, parentId } = await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", {
+        username: "alice",
+        email: "alice@example.com",
+        password: "hash",
+      });
+      const parentId = await ctx.db.insert("pipes", {
+        userId,
+        name: "Household",
+        icon: "home-outline",
+        priority: 0,
+        capacity: 1000,
+        fed: 1000,
+        spent: 300,
+        pendingFedAdjustment: 300,
+      });
+      return { userId, parentId };
+    });
+
+    const childId = await t.withIdentity({ subject: userId }).mutation(api.pipes.addPipe, {
+      name: "Coffee",
+      icon: "cafe",
+      priority: 0,
+      capacity: 400,
+      parentId,
+    });
+
+    const pipes = await t.withIdentity({ subject: userId }).query(api.pipes.getPipes, {});
+    const rawParent = await t.run((ctx) => ctx.db.get("pipes", parentId));
+    const parent = pipes.find((pipe) => pipe._id === parentId);
+    const child = pipes.find((pipe) => pipe._id === childId);
+
+    expect(parent).toMatchObject({
+      fed: 1000,
+      spent: 0,
+      pendingFedAdjustment: 0,
+    });
+    expect(child).toMatchObject({ fed: 400 });
+    expect(rawParent).toMatchObject({ fed: 600, spent: 0, pendingFedAdjustment: 0 });
+    expect((rawParent?.fed ?? 0) + (child?.fed ?? 0)).toBe(1000);
+  });
+
   it("atomically registers one canonical account and linked session", async () => {
     const t = convexTest(schema, modules);
     const args = {
@@ -908,6 +952,39 @@ describe("Convex boundaries", () => {
     });
   });
 
+  it("settles a legacy pipe with omitted pending adjustment from stored fed and spent", async () => {
+    const t = convexTest(schema, modules);
+    const { userId, pipeId } = await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", {
+        username: "alice",
+        email: "alice@example.com",
+        password: "hash",
+      });
+      const pipeId = await ctx.db.insert("pipes", {
+        userId,
+        name: "Coffee",
+        icon: "cafe",
+        priority: 0,
+        capacity: 1000,
+        fed: 1000,
+        spent: 300,
+        rule: "any_spend",
+      });
+      return { userId, pipeId };
+    });
+
+    await t.withIdentity({ subject: userId }).mutation(api.pipes.executePipeRuleNow, {
+      pipeId,
+    });
+
+    const rawPipe = await t.run((ctx) => ctx.db.get("pipes", pipeId));
+    const [pipe] = await t.withIdentity({ subject: userId }).query(api.pipes.getPipes, {});
+
+    expect(rawPipe).toMatchObject({ fed: 700, spent: 0 });
+    expect(rawPipe).not.toHaveProperty("pendingFedAdjustment");
+    expect(pipe).toMatchObject({ fed: 700, spent: 0, pendingFedAdjustment: 0 });
+  });
+
   it("aggregates pending external adjustments through a pipe tree", async () => {
     const t = convexTest(schema, modules);
     const { userId, coffeeId, rootId, bankId } = await t.run(async (ctx) => {
@@ -1030,6 +1107,66 @@ describe("Convex boundaries", () => {
       pendingFedAdjustment: 250,
     });
     expect(bank).toMatchObject({ fed: 750 });
+  });
+
+  it("preserves a legacy pay-by balance when editing its value", async () => {
+    const t = convexTest(schema, modules);
+    const { userId, coffeeId, bankId, transactionId } = await t.run(
+      async (ctx) => {
+        const userId = await ctx.db.insert("users", {
+          username: "alice",
+          email: "alice@example.com",
+          password: "hash",
+        });
+        const coffeeId = await ctx.db.insert("pipes", {
+          userId,
+          name: "Coffee",
+          icon: "cafe",
+          priority: 0,
+          capacity: 1000,
+          fed: 1000,
+          spent: 500,
+        });
+        const bankId = await ctx.db.insert("pipes", {
+          userId,
+          name: "Bank",
+          icon: "bank",
+          priority: 0,
+          capacity: 1000,
+          fed: 500,
+          spent: 0,
+        });
+        const transactionId = await ctx.db.insert("transactions", {
+          userId,
+          title: "coffee",
+          kind: "expense",
+          value: -500,
+          date: 2000,
+          from: coffeeId,
+          paidFrom: bankId,
+        });
+        return { userId, coffeeId, bankId, transactionId };
+      },
+    );
+
+    await t.withIdentity({ subject: userId }).mutation(api.transactions.editTransaction, {
+      transactionId,
+      title: "coffee",
+      value: -250,
+      date: 3000,
+    });
+
+    const pipes = await t.withIdentity({ subject: userId }).query(api.pipes.getPipes, {});
+    const coffee = pipes.find((pipe) => pipe._id === coffeeId);
+    const bank = pipes.find((pipe) => pipe._id === bankId);
+
+    expect(coffee).toMatchObject({
+      fed: 1000,
+      spent: 250,
+      pendingFedAdjustment: -250,
+    });
+    expect(bank).toMatchObject({ fed: 750 });
+    expect((coffee?.fed ?? 0) + (coffee?.pendingFedAdjustment ?? 0) - (coffee?.spent ?? 0)).toBe(500);
   });
 
   it("trims and lowercases transaction titles before persistence and recent-title lookup", async () => {

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { expo } from "@/../app.json";
 import { MoineyVers } from "./MoineyVers";
 
 const mocks = vi.hoisted(() => ({
@@ -30,8 +31,8 @@ describe("MoineyVers", () => {
 
   it("does not show a warning when the app matches the latest release", async () => {
     mocks.getLatestMoineyRelease.mockResolvedValue({
-      name: "0.2.1",
-      url: "https://github.com/gavaar/moiney/releases/tag/0.2.1",
+      name: expo.version,
+      url: `https://github.com/gavaar/moiney/releases/tag/${expo.version}`,
     });
 
     render(<MoineyVers />);

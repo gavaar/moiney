@@ -199,8 +199,17 @@ Therefore:
   them, and the detailed pipe statistics expose nonzero values as an external
   settlement indicator.
 
-The field is optional so existing documents remain valid and missing values
-are treated as zero. Existing transactions created under the previous implicit
-`fed` movement do not contain enough information to reconstruct whether their
-adjustment has already crossed a rule boundary. A production migration or
-legacy-data strategy remains unresolved while Update 10 is in progress.
+The field remains optional so existing documents remain valid. A missing value
+means zero post-cutover pending adjustment; existing `fed` and `spent` values
+remain the authoritative legacy baseline. Historical transactions are not
+replayed and pending values are not reconstructed, because transaction history
+does not record whether an effect crossed a rule boundary. New pipe documents
+write an explicit zero, while legacy documents continue to be read as zero
+without a data reset or monetary backfill.
+
+When a leaf with pending accounting becomes a parent, its balance is settled as
+`fed + pendingFedAdjustment - spent` before `spent` and
+`pendingFedAdjustment` are cleared and child allocation runs. Editing a legacy
+pay-by-transfer transaction applies only its value difference under the new
+model, preserving its pre-edit logical balance while making the new adjustment
+explicit.

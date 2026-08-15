@@ -108,6 +108,7 @@ export const addFeed = mutation({
       capacity: 0,
       fed: 0,
       spent: 0,
+      pendingFedAdjustment: 0,
     });
   },
 });
@@ -132,6 +133,9 @@ export const addPipe = mutation({
 
     await checkPipeLimit(ctx, userId);
 
+    const settledFed =
+      parent.fed + (parent.pendingFedAdjustment ?? 0) - parent.spent;
+
     const childId = await ctx.db.insert("pipes", {
       userId,
       parentId: args.parentId,
@@ -142,11 +146,14 @@ export const addPipe = mutation({
       capacity: assertAmountLimit(args.capacity),
       fed: 0,
       spent: 0,
+      pendingFedAdjustment: 0,
     });
 
     await ctx.db.patch("pipes", parent._id, {
       capacity: 0,
+      fed: settledFed,
       spent: 0,
+      pendingFedAdjustment: 0,
       rule: undefined,
       capUpdateValue: undefined,
       cronNextDate: undefined,

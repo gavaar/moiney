@@ -627,7 +627,9 @@ describe("addPipe", () => {
     )?.[2];
     expect(Object.keys(parentPatch)).toEqual([
       "capacity",
+      "fed",
       "spent",
+      "pendingFedAdjustment",
       "rule",
       "capUpdateValue",
       "cronNextDate",

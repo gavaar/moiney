@@ -68,11 +68,13 @@ and formats integer-cents amounts; backend mutation arguments use canonical
 names; and persisted monetary values have been migrated and verified. Update 10
 is in progress: pay-by-transfer now separates logical spending from external
 liquidity through `pendingFedAdjustment`, including settlement, tree
-aggregation, deletion balances, edits, and detailed-pipe UI indication.
+aggregation, deletion balances, edits, detailed-pipe UI indication, and a
+preservation policy for legacy documents that omit the field. Leaf-to-parent
+transitions settle pending accounting before clearing the old leaf state.
 
-The remaining Update 10 work includes a legacy-data strategy, consistent rule
-trigger semantics for every transaction shape, cron catch-up behavior, and
-idempotency decisions where Convex's transactional guarantees are insufficient.
+The remaining Update 10 work includes consistent rule trigger semantics for
+every transaction shape, cron catch-up behavior, and idempotency decisions
+where Convex's transactional guarantees are insufficient.
 
 ## Completed Accessibility Layout Work
 
