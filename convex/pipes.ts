@@ -1,5 +1,10 @@
 import { v } from "convex/values";
-import { internalMutation, mutation, query, type MutationCtx } from "./_generated/server";
+import {
+  internalMutation,
+  mutation,
+  query,
+  type MutationCtx,
+} from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Id, Doc } from "./_generated/dataModel";
 import { requireAuth } from "./lib/auth";
@@ -9,9 +14,7 @@ import {
 } from "../domain/scheduling";
 import { computePipeTree } from "../domain/pipes";
 import { assertAmountLimit } from "../domain/money";
-import {
-  MAX_PIPES_PER_USER,
-} from "./lib/constants";
+import { MAX_PIPES_PER_USER } from "./lib/constants";
 import {
   collectChildSubtree,
   executePipeRule,
@@ -34,9 +37,7 @@ async function checkPipeLimit(ctx: MutationCtx, userId: Id<"users">) {
     .withIndex("by_userId", (q) => q.eq("userId", userId))
     .collect();
   if (pipes.length >= MAX_PIPES_PER_USER) {
-    throw new Error(
-      `Pipe limit reached (max ${MAX_PIPES_PER_USER})`,
-    );
+    throw new Error(`Pipe limit reached (max ${MAX_PIPES_PER_USER})`);
   }
 }
 
@@ -311,7 +312,10 @@ export const runDueCronRules = internalMutation({
       if (!safeRoots.has(rootId)) {
         const root = await ctx.db.get("pipes", rootId);
         const children = await collectChildSubtree(ctx, rootId);
-        if (root?.deletionJobId || children.some((child) => child.deletionJobId)) {
+        if (
+          root?.deletionJobId ||
+          children.some((child) => child.deletionJobId)
+        ) {
           blockedRoots.add(rootId);
           continue;
         }
@@ -340,7 +344,13 @@ export const getPipes = query({
 
     return pipes.map((pipe) => {
       const v = computed.get(pipe._id)!;
-      return { ...pipe, capacity: v.capacity, spent: v.spent, fed: v.fed };
+      return {
+        ...pipe,
+        capacity: v.capacity,
+        spent: v.spent,
+        fed: v.fed,
+        pendingFedAdjustment: v.pendingFedAdjustment ?? 0,
+      };
     }) as Doc<"pipes">[];
   },
 });

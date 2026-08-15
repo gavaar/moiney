@@ -12,11 +12,14 @@ export async function executePipeRule(
   const pipe = cachedPipe ?? (await ctx.db.get(pipeId));
   if (!pipe) throw new Error("Pipe not found");
 
-  const leftoverFed = pipe.fed - pipe.spent;
+  const leftoverFed = pipe.fed + (pipe.pendingFedAdjustment ?? 0) - pipe.spent;
   const patch: Record<string, unknown> = {
     fed: leftoverFed,
     spent: 0,
   };
+  if (pipe.pendingFedAdjustment !== undefined) {
+    patch.pendingFedAdjustment = 0;
+  }
 
   if (pipe.capUpdateValue != null) {
     patch.capacity = pipe.capacity - pipe.spent + pipe.capUpdateValue;
@@ -36,10 +39,7 @@ export async function executePipeRule(
 
 // ── DB operations ──
 
-export async function recascadeTree(
-  ctx: MutationCtx,
-  userId: Id<"users">,
-) {
+export async function recascadeTree(ctx: MutationCtx, userId: Id<"users">) {
   const allPipes = await ctx.db
     .query("pipes")
     .withIndex("by_userId", (q) => q.eq("userId", userId))

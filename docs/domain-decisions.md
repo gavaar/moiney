@@ -169,3 +169,33 @@ documents do not appear as ordinary transaction rows or affect grouping.
 Broader accounting semantics for edits across rule-execution boundaries remain
 part of Update 10; the current feature preserves the existing balance-adjustment
 behavior while making the edit history visible and auditable.
+
+## D012: Pay-by-transfer Liquidity And Logical Spending
+
+Status: In progress
+
+Pay-by-transfer transactions separate the pipe where spending is logically
+assigned from the pipe where real liquidity moves. The logical pipe's `fed`
+does not change immediately. Its `spent` changes by `-value`, and its
+`pendingFedAdjustment` changes by the same amount as the logical pipe's former
+`fed` effect. The `paidFrom` pipe's `fed` changes by `value`.
+
+Therefore:
+
+- A negative expense paid elsewhere increases logical `spent` and positive
+  `pendingFedAdjustment`, while reducing the payer's `fed`.
+- A positive refund received elsewhere decreases logical `spent` and makes
+  `pendingFedAdjustment` negative, while increasing the receiving pipe's `fed`.
+- Rule settlement computes `fed + pendingFedAdjustment - spent`, then clears
+  both `spent` and `pendingFedAdjustment`.
+- Capacity updates continue to use logical `spent`, not the pending liquidity
+  adjustment.
+- Pipe-tree projections aggregate pending adjustments, deletion balances use
+  them, and the detailed pipe statistics expose nonzero values as an external
+  settlement indicator.
+
+The field is optional so existing documents remain valid and missing values
+are treated as zero. Existing transactions created under the previous implicit
+`fed` movement do not contain enough information to reconstruct whether their
+adjustment has already crossed a rule boundary. A production migration or
+legacy-data strategy remains unresolved while Update 10 is in progress.

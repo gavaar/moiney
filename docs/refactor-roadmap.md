@@ -28,7 +28,7 @@ This roadmap persists the whole-project audit beyond any single chat session. Wo
 | 7. Independent correctness fixes | Completed | Repair selection, back handling, description clearing, cron diff, input handlers, recent-title selection, and loading states | Relevant focused tests |
 | 8. Shared domain core | Completed | Introduce deep pure modules for transaction identity/accounting, pipe graph/reconciliation, and cron schedules without changing monetary representation | D001-D003 |
 | 9. Integer cents migration | Completed | Replace floating-point monetary persistence and arithmetic with integer cents | Update 8, D001 |
-| 10. Financial mutation semantics | Pending | Define corrections, rule effects, idempotency, and accounting projections | Updates 8-9 |
+| 10. Financial mutation semantics | In progress | Define corrections, rule effects, idempotency, and accounting projections | Updates 8-9 |
 | 11. Convex model boundaries | Pending | Make registered functions thin, validated, authorized wrappers over deep model operations | Updates 1-3, 8-10 |
 | 12. Bounded backend work | Pending | Scope recascade, batch cleanup/crons/deletion, and index hot transaction queries | Updates 6, 10-11 plus measurements |
 | 13. Frontend ownership | Pending | Normalize backend models, narrow contexts/subscriptions, and restore dependency direction | Updates 5, 8, 11 |
@@ -65,8 +65,14 @@ Update 15 must report before-and-after measurements rather than relying only on 
 
 Update 9 is complete. The framework-independent money core parses, validates,
 and formats integer-cents amounts; backend mutation arguments use canonical
-names; and persisted monetary values have been migrated and verified. Future
-work continues with Update 10 financial mutation semantics.
+names; and persisted monetary values have been migrated and verified. Update 10
+is in progress: pay-by-transfer now separates logical spending from external
+liquidity through `pendingFedAdjustment`, including settlement, tree
+aggregation, deletion balances, edits, and detailed-pipe UI indication.
+
+The remaining Update 10 work includes a legacy-data strategy, consistent rule
+trigger semantics for every transaction shape, cron catch-up behavior, and
+idempotency decisions where Convex's transactional guarantees are insufficient.
 
 ## Completed Accessibility Layout Work
 
