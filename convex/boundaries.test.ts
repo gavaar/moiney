@@ -1031,4 +1031,62 @@ describe("Convex boundaries", () => {
     });
     expect(bank).toMatchObject({ fed: 750 });
   });
+
+  it("trims and lowercases transaction titles before persistence and recent-title lookup", async () => {
+    const t = convexTest(schema, modules);
+    const { userId, pipeId } = await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", {
+        username: "alice",
+        email: "alice@example.com",
+        password: "hash",
+      });
+      const pipeId = await ctx.db.insert("pipes", {
+        userId,
+        name: "Coffee",
+        icon: "cafe",
+        priority: 0,
+        capacity: 1000,
+        fed: 1000,
+        spent: 0,
+      });
+      return { userId, pipeId };
+    });
+    const asUser = t.withIdentity({ subject: userId });
+
+    await asUser.mutation(api.transactions.createTransaction, {
+      title: "  COFFEE  ",
+      value: -10,
+      date: 3000,
+      from: pipeId,
+    });
+
+    const transactions = await asUser.query(api.transactions.listTransactions, {
+      pipeIds: [pipeId],
+    });
+    const recentTitles = await asUser.query(api.transactions.listRecentTitles, { pipeId });
+
+    expect(transactions[0].title).toBe("coffee");
+    expect(recentTitles).toEqual(["coffee"]);
+
+    await asUser.mutation(api.transactions.editTransaction, {
+      transactionId: transactions[0]._id,
+      title: "  LATTE  ",
+      value: -10,
+      date: 3000,
+    });
+
+    const editedTransactions = await asUser.query(api.transactions.listTransactions, {
+      pipeIds: [pipeId],
+    });
+    expect(editedTransactions[0].title).toBe("latte");
+
+    await expect(
+      asUser.mutation(api.transactions.createTransaction, {
+        title: "   ",
+        value: -10,
+        date: 4000,
+        from: pipeId,
+      }),
+    ).rejects.toThrow("Transaction title cannot be empty");
+  });
 });

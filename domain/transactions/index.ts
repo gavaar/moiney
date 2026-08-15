@@ -1,4 +1,5 @@
 export {
+  canonicalizeTransactionTitle,
   deriveTransactionKind,
   resolveTransactionKind,
   transactionGroupId,

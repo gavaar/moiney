@@ -1,5 +1,6 @@
 import type { MutationCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
+import { canonicalizeTransactionTitle } from "../../domain/transactions";
 
 export function getTitleUsagePipeId<TPipeId extends string>(transaction: {
   from?: TPipeId;
@@ -34,10 +35,11 @@ export async function updateOrCreateTitleUsage(
   ctx: Pick<MutationCtx, "db">,
   args: { pipeId: Id<"pipes">; userId: Id<"users">; title: string; now: number },
 ) {
+  const title = canonicalizeTransactionTitle(args.title);
   const existing = await ctx.db
     .query("transactionTitleUsage")
     .withIndex("by_pipeId_userId_title", (q: any) =>
-      q.eq("pipeId", args.pipeId).eq("userId", args.userId).eq("title", args.title.toLowerCase()),
+      q.eq("pipeId", args.pipeId).eq("userId", args.userId).eq("title", title),
     )
     .first();
 
@@ -50,7 +52,7 @@ export async function updateOrCreateTitleUsage(
     await ctx.db.insert("transactionTitleUsage", {
       pipeId: args.pipeId,
       userId: args.userId,
-      title: args.title.toLowerCase(),
+      title,
       count: 1,
       lastUsedAt: args.now,
     });
