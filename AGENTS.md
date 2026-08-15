@@ -115,6 +115,11 @@ Known violations remain in the backlog. Fix them in the agreed order rather than
 - Do not add state libraries, caching layers, or memoization without evidence of a real bottleneck.
 - Test platform-sensitive navigation, keyboard, modal, and accessibility behavior with native-oriented tools where practical.
 
+## Modal Behavior
+
+- Every modal must be dismissible by tapping its backdrop; use `ModalShell` or an equivalent backdrop-dismissable primitive.
+- Never add a close button, close icon, or other dismissal-only control inside modal content. Buttons that perform an action, such as submit or delete, remain allowed.
+
 ## Input Component
 
 Application code uses the polymorphic `src/components/ui/Input/Input.tsx` dispatcher rather than importing variants directly.

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { usePaginatedQuery } from "convex/react";
 import { TransactionCorrectionHistoryModal } from "./TransactionCorrectionHistoryModal";
 
@@ -35,7 +35,7 @@ describe("TransactionCorrectionHistoryModal", () => {
     } as any);
   });
 
-  it("shows the read-only correction timeline and closes it", () => {
+  it("shows the read-only correction timeline without an internal close button", () => {
     render(
       <TransactionCorrectionHistoryModal
         visible
@@ -48,8 +48,6 @@ describe("TransactionCorrectionHistoryModal", () => {
     expect(screen.getByText("Edit history")).toBeDefined();
     expect(screen.getByText("Amount changed")).toBeDefined();
     expect(screen.getByText("-10.00 → -12.00")).toBeDefined();
-
-    fireEvent.click(screen.getByRole("button", { name: "Close edit history" }));
-    expect(onClose).toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "Close edit history" })).toBeNull();
   });
 });

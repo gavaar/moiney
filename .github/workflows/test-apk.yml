@@ -43,10 +43,16 @@ jobs:
           mkdir -p apk
           mv "$APK_PATH" apk/moiney.apk
 
+      - name: Read app version
+        id: app-version
+        run: |
+          VERSION=$(node -p "require('./app.json').expo.version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: test-${{ github.run_number }}
-          name: Test build ${{ github.run_number }}
+          name: ${{ steps.app-version.outputs.version }}
           files: apk/moiney.apk
           prerelease: true
