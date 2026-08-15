@@ -1,10 +1,7 @@
 import type { Id } from "../../../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../../../_generated/server";
 import { planPipeDeletion } from "./plan";
-import {
-  computePipeTree,
-  recalculatePipes,
-} from "../../../../domain/pipes";
+import { computePipeTree, recalculatePipes } from "../../../../domain/pipes";
 import {
   planTransactionDisposition,
   type DeletionPipeState,
@@ -24,11 +21,7 @@ export function assertPipeNotDeleting(pipe: { deletionJobId?: unknown }) {
   if (pipe.deletionJobId) throw new Error("Pipe is being deleted");
 }
 
-function roleQuery(
-  ctx: MutationCtx,
-  role: DeletionRole,
-  pipeId: Id<"pipes">,
-) {
+function roleQuery(ctx: MutationCtx, role: DeletionRole, pipeId: Id<"pipes">) {
   if (role === "from") {
     return ctx.db
       .query("transactions")
@@ -83,10 +76,7 @@ export async function startPipeDeletionOperation(
   if (!root || root.userId !== userId) throw new Error("Pipe not found");
 
   if (root.deletionJobId) {
-    const existing = await ctx.db.get(
-      "pipeDeletionJobs",
-      root.deletionJobId,
-    );
+    const existing = await ctx.db.get("pipeDeletionJobs", root.deletionJobId);
     if (existing?.userId === userId) {
       return { jobId: existing._id, phase: existing.phase as DeletionPhase };
     }
@@ -99,9 +89,7 @@ export async function startPipeDeletionOperation(
     .collect();
   const plan = planPipeDeletion(allPipes, args.pipeId);
   const frozenPipeIds = new Set(
-    allPipes
-      .filter((pipe) => pipe.deletionJobId)
-      .map((pipe) => pipe._id),
+    allPipes.filter((pipe) => pipe.deletionJobId).map((pipe) => pipe._id),
   );
   if (plan.memberIds.some((pipeId) => frozenPipeIds.has(pipeId))) {
     throw new Error("Pipe is being deleted");
@@ -180,7 +168,11 @@ export async function processPipeDeletionOperation(
       if (disposition.delete) {
         await ctx.db.delete("transactions", transaction._id);
       } else if (Object.keys(disposition.patches).length > 0) {
-        await ctx.db.patch("transactions", transaction._id, disposition.patches);
+        await ctx.db.patch(
+          "transactions",
+          transaction._id,
+          disposition.patches,
+        );
       }
     }
 
@@ -237,7 +229,11 @@ export async function processPipeDeletionOperation(
     );
     if (!deletionRoot) throw new Error("Pipe deletion state is invalid");
     const derived = computePipeTree(allPipes).get(deletionRoot._id);
-    if (!derived || derived.fed - derived.spent !== job.initialBalance) {
+    if (
+      !derived ||
+      derived.fed + (derived.pendingFedAdjustment ?? 0) - derived.spent !==
+        job.initialBalance
+    ) {
       throw new Error("Pipe deletion balance changed");
     }
 

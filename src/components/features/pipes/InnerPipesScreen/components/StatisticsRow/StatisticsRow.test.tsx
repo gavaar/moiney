@@ -30,13 +30,19 @@ vi.mock("@ui/Popover", () => ({
 }));
 
 vi.mock("@ui/Icon", () => ({
-  Icon: ({ name, testID }: any) => <span data-testid={testID ?? "icon"} data-name={name} />,
+  Icon: ({ name, testID }: any) => (
+    <span data-testid={testID ?? "icon"} data-name={name} />
+  ),
 }));
 
 describe("StatisticsRow", () => {
   beforeEach(() => {
     mockPipesById = {
-      test_pipe_id: { _id: "test_pipe_id", name: "Test Pipe", icon: "home-outline" },
+      test_pipe_id: {
+        _id: "test_pipe_id",
+        name: "Test Pipe",
+        icon: "home-outline",
+      },
     };
     vi.useRealTimers();
   });
@@ -53,6 +59,45 @@ describe("StatisticsRow", () => {
     expect(screen.getByText(/L2S: 600\.00/)).toBeDefined();
     expect(screen.getByText(/StM: 400\.00/)).toBeDefined();
     expect(screen.getByText(/StMpD: 13\.33/)).toBeDefined();
+  });
+
+  it("shows paid-elsewhere adjustment in L2S and explains the purple chip", async () => {
+    const user = userEvent.setup();
+    render(
+      <StatisticsRow fed={100000} spent={40000} pendingFedAdjustment={25000} />,
+    );
+
+    expect(screen.getByText(/L2S: 850\.00/)).toBeDefined();
+    expect(screen.getByTestId("external-adjustment-chip")).toBeDefined();
+    expect(screen.getByText("+250.00")).toBeDefined();
+    expect(
+      screen
+        .getAllByTestId("icon")
+        .find(
+          (icon) =>
+            icon.getAttribute("data-name") === "swap-horizontal-outline",
+        ),
+    ).toBeDefined();
+
+    await user.click(screen.getByTestId("external-adjustment-chip"));
+    expect(screen.getByText(/Paid elsewhere/)).toBeDefined();
+  });
+
+  it("labels a negative external adjustment as refunded elsewhere", async () => {
+    const user = userEvent.setup();
+    render(
+      <StatisticsRow
+        fed={100000}
+        spent={40000}
+        pendingFedAdjustment={-25000}
+      />,
+    );
+
+    expect(screen.getByText(/L2S: 350\.00/)).toBeDefined();
+    expect(screen.getByText("-250.00")).toBeDefined();
+
+    await user.click(screen.getByTestId("external-adjustment-chip"));
+    expect(screen.getByText(/Refunded elsewhere/)).toBeDefined();
   });
 
   it("opens stat description popover on tap", async () => {

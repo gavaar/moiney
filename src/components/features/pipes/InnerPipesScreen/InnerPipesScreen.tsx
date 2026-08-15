@@ -2,7 +2,10 @@ import { useCallback } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
 import { type Id } from "@convex/_generated/dataModel";
-import { PipesList, type Pipe as PipesListPipe } from "@features/pipes/components/PipesList";
+import {
+  PipesList,
+  type Pipe as PipesListPipe,
+} from "@features/pipes/components/PipesList";
 import { AmountForm } from "@features/components/AmountForm";
 import { Breadcrumb } from "./components/Breadcrumb";
 import { OptionsButton } from "./components/OptionsButton";
@@ -11,10 +14,12 @@ import { RulesIcon } from "./components/RulesIcon";
 import { StatisticsRow } from "./components/StatisticsRow";
 
 export function InnerPipesScreen() {
-  const { selectedPipe, selectedPipePath, childrenByParent, selectPipe } = usePipeSelection();
+  const { selectedPipe, selectedPipePath, childrenByParent, selectPipe } =
+    usePipeSelection();
 
   const fed = selectedPipe?.fed ?? 0;
   const spent = selectedPipe?.spent ?? 0;
+  const pendingFedAdjustment = selectedPipe?.pendingFedAdjustment ?? 0;
   const capacity = selectedPipe?.capacity ?? 0;
   const isDeleting = Boolean(selectedPipe?.deletionJobId);
 
@@ -36,7 +41,10 @@ export function InnerPipesScreen() {
         spent={pipe.spent}
         cronNextDate={pipe.cronNextDate}
         cronInterval={pipe.cronInterval}
-        disabled={(childrenByParent.get(pipe._id)?.length ?? 0) > 0 || Boolean(pipe.deletionJobId)}
+        disabled={
+          (childrenByParent.get(pipe._id)?.length ?? 0) > 0 ||
+          Boolean(pipe.deletionJobId)
+        }
       />
     ),
     [childrenByParent],
@@ -46,10 +54,19 @@ export function InnerPipesScreen() {
     <View className="flex-1">
       <View className="flex flex-col">
         <Breadcrumb />
-        <PipeBars fed={fed} spent={spent} capacity={capacity} rule={selectedPipe?.rule} />
+        <PipeBars
+          fed={fed}
+          spent={spent}
+          capacity={capacity}
+          rule={selectedPipe?.rule}
+        />
         <View className="flex-row items-center gap-2 px-5 pb-2">
           <View className="flex-1">
-            <StatisticsRow fed={fed} spent={spent} />
+            <StatisticsRow
+              fed={fed}
+              spent={spent}
+              pendingFedAdjustment={pendingFedAdjustment}
+            />
           </View>
           <OptionsButton pipeId={selectedId} disabled={isDeleting} />
         </View>
@@ -59,7 +76,9 @@ export function InnerPipesScreen() {
       <View className="flex-1">
         {isDeleting ? (
           <View className="items-center justify-center p-6">
-            <Text className="text-muted text-sm">Pipe deletion in progress</Text>
+            <Text className="text-muted text-sm">
+              Pipe deletion in progress
+            </Text>
           </View>
         ) : children.length === 0 && selectedPipe ? (
           <ScrollView
