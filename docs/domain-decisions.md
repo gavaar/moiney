@@ -132,9 +132,11 @@ polarity.
 
 Expense grouping intentionally ignores `paidFrom`; matching ordinary and
 pay-by-transfer expenses group together across dates. Group identity includes
-kind, title, value, `from`, and `to` through a collision-free encoding. A
-collapsed expense group repeats a generic expense without `paidFrom`; expanding
-the group exposes individual transactions that preserve their payer.
+kind, title, `from`, and `to` through a collision-free encoding; transaction
+value and `paidFrom` are not identity fields. A collapsed group displays the
+signed sum of the loaded transactions and uses the newest transaction's value
+for the generic repeat form. Expanding the group exposes individual
+transactions that preserve their payer and values.
 
 Group expansion uses a dedicated accessible count-and-chevron control. Tapping
 the main group row continues to open the generic repeat form.

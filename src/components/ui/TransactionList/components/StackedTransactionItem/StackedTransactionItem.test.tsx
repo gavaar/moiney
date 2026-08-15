@@ -7,7 +7,7 @@ import type { TransactionGroup } from "@features/transactions/groupTransactions"
 import type { Id } from "@convex/_generated/dataModel";
 
 const baseGroup: TransactionGroup = {
-  id: '["expense","coffee",-500,"pipe-1",null]',
+  id: '["expense","coffee","pipe-1",null]',
   kind: "expense",
   transactions: [
     {
@@ -26,7 +26,7 @@ const baseGroup: TransactionGroup = {
       _creationTime: 0,
       title: "coffee",
       kind: "expense",
-       value: -500,
+        value: -300,
       date: new Date("2024-03-20").getTime(),
       from: "pipe-1" as Id<"pipes">,
       to: undefined,
@@ -35,7 +35,8 @@ const baseGroup: TransactionGroup = {
   ],
   count: 2,
   title: "coffee",
-   value: -500,
+  totalValue: -800,
+  latestValue: -300,
   from: "pipe-1" as Id<"pipes">,
   to: undefined,
   oldestDate: new Date("2024-03-15").getTime(),
@@ -73,6 +74,7 @@ vi.mock("@features/components/AmountForm", () => ({
       data-pipe-id={pipeId}
       data-transaction-id={initState?.transactionId}
       data-date={initState?.date}
+      data-value={initState?.value}
     />
   ),
 }));
@@ -119,7 +121,7 @@ describe("StackedTransactionItem", () => {
     expect(screen.getByText("x2")).toBeDefined();
   });
 
-  it("renders the value with two decimals", () => {
+  it("renders the summed value with two decimals", () => {
     render(
       <StackedTransactionItem
         group={baseGroup}
@@ -127,7 +129,7 @@ describe("StackedTransactionItem", () => {
         onToggle={vi.fn()}
       />,
     );
-    expect(screen.getByText("-5.00")).toBeDefined();
+    expect(screen.getByText("-8.00")).toBeDefined();
   });
 
   it("renders date range for same month and year", () => {
@@ -200,6 +202,7 @@ describe("StackedTransactionItem", () => {
     const form = screen.getByTestId("amount-form");
     expect(form.getAttribute("data-transaction-id")).toBeNull();
     expect(form.getAttribute("data-date")).toBeNull();
+    expect(form.getAttribute("data-value")).toBe("-3.00");
   });
 
   it("renders a deleted-pipe group as view-only history", () => {

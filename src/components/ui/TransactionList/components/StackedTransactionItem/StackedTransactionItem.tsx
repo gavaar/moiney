@@ -47,7 +47,7 @@ export function StackedTransactionItem({
   expanded,
   onToggle,
 }: StackedTransactionItemProps) {
-  const isNegative = group.value < 0;
+  const isNegative = group.totalValue < 0;
   const [showForm, setShowForm] = useState(false);
   const [showDisabledInfo, setShowDisabledInfo] = useState(false);
   const disclosureRotation = useRef(
@@ -76,6 +76,8 @@ export function StackedTransactionItem({
     ],
   };
   const bgClass = useMemo(() => {
+    if (group.totalValue === 0) return "bg-surface";
+
     switch(group.kind) {
       case "feed":
         return "bg-secondary/30";
@@ -86,7 +88,7 @@ export function StackedTransactionItem({
     }
   }, [group.kind, isNegative]);
 
-  const firstTx = group.transactions[0];
+  const latestTransaction = group.transactions[0];
   const sourcePipe = group.from ? pipesById?.[group.from] : undefined;
   const destPipe = group.to ? pipesById?.[group.to] : undefined;
   const deletedIcons = {
@@ -121,8 +123,8 @@ export function StackedTransactionItem({
     ? {
         pipeIcon: primaryPipe.icon,
         pipeName: primaryPipe.name,
-        title: firstTx.title,
-        value: formatAmount(firstTx.value),
+        title: latestTransaction.title,
+        value: formatAmount(group.latestValue),
         ...(group.kind === "transfer" && destPipe ? { to: destPipe._id } : {}),
         isFeed: group.kind === "feed",
       }
@@ -191,7 +193,7 @@ export function StackedTransactionItem({
               disabled ? "text-muted" : "text-white",
             )}
           >
-            {formatAmount(group.value)}
+            {formatAmount(group.totalValue)}
           </Text>
         </Pressable>
 
