@@ -26,7 +26,7 @@ describe("groupTransactions", () => {
     expect(result).toEqual([t]);
   });
 
-  it("groups two transactions that share title, value, from, and to", () => {
+  it("groups two transactions that share title and pipes", () => {
     const t1 = tx({ title: "coffee", value: -5, from: "pipe-a" as Id<"pipes">, date: 200 });
     const t2 = tx({ title: "coffee", value: -5, from: "pipe-a" as Id<"pipes">, date: 100 });
     const result = groupTransactions([t1, t2]);
@@ -34,7 +34,8 @@ describe("groupTransactions", () => {
     const group = result[0] as any;
     expect(group.count).toBe(2);
     expect(group.title).toBe("coffee");
-    expect(group.value).toBe(-5);
+    expect(group.totalValue).toBe(-10);
+    expect(group.latestValue).toBe(-5);
     expect(group.oldestDate).toBe(100);
     expect(group.latestDate).toBe(200);
     expect(group.transactions).toHaveLength(2);
@@ -55,7 +56,7 @@ describe("groupTransactions", () => {
     expect(group).toMatchObject({
       count: 2,
       kind: "expense",
-      id: JSON.stringify(["expense", "coffee", -5, "pipe-a", null]),
+      id: JSON.stringify(["expense", "coffee", "pipe-a", null]),
     });
   });
 
@@ -68,11 +69,42 @@ describe("groupTransactions", () => {
     expect(result[1]).toBe(t1);
   });
 
-  it("returns separate groups for different values", () => {
+  it("groups different values under the same title and pipes", () => {
     const t1 = tx({ title: "coffee", value: -5, date: 100 });
     const t2 = tx({ title: "coffee", value: -3, date: 200 });
     const result = groupTransactions([t1, t2]);
-    expect(result).toHaveLength(2);
+    expect(result).toHaveLength(1);
+    const group = result[0] as any;
+    expect(group).toMatchObject({
+      count: 2,
+      totalValue: -8,
+      latestValue: -3,
+    });
+    expect(group.transactions[0]).toBe(t2);
+  });
+
+  it("nets matching expenses and refunds and repeats the latest value", () => {
+    const expense = tx({
+      title: "coffee",
+      value: -500,
+      date: 200,
+      _creationTime: 2,
+    });
+    const refund = tx({
+      title: "coffee",
+      value: 200,
+      date: 200,
+      _creationTime: 3,
+    });
+
+    const [group] = groupTransactions([expense, refund]) as any[];
+
+    expect(group).toMatchObject({
+      count: 2,
+      totalValue: -300,
+      latestValue: 200,
+    });
+    expect(group.transactions[0]).toBe(refund);
   });
 
   it("returns separate groups for different from pipes", () => {

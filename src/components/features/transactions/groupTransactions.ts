@@ -12,7 +12,8 @@ export type TransactionGroup = {
   transactions: TransactionWithPipeIcons[];
   count: number;
   title: string;
-  value: number;
+  totalValue: number;
+  latestValue: number;
   from: Id<"pipes"> | undefined;
   to: Id<"pipes"> | undefined;
   oldestDate: number;
@@ -20,6 +21,17 @@ export type TransactionGroup = {
 };
 
 export type TransactionListItem = TransactionWithPipeIcons | TransactionGroup;
+
+function compareTransactions(
+  first: TransactionWithPipeIcons,
+  second: TransactionWithPipeIcons,
+): number {
+  return (
+    second.date - first.date ||
+    second._creationTime - first._creationTime ||
+    second._id.localeCompare(first._id)
+  );
+}
 
 export function groupTransactions(
   transactions: TransactionWithPipeIcons[],
@@ -42,22 +54,20 @@ export function groupTransactions(
     if (txs.length === 1) {
       items.push(txs[0]);
     } else {
-      let oldestDate = txs[0].date;
-      let latestDate = txs[0].date;
-      for (const tx of txs) {
-        if (tx.date < oldestDate) oldestDate = tx.date;
-        if (tx.date > latestDate) latestDate = tx.date;
-      }
-      const first = txs[0];
+      const sortedTransactions = [...txs].sort(compareTransactions);
+      const latestTransaction = sortedTransactions[0];
+      const oldestDate = sortedTransactions[sortedTransactions.length - 1].date;
+      const latestDate = latestTransaction.date;
       items.push({
         id,
-        kind: resolveTransactionKind(first),
-        transactions: txs,
-        count: txs.length,
-        title: first.title,
-        value: first.value,
-        from: first.from,
-        to: first.to,
+        kind: resolveTransactionKind(latestTransaction),
+        transactions: sortedTransactions,
+        count: sortedTransactions.length,
+        title: latestTransaction.title,
+        totalValue: sortedTransactions.reduce((sum, tx) => sum + tx.value, 0),
+        latestValue: latestTransaction.value,
+        from: latestTransaction.from,
+        to: latestTransaction.to,
         oldestDate,
         latestDate,
       });

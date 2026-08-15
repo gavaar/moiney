@@ -42,7 +42,7 @@ describe("resolveTransactionKind", () => {
 });
 
 describe("transactionGroupId", () => {
-  it("distinguishes values that collide when concatenated", () => {
+  it("distinguishes titles without relying on concatenated fields", () => {
     const first = transactionGroupId({
       kind: "expense",
       title: "item1",
