@@ -18,7 +18,7 @@ import {
   collectChildSubtree,
   executePipeRuleNowOperation,
   executePipeRule,
-  recalcPipeSubtree,
+  reconcileAffectedPipeRoots,
   resolveTopMostAncestor,
   updatePipeOperation,
   updatePipeRuleOperation,
@@ -228,7 +228,7 @@ export const runDueCronRules = internalMutation({
     }
 
     for (const rootId of roots) {
-      await recalcPipeSubtree(ctx, rootId);
+      await reconcileAffectedPipeRoots(ctx, [rootId]);
     }
   },
 });

@@ -9,7 +9,10 @@ import {
 } from "../../../domain/scheduling";
 import { MAX_PIPES_PER_USER } from "../constants";
 import { assertPipeNotDeleting } from "./delete";
-import { executePipeRule, recalcPipeSubtree, recascadeTree } from "./pipes";
+import {
+  executePipeRule,
+  reconcileAffectedPipeRoots,
+} from "./pipes";
 
 async function checkPipeLimit(
   ctx: MutationCtx,
@@ -97,7 +100,7 @@ export async function addPipeOperation(
     cronNextDate: undefined,
     cronInterval: undefined,
   });
-  await recascadeTree(ctx, userId);
+  await reconcileAffectedPipeRoots(ctx, [command.parentId]);
   return childId;
 }
 
@@ -191,7 +194,7 @@ export async function updatePipeRuleOperation(
   }
 
   await ctx.db.patch("pipes", command.pipeId, patch);
-  await recascadeTree(ctx, userId);
+  await reconcileAffectedPipeRoots(ctx, [command.pipeId]);
   return null;
 }
 
@@ -227,7 +230,9 @@ export async function updatePipeOperation(
   }
 
   await ctx.db.patch("pipes", command.pipeId, patch);
-  await recascadeTree(ctx, userId);
+  if (command.priority !== undefined || command.capacity !== undefined) {
+    await reconcileAffectedPipeRoots(ctx, [command.pipeId]);
+  }
   return null;
 }
 
@@ -244,6 +249,6 @@ export async function executePipeRuleNowOperation(
   assertPipeNotDeleting(pipe);
 
   await executePipeRule(ctx, pipeId, { pipe, now });
-  await recalcPipeSubtree(ctx, pipeId);
+  await reconcileAffectedPipeRoots(ctx, [pipeId]);
   return null;
 }

@@ -10,7 +10,7 @@ import { validateTransactionAmount } from "../../../domain/money";
 import { shouldTriggerPipeRule } from "../../../domain/pipes";
 import {
   executePipeRule,
-  recascadeTree,
+  reconcileAffectedPipeRoots,
   resolveTopMostAncestor,
 } from "../pipes";
 import { updateOrCreateTitleUsage } from "../transactions";
@@ -31,6 +31,18 @@ export type EditTransactionCommand = {
   date: number;
 };
 
+function createCachedPipeReader(ctx: MutationCtx) {
+  const cache = new Map<Id<"pipes">, Promise<Doc<"pipes"> | null>>();
+  return async (pipeId: Id<"pipes">) => {
+    let pipe = cache.get(pipeId);
+    if (!pipe) {
+      pipe = ctx.db.get("pipes", pipeId);
+      cache.set(pipeId, pipe);
+    }
+    return await pipe;
+  };
+}
+
 export async function createTransactionOperation(
   ctx: MutationCtx,
   userId: Id<"users">,
@@ -39,15 +51,7 @@ export async function createTransactionOperation(
 ): Promise<null> {
   const title = canonicalizeTransactionTitle(command.title);
   const value = command.value;
-  const pipeCache = new Map<Id<"pipes">, Promise<Doc<"pipes"> | null>>();
-  const getPipe = async (pipeId: Id<"pipes">) => {
-    let pipe = pipeCache.get(pipeId);
-    if (!pipe) {
-      pipe = ctx.db.get("pipes", pipeId);
-      pipeCache.set(pipeId, pipe);
-    }
-    return await pipe;
-  };
+  const getPipe = createCachedPipeReader(ctx);
 
   if (command.paidFrom && (!command.from || command.to)) {
     throw new Error("Pay by transfer requires from and paidFrom only");
@@ -103,7 +107,7 @@ export async function createTransactionOperation(
       title,
       now,
     });
-    await recascadeTree(ctx, userId);
+    await reconcileAffectedPipeRoots(ctx, [command.to], getPipe);
     return null;
   }
 
@@ -176,7 +180,11 @@ export async function createTransactionOperation(
     ) {
       await executePipeRule(ctx, pipeId);
     }
-    await recascadeTree(ctx, userId);
+    await reconcileAffectedPipeRoots(
+      ctx,
+      [pipeId, command.paidFrom],
+      getPipe,
+    );
 
     await ctx.db.insert("transactions", {
       title,
@@ -243,6 +251,7 @@ export async function createTransactionOperation(
     ) {
       await executePipeRule(ctx, pipeId);
     }
+    await reconcileAffectedPipeRoots(ctx, [pipeId, command.to], getPipe);
   } else {
     const { from } = transactionAccountingEffects({ from: pipeId }, value);
     const newSpent = pipe.spent + from.spentDelta;
@@ -257,9 +266,9 @@ export async function createTransactionOperation(
     ) {
       await executePipeRule(ctx, pipeId);
     }
+    await reconcileAffectedPipeRoots(ctx, [pipeId], getPipe);
   }
 
-  await recascadeTree(ctx, userId);
   await ctx.db.insert("transactions", {
     title,
     value,
@@ -287,6 +296,7 @@ export async function editTransactionOperation(
   const transaction = await ctx.db.get("transactions", command.transactionId);
   if (!transaction) throw new Error("Transaction not found");
   if (transaction.userId !== userId) throw new Error("Not authorized");
+  const getPipe = createCachedPipeReader(ctx);
 
   const title = canonicalizeTransactionTitle(command.title);
   if (
@@ -303,7 +313,7 @@ export async function editTransactionOperation(
     transaction.paidFrom,
   ])) {
     if (!pipeId) continue;
-    const pipe = await ctx.db.get("pipes", pipeId);
+    const pipe = await getPipe(pipeId);
     if (!pipe || pipe.userId !== userId) {
       throw new ConvexError({ code: "TRANSACTION_PIPE_NOT_FOUND" });
     }
@@ -318,8 +328,8 @@ export async function editTransactionOperation(
 
   if (valueDiff !== 0) {
     if (transaction.from && transaction.paidFrom) {
-      const fromPipe = await ctx.db.get("pipes", transaction.from);
-      const paidFromPipe = await ctx.db.get("pipes", transaction.paidFrom);
+      const fromPipe = await getPipe(transaction.from);
+      const paidFromPipe = await getPipe(transaction.paidFrom);
       if (!fromPipe || !paidFromPipe) throw new Error("Pipe not found");
 
       if (command.value > 0) {
@@ -363,15 +373,24 @@ export async function editTransactionOperation(
       ) {
         await executePipeRule(ctx, transaction.from);
       }
-      await recascadeTree(ctx, userId);
+      await reconcileAffectedPipeRoots(
+        ctx,
+        [transaction.from, transaction.paidFrom],
+        getPipe,
+      );
     } else if (transaction.from && transaction.to) {
-      const source = await ctx.db.get("pipes", transaction.from);
-      const destination = await ctx.db.get("pipes", transaction.to);
+      const source = await getPipe(transaction.from);
+      const destination = await getPipe(transaction.to);
       if (!source || !destination) throw new Error("Pipe not found");
       if (destination.parentId) {
         throw new ConvexError({ code: "TRANSFER_DESTINATION_NOT_ROOT" });
       }
-      const sourceRoot = await resolveTopMostAncestor(ctx, transaction.from);
+      const sourceRoot = await resolveTopMostAncestor(
+        ctx,
+        transaction.from,
+        undefined,
+        getPipe,
+      );
       if (sourceRoot === transaction.to) {
         throw new ConvexError({ code: "TRANSFER_SAME_TREE" });
       }
@@ -403,9 +422,13 @@ export async function editTransactionOperation(
       ) {
         await executePipeRule(ctx, transaction.from);
       }
-      await recascadeTree(ctx, userId);
+      await reconcileAffectedPipeRoots(
+        ctx,
+        [transaction.from, transaction.to],
+        getPipe,
+      );
     } else if (transaction.from) {
-      const pipe = await ctx.db.get("pipes", transaction.from);
+      const pipe = await getPipe(transaction.from);
       if (!pipe) throw new Error("Pipe not found");
 
       const { from } = transactionAccountingEffects(
@@ -424,9 +447,9 @@ export async function editTransactionOperation(
       ) {
         await executePipeRule(ctx, transaction.from);
       }
-      await recascadeTree(ctx, userId);
+      await reconcileAffectedPipeRoots(ctx, [transaction.from], getPipe);
     } else if (transaction.to) {
-      const pipe = await ctx.db.get("pipes", transaction.to);
+      const pipe = await getPipe(transaction.to);
       if (!pipe) throw new Error("Pipe not found");
 
       const { to } = transactionAccountingEffects(
@@ -446,7 +469,7 @@ export async function editTransactionOperation(
       ) {
         await executePipeRule(ctx, transaction.to);
       }
-      await recascadeTree(ctx, userId);
+      await reconcileAffectedPipeRoots(ctx, [transaction.to], getPipe);
     }
   }
 

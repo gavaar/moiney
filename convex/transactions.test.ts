@@ -124,7 +124,7 @@ describe("createTransaction", () => {
   });
 
   describe("feed (to only — no from)", () => {
-    it("reads the destination pipe only once", async () => {
+    it("rereads the destination once for post-write reconciliation", async () => {
       const ctx = mockCtx();
       ctx.db.get.mockResolvedValue(A_PIPE);
 
@@ -135,8 +135,9 @@ describe("createTransaction", () => {
         to: "pipe-1",
       });
 
-      expect(ctx.db.get).toHaveBeenCalledTimes(1);
-      expect(ctx.db.get).toHaveBeenCalledWith("pipes", "pipe-1");
+      expect(ctx.db.get).toHaveBeenCalledTimes(2);
+      expect(ctx.db.get).toHaveBeenNthCalledWith(1, "pipes", "pipe-1");
+      expect(ctx.db.get).toHaveBeenNthCalledWith(2, "pipes", "pipe-1");
     });
 
     it("patches to.fed and inserts transaction with from: undefined", async () => {
@@ -165,7 +166,7 @@ describe("createTransaction", () => {
   });
 
   describe("pay by transfer", () => {
-    it("reads each referenced root pipe only once", async () => {
+    it("rereads each referenced root once for post-write reconciliation", async () => {
       const ctx = mockCtx();
       ctx.db.get.mockImplementation((tableOrId: string, maybeId?: string) => {
         const id = maybeId ?? tableOrId;
@@ -182,7 +183,7 @@ describe("createTransaction", () => {
         paidFrom: "pipe-2",
       });
 
-      expect(ctx.db.get).toHaveBeenCalledTimes(2);
+      expect(ctx.db.get).toHaveBeenCalledTimes(4);
     });
 
     it("reads a shared ancestor only once during parallel root resolution", async () => {

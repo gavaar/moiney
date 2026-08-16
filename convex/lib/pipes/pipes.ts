@@ -55,8 +55,15 @@ export async function recascadeTree(ctx: MutationCtx, userId: Id<"users">) {
   }
 
   const updates = recalculatePipes(allPipes);
+  const currentFed = new Map(allPipes.map((pipe) => [pipe._id, pipe.fed]));
 
-  await Promise.all(updates.map((u) => ctx.db.patch(u._id, { fed: u.fed })));
+  await Promise.all(
+    updates
+      .filter((update) => (currentFed.get(update._id) ?? 0) !== update.fed)
+      .map((update) =>
+        ctx.db.patch("pipes", update._id, { fed: update.fed }),
+      ),
+  );
 }
 
 export async function resolveTopMostAncestor(
@@ -105,26 +112,39 @@ export async function collectChildSubtree(
   return out;
 }
 
-export async function recalcPipeSubtree(
+export async function reconcileAffectedPipeRoots(
   ctx: MutationCtx,
-  pipeId: Id<"pipes">,
+  affectedPipeIds: Iterable<Id<"pipes">>,
+  getPipe: (pipeId: Id<"pipes">) => Promise<Doc<"pipes"> | null> = (pipeId) =>
+    ctx.db.get("pipes", pipeId),
 ): Promise<void> {
-  const cache = new Map<Id<"pipes">, Id<"pipes">>();
-  const rootId = await resolveTopMostAncestor(ctx, pipeId, cache);
-  const root = await ctx.db.get(rootId);
-  const children = await collectChildSubtree(ctx, rootId);
-  const subtree: Doc<"pipes">[] = root ? [root, ...children] : [];
+  const rootCache = new Map<Id<"pipes">, Id<"pipes">>();
+  const rootIds = new Set<Id<"pipes">>();
+  for (const pipeId of new Set(affectedPipeIds)) {
+    rootIds.add(
+      await resolveTopMostAncestor(ctx, pipeId, rootCache, getPipe),
+    );
+  }
 
-  if (subtree.some((pipe) => pipe.deletionJobId)) {
+  const trees = await Promise.all(
+    [...rootIds].map(async (rootId) => {
+      const root = await ctx.db.get("pipes", rootId);
+      if (!root) throw new Error("Pipe not found");
+      return [root, ...(await collectChildSubtree(ctx, rootId))];
+    }),
+  );
+  if (trees.some((tree) => tree.some((pipe) => pipe.deletionJobId))) {
     throw new Error("Pipe is being deleted");
   }
 
-  const updates = recalculatePipes(subtree);
-  const currentFed = new Map(subtree.map((p) => [p._id, p.fed]));
-
   await Promise.all(
-    updates
-      .filter((u) => (currentFed.get(u._id) ?? 0) !== u.fed)
-      .map((u) => ctx.db.patch(u._id, { fed: u.fed })),
+    trees.flatMap((tree) => {
+      const currentFed = new Map(tree.map((pipe) => [pipe._id, pipe.fed]));
+      return recalculatePipes(tree)
+        .filter((update) => (currentFed.get(update._id) ?? 0) !== update.fed)
+        .map((update) =>
+          ctx.db.patch("pipes", update._id, { fed: update.fed }),
+        );
+    }),
   );
 }

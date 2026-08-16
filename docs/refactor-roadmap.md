@@ -30,7 +30,7 @@ This roadmap persists the whole-project audit beyond any single chat session. Wo
 | 9. Integer cents migration | Completed | Replace floating-point monetary persistence and arithmetic with integer cents | Update 8, D001 |
 | 10. Financial mutation semantics | Completed | Define corrections, rule effects, idempotency, and accounting projections | Updates 8-9 |
 | 11. Convex model boundaries | Completed | Make registered functions thin, validated, authorized wrappers over deep model operations | Updates 1-3, 8-10 |
-| 12. Bounded backend work | Pending | Scope recascade, batch cleanup/crons/deletion, and index hot transaction queries | Updates 6, 10-11 plus measurements |
+| 12. Bounded backend work | In progress | Scope recascade, batch cleanup/crons/deletion, and index hot transaction queries | Updates 6, 10-11 plus measurements |
 | 13. Frontend ownership | Pending | Normalize backend models, narrow contexts/subscriptions, and restore dependency direction | Updates 5, 8, 11 |
 | 14. Complex component refactors | Pending | Refactor AmountForm, RuleModal, PipeTreeView, and transaction rows by responsibility | Updates 5, 8, 13 |
 | 15. Measured runtime performance | Pending | Profile and improve virtualization, subscriptions, startup, icons, and repeated modals | Updates 12-14 |
@@ -111,9 +111,54 @@ shared pipe-limit check bounded to the 500 documents needed to enforce the
 contract. Limit failures are stable structured errors for both root and child
 creation.
 
-The next roadmap step is Update 12. Begin by measuring and tracing scheduled
-cron collection, whole-user recascade reads and writes, deletion planning, and
-hot transaction queries before choosing the first bounded-work change.
+Update 12 is in progress. Deployment, static, and repeatable 20/200/500-pipe
+measurements are recorded in `docs/update-12-baseline.md`. Deployment insights
+report no current health issue.
+
+Changed-only recascade writes are complete. Stable scenarios now issue zero
+patches instead of 20, 200, or 500, while allocation-changing scenarios retain
+all required writes. Whole-user reads and the existing deletion guard remain.
+
+Metadata-only pipe updates now skip reconciliation. At 20, 200, and 500 pipes,
+name, icon, and description changes read only the target document instead of 21,
+201, or 501 documents. They remain blocked for a frozen target but are allowed
+when an unrelated tree is being deleted. Capacity and priority updates continue
+through accounting reconciliation.
+
+Root-scoped reconciliation is now established for ordinary expense and feed
+creation. At 20, 200, and 500 total user pipes, a standalone affected root reads
+two pipe documents instead of 21, 201, or 501. The helper deduplicates affected
+roots, reuses cached ancestry, freshly loads post-write trees, validates every
+affected member before patches, and retains changed-only writes. Unrelated
+frozen roots do not block these one-root transactions.
+
+Two-root transfer and pay-by-transfer creation now use affected-root
+reconciliation. At 20, 200, and 500 total user pipes, two standalone affected
+roots read four pipe documents instead of 22, 202, or 502. Both complete trees
+are validated before reconciliation writes, transfer cents remain conserved,
+pay-by logical and liquidity effects remain intact, and unrelated frozen roots
+do not block either transaction shape.
+
+One-root expense and feed edits now use affected-root reconciliation and an
+invocation-scoped pipe cache. Two-root transfer and pay-by-transfer edits use
+both affected trees. Current-period deltas, correction history, topology
+validation, pending liquidity, and automatic rule triggers remain unchanged,
+while unrelated frozen roots no longer block these edit shapes.
+
+All transaction creation and edit paths now use affected-root reconciliation.
+`addPipe` also uses affected-root reconciliation, preserving parent settlement,
+child allocation, and conservation while ignoring unrelated frozen roots.
+`updatePipeRule` now uses affected-root reconciliation while preserving cron
+catch-up and idempotency.
+
+Accounting-relevant `updatePipe` capacity and priority updates now use
+affected-root reconciliation as well. Presentation-only updates continue to
+skip reconciliation. All ordinary financial and pipe mutation paths now avoid
+whole-user recascade; the remaining broad backend work is scheduled cron,
+cleanup, deletion phase sizing, and filtered transaction queries.
+
+The next Update 12 slice is bounded cron execution, starting with measured
+candidate and root batching while preserving atomic schedule advancement.
 
 ## Completed Accessibility Layout Work
 

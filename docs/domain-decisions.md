@@ -57,6 +57,31 @@ Before deleting the subtree, compute the selected subtree's aggregate `fed - spe
 
 The implementation creates an idempotent deletion job, freezes the selected subtree, and processes role-indexed transaction pages and finalization in bounded scheduled batches. Preserved transactions render embedded role icons without additional history reads. The job credits the immediate parent exactly once with the planned subtree balance and records completion for safe retries. Title-usage cleanup remains owned by its existing stale-usage maintenance job.
 
+The freeze blocks writes involving the selected subtree. Presentation-only
+name, icon, and description updates in another tree do not perform accounting
+reconciliation and remain allowed while deletion is in progress.
+Feeds and ordinary expenses in another root likewise reconcile only their
+affected tree and remain allowed; every member of the affected tree is still
+checked for a deletion freeze.
+Transfers and pay-by-transfer expenses in other roots reconcile only their two
+affected trees and remain allowed; both trees are fully checked before
+reconciliation.
+Ordinary expense value edits in another root use the same affected-tree scope
+and current-period accounting policy.
+Transfer value edits in other roots reconcile only their two affected trees and
+apply the same topology and current-period accounting policy.
+Pay-by-transfer value edits in other roots reconcile only their two affected
+trees and apply the same logical spending, pending liquidity, payer liquidity,
+and current-period accounting policy.
+Adding a child pipe in another root reconciles only that affected tree and
+remains allowed; every member of the affected tree is checked for a deletion
+freeze before reconciliation.
+Rule updates in another root reconcile only that affected tree and remain
+allowed; every member of the affected tree is checked before reconciliation.
+Capacity and priority edits in another root reconcile only that affected tree
+and remain allowed; every member of the affected tree is checked before
+reconciliation.
+
 ## D003: Transaction Involvement
 
 Status: Implemented

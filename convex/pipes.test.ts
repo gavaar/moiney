@@ -55,6 +55,31 @@ describe("updatePipe", () => {
     expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
       description: undefined,
     });
+    expect(ctx.db._chain.collect).not.toHaveBeenCalled();
+  });
+
+  it("recascades after a capacity update", async () => {
+    const ctx = mockCtx();
+    ctx.db.get.mockResolvedValue(A_PIPE);
+
+    await (updatePipe as any)._handler(ctx, {
+      pipeId: "pipe-1",
+      capacity: 750,
+    });
+
+    expect(ctx.db._chain.collect).toHaveBeenCalledTimes(1);
+  });
+
+  it("recascades after a priority update", async () => {
+    const ctx = mockCtx();
+    ctx.db.get.mockResolvedValue(A_PIPE);
+
+    await (updatePipe as any)._handler(ctx, {
+      pipeId: "pipe-1",
+      priority: 2,
+    });
+
+    expect(ctx.db._chain.collect).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -628,10 +653,18 @@ describe("addPipe", () => {
       cronNextDate: 1234,
       cronInterval: { interval: 1, unit: "days" },
     };
+    let indexName: string | undefined;
     const chain = {
-      withIndex: vi.fn(() => chain),
-      collect: vi.fn().mockResolvedValue([parentPipe]),
-      take: vi.fn().mockResolvedValue([parentPipe]),
+      withIndex: vi.fn((name: string) => {
+        indexName = name;
+        return chain;
+      }),
+      collect: vi.fn(async () =>
+        indexName === "by_userId" ? [parentPipe] : [],
+      ),
+      take: vi.fn(async () =>
+        indexName === "by_userId" ? [parentPipe] : [],
+      ),
     };
     const ctx = mockCtx();
     ctx.db.get.mockResolvedValue(parentPipe);
