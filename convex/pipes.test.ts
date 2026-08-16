@@ -52,7 +52,7 @@ describe("updatePipe", () => {
       description: null,
     });
 
-    expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+    expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
       description: undefined,
     });
   });
@@ -72,7 +72,7 @@ describe("updatePipeRule", () => {
       rule: null,
     });
 
-    expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+    expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
       rule: undefined,
       capUpdateValue: undefined,
       cronNextDate: undefined,
@@ -88,7 +88,7 @@ describe("updatePipeRule", () => {
       pipeId: "pipe-1",
     });
 
-    expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+    expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
       rule: undefined,
       capUpdateValue: undefined,
       cronNextDate: undefined,
@@ -105,7 +105,7 @@ describe("updatePipeRule", () => {
       rule: "spend_overflow",
     });
 
-    expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+    expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
       rule: "spend_overflow",
       capUpdateValue: undefined,
       cronNextDate: undefined,
@@ -123,7 +123,7 @@ describe("updatePipeRule", () => {
       capUpdateValue: 25,
     });
 
-    expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+    expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
       rule: "spend_overflow",
       capUpdateValue: 25,
       cronNextDate: undefined,
@@ -141,7 +141,7 @@ describe("updatePipeRule", () => {
       capUpdateValue: -10,
     });
 
-    expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+    expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
        rule: "instant_settlement",
       capUpdateValue: -10,
       cronNextDate: undefined,
@@ -158,7 +158,7 @@ describe("updatePipeRule", () => {
       rule: "instant_settlement",
     });
 
-    expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+    expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
        rule: "instant_settlement",
       capUpdateValue: undefined,
       cronNextDate: undefined,
@@ -180,7 +180,7 @@ describe("updatePipeRule", () => {
       capUpdateValue: 500,
     });
 
-    expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+    expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
       rule: "cron",
       capUpdateValue: 500,
       capacity: 500,
@@ -203,7 +203,7 @@ describe("updatePipeRule", () => {
       starting,
     });
 
-    expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+    expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
       rule: "cron",
       capUpdateValue: undefined,
       cronNextDate: Date.UTC(2099, 8, 15, 5),
@@ -232,7 +232,7 @@ describe("updatePipeRule", () => {
         pipeId: "pipe-1",
         rule: null,
       }),
-    ).rejects.toThrow("Pipe not found");
+    ).rejects.toMatchObject({ data: { code: "PIPE_NOT_FOUND" } });
   });
 
   it("throws when the user does not own the pipe", async () => {
@@ -247,7 +247,7 @@ describe("updatePipeRule", () => {
         unit: "days",
         starting: Date.UTC(2099, 0, 1),
       }),
-    ).rejects.toThrow("Not authorized");
+    ).rejects.toMatchObject({ data: { code: "PIPE_NOT_FOUND" } });
   });
 
   it("credits missed intervals to capacity when started is in the past", async () => {
@@ -267,6 +267,7 @@ describe("updatePipeRule", () => {
     const firstOccurrence = computeCronNextDate(starting, 1, "months", starting - 1);
     const elapsed = countDueCronOccurrences(firstOccurrence, 1, "months", Date.now());
     expect(ctx.db.patch).toHaveBeenCalledWith(
+      "pipes",
       "pipe-1",
       expect.objectContaining({
         capacity: 100 + elapsed * 50,
@@ -287,8 +288,8 @@ describe("updatePipeRule", () => {
     };
 
     await (updatePipeRule as any)._handler(ctx, args);
-    const first = ctx.db.patch.mock.calls[0][1].capacity;
-    const firstNextDate = ctx.db.patch.mock.calls[0][1].cronNextDate;
+    const first = ctx.db.patch.mock.calls[0][2].capacity;
+    const firstNextDate = ctx.db.patch.mock.calls[0][2].cronNextDate;
 
     ctx.db.get.mockResolvedValue({
       _id: "pipe-1",
@@ -316,7 +317,7 @@ describe("updatePipeRule", () => {
       starting: Date.UTC(2026, 0, 15),
     });
 
-    expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+    expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
       rule: "cron",
       capUpdateValue: undefined,
       cronNextDate: expect.any(Number),
@@ -336,7 +337,7 @@ describe("executePipeRuleNow", () => {
 
     await expect(
       (executePipeRuleNow as any)._handler(ctx, { pipeId: "pipe-1" }),
-    ).rejects.toThrow("Pipe not found");
+    ).rejects.toMatchObject({ data: { code: "PIPE_NOT_FOUND" } });
   });
 
   it("throws when the user does not own the pipe", async () => {
@@ -345,7 +346,7 @@ describe("executePipeRuleNow", () => {
 
     await expect(
       (executePipeRuleNow as any)._handler(ctx, { pipeId: "pipe-1" }),
-    ).rejects.toThrow("Not authorized");
+    ).rejects.toMatchObject({ data: { code: "PIPE_NOT_FOUND" } });
   });
 
   it("consolidates fed/spent and tops up capacity via the rule executor", async () => {
@@ -586,7 +587,7 @@ describe("addPipe", () => {
         capacity: 50,
         parentId: "missing-parent",
       }),
-    ).rejects.toThrow("Parent pipe not found");
+    ).rejects.toMatchObject({ data: { code: "PIPE_NOT_FOUND" } });
 
     expect(ctx.db.insert).not.toHaveBeenCalled();
     expect(ctx.db.patch).not.toHaveBeenCalled();
@@ -607,7 +608,7 @@ describe("addPipe", () => {
         capacity: 50,
         parentId: "foreign-parent",
       }),
-    ).rejects.toThrow("Parent pipe not found");
+    ).rejects.toMatchObject({ data: { code: "PIPE_NOT_FOUND" } });
 
     expect(ctx.db.insert).not.toHaveBeenCalled();
     expect(ctx.db.patch).not.toHaveBeenCalled();
@@ -630,6 +631,7 @@ describe("addPipe", () => {
     const chain = {
       withIndex: vi.fn(() => chain),
       collect: vi.fn().mockResolvedValue([parentPipe]),
+      take: vi.fn().mockResolvedValue([parentPipe]),
     };
     const ctx = mockCtx();
     ctx.db.get.mockResolvedValue(parentPipe);

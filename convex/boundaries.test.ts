@@ -3,10 +3,45 @@ import { convexTest } from "convex-test";
 import { describe, expect, it, vi } from "vitest";
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
+import { MAX_PIPES_PER_USER } from "./lib/constants";
 import schema from "./schema";
 import { modules } from "./test.setup";
 
 describe("Convex boundaries", () => {
+  it("returns a structured pipe-limit error without creating a feed", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", {
+        username: "alice",
+        email: "alice@example.com",
+        password: "hash",
+      });
+      for (let index = 0; index < MAX_PIPES_PER_USER; index += 1) {
+        await ctx.db.insert("pipes", {
+          userId,
+          name: `Pipe ${index}`,
+          icon: "wallet-outline",
+          priority: index,
+          capacity: 0,
+          fed: 0,
+          spent: 0,
+        });
+      }
+      return userId;
+    });
+
+    await expect(
+      t.withIdentity({ subject: userId }).mutation(api.pipes.addFeed, {
+        name: "One too many",
+        icon: "add-circle-outline",
+      }),
+    ).rejects.toMatchObject({ data: { code: "PIPE_LIMIT_REACHED" } });
+
+    const pipes = await t.run((ctx) => ctx.db.query("pipes").collect());
+    expect(pipes).toHaveLength(MAX_PIPES_PER_USER);
+    expect(pipes.some((pipe) => pipe.name === "One too many")).toBe(false);
+  });
+
   it("clears a pipe description through the registered mutation contract", async () => {
     const t = convexTest(schema, modules);
     const { userId, pipeId } = await t.run(async (ctx) => {
@@ -37,9 +72,70 @@ describe("Convex boundaries", () => {
     expect(pipe).not.toHaveProperty("description");
   });
 
-  it("rejects creating a pipe beneath another user's parent without writes", async () => {
+  it("returns the same expected error for missing and foreign pipes before updating a pipe", async () => {
     const t = convexTest(schema, modules);
-    const { userA, parentId } = await t.run(async (ctx) => {
+    const { userId, missingPipeId, foreignPipeId } = await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", {
+        username: "alice",
+        email: "alice@example.com",
+        password: "hash-a",
+      });
+      const otherUserId = await ctx.db.insert("users", {
+        username: "bob",
+        email: "bob@example.com",
+        password: "hash-b",
+      });
+      const missingPipeId = await ctx.db.insert("pipes", {
+        userId,
+        name: "Deleted",
+        icon: "trash-outline",
+        priority: 0,
+        capacity: 100,
+        fed: 50,
+        spent: 0,
+      });
+      await ctx.db.delete("pipes", missingPipeId);
+      const foreignPipeId = await ctx.db.insert("pipes", {
+        userId: otherUserId,
+        name: "Foreign",
+        icon: "wallet-outline",
+        description: "unchanged",
+        priority: 0,
+        capacity: 1000,
+        fed: 500,
+        spent: 100,
+      });
+      await ctx.db.insert("pipes", {
+        userId,
+        name: "Owned",
+        icon: "home-outline",
+        priority: 0,
+        capacity: 1000,
+        fed: 250,
+        spent: 25,
+      });
+      return { userId, missingPipeId, foreignPipeId };
+    });
+    const before = await t.run((ctx) => ctx.db.query("pipes").collect());
+    const asUser = t.withIdentity({ subject: userId });
+
+    for (const pipeId of [missingPipeId, foreignPipeId]) {
+      await expect(
+        asUser.mutation(api.pipes.updatePipe, {
+          pipeId,
+          name: "Changed",
+          capacity: 999,
+        }),
+      ).rejects.toMatchObject({ data: { code: "PIPE_NOT_FOUND" } });
+    }
+
+    const after = await t.run((ctx) => ctx.db.query("pipes").collect());
+    expect(after).toEqual(before);
+  });
+
+  it("returns the same expected error for missing and foreign parents before adding a pipe", async () => {
+    const t = convexTest(schema, modules);
+    const { userA, missingParentId, foreignParentId } = await t.run(async (ctx) => {
       const userA = await ctx.db.insert("users", {
         username: "alice",
         email: "alice@example.com",
@@ -50,7 +146,17 @@ describe("Convex boundaries", () => {
         email: "bob@example.com",
         password: "hash-b",
       });
-      const parentId = await ctx.db.insert("pipes", {
+      const missingParentId = await ctx.db.insert("pipes", {
+        userId: userA,
+        name: "Deleted parent",
+        icon: "trash-outline",
+        priority: 0,
+        capacity: 100,
+        fed: 50,
+        spent: 10,
+      });
+      await ctx.db.delete("pipes", missingParentId);
+      const foreignParentId = await ctx.db.insert("pipes", {
         userId: userB,
         name: "Bob's pipe",
         icon: "pipe",
@@ -59,28 +165,25 @@ describe("Convex boundaries", () => {
         fed: 50,
         spent: 10,
       });
-      return { userA, parentId };
+      return { userA, missingParentId, foreignParentId };
     });
     const asUserA = t.withIdentity({ subject: userA });
+    const before = await t.run((ctx) => ctx.db.query("pipes").collect());
 
-    await expect(
-      asUserA.mutation(api.pipes.addPipe, {
-        name: "Unauthorized child",
-        icon: "pipe",
-        priority: 1,
-        capacity: 25,
-        parentId,
-      }),
-    ).rejects.toThrow("Parent pipe not found");
+    for (const parentId of [missingParentId, foreignParentId]) {
+      await expect(
+        asUserA.mutation(api.pipes.addPipe, {
+          name: "Unauthorized child",
+          icon: "pipe",
+          priority: 1,
+          capacity: 25,
+          parentId,
+        }),
+      ).rejects.toMatchObject({ data: { code: "PIPE_NOT_FOUND" } });
+    }
 
-    const pipes = await t.run((ctx) => ctx.db.query("pipes").collect());
-    expect(pipes).toHaveLength(1);
-    expect(pipes[0]).toMatchObject({
-      _id: parentId,
-      capacity: 100,
-      fed: 50,
-      spent: 10,
-    });
+    const after = await t.run((ctx) => ctx.db.query("pipes").collect());
+    expect(after).toEqual(before);
   });
 
   it("settles pending accounting before converting a leaf into a parent", async () => {
@@ -125,6 +228,67 @@ describe("Convex boundaries", () => {
     expect(child).toMatchObject({ fed: 400 });
     expect(rawParent).toMatchObject({ fed: 600, spent: 0, pendingFedAdjustment: 0 });
     expect((rawParent?.fed ?? 0) + (child?.fed ?? 0)).toBe(1000);
+  });
+
+  it("returns the same expected error for missing and foreign pipes before updating a pipe rule", async () => {
+    const t = convexTest(schema, modules);
+    const { userId, missingPipeId, foreignPipeId } = await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", {
+        username: "alice",
+        email: "alice@example.com",
+        password: "hash-a",
+      });
+      const otherUserId = await ctx.db.insert("users", {
+        username: "bob",
+        email: "bob@example.com",
+        password: "hash-b",
+      });
+      const missingPipeId = await ctx.db.insert("pipes", {
+        userId,
+        name: "Deleted",
+        icon: "trash-outline",
+        priority: 0,
+        capacity: 100,
+        fed: 50,
+        spent: 10,
+      });
+      await ctx.db.delete("pipes", missingPipeId);
+      const foreignPipeId = await ctx.db.insert("pipes", {
+        userId: otherUserId,
+        name: "Foreign",
+        icon: "wallet-outline",
+        priority: 0,
+        capacity: 1000,
+        fed: 500,
+        spent: 100,
+        rule: "spend_overflow",
+      });
+      await ctx.db.insert("pipes", {
+        userId,
+        name: "Owned",
+        icon: "home-outline",
+        priority: 0,
+        capacity: 500,
+        fed: 250,
+        spent: 25,
+      });
+      return { userId, missingPipeId, foreignPipeId };
+    });
+    const before = await t.run((ctx) => ctx.db.query("pipes").collect());
+    const asUser = t.withIdentity({ subject: userId });
+
+    for (const pipeId of [missingPipeId, foreignPipeId]) {
+      await expect(
+        asUser.mutation(api.pipes.updatePipeRule, {
+          pipeId,
+          rule: "instant_settlement",
+          capUpdateValue: 25,
+        }),
+      ).rejects.toMatchObject({ data: { code: "PIPE_NOT_FOUND" } });
+    }
+
+    const after = await t.run((ctx) => ctx.db.query("pipes").collect());
+    expect(after).toEqual(before);
   });
 
   it("rejects the removed any_spend rule identifier after migration", async () => {
@@ -1704,6 +1868,60 @@ describe("Convex boundaries", () => {
       fed: 500,
       spent: 0,
       pendingFedAdjustment: 0,
+    });
+  });
+
+  it("returns the same expected error for missing and foreign pipes before manual rule execution", async () => {
+    const t = convexTest(schema, modules);
+    const { userId, missingPipeId, foreignPipeId } = await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", {
+        username: "alice",
+        email: "alice@example.com",
+        password: "hash-a",
+      });
+      const otherUserId = await ctx.db.insert("users", {
+        username: "bob",
+        email: "bob@example.com",
+        password: "hash-b",
+      });
+      const missingPipeId = await ctx.db.insert("pipes", {
+        userId,
+        name: "Deleted",
+        icon: "trash-outline",
+        priority: 0,
+        capacity: 1000,
+        fed: 500,
+        spent: 100,
+      });
+      await ctx.db.delete("pipes", missingPipeId);
+      const foreignPipeId = await ctx.db.insert("pipes", {
+        userId: otherUserId,
+        name: "Foreign",
+        icon: "wallet-outline",
+        priority: 0,
+        capacity: 1000,
+        fed: 500,
+        spent: 100,
+        pendingFedAdjustment: 25,
+      });
+      return { userId, missingPipeId, foreignPipeId };
+    });
+    const asUser = t.withIdentity({ subject: userId });
+
+    for (const pipeId of [missingPipeId, foreignPipeId]) {
+      await expect(
+        asUser.mutation(api.pipes.executePipeRuleNow, { pipeId }),
+      ).rejects.toMatchObject({ data: { code: "PIPE_NOT_FOUND" } });
+    }
+
+    const foreignPipe = await t.run((ctx) =>
+      ctx.db.get("pipes", foreignPipeId),
+    );
+    expect(foreignPipe).toMatchObject({
+      capacity: 1000,
+      fed: 500,
+      spent: 100,
+      pendingFedAdjustment: 25,
     });
   });
 

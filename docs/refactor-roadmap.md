@@ -29,7 +29,7 @@ This roadmap persists the whole-project audit beyond any single chat session. Wo
 | 8. Shared domain core | Completed | Introduce deep pure modules for transaction identity/accounting, pipe graph/reconciliation, and cron schedules without changing monetary representation | D001-D003 |
 | 9. Integer cents migration | Completed | Replace floating-point monetary persistence and arithmetic with integer cents | Update 8, D001 |
 | 10. Financial mutation semantics | Completed | Define corrections, rule effects, idempotency, and accounting projections | Updates 8-9 |
-| 11. Convex model boundaries | In progress | Make registered functions thin, validated, authorized wrappers over deep model operations | Updates 1-3, 8-10 |
+| 11. Convex model boundaries | Completed | Make registered functions thin, validated, authorized wrappers over deep model operations | Updates 1-3, 8-10 |
 | 12. Bounded backend work | Pending | Scope recascade, batch cleanup/crons/deletion, and index hot transaction queries | Updates 6, 10-11 plus measurements |
 | 13. Frontend ownership | Pending | Normalize backend models, narrow contexts/subscriptions, and restore dependency direction | Updates 5, 8, 11 |
 | 14. Complex component refactors | Pending | Refactor AmountForm, RuleModal, PipeTreeView, and transaction rows by responsibility | Updates 5, 8, 13 |
@@ -39,7 +39,6 @@ This roadmap persists the whole-project audit beyond any single chat session. Wo
 ## Confirmed High-Priority Risks
 
 - Backend financial and topology invariants are incomplete.
-- Transaction involvement is inconsistent across grouping, filtering, and deletion.
 - Several maintenance functions and transaction scans are unbounded.
 
 ## Refactor Targets
@@ -77,7 +76,7 @@ migrations component remains installed for future work. Convex transport retry
 semantics, atomic cron schedule advancement, and UI submission guards are the
 chosen operation-idempotency boundary; no operation IDs are persisted.
 
-Update 11 is in progress. Transaction creation and editing now delegate from
+Update 11 is complete. Transaction creation and editing delegate from
 validated registered mutations to deep operations that own command
 normalization, pipe authorization, accounting, rule execution, recascade, and
 persistence. Creation also owns title usage; editing owns correction sequencing
@@ -88,9 +87,33 @@ contract with structured expected errors before accounting writes. Missing and
 foreign referenced pipes use the same non-disclosing error, including when an
 owned historical transaction references another user's pipe.
 
-The next Update 11 slice is pipe mutation orchestration: identify the smallest
-high-risk registered write, lock its authorization and topology contract at the
-Convex boundary, then move its sequencing behind a deep model operation.
+Manual rule execution now delegates to a deep pipe operation that owns pipe
+loading, non-disclosing authorization, deletion-state validation, clocked rule
+execution, and subtree recalculation. Its registered mutation is authentication,
+clock acquisition, and delegation with an explicit null result.
+
+Pipe updates now delegate to the same model module. The operation owns
+non-disclosing authorization, deletion-state validation, partial patch
+construction, integer-cents capacity validation, and recascade sequencing.
+
+Child-pipe creation now delegates to the pipe model. The operation owns
+non-disclosing parent authorization, deletion and user-limit checks,
+integer-cents capacity validation, legacy pending-accounting settlement, child
+insertion, parent rule clearing, and recascade sequencing.
+
+Rule updates now delegate to the pipe model with an explicit server clock. The
+operation owns non-disclosing authorization, deletion-state validation,
+same-day cron idempotency, rule patch construction, integer-cents cap updates,
+overdue occurrence catch-up, and post-write recascade sequencing.
+
+Root-pipe creation also delegates to the model, which owns initialization and a
+shared pipe-limit check bounded to the 500 documents needed to enforce the
+contract. Limit failures are stable structured errors for both root and child
+creation.
+
+The next roadmap step is Update 12. Begin by measuring and tracing scheduled
+cron collection, whole-user recascade reads and writes, deletion planning, and
+hot transaction queries before choosing the first bounded-work change.
 
 ## Completed Accessibility Layout Work
 

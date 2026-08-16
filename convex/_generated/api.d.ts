@@ -24,6 +24,7 @@ import type * as lib_pipes_delete_operations from "../lib/pipes/delete/operation
 import type * as lib_pipes_delete_plan from "../lib/pipes/delete/plan.js";
 import type * as lib_pipes_delete_transactionDisposition from "../lib/pipes/delete/transactionDisposition.js";
 import type * as lib_pipes_index from "../lib/pipes/index.js";
+import type * as lib_pipes_operations from "../lib/pipes/operations.js";
 import type * as lib_pipes_pipes from "../lib/pipes/pipes.js";
 import type * as lib_transactions from "../lib/transactions.js";
 import type * as lib_transactions_operations from "../lib/transactions/operations.js";
@@ -57,6 +58,7 @@ declare const fullApi: ApiFromModules<{
   "lib/pipes/delete/plan": typeof lib_pipes_delete_plan;
   "lib/pipes/delete/transactionDisposition": typeof lib_pipes_delete_transactionDisposition;
   "lib/pipes/index": typeof lib_pipes_index;
+  "lib/pipes/operations": typeof lib_pipes_operations;
   "lib/pipes/pipes": typeof lib_pipes_pipes;
   "lib/transactions": typeof lib_transactions;
   "lib/transactions/operations": typeof lib_transactions_operations;
