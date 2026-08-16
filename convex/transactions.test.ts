@@ -60,7 +60,7 @@ describe("createTransaction", () => {
         from: "pipe-1",
       });
 
-      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", { spent: 3100 });
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", { spent: 3100 });
       expect(ctx.db.insert).toHaveBeenCalledWith(
         "transactions",
         expect.objectContaining({ value: -3000 }),
@@ -78,7 +78,7 @@ describe("createTransaction", () => {
         from: "pipe-1",
       });
 
-      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", { spent: 130 });
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", { spent: 130 });
       expect(ctx.db.insert).toHaveBeenCalledWith("transactions", {
         title: "groceries",
         value: -30,
@@ -94,7 +94,8 @@ describe("createTransaction", () => {
   describe("transfer (from + to)", () => {
     it("patches both source.fed and dest.fed and inserts transaction with to", async () => {
       const ctx = mockCtx();
-      ctx.db.get.mockImplementation((id: string) => {
+      ctx.db.get.mockImplementation((tableOrId: string, maybeId?: string) => {
+        const id = maybeId ?? tableOrId;
         if (id === "pipe-1") return A_PIPE;
         if (id === "pipe-2") return B_PIPE;
         return null;
@@ -108,8 +109,8 @@ describe("createTransaction", () => {
         to: "pipe-2",
       });
 
-      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", { fed: 450 });
-      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-2", { fed: 250 });
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", { fed: 450 });
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-2", { fed: 250 });
       expect(ctx.db.insert).toHaveBeenCalledWith("transactions", {
         title: "transfer",
         value: -50,
@@ -123,6 +124,21 @@ describe("createTransaction", () => {
   });
 
   describe("feed (to only — no from)", () => {
+    it("reads the destination pipe only once", async () => {
+      const ctx = mockCtx();
+      ctx.db.get.mockResolvedValue(A_PIPE);
+
+      await (createTransaction as any)._handler(ctx, {
+        title: "salary",
+        value: 1000,
+        date: 3000,
+        to: "pipe-1",
+      });
+
+      expect(ctx.db.get).toHaveBeenCalledTimes(1);
+      expect(ctx.db.get).toHaveBeenCalledWith("pipes", "pipe-1");
+    });
+
     it("patches to.fed and inserts transaction with from: undefined", async () => {
       const ctx = mockCtx();
       ctx.db.get.mockResolvedValue({ ...A_PIPE, rule: "instant_settlement" });
@@ -134,7 +150,7 @@ describe("createTransaction", () => {
         to: "pipe-1",
       });
 
-      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", { fed: 1500 });
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", { fed: 1500 });
       expect(ctx.db.patch).toHaveBeenCalledTimes(1);
       expect(ctx.db.insert).toHaveBeenCalledWith("transactions", {
         title: "salary",
@@ -149,9 +165,10 @@ describe("createTransaction", () => {
   });
 
   describe("pay by transfer", () => {
-    it("moves fed from the payer and records spend and an external adjustment on the category", async () => {
+    it("reads each referenced root pipe only once", async () => {
       const ctx = mockCtx();
-      ctx.db.get.mockImplementation((id: string) => {
+      ctx.db.get.mockImplementation((tableOrId: string, maybeId?: string) => {
+        const id = maybeId ?? tableOrId;
         if (id === "pipe-1") return A_PIPE;
         if (id === "pipe-2") return B_PIPE;
         return null;
@@ -165,11 +182,54 @@ describe("createTransaction", () => {
         paidFrom: "pipe-2",
       });
 
-      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+      expect(ctx.db.get).toHaveBeenCalledTimes(2);
+    });
+
+    it("reads a shared ancestor only once during parallel root resolution", async () => {
+      const ctx = mockCtx();
+      ctx.db.get.mockImplementation((tableOrId: string, maybeId?: string) => {
+        const id = maybeId ?? tableOrId;
+        if (id === "pipe-1") return { ...A_PIPE, parentId: "root" };
+        if (id === "pipe-2") return { ...B_PIPE, parentId: "root" };
+        if (id === "root") return { ...A_PIPE, _id: "root" };
+        return null;
+      });
+
+      await expect(
+        (createTransaction as any)._handler(ctx, {
+          title: "coffee",
+          value: -30,
+          date: 3500,
+          from: "pipe-1",
+          paidFrom: "pipe-2",
+        }),
+      ).rejects.toThrow("Paid from pipe must be outside the transaction tree");
+
+      expect(ctx.db.get).toHaveBeenCalledTimes(3);
+    });
+
+    it("moves fed from the payer and records spend and an external adjustment on the category", async () => {
+      const ctx = mockCtx();
+      ctx.db.get.mockImplementation((tableOrId: string, maybeId?: string) => {
+        const id = maybeId ?? tableOrId;
+        if (id === "pipe-1") return A_PIPE;
+        if (id === "pipe-2") return B_PIPE;
+        return null;
+      });
+
+      await (createTransaction as any)._handler(ctx, {
+        title: "coffee",
+        value: -30,
+        date: 3500,
+        from: "pipe-1",
+        paidFrom: "pipe-2",
+      });
+
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
         spent: 130,
         pendingFedAdjustment: 30,
       });
-      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-2", { fed: 170 });
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-2", { fed: 170 });
       expect(ctx.db.patch).toHaveBeenCalledTimes(2);
       expect(ctx.db.insert).toHaveBeenCalledWith("transactions", {
         title: "coffee",
@@ -198,7 +258,8 @@ describe("createTransaction", () => {
 
     it("allows a positive refund to a parentless pipe that has children", async () => {
       const ctx = mockCtx();
-      ctx.db.get.mockImplementation((id: string) => {
+      ctx.db.get.mockImplementation((tableOrId: string, maybeId?: string) => {
+        const id = maybeId ?? tableOrId;
         if (id === "pipe-1") return A_PIPE;
         if (id === "pipe-2") return { ...B_PIPE, parentId: undefined };
         return null;
@@ -215,13 +276,14 @@ describe("createTransaction", () => {
           from: "pipe-1",
           paidFrom: "pipe-2",
         }),
-      ).resolves.toBeUndefined();
+      ).resolves.toBeNull();
     });
 
     it("rejects a negative payer in the transaction pipe's root tree", async () => {
       const ctx = mockCtx();
       const rootPipe = { ...A_PIPE, _id: "root-1", parentId: undefined };
-      ctx.db.get.mockImplementation((id: string) => {
+      ctx.db.get.mockImplementation((tableOrId: string, maybeId?: string) => {
+        const id = maybeId ?? tableOrId;
         if (id === "pipe-1") return { ...A_PIPE, parentId: "root-1" };
         if (id === "pipe-2") return { ...B_PIPE, parentId: "root-1" };
         if (id === "root-1") return rootPipe;
@@ -241,7 +303,8 @@ describe("createTransaction", () => {
 
     it("recalculates the paid-from tree after applying the balance changes", async () => {
       const ctx = mockCtx();
-      ctx.db.get.mockImplementation((id: string) => {
+      ctx.db.get.mockImplementation((tableOrId: string, maybeId?: string) => {
+        const id = maybeId ?? tableOrId;
         if (id === "pipe-1") return A_PIPE;
         if (id === "pipe-2") return B_PIPE;
         return null;
@@ -271,7 +334,7 @@ describe("createTransaction", () => {
         from: "pipe-1",
       });
 
-      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", { spent: 130 });
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", { spent: 130 });
       expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
         fed: 400,
         spent: 0,
@@ -281,7 +344,8 @@ describe("createTransaction", () => {
 
     it("does not execute instant settlement on a transfer", async () => {
       const ctx = mockCtx();
-      ctx.db.get.mockImplementation((id: string) => {
+      ctx.db.get.mockImplementation((tableOrId: string, maybeId?: string) => {
+        const id = maybeId ?? tableOrId;
         if (id === "pipe-1") return { ...A_PIPE, rule: "instant_settlement" };
         if (id === "pipe-2") return B_PIPE;
         return null;
@@ -295,8 +359,8 @@ describe("createTransaction", () => {
         to: "pipe-2",
       });
 
-      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", { fed: 450 });
-      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-2", { fed: 250 });
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", { fed: 450 });
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-2", { fed: 250 });
       expect(ctx.db.patch).toHaveBeenCalledTimes(2);
     });
 
@@ -311,7 +375,7 @@ describe("createTransaction", () => {
         from: "pipe-1",
       });
 
-      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", { spent: 70 });
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", { spent: 70 });
       expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
         fed: 400,
         spent: 0,
@@ -333,7 +397,7 @@ describe("createTransaction", () => {
         from: "pipe-1",
       });
 
-      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", { spent: 130 });
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", { spent: 130 });
       expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
         fed: 400,
         spent: 0,
@@ -356,7 +420,7 @@ describe("createTransaction", () => {
       });
 
       expect(ctx.db.patch).toHaveBeenCalledTimes(1);
-      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", { spent: 130 });
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", { spent: 130 });
     });
 
     it("applies the cap update formula when spend_overflow triggers with capUpdateValue", async () => {
@@ -375,7 +439,7 @@ describe("createTransaction", () => {
         from: "pipe-1",
       });
 
-      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", { spent: 130 });
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", { spent: 130 });
       expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
         fed: 400,
         spent: 0,
@@ -419,7 +483,8 @@ describe("editTransaction", () => {
     it("records one correction when the transaction is edited", async () => {
       const ctx = mockCtx();
       const tx = { ...BASE_TX, from: "pipe-1", to: undefined };
-      ctx.db.get.mockImplementation((id: string) => {
+      ctx.db.get.mockImplementation((tableOrId: string, maybeId?: string) => {
+        const id = maybeId ?? tableOrId;
         if (id === "tx-1") return tx;
         if (id === "pipe-1") return { ...A_PIPE, spent: 100 };
         return null;
@@ -444,7 +509,8 @@ describe("editTransaction", () => {
     it("patches transaction and adjusts from.spent when value changes", async () => {
       const ctx = mockCtx();
       const tx = { ...BASE_TX, from: "pipe-1", to: undefined };
-      ctx.db.get.mockImplementation((id: string) => {
+      ctx.db.get.mockImplementation((tableOrId: string, maybeId?: string) => {
+        const id = maybeId ?? tableOrId;
         if (id === "tx-1") return tx;
         if (id === "pipe-1") return { ...A_PIPE, spent: 100 };
         return null;
@@ -458,6 +524,7 @@ describe("editTransaction", () => {
       });
 
       expect(ctx.db.patch).toHaveBeenCalledWith(
+        "transactions",
         "tx-1",
         expect.objectContaining({
           title: "new title",
@@ -466,7 +533,9 @@ describe("editTransaction", () => {
           editedAt: expect.any(Number),
         }),
       );
-      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", { spent: 130 });
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
+        spent: 130,
+      });
       expect(ctx.db._chain.collect).toHaveBeenCalled();
     });
 
@@ -478,12 +547,14 @@ describe("editTransaction", () => {
         rule: "instant_settlement",
         capacity: 130,
       };
-      ctx.db.get.mockImplementation((id: string) => {
+      ctx.db.get.mockImplementation((tableOrId: string, maybeId?: string) => {
+        const id = maybeId ?? tableOrId;
         if (id === "tx-1") return tx;
         if (id === "pipe-1") return pipe;
         return null;
       });
-      ctx.db.patch.mockImplementation((id: string, patch: Record<string, unknown>) => {
+      ctx.db.patch.mockImplementation((...args: any[]) => {
+        const [id, patch] = args.length === 3 ? args.slice(1) : args;
         if (id === "pipe-1") Object.assign(pipe, patch);
       });
 
@@ -494,7 +565,9 @@ describe("editTransaction", () => {
         date: 3000,
       });
 
-      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", { spent: 130 });
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
+        spent: 130,
+      });
       expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
         fed: 370,
         spent: 0,
@@ -509,12 +582,14 @@ describe("editTransaction", () => {
         rule: "spend_overflow",
         capacity: 130,
       };
-      ctx.db.get.mockImplementation((id: string) => {
+      ctx.db.get.mockImplementation((tableOrId: string, maybeId?: string) => {
+        const id = maybeId ?? tableOrId;
         if (id === "tx-1") return tx;
         if (id === "pipe-1") return pipe;
         return null;
       });
-      ctx.db.patch.mockImplementation((id: string, patch: Record<string, unknown>) => {
+      ctx.db.patch.mockImplementation((...args: any[]) => {
+        const [id, patch] = args.length === 3 ? args.slice(1) : args;
         if (id === "pipe-1") Object.assign(pipe, patch);
       });
 
@@ -525,7 +600,9 @@ describe("editTransaction", () => {
         date: 3000,
       });
 
-      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", { spent: 130 });
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
+        spent: 130,
+      });
       expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
         fed: 370,
         spent: 0,
@@ -558,7 +635,8 @@ describe("editTransaction", () => {
         from: undefined,
         to: "pipe-1",
       };
-      ctx.db.get.mockImplementation((id: string) => {
+      ctx.db.get.mockImplementation((tableOrId: string, maybeId?: string) => {
+        const id = maybeId ?? tableOrId;
         if (id === "tx-1") return tx;
         if (id === "pipe-1") return { ...A_PIPE, fed: 500 };
         return null;
@@ -572,6 +650,7 @@ describe("editTransaction", () => {
       });
 
       expect(ctx.db.patch).toHaveBeenCalledWith(
+        "transactions",
         "tx-1",
         expect.objectContaining({
           title: "bonus",
@@ -580,7 +659,9 @@ describe("editTransaction", () => {
           editedAt: expect.any(Number),
         }),
       );
-      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", { fed: 700 });
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
+        fed: 700,
+      });
     });
   });
 
@@ -588,7 +669,8 @@ describe("editTransaction", () => {
     it("patches transaction and adjusts both pipes' fed when value changes", async () => {
       const ctx = mockCtx();
       const tx = { ...BASE_TX, value: -50, from: "pipe-1", to: "pipe-2" };
-      ctx.db.get.mockImplementation((id: string) => {
+      ctx.db.get.mockImplementation((tableOrId: string, maybeId?: string) => {
+        const id = maybeId ?? tableOrId;
         if (id === "tx-1") return tx;
         if (id === "pipe-1") return { ...A_PIPE, fed: 500 };
         if (id === "pipe-2") return { ...B_PIPE, fed: 200 };
@@ -603,6 +685,7 @@ describe("editTransaction", () => {
       });
 
       expect(ctx.db.patch).toHaveBeenCalledWith(
+        "transactions",
         "tx-1",
         expect.objectContaining({
           title: "new transfer",
@@ -611,8 +694,12 @@ describe("editTransaction", () => {
           editedAt: expect.any(Number),
         }),
       );
-      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", { fed: 470 });
-      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-2", { fed: 230 });
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
+        fed: 470,
+      });
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-2", {
+        fed: 230,
+      });
     });
   });
 
@@ -625,7 +712,8 @@ describe("editTransaction", () => {
         from: "pipe-1",
         paidFrom: "pipe-2",
       };
-      ctx.db.get.mockImplementation((id: string) => {
+      ctx.db.get.mockImplementation((tableOrId: string, maybeId?: string) => {
+        const id = maybeId ?? tableOrId;
         if (id === "tx-1") return tx;
         if (id === "pipe-1") return A_PIPE;
         if (id === "pipe-2") return B_PIPE;
@@ -639,11 +727,13 @@ describe("editTransaction", () => {
         date: 5000,
       });
 
-      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
         spent: 130,
         pendingFedAdjustment: 30,
       });
-      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-2", { fed: 170 });
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-2", {
+        fed: 170,
+      });
     });
 
     it("executes instant settlement after an edited pay-by spend", async () => {
@@ -660,13 +750,15 @@ describe("editTransaction", () => {
         capacity: 130,
       };
       const payerPipe = { ...B_PIPE };
-      ctx.db.get.mockImplementation((id: string) => {
+      ctx.db.get.mockImplementation((tableOrId: string, maybeId?: string) => {
+        const id = maybeId ?? tableOrId;
         if (id === "tx-1") return tx;
         if (id === "pipe-1") return logicalPipe;
         if (id === "pipe-2") return payerPipe;
         return null;
       });
-      ctx.db.patch.mockImplementation((id: string, patch: Record<string, unknown>) => {
+      ctx.db.patch.mockImplementation((...args: any[]) => {
+        const [id, patch] = args.length === 3 ? args.slice(1) : args;
         if (id === "pipe-1") Object.assign(logicalPipe, patch);
         if (id === "pipe-2") Object.assign(payerPipe, patch);
       });
@@ -678,7 +770,7 @@ describe("editTransaction", () => {
         date: 5000,
       });
 
-      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
         spent: 130,
         pendingFedAdjustment: 30,
       });
@@ -697,7 +789,8 @@ describe("editTransaction", () => {
         from: "pipe-1",
         paidFrom: "pipe-2",
       };
-      ctx.db.get.mockImplementation((id: string) => {
+      ctx.db.get.mockImplementation((tableOrId: string, maybeId?: string) => {
+        const id = maybeId ?? tableOrId;
         if (id === "tx-1") return tx;
         if (id === "pipe-1") return A_PIPE;
         if (id === "pipe-2") return B_PIPE;
@@ -722,7 +815,8 @@ describe("editTransaction", () => {
         from: "pipe-1",
         paidFrom: "pipe-2",
       };
-      ctx.db.get.mockImplementation((id: string) => {
+      ctx.db.get.mockImplementation((tableOrId: string, maybeId?: string) => {
+        const id = maybeId ?? tableOrId;
         if (id === "tx-1") return tx;
         if (id === "pipe-1") return A_PIPE;
         if (id === "pipe-2") return { ...B_PIPE, parentId: "root-2" };

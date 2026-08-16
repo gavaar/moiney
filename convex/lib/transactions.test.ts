@@ -1,52 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import {
-  calculatePayByTransferUpdate,
-  calculateSpentUpdate,
-  getTitleUsagePipeId,
-  updateOrCreateTitleUsage,
-} from "./transactions";
+import { updateOrCreateTitleUsage } from "./transactions";
 import { recalculatePipes } from "../../domain/pipes";
-
-describe("calculateSpentUpdate", () => {
-  it("spent increases by -value when value is negative", () => {
-    expect(calculateSpentUpdate(100, -30)).toBe(130);
-  });
-
-  it("spent decreases by value when value is positive", () => {
-    expect(calculateSpentUpdate(100, 50)).toBe(50);
-  });
-
-  it("returns same spent when value is 0", () => {
-    expect(calculateSpentUpdate(100, 0)).toBe(100);
-  });
-});
-
-describe("calculatePayByTransferUpdate", () => {
-  it("moves fed from the payer and records an expense on the category", () => {
-    expect(calculatePayByTransferUpdate(100, 20, 250, -30)).toEqual({
-      fromFed: 130,
-      fromSpent: 50,
-      paidFromFed: 220,
-    });
-  });
-
-  it("reverses all effects for a positive refund", () => {
-    expect(calculatePayByTransferUpdate(100, 50, 220, 30)).toEqual({
-      fromFed: 70,
-      fromSpent: 20,
-      paidFromFed: 250,
-    });
-  });
-
-  it("keeps spent cumulative across expenses and a pay-by-transfer refund", () => {
-    let spent = calculateSpentUpdate(0, -10);
-    spent = calculatePayByTransferUpdate(100, spent, 100, -5).fromSpent;
-    spent = calculateSpentUpdate(spent, -8);
-    spent = calculatePayByTransferUpdate(100, spent, 100, 3).fromSpent;
-
-    expect(spent).toBe(20);
-  });
-});
 
 describe("updateOrCreateTitleUsage", () => {
   it("records creation time instead of the transaction's effective date", async () => {
@@ -75,18 +29,6 @@ describe("updateOrCreateTitleUsage", () => {
       count: 3,
       lastUsedAt: 5_000,
     });
-  });
-});
-
-describe("getTitleUsagePipeId", () => {
-  it("uses from for expenses and transfers, otherwise to for feeds", () => {
-    expect(getTitleUsagePipeId({ from: "expense", to: undefined })).toBe(
-      "expense",
-    );
-    expect(getTitleUsagePipeId({ from: "source", to: "destination" })).toBe(
-      "source",
-    );
-    expect(getTitleUsagePipeId({ from: undefined, to: "feed" })).toBe("feed");
   });
 });
 

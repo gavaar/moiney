@@ -232,3 +232,17 @@ Convex client mutation retries and atomic cron schedule advancement provide
 transport-level idempotency. No operation identifiers are persisted for
 separate user submissions; manual rule execution remains intentionally
 repeatable.
+
+## D013: Transfer Pipe Eligibility
+
+Status: Implemented
+
+A transfer originates from an owned leaf pipe and terminates at an owned root
+pipe in another tree. The backend validates source ownership, destination
+ownership, source leaf status, destination root status, and tree separation
+before applying accounting effects.
+
+Missing and foreign transfer pipes use the same non-disclosing expected error.
+Invalid topology uses stable error codes for a non-root destination, a source
+with children, and a destination in the source tree. Valid transfers conserve
+integer cents and create one transaction and one title-usage update.

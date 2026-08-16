@@ -63,17 +63,19 @@ export async function resolveTopMostAncestor(
   ctx: MutationCtx,
   startingPipeId: Id<"pipes">,
   cache?: Map<Id<"pipes">, Id<"pipes">>,
+  getPipe: (pipeId: Id<"pipes">) => Promise<Doc<"pipes"> | null> = (pipeId) =>
+    ctx.db.get("pipes", pipeId),
 ): Promise<Id<"pipes">> {
   const cached = cache?.get(startingPipeId);
   if (cached) return cached;
 
-  const first = await ctx.db.get(startingPipeId);
+  const first = await getPipe(startingPipeId);
   if (!first) throw new Error("Pipe not found");
 
   const visited: Id<"pipes">[] = [first._id];
   let cursor: Doc<"pipes"> = first;
   while (cursor.parentId) {
-    const parent = await ctx.db.get(cursor.parentId);
+    const parent = await getPipe(cursor.parentId);
     if (!parent) break;
     visited.push(parent._id);
     cursor = parent;

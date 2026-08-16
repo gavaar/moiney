@@ -773,7 +773,10 @@ function makeDb(docs: Record<string, any>) {
   let field: string | undefined;
   let value: unknown;
   const db = {
-    get: async (id: any) => (id in docs ? docs[id] : null),
+    get: async (tableOrId: any, maybeId?: any) => {
+      const id = maybeId ?? tableOrId;
+      return id in docs ? docs[id] : null;
+    },
     patch,
     query: () => {
       const builder = {

@@ -29,7 +29,7 @@ This roadmap persists the whole-project audit beyond any single chat session. Wo
 | 8. Shared domain core | Completed | Introduce deep pure modules for transaction identity/accounting, pipe graph/reconciliation, and cron schedules without changing monetary representation | D001-D003 |
 | 9. Integer cents migration | Completed | Replace floating-point monetary persistence and arithmetic with integer cents | Update 8, D001 |
 | 10. Financial mutation semantics | Completed | Define corrections, rule effects, idempotency, and accounting projections | Updates 8-9 |
-| 11. Convex model boundaries | Pending | Make registered functions thin, validated, authorized wrappers over deep model operations | Updates 1-3, 8-10 |
+| 11. Convex model boundaries | In progress | Make registered functions thin, validated, authorized wrappers over deep model operations | Updates 1-3, 8-10 |
 | 12. Bounded backend work | Pending | Scope recascade, batch cleanup/crons/deletion, and index hot transaction queries | Updates 6, 10-11 plus measurements |
 | 13. Frontend ownership | Pending | Normalize backend models, narrow contexts/subscriptions, and restore dependency direction | Updates 5, 8, 11 |
 | 14. Complex component refactors | Pending | Refactor AmountForm, RuleModal, PipeTreeView, and transaction rows by responsibility | Updates 5, 8, 13 |
@@ -77,7 +77,20 @@ migrations component remains installed for future work. Convex transport retry
 semantics, atomic cron schedule advancement, and UI submission guards are the
 chosen operation-idempotency boundary; no operation IDs are persisted.
 
-The next roadmap step is Update 11: Convex model boundaries.
+Update 11 is in progress. Transaction creation and editing now delegate from
+validated registered mutations to deep operations that own command
+normalization, pipe authorization, accounting, rule execution, recascade, and
+persistence. Creation also owns title usage; editing owns correction sequencing
+and uses an explicit clock. Both mutations have explicit null results.
+
+Transfer creation and value editing enforce the D013 leaf-to-root, cross-tree
+contract with structured expected errors before accounting writes. Missing and
+foreign referenced pipes use the same non-disclosing error, including when an
+owned historical transaction references another user's pipe.
+
+The next Update 11 slice is pipe mutation orchestration: identify the smallest
+high-risk registered write, lock its authorization and topology contract at the
+Convex boundary, then move its sequencing behind a deep model operation.
 
 ## Completed Accessibility Layout Work
 
