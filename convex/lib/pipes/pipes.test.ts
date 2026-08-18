@@ -1213,7 +1213,7 @@ describe("executePipeRule", () => {
 
     await executePipeRule(ctx, "pipe-1" as any);
 
-    expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+    expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
       fed: 300,
       spent: 0,
     });
@@ -1236,7 +1236,7 @@ describe("executePipeRule", () => {
 
       await executePipeRule(ctx, "pipe-1" as any);
 
-      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
         fed: fedExpected,
         spent: 0,
         capacity: capacityExpected,
@@ -1255,7 +1255,7 @@ describe("executePipeRule", () => {
 
     await executePipeRule(ctx, "pipe-1" as any);
 
-    expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+    expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
       fed: 300,
       spent: 0,
       capacity: 900,
@@ -1276,7 +1276,7 @@ describe("executePipeRule", () => {
 
     await executePipeRule(ctx, "pipe-1" as any);
 
-    expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+    expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
       fed: 300,
       spent: 0,
       capacity: 900,
@@ -1299,7 +1299,7 @@ describe("executePipeRule", () => {
       now: Date.UTC(2026, 5, 15, 13),
     });
 
-    expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+    expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
       fed: 300,
       spent: 0,
       cronNextDate: Date.UTC(2026, 5, 16, 5),

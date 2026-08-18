@@ -336,7 +336,7 @@ describe("createTransaction", () => {
       });
 
       expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", { spent: 130 });
-      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
         fed: 400,
         spent: 0,
       });
@@ -377,7 +377,7 @@ describe("createTransaction", () => {
       });
 
       expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", { spent: 70 });
-      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
         fed: 400,
         spent: 0,
       });
@@ -399,7 +399,7 @@ describe("createTransaction", () => {
       });
 
       expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", { spent: 130 });
-      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
         fed: 400,
         spent: 0,
       });
@@ -441,7 +441,7 @@ describe("createTransaction", () => {
       });
 
       expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", { spent: 130 });
-      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
         fed: 400,
         spent: 0,
         capacity: 50,
@@ -569,7 +569,7 @@ describe("editTransaction", () => {
       expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
         spent: 130,
       });
-      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
         fed: 370,
         spent: 0,
       });
@@ -604,7 +604,7 @@ describe("editTransaction", () => {
       expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
         spent: 130,
       });
-      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
         fed: 370,
         spent: 0,
       });
@@ -775,7 +775,7 @@ describe("editTransaction", () => {
         spent: 130,
         pendingFedAdjustment: 30,
       });
-      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
         fed: 400,
         spent: 0,
         pendingFedAdjustment: 0,

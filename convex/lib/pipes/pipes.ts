@@ -1,7 +1,6 @@
 import type { Doc, Id } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
-import { recalculatePipes } from "../../../domain/pipes";
-import { computeCronNextDate } from "../../../domain/scheduling";
+import { calculatePipeRulePatch, recalculatePipes } from "../../../domain/pipes";
 
 export async function executePipeRule(
   ctx: MutationCtx,
@@ -13,33 +12,17 @@ export async function executePipeRule(
   } = {},
 ) {
   const { now = Date.now(), pipe: cachedPipe } = opts;
-  const pipe = cachedPipe ?? (await ctx.db.get(pipeId));
+  const pipe = cachedPipe ?? (await ctx.db.get("pipes", pipeId));
   if (!pipe) throw new Error("Pipe not found");
 
-  const leftoverFed = pipe.fed + (pipe.pendingFedAdjustment ?? 0) - pipe.spent;
-  const patch: Record<string, unknown> = {
-    fed: leftoverFed,
-    spent: 0,
-  };
-  if (pipe.pendingFedAdjustment !== undefined) {
-    patch.pendingFedAdjustment = 0;
-  }
-
-  const capUpdateValue = opts.capUpdateValue ?? pipe.capUpdateValue;
-  if (capUpdateValue != null) {
-    patch.capacity = pipe.capacity - pipe.spent + capUpdateValue;
-  }
-
-  if (pipe.rule === "cron" && pipe.cronInterval && pipe.cronNextDate != null) {
-    patch.cronNextDate = computeCronNextDate(
-      pipe.cronNextDate,
-      pipe.cronInterval.interval,
-      pipe.cronInterval.unit,
+  await ctx.db.patch(
+    "pipes",
+    pipeId,
+    calculatePipeRulePatch(pipe, {
       now,
-    );
-  }
-
-  await ctx.db.patch(pipeId, patch);
+      capUpdateValue: opts.capUpdateValue,
+    }),
+  );
 }
 
 // ── DB operations ──

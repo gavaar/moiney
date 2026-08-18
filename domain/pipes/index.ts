@@ -1,5 +1,6 @@
 export {
   buildChildrenMap,
+  calculatePipeRulePatch,
   calculatePipeAllocations,
   collectDescendants,
   computePipeDerivedValues,
@@ -8,3 +9,4 @@ export {
   shouldTriggerPipeRule,
   splitEvenly,
 } from "./pipes";
+export type { PipeRulePatch, PipeRuleState } from "./pipes";

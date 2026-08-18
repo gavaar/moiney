@@ -421,6 +421,88 @@ describe("Convex boundaries", () => {
     });
   });
 
+  it("continues through the mutable cron index after processing and skipping a blocked candidate", async () => {
+    const t = convexTest(schema, modules);
+    const now = Date.UTC(2026, 5, 15, 13);
+    const nextDate = Date.UTC(2026, 5, 15, 5);
+    const { firstId, frozenId, lastId } = await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", {
+        username: "alice",
+        email: "alice@example.com",
+        password: "hash",
+      });
+      const lastUserId = await ctx.db.insert("users", {
+        username: "bob",
+        email: "bob@example.com",
+        password: "hash",
+      });
+      const makeCronPipe = (
+        ownerId: typeof userId,
+        name: string,
+        date = nextDate,
+      ) =>
+        ctx.db.insert("pipes", {
+          userId: ownerId,
+          name,
+          icon: "clock-outline",
+          priority: 0,
+          capacity: 500,
+          fed: 100,
+          spent: 20,
+          rule: "cron" as const,
+          cronNextDate: date,
+          cronInterval: { interval: 1, unit: "days" as const },
+        });
+      const firstId = await makeCronPipe(userId, "First");
+      const frozenId = await makeCronPipe(userId, "Frozen");
+      for (let index = 0; index < 498; index += 1) {
+        await makeCronPipe(userId, `Filler ${index}`);
+      }
+      const lastId = await makeCronPipe(lastUserId, "Last", nextDate + 1);
+      const deletionJobId = await ctx.db.insert("pipeDeletionJobs", {
+        userId,
+        deleteTransactions: false,
+        memberPipeIds: [frozenId],
+        initialBalance: 80,
+        phase: "processingTransactions",
+        memberIndex: 0,
+        role: "from",
+      });
+      await ctx.db.patch("pipes", frozenId, { deletionJobId });
+      return { firstId, frozenId, lastId };
+    });
+
+    await t.mutation(internal.pipes.runDueCronRules, { now });
+
+    const afterFirstPage = await t.run(async (ctx) => ({
+      first: await ctx.db.get("pipes", firstId),
+      frozen: await ctx.db.get("pipes", frozenId),
+      last: await ctx.db.get("pipes", lastId),
+    }));
+    expect(afterFirstPage.first?.cronNextDate).toBe(
+      Date.UTC(2026, 5, 16, 5),
+    );
+    expect(afterFirstPage.frozen?.cronNextDate).toBe(nextDate);
+    expect(afterFirstPage.last?.cronNextDate).toBe(nextDate + 1);
+
+    vi.useFakeTimers();
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    vi.useRealTimers();
+
+    const afterContinuation = await t.run(async (ctx) => ({
+      first: await ctx.db.get("pipes", firstId),
+      frozen: await ctx.db.get("pipes", frozenId),
+      last: await ctx.db.get("pipes", lastId),
+    }));
+    expect(afterContinuation.first?.cronNextDate).toBe(
+      Date.UTC(2026, 5, 16, 5),
+    );
+    expect(afterContinuation.frozen?.cronNextDate).toBe(nextDate);
+    expect(afterContinuation.last?.cronNextDate).toBe(
+      Date.UTC(2026, 5, 16, 5),
+    );
+  });
+
   it("rejects the removed any_spend rule identifier after migration", async () => {
     const t = convexTest(schema, modules);
     const { userId, pipeId } = await t.run(async (ctx) => {

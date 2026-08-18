@@ -18,6 +18,7 @@ import type * as lib_constants from "../lib/constants.js";
 import type * as lib_jwt from "../lib/jwt.js";
 import type * as lib_jwtPublic from "../lib/jwtPublic.js";
 import type * as lib_password from "../lib/password.js";
+import type * as lib_pipes_cron from "../lib/pipes/cron.js";
 import type * as lib_pipes_delete_contracts from "../lib/pipes/delete/contracts.js";
 import type * as lib_pipes_delete_index from "../lib/pipes/delete/index.js";
 import type * as lib_pipes_delete_operations from "../lib/pipes/delete/operations.js";
@@ -52,6 +53,7 @@ declare const fullApi: ApiFromModules<{
   "lib/jwt": typeof lib_jwt;
   "lib/jwtPublic": typeof lib_jwtPublic;
   "lib/password": typeof lib_password;
+  "lib/pipes/cron": typeof lib_pipes_cron;
   "lib/pipes/delete/contracts": typeof lib_pipes_delete_contracts;
   "lib/pipes/delete/index": typeof lib_pipes_delete_index;
   "lib/pipes/delete/operations": typeof lib_pipes_delete_operations;

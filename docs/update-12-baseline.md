@@ -49,10 +49,32 @@ write amplification, reactive invalidation, or broad OCC conflict footprints.
 
 ### Scheduled cron rules
 
-`runDueCronRules` collects every globally overdue cron pipe in one mutation.
-For each candidate it resolves a root, reads a subtree for deletion safety,
-patches due accounting, and later reads the affected subtree again for
-reconciliation. Candidate count, affected roots, and total work are unbounded.
+`runDueCronRules` reads up to 500 globally overdue candidates through the
+existing `by_rule_cronNextDate` index, filters candidates that are not yet due at
+the explicit clock, and groups the remaining candidates by user. Each selected
+user is loaded once through the bounded `by_userId` index, with the existing
+500-pipe user limit as the per-user snapshot bound.
+
+The implementation processes complete user groups until an aggregate snapshot
+bound of 2,000 pipes is reached. It resolves roots, deletion freezes, cron
+settlements, and affected-tree allocation in memory. Affected roots are
+recalculated once, then cron and `fed` changes are merged into one final patch
+per pipe. This avoids the previous per-candidate rule patch followed by a
+separate reconciliation patch.
+
+Groups that do not fit are carried as transient pipe IDs. Continuations
+re-read those IDs, preserve the original explicit clock, and only advance to
+the next cursor over the mutating cron index after deferred IDs are handled. Frozen candidates
+remain due for the next daily run, while later candidates continue processing.
+All patches and continuation scheduling remain atomic, and no persisted
+cron-job state was added.
+
+The 500 value is a discovery-page bound, not a guarantee that 500 candidates
+fit in one transaction. The aggregate snapshot bound exists because a global
+page can contain candidates from many users: 500 candidates could otherwise
+expand to 250,000 user-pipe documents. Production candidate counts, snapshot
+sizes, mutation reads/writes, latency, and OCC conflicts should still be
+measured before changing either bound.
 
 ### Pipe deletion
 

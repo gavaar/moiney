@@ -8,18 +8,13 @@ import {
 import { internal } from "./_generated/api";
 import type { Id, Doc } from "./_generated/dataModel";
 import { requireAuth } from "./lib/auth";
-import {
-  countDueCronOccurrences,
-} from "../domain/scheduling";
 import { computePipeTree } from "../domain/pipes";
 import {
   addFeedOperation,
   addPipeOperation,
-  collectChildSubtree,
+  type CronContinuation,
   executePipeRuleNowOperation,
-  executePipeRule,
-  reconcileAffectedPipeRoots,
-  resolveTopMostAncestor,
+  runDueCronRulesOperation,
   updatePipeOperation,
   updatePipeRuleOperation,
 } from "./lib/pipes";
@@ -38,6 +33,13 @@ function schedulePipeDeletion(
   return ctx.scheduler.runAfter(0, internal.pipes.processPipeDeletion, {
     jobId,
   });
+}
+
+function scheduleDueCronRules(
+  ctx: MutationCtx,
+  args: CronContinuation,
+): Promise<unknown> {
+  return ctx.scheduler.runAfter(0, internal.pipes.runDueCronRules, args);
 }
 
 export const startPipeDeletion = mutation({
@@ -167,69 +169,12 @@ export const executePipeRuleNow = mutation({
 export const runDueCronRules = internalMutation({
   args: {
     now: v.optional(v.number()),
+    cursor: v.optional(v.string()),
+    pendingPipeIds: v.optional(v.array(v.id("pipes"))),
   },
-  handler: async (ctx, args) => {
-    const now = args.now ?? Date.now();
-    const today = new Date(now);
-    const startOfToday = Date.UTC(
-      today.getUTCFullYear(),
-      today.getUTCMonth(),
-      today.getUTCDate(),
-    );
-    const endOfToday = startOfToday + 24 * 60 * 60 * 1000;
-
-    const pipes = await ctx.db
-      .query("pipes")
-      .withIndex("by_rule_cronNextDate", (q) =>
-        q.eq("rule", "cron").lt("cronNextDate", endOfToday),
-      )
-      .collect();
-
-    const rootCache = new Map<Id<"pipes">, Id<"pipes">>();
-    const roots = new Set<Id<"pipes">>();
-    const blockedRoots = new Set<Id<"pipes">>();
-    const safeRoots = new Set<Id<"pipes">>();
-
-    for (const pipe of pipes) {
-      const rootId = await resolveTopMostAncestor(ctx, pipe._id, rootCache);
-      if (blockedRoots.has(rootId)) continue;
-      if (!safeRoots.has(rootId)) {
-        const root = await ctx.db.get("pipes", rootId);
-        const children = await collectChildSubtree(ctx, rootId);
-        if (
-          root?.deletionJobId ||
-          children.some((child) => child.deletionJobId)
-        ) {
-          blockedRoots.add(rootId);
-          continue;
-        }
-        safeRoots.add(rootId);
-      }
-      const dueOccurrences =
-        pipe.cronNextDate != null && pipe.cronInterval
-          ? countDueCronOccurrences(
-              pipe.cronNextDate,
-              pipe.cronInterval.interval,
-              pipe.cronInterval.unit,
-              now,
-            )
-          : 0;
-      if (dueOccurrences === 0) continue;
-
-      await executePipeRule(ctx, pipe._id, {
-        now,
-        pipe,
-        capUpdateValue:
-          pipe.capUpdateValue == null
-            ? undefined
-            : pipe.capUpdateValue * dueOccurrences,
-      });
-      roots.add(rootId);
-    }
-
-    for (const rootId of roots) {
-      await reconcileAffectedPipeRoots(ctx, [rootId]);
-    }
+  returns: v.null(),
+  handler: async (ctx, args): Promise<null> => {
+    return runDueCronRulesOperation(ctx, args, scheduleDueCronRules);
   },
 });
 

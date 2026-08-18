@@ -157,8 +157,16 @@ skip reconciliation. All ordinary financial and pipe mutation paths now avoid
 whole-user recascade; the remaining broad backend work is scheduled cron,
 cleanup, deletion phase sizing, and filtered transaction queries.
 
-The next Update 12 slice is bounded cron execution, starting with measured
-candidate and root batching while preserving atomic schedule advancement.
+The bounded cron slice now reads pages of up to 500 due candidates, groups them
+by user, loads each selected user's pipes once, and processes complete user
+groups within a 2,000-pipe aggregate snapshot bound. Root resolution, freeze
+checks, cron settlement, and affected-root reconciliation happen in memory;
+each changed pipe receives one merged accounting patch. Deferred candidate IDs
+are carried through atomic continuations with the original clock and mutable
+index cursor. Frozen candidates remain due and later candidates are not
+starved. The next Update 12 slice is bounded expired-session cleanup, followed
+by production measurement before changing cron bounds or redesigning deletion
+phases.
 
 ## Completed Accessibility Layout Work
 
