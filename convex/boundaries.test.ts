@@ -1290,6 +1290,120 @@ describe("Convex boundaries", () => {
     vi.useRealTimers();
   });
 
+  it("finishes the maximum-size deletion with conserved parent credit", async () => {
+    vi.useFakeTimers();
+    try {
+      const t = convexTest(schema, modules);
+      const { userId, parentId, deletedRootId } = await t.run(async (ctx) => {
+        const userId = await ctx.db.insert("users", {
+          username: "maximum-deletion-user",
+          email: "maximum-deletion@example.com",
+          password: "hash",
+        });
+        const parentId = await ctx.db.insert("pipes", {
+          userId,
+          name: "Surviving parent",
+          icon: "pipe",
+          priority: 0,
+          capacity: 1000,
+          fed: 100,
+          spent: 0,
+        });
+        const deletedRootId = await ctx.db.insert("pipes", {
+          userId,
+          parentId,
+          name: "Deleted root",
+          icon: "trash-outline",
+          priority: 0,
+          capacity: 1000,
+          fed: 500,
+          spent: 0,
+        });
+        for (let index = 0; index < 498; index += 1) {
+          await ctx.db.insert("pipes", {
+            userId,
+            parentId: deletedRootId,
+            name: `Deleted child ${index}`,
+            icon: "pipe",
+            priority: index,
+            capacity: 100,
+            fed: 0,
+            spent: 0,
+          });
+        }
+        return { userId, parentId, deletedRootId };
+      });
+
+      const before = await t.run(async (ctx) => {
+        const pipes = await ctx.db.query("pipes").collect();
+        return {
+          parent: pipes.find((pipe) => pipe._id === parentId)!,
+          totalBalance: pipes.reduce(
+            (total, pipe) =>
+              total +
+              pipe.fed +
+              (pipe.pendingFedAdjustment ?? 0) -
+              pipe.spent,
+            0,
+          ),
+        };
+      });
+
+      const result = await t
+        .withIdentity({ subject: userId })
+        .mutation(api.pipes.startPipeDeletion, {
+          pipeId: deletedRootId,
+          deleteTransactions: true,
+        });
+      const planned = await t.run((ctx) =>
+        ctx.db.get("pipeDeletionJobs", result.jobId),
+      );
+
+      expect(planned?.memberPipeIds).toHaveLength(499);
+      expect(planned?.initialBalance).toBe(500);
+      const frozenCount = await t.run(async (ctx) =>
+        (await ctx.db.query("pipes").collect()).filter(
+          (pipe) => pipe.deletionJobId === result.jobId,
+        ).length,
+      );
+      expect(frozenCount).toBe(499);
+
+      // convex-test supports maxIterations at runtime, but its installed type omits it.
+      await (t as any).finishAllScheduledFunctions(vi.runAllTimers, 2000);
+
+      const after = await t.run(async (ctx) => {
+        const pipes = await ctx.db.query("pipes").collect();
+        return {
+          job: await ctx.db.get("pipeDeletionJobs", result.jobId),
+          pipes,
+        };
+      });
+      expect(after.job?.phase).toBe("complete");
+      expect(after.pipes).toHaveLength(1);
+      expect(after.pipes[0]._id).toBe(parentId);
+      expect(after.pipes[0].fed).toBe(
+        before.parent.fed + planned!.initialBalance,
+      );
+      expect(
+        after.pipes.reduce(
+          (total, pipe) =>
+            total + pipe.fed + (pipe.pendingFedAdjustment ?? 0) - pipe.spent,
+          0,
+        ),
+      ).toBe(before.totalBalance);
+
+      await t.mutation(internal.pipes.processPipeDeletion, {
+        jobId: result.jobId,
+      });
+      const afterRetry = await t.run((ctx) =>
+        ctx.db.get("pipes", parentId),
+      );
+      expect(afterRetry?.fed).toBe(after.pipes[0].fed);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("deletes only orphaned transactions across every transaction role", async () => {
     vi.useFakeTimers();
     const t = convexTest(schema, modules);

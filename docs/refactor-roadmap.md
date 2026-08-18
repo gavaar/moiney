@@ -171,7 +171,10 @@ only rows expired before one captured clock and carries that clock and the
 pagination cursor through atomic continuations. The 201-session boundary test
 covers multiple pages and the exact expiration boundary. Production-only
 measurement is intentionally deferred because no production database exists.
-The next non-production Update 12 slice is deletion phase sizing.
+Maximum-size deletion phase sizing is now covered by a local 500-pipe boundary:
+transaction pages remain 50 rows, parent credit is conserved, finalization is
+retry-safe, and no phase split is required under the current user limit. The
+next non-production Update 12 slice is filtered transaction query scanning.
 
 ## Completed Accessibility Layout Work
 

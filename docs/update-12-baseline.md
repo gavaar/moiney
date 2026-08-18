@@ -82,7 +82,17 @@ Transaction processing is already bounded to 50 role-indexed rows per scheduled
 mutation. Planning still reads all user pipes and freezes every subtree member
 atomically. Finalization reads all user pipes, deletes every member, reconciles
 survivors, and completes the job atomically. The normal 500-pipe limit is the
-only current size bound for those phases.
+current size bound for those phases.
+
+The maximum-size local boundary uses 500 user pipes: one surviving parent and a
+499-member deleted subtree. It completes with the planned balance credited
+exactly once, conservation preserved, all deleted members removed, and a retry
+leaving the completed result unchanged. The no-history case schedules 1,497
+role-processing invocations (three roles for each deleted member) followed by
+one finalization invocation; the test harness uses a 2,000-iteration ceiling
+for this synthetic chain. Planning and finalization remain within the enforced
+500-pipe user bound, so no production phase split is justified without a
+larger persisted-size requirement.
 
 ### Transaction lists
 
