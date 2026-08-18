@@ -7,6 +7,7 @@ crons.monthly(
   "cleanup expired sessions",
   { day: 1, hourUTC: 3, minuteUTC: 0 },
   internal.sessions.cleanupExpired,
+  {},
 );
 crons.daily(
   "run due cron rules",

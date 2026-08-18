@@ -957,6 +957,38 @@ describe("Convex boundaries", () => {
     expect(stateAfterDuplicate.sessions).toHaveLength(1);
   });
 
+  it("cleans expired sessions across bounded continuations", async () => {
+    const t = convexTest(schema, modules);
+    const now = 10_000;
+    await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", {
+        username: "cleanup-user",
+        email: "cleanup@example.com",
+        password: "hash",
+      });
+      for (let index = 0; index < 201; index += 1) {
+        await ctx.db.insert("sessions", {
+          userId,
+          refreshTokenHash: `cleanup-hash-${index}`,
+          familyId: `cleanup-family-${index}`,
+          active: false,
+          expiresAt: index === 150 ? now : now - 1,
+          createdAt: index,
+        });
+      }
+    });
+
+    await t.mutation(internal.sessions.cleanupExpired, { now });
+
+    vi.useFakeTimers();
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    vi.useRealTimers();
+
+    const sessions = await t.run((ctx) => ctx.db.query("sessions").collect());
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0].expiresAt).toBe(now);
+  });
+
   it("filters transactions through from, to, and paidFrom involvement", async () => {
     const t = convexTest(schema, modules);
     const { userId, selectedPipeId } = await t.run(async (ctx) => {

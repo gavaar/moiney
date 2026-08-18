@@ -1,5 +1,10 @@
 import { v } from "convex/values";
-import { internalMutation, internalQuery } from "./_generated/server";
+import { internal } from "./_generated/api";
+import {
+  internalMutation,
+  internalQuery,
+  type MutationCtx,
+} from "./_generated/server";
 
 const sessionValidator = v.object({
   _id: v.id("sessions"),
@@ -26,6 +31,19 @@ const rotationResultValidator = v.union(
 );
 
 const MAX_ACTIVE_SESSIONS = 10;
+const SESSION_CLEANUP_PAGE_SIZE = 100;
+
+type SessionCleanupContinuation = {
+  now: number;
+  cursor?: string;
+};
+
+function scheduleSessionCleanup(
+  ctx: MutationCtx,
+  args: SessionCleanupContinuation,
+): Promise<unknown> {
+  return ctx.scheduler.runAfter(0, internal.sessions.cleanupExpired, args);
+}
 
 export const create = internalMutation({
   args: {
@@ -204,13 +222,31 @@ export const deleteByUserId = internalMutation({
 });
 
 export const cleanupExpired = internalMutation({
-  handler: async (ctx) => {
-    const all = await ctx.db.query("sessions").collect();
-    const now = Date.now();
-    for (const session of all) {
-      if (session.expiresAt < now) {
-        await ctx.db.delete(session._id);
-      }
+  args: {
+    now: v.optional(v.number()),
+    cursor: v.optional(v.string()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args): Promise<null> => {
+    const now = args.now ?? Date.now();
+    const page = await ctx.db.query("sessions").paginate({
+      numItems: SESSION_CLEANUP_PAGE_SIZE,
+      cursor: args.cursor ?? null,
+    });
+
+    await Promise.all(
+      page.page
+        .filter((session) => session.expiresAt < now)
+        .map((session) => ctx.db.delete("sessions", session._id)),
+    );
+
+    if (!page.isDone) {
+      await scheduleSessionCleanup(ctx, {
+        now,
+        cursor: page.continueCursor,
+      });
     }
+
+    return null;
   },
 });

@@ -164,9 +164,14 @@ checks, cron settlement, and affected-root reconciliation happen in memory;
 each changed pipe receives one merged accounting patch. Deferred candidate IDs
 are carried through atomic continuations with the original clock and mutable
 index cursor. Frozen candidates remain due and later candidates are not
-starved. The next Update 12 slice is bounded expired-session cleanup, followed
-by production measurement before changing cron bounds or redesigning deletion
-phases.
+ starved.
+
+Expired-session cleanup is now bounded to pages of 100 sessions. It deletes
+only rows expired before one captured clock and carries that clock and the
+pagination cursor through atomic continuations. The 201-session boundary test
+covers multiple pages and the exact expiration boundary. Production-only
+measurement is intentionally deferred because no production database exists.
+The next non-production Update 12 slice is deletion phase sizing.
 
 ## Completed Accessibility Layout Work
 

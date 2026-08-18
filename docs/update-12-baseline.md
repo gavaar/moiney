@@ -93,9 +93,14 @@ bound scanned rows: a sparse or empty match can scan the user's full history.
 ### Maintenance jobs
 
 - Stale title usage is indexed and processed in batches of 100.
-- Expired-session cleanup collects every session globally and filters in code.
+- Expired-session cleanup now paginates sessions in batches of 100, deletes only
+  rows expired before one captured clock, and carries the cursor through atomic
+  continuations. No persisted cleanup-job state was added.
 - Profile-picture cleanup collects every user and may scan all storage records,
   although it deletes at most 100 files per run.
+
+Production-only measurement for this maintenance path is deferred because no
+production database exists yet.
 
 ## Measurement Gaps
 
