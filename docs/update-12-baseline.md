@@ -96,9 +96,16 @@ larger persisted-size requirement.
 
 ### Transaction lists
 
-Filtered lists read through `by_userId_date` and apply a post-index role filter
-for every requested `from`, `to`, and `paidFrom` ID. Returning 12 rows does not
-bound scanned rows: a sparse or empty match can scan the user's full history.
+The filtered recent transaction list now reads through user-scoped role/date
+indexes for `from`, `to`, and `paidFrom`. It fetches at most 12 candidates per
+requested role stream, deduplicates transactions that match multiple roles,
+sorts the merged result by date, and returns the newest 12 rows. The maximum
+500-pipe filter therefore creates at most 1,500 bounded role streams instead of
+scanning the user's full transaction history. The paginated history endpoint is
+unfiltered because its current consumer does not provide pipe IDs.
+
+The old post-index filter path was removed; no transaction data migration was
+required for the new indexes.
 
 ### Maintenance jobs
 

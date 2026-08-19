@@ -23,6 +23,9 @@ export default defineSchema({
     .index("by_from", ["from"])
     .index("by_to", ["to"])
     .index("by_paidFrom", ["paidFrom"])
+    .index("by_userId_from_date", ["userId", "from", "date"])
+    .index("by_userId_to_date", ["userId", "to", "date"])
+    .index("by_userId_paidFrom_date", ["userId", "paidFrom", "date"])
     .index("by_userId", ["userId"])
     .index("by_userId_date", ["userId", "date"]),
   transactionCorrections: defineTable({

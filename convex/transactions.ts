@@ -1,19 +1,26 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { internalMutation, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import {
   paginationOptsValidator,
   paginationResultValidator,
 } from "convex/server";
+import type { Doc, Id } from "./_generated/dataModel";
+import type { QueryCtx } from "./_generated/server";
 import { requireAuth } from "./lib/auth";
-import { transactionRoleNames } from "../domain/transactions";
+import {
+  transactionRoleNames,
+  type TransactionRole,
+} from "../domain/transactions";
 import {
   createTransactionOperation,
   editTransactionOperation,
 } from "./lib/transactions/operations";
+import { MAX_PIPES_PER_USER } from "./lib/constants";
 
 const TITLE_USAGE_RETENTION_MS = 365 * 24 * 60 * 60 * 1000;
 const TITLE_USAGE_CLEANUP_BATCH_SIZE = 100;
+const RECENT_TRANSACTION_LIMIT = 12;
 const correctionSnapshot = v.object({
   title: v.string(),
   value: v.number(),
@@ -26,26 +33,76 @@ const correctionHistoryItem = v.object({
   current: correctionSnapshot,
 });
 
-function transactionsQuery(
-  ctx: any,
-  userId: string,
-  pipeIds: string[] | undefined,
-) {
-  let q = ctx.db
+function transactionsQuery(ctx: QueryCtx, userId: Id<"users">) {
+  return ctx.db
     .query("transactions")
-    .withIndex("by_userId_date", (q: any) => q.eq("userId", userId));
+    .withIndex("by_userId_date", (q) => q.eq("userId", userId))
+    .order("desc");
+}
 
-  if (pipeIds && pipeIds.length > 0) {
-    q = q.filter((fq: any) =>
-      fq.or(
-        ...pipeIds.flatMap((id) =>
-          transactionRoleNames.map((role) => fq.eq(fq.field(role), id)),
-        ),
-      ),
-    );
+async function loadRecentTransactionsForRole(
+  ctx: QueryCtx,
+  userId: Id<"users">,
+  pipeId: Id<"pipes">,
+  role: TransactionRole,
+): Promise<Doc<"transactions">[]> {
+  if (role === "from") {
+    return await ctx.db
+      .query("transactions")
+      .withIndex("by_userId_from_date", (q) =>
+        q.eq("userId", userId).eq("from", pipeId),
+      )
+      .order("desc")
+      .take(RECENT_TRANSACTION_LIMIT);
   }
 
-  return q.order("desc");
+  if (role === "to") {
+    return await ctx.db
+      .query("transactions")
+      .withIndex("by_userId_to_date", (q) =>
+        q.eq("userId", userId).eq("to", pipeId),
+      )
+      .order("desc")
+      .take(RECENT_TRANSACTION_LIMIT);
+  }
+
+  return await ctx.db
+    .query("transactions")
+    .withIndex("by_userId_paidFrom_date", (q) =>
+      q.eq("userId", userId).eq("paidFrom", pipeId),
+    )
+    .order("desc")
+    .take(RECENT_TRANSACTION_LIMIT);
+}
+
+async function loadRecentTransactionsForPipes(
+  ctx: QueryCtx,
+  userId: Id<"users">,
+  pipeIds: Id<"pipes">[],
+): Promise<Doc<"transactions">[]> {
+  const uniquePipeIds = [...new Set(pipeIds)];
+  if (uniquePipeIds.length > MAX_PIPES_PER_USER) {
+    throw new ConvexError({ code: "TOO_MANY_PIPE_FILTERS" });
+  }
+
+  const rows = await Promise.all(
+    uniquePipeIds.flatMap((pipeId) =>
+      transactionRoleNames.map((role) =>
+        loadRecentTransactionsForRole(ctx, userId, pipeId, role),
+      ),
+    ),
+  );
+  const unique = new Map<Id<"transactions">, Doc<"transactions">>();
+  for (const transaction of rows.flat()) {
+    unique.set(transaction._id, transaction);
+  }
+
+  return [...unique.values()]
+    .sort(
+      (left, right) =>
+        right.date - left.date || right._creationTime - left._creationTime,
+    )
+    .slice(0, RECENT_TRANSACTION_LIMIT);
 }
 
 export const createTransaction = mutation({
@@ -116,8 +173,10 @@ export const listTransactions = query({
   },
   handler: async (ctx, args) => {
     const userId = await requireAuth(ctx);
-    const q = transactionsQuery(ctx, userId, args.pipeIds);
-    return await q.take(12);
+    if (args.pipeIds && args.pipeIds.length > 0) {
+      return await loadRecentTransactionsForPipes(ctx, userId, args.pipeIds);
+    }
+    return await transactionsQuery(ctx, userId).take(RECENT_TRANSACTION_LIMIT);
   },
 });
 
@@ -142,12 +201,11 @@ export const listRecentTitles = query({
 
 export const listTransactionsPaginated = query({
   args: {
-    pipeIds: v.optional(v.array(v.id("pipes"))),
     paginationOpts: paginationOptsValidator,
   },
   handler: async (ctx, args) => {
     const userId = await requireAuth(ctx);
-    const q = transactionsQuery(ctx, userId, args.pipeIds);
+    const q = transactionsQuery(ctx, userId);
     return await q.paginate(args.paginationOpts);
   },
 });

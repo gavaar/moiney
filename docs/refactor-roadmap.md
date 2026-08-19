@@ -30,7 +30,7 @@ This roadmap persists the whole-project audit beyond any single chat session. Wo
 | 9. Integer cents migration | Completed | Replace floating-point monetary persistence and arithmetic with integer cents | Update 8, D001 |
 | 10. Financial mutation semantics | Completed | Define corrections, rule effects, idempotency, and accounting projections | Updates 8-9 |
 | 11. Convex model boundaries | Completed | Make registered functions thin, validated, authorized wrappers over deep model operations | Updates 1-3, 8-10 |
-| 12. Bounded backend work | In progress | Scope recascade, batch cleanup/crons/deletion, and index hot transaction queries | Updates 6, 10-11 plus measurements |
+| 12. Bounded backend work | Completed | Scope recascade, batch cleanup/crons/deletion, and index hot transaction queries | Updates 6, 10-11 plus measurements |
 | 13. Frontend ownership | Pending | Normalize backend models, narrow contexts/subscriptions, and restore dependency direction | Updates 5, 8, 11 |
 | 14. Complex component refactors | Pending | Refactor AmountForm, RuleModal, PipeTreeView, and transaction rows by responsibility | Updates 5, 8, 13 |
 | 15. Measured runtime performance | Pending | Profile and improve virtualization, subscriptions, startup, icons, and repeated modals | Updates 12-14 |
@@ -174,7 +174,11 @@ measurement is intentionally deferred because no production database exists.
 Maximum-size deletion phase sizing is now covered by a local 500-pipe boundary:
 transaction pages remain 50 rows, parent credit is conserved, finalization is
 retry-safe, and no phase split is required under the current user limit. The
-next non-production Update 12 slice is filtered transaction query scanning.
+filtered recent transaction list now uses user-scoped role/date indexes for
+`from`, `to`, and `paidFrom`, deduplicates multi-role matches, and bounds the
+pipe filter to one user's maximum pipe count. The paginated history endpoint is
+unfiltered because its current consumer has no pipe filter. Production-only
+measurement is deferred because no production database exists.
 
 ## Completed Accessibility Layout Work
 
