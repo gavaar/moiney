@@ -1,20 +1,19 @@
 import { useMemo, useState } from "react";
 import { ActivityIndicator, FlatList, Text, View } from "react-native";
-import type { Id } from "@convex/_generated/dataModel";
 import { TransactionItem } from "@ui/TransactionItem";
 import { StackedTransactionItem } from "./components";
 import { groupTransactions } from "@features/transactions/groupTransactions";
 import type { TransactionGroup } from "@features/transactions/groupTransactions";
-import type { TransactionWithPipeIcons } from "@/lib/transactions/types";
+import type { TransactionModel } from "@features/transactions/data/transactions";
 import { colors } from "@/lib/styles";
 import { buildFlatItems } from './helpers';
 
 export type TransactionListProps = {
-  transactions: TransactionWithPipeIcons[] | undefined;
+  transactions: TransactionModel[] | undefined;
   isLoading?: boolean;
   onLoadMore?: () => void;
   loadMoreStatus?: "LoadingFirstPage" | "CanLoadMore" | "LoadingMore" | "Exhausted";
-  onShowEditHistory?: (transactionId: Id<"transactions">) => void;
+  onShowEditHistory?: (transactionId: TransactionModel["id"]) => void;
 };
 
 export function TransactionList({

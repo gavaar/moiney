@@ -1,11 +1,11 @@
 import { groupTransactions } from "@features/transactions/groupTransactions";
 import type { TransactionGroup } from "@features/transactions/groupTransactions";
-import type { Doc } from "@convex/_generated/dataModel";
+import type { TransactionModel } from "@features/transactions/data/transactions";
 
 type FlatListItem =
-  | { key: string; kind: "single"; transaction: Doc<"transactions"> }
+  | { key: string; kind: "single"; transaction: TransactionModel }
   | { key: string; kind: "group"; group: TransactionGroup; expanded: boolean }
-  | { key: string; kind: "child"; transaction: Doc<"transactions"> };
+  | { key: string; kind: "child"; transaction: TransactionModel };
 
 export function buildFlatItems(
   items: ReturnType<typeof groupTransactions>,
@@ -25,7 +25,7 @@ export function buildFlatItems(
       if (isExpanded) {
         for (const tx of item.transactions) {
           result.push({
-            key: `child-${tx._id}`,
+            key: `child-${tx.id}`,
             kind: "child",
             transaction: tx,
           });
@@ -33,7 +33,7 @@ export function buildFlatItems(
       }
     } else {
       result.push({
-        key: `single-${item._id}`,
+        key: `single-${item.id}`,
         kind: "single",
         transaction: item,
       });

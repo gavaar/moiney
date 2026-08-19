@@ -1,15 +1,15 @@
 import { usePaginatedQuery } from "convex/react";
 import { ActivityIndicator, ScrollView, Text, View } from "react-native";
 import { api } from "@convex/_generated/api";
-import { type Id } from "@convex/_generated/dataModel";
 import { Button } from "@ui/Button";
 import { ModalShell } from "@ui/Modal";
 import { formatAmount } from "@/lib/format";
 import { colors } from "@/lib/styles";
+import type { TransactionModel } from "@features/transactions/data/transactions";
 
 type Props = {
   visible: boolean;
-  transactionId: Id<"transactions">;
+  transactionId: TransactionModel["id"];
   transactionTitle: string;
   onClose: () => void;
 };

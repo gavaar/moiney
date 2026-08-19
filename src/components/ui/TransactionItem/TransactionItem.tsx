@@ -1,18 +1,17 @@
 import { Pressable, Text, View } from "react-native";
 import { Icon, safeIconName } from "@ui/Icon";
 import { cn, colors } from "@/lib/styles";
-import type { Id } from "@convex/_generated/dataModel";
 import { ModalShell } from '../Modal';
 import { AmountForm } from '@features/components/AmountForm';
 import { useState } from 'react';
 import { usePipeSelection } from '@features/pipes/context/PipeSelectionContext';
 import { resolveTransactionKind } from "@domain/transactions";
 import { formatAmount } from "@/lib/format";
-import type { TransactionWithPipeIcons } from "@/lib/transactions/types";
+import type { TransactionModel } from "@features/transactions/data/transactions";
 
 type TransactionItemProps = {
-  transaction: TransactionWithPipeIcons;
-  onShowEditHistory?: (transactionId: Id<"transactions">) => void;
+  transaction: TransactionModel;
+  onShowEditHistory?: (transactionId: TransactionModel["id"]) => void;
 };
 
 const DATE_FORMAT: Intl.DateTimeFormatOptions = {
@@ -37,12 +36,12 @@ export function TransactionItem({ transaction, onShowEditHistory }: TransactionI
   const fromValid =
     !!sourcePipe &&
     !sourcePipe.deletionJobId &&
-    (childrenByParent.get(sourcePipe._id)?.length ?? 0) === 0;
+    (childrenByParent.get(sourcePipe.id)?.length ?? 0) === 0;
   const toValid = !!destPipe && !destPipe.deletionJobId && destPipe.parentId === undefined;
   const paidFromValid =
     !!paidFromPipe &&
     !paidFromPipe.deletionJobId &&
-    (childrenByParent.get(paidFromPipe._id)?.length ?? 0) === 0;
+    (childrenByParent.get(paidFromPipe.id)?.length ?? 0) === 0;
   const viewOnly = !!transaction.fromIcon || !!transaction.toIcon || !!transaction.paidFromIcon;
   const icons = {
     from: {
@@ -78,10 +77,10 @@ export function TransactionItem({ transaction, onShowEditHistory }: TransactionI
     pipeName: primaryPipe.name,
     title: transaction.title,
     value: formatAmount(transaction.value),
-    ...(isTransfer && destPipe ? { to: destPipe._id } : {}),
-    ...(isPayByTransfer && paidFromPipe ? { paidFrom: paidFromPipe._id } : {}),
+    ...(isTransfer && destPipe ? { to: destPipe.id } : {}),
+    ...(isPayByTransfer && paidFromPipe ? { paidFrom: paidFromPipe.id } : {}),
     isFeed,
-    transactionId: transaction._id,
+    transactionId: transaction.id,
     date: transaction.date,
   } : undefined;
 
@@ -147,7 +146,7 @@ export function TransactionItem({ transaction, onShowEditHistory }: TransactionI
           className="items-center justify-center rounded-2xl border border-border bg-surface px-2"
           accessibilityRole="button"
           accessibilityLabel={`View edit history for ${transaction.title}`}
-          onPress={() => onShowEditHistory(transaction._id)}
+          onPress={() => onShowEditHistory(transaction.id)}
         >
           <Icon name="history" size={15} color={colors.muted} />
           <Text className="text-muted text-[10px]">Edited</Text>
@@ -155,7 +154,7 @@ export function TransactionItem({ transaction, onShowEditHistory }: TransactionI
       ) : null}
 
       <ModalShell visible={showForm} onClose={() => setShowForm(false)}>
-        {primaryPipe && <AmountForm variant="transaction" pipeId={primaryPipe._id} initState={amountFormInitState} />}
+        {primaryPipe && <AmountForm variant="transaction" pipeId={primaryPipe.id} initState={amountFormInitState} />}
       </ModalShell>
 
       <ModalShell visible={showDisabledInfo} onClose={() => setShowDisabledInfo(false)}>

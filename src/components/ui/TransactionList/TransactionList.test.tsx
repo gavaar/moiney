@@ -2,22 +2,22 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { TransactionList } from "./TransactionList";
-import type { Doc, Id } from "@convex/_generated/dataModel";
+import type { Id } from "@convex/_generated/dataModel";
+import type { TransactionModel } from "@features/transactions/data/transactions";
 
 function tx(
   id: string,
-  overrides: Partial<Doc<"transactions">> & { date: number },
-): Doc<"transactions"> {
+  overrides: Partial<TransactionModel> & { date: number },
+): TransactionModel {
+  const { kind = "expense", ...rest } = overrides;
   return {
-    _id: id as any,
-    _creationTime: 0,
+    id: id as Id<"transactions">,
+    createdAt: 0,
     title: "coffee",
     value: -5,
     from: "pipe-1" as Id<"pipes">,
-    to: undefined,
-    userId: "" as Id<"users">,
-    ...overrides,
-    kind: overrides.kind ?? "expense",
+    ...rest,
+    kind,
   };
 }
 
@@ -47,7 +47,7 @@ describe("TransactionList", () => {
     vi.clearAllMocks();
     mockUsePipeSelection.mockReturnValue({
       pipesById: {
-        "pipe-1": { _id: "pipe-1" as Id<"pipes">, icon: "cart-outline", name: "Groceries" },
+        "pipe-1": { id: "pipe-1" as Id<"pipes">, icon: "cart-outline", name: "Groceries" },
       },
       childrenByParent: new Map(),
     });

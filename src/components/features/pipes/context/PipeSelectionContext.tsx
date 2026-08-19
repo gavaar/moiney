@@ -1,22 +1,21 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
-import { type Id, type Doc } from "@convex/_generated/dataModel";
-
-export type Pipe = Doc<"pipes"> & {
-  deletionJobId?: Id<"pipeDeletionJobs">;
-};
+import {
+  normalizePipe,
+  type PipeModel,
+} from "@features/pipes/data/pipes";
 
 type PipeSelectionContextValue = {
-  selectedPipePath: Id<"pipes">[];
-  selectPipe: (path: Id<"pipes">[]) => void;
+  selectedPipePath: PipeModel["id"][];
+  selectPipe: (path: PipeModel["id"][]) => void;
   deselectPipe: () => void;
-  allPipes: Pipe[] | undefined;
-  pipesById: Record<Id<"pipes">, Pipe> | undefined;
-  childrenByParent: Map<Id<"pipes">, Pipe[]>;
+  allPipes: PipeModel[] | undefined;
+  pipesById: Record<PipeModel["id"], PipeModel> | undefined;
+  childrenByParent: Map<PipeModel["id"], PipeModel[]>;
   isLoading: boolean;
-  feeds: Pipe[];
-  selectedPipe: Pipe | null;
+  feeds: PipeModel[];
+  selectedPipe: PipeModel | null;
   selectedName: string | null;
 };
 
@@ -40,8 +39,12 @@ export function usePipeSelection() {
 }
 
 export function PipeSelectionProvider({ children }: { children: ReactNode }) {
-  const [selectedPipePath, setSelectedPipePath] = useState<Id<"pipes">[]>([]);
-  const allPipes = useQuery(api.pipes.getPipes);
+  const [selectedPipePath, setSelectedPipePath] = useState<PipeModel["id"][]>([]);
+  const persistedPipes = useQuery(api.pipes.getPipes);
+  const allPipes = useMemo(
+    () => (persistedPipes ? persistedPipes.map(normalizePipe) : undefined),
+    [persistedPipes],
+  );
 
   const isLoading = allPipes === undefined;
 
@@ -49,7 +52,7 @@ export function PipeSelectionProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!allPipes) return;
-    const existingIds = new Set(allPipes.map((pipe) => pipe._id));
+    const existingIds = new Set(allPipes.map((pipe) => pipe.id));
     const firstMissingIndex = selectedPipePath.findIndex((id) => !existingIds.has(id));
     if (firstMissingIndex >= 0) {
       setSelectedPipePath((current) => current.slice(0, firstMissingIndex));
@@ -57,12 +60,12 @@ export function PipeSelectionProvider({ children }: { children: ReactNode }) {
   }, [allPipes, selectedPipePath]);
 
   const pipesById = useMemo(
-    () => Object.fromEntries(allPipesFlat.map((p) => [p._id, p])) as Record<Id<"pipes">, Pipe>,
+    () => Object.fromEntries(allPipesFlat.map((p) => [p.id, p])) as Record<PipeModel["id"], PipeModel>,
     [allPipesFlat],
   );
 
   const childrenByParent = useMemo(() => {
-    const map = new Map<Id<"pipes">, Pipe[]>();
+    const map = new Map<PipeModel["id"], PipeModel[]>();
     for (const pipe of allPipesFlat) {
       if (pipe.parentId) {
         const siblings = map.get(pipe.parentId) ?? [];
@@ -89,12 +92,12 @@ export function PipeSelectionProvider({ children }: { children: ReactNode }) {
       ? selectedPipePath[selectedPipePath.length - 1]
       : null;
   const selectedPipe = useMemo(
-    () => (selectedId ? allPipesFlat.find((p) => p._id === selectedId) ?? null : null),
+    () => (selectedId ? allPipesFlat.find((p) => p.id === selectedId) ?? null : null),
     [allPipesFlat, selectedId],
   );
   const selectedName = selectedPipe?.name ?? null;
 
-  const selectPipe = useCallback((path: Id<"pipes">[]) => setSelectedPipePath(path), []);
+  const selectPipe = useCallback((path: PipeModel["id"][]) => setSelectedPipePath(path), []);
   const deselectPipe = useCallback(() => setSelectedPipePath([]), []);
 
   const value = useMemo(

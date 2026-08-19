@@ -31,7 +31,7 @@ This roadmap persists the whole-project audit beyond any single chat session. Wo
 | 10. Financial mutation semantics | Completed | Define corrections, rule effects, idempotency, and accounting projections | Updates 8-9 |
 | 11. Convex model boundaries | Completed | Make registered functions thin, validated, authorized wrappers over deep model operations | Updates 1-3, 8-10 |
 | 12. Bounded backend work | Completed | Scope recascade, batch cleanup/crons/deletion, and index hot transaction queries | Updates 6, 10-11 plus measurements |
-| 13. Frontend ownership | Pending | Normalize backend models, narrow contexts/subscriptions, and restore dependency direction | Updates 5, 8, 11 |
+| 13. Frontend ownership | In progress | Normalize backend models, narrow contexts/subscriptions, and restore dependency direction | Updates 5, 8, 11 |
 | 14. Complex component refactors | Pending | Refactor AmountForm, RuleModal, PipeTreeView, and transaction rows by responsibility | Updates 5, 8, 13 |
 | 15. Measured runtime performance | Pending | Profile and improve virtualization, subscriptions, startup, icons, and repeated modals | Updates 12-14 |
 | 16. Maintenance hardening | Pending | Accessibility, observability, dependencies, dead APIs, behavioral tests, and documentation | Prior updates as applicable |
@@ -111,9 +111,10 @@ shared pipe-limit check bounded to the 500 documents needed to enforce the
 contract. Limit failures are stable structured errors for both root and child
 creation.
 
-Update 12 is in progress. Deployment, static, and repeatable 20/200/500-pipe
+Update 12 is complete. Deployment, static, and repeatable 20/200/500-pipe
 measurements are recorded in `docs/update-12-baseline.md`. Deployment insights
-report no current health issue.
+report no current health issue. Production-only measurement remains deferred
+because no production database exists.
 
 Changed-only recascade writes are complete. Stable scenarios now issue zero
 patches instead of 20, 200, or 500, while allocation-changing scenarios retain
@@ -179,6 +180,21 @@ filtered recent transaction list now uses user-scoped role/date indexes for
 pipe filter to one user's maximum pipe count. The paginated history endpoint is
 unfiltered because its current consumer has no pipe filter. Production-only
 measurement is deferred because no production database exists.
+
+## Update 13 Progress
+
+Update 13 is in progress. 13.1, the frontend model and adapter slice, is
+complete for the current transaction and pipe read paths. Feature-owned
+adapters in `src/components/features/transactions/data/transactions.ts` and
+`src/components/features/pipes/data/pipes.ts` map persisted Convex documents to
+models with domain-facing identifiers and fields, omit backend ownership and
+persistence metadata, and preserve all user-visible roles, icons, accounting,
+and rule fields.
+
+`TransactionsProvider`, history, pipe selection, transaction grouping, pipe
+lists, tree rendering, and transaction repeat/edit presentation now consume
+these models. The next frontend slice is 13.2: split the broad contexts and
+scope their subscriptions to the screens that use them.
 
 ## Completed Accessibility Layout Work
 

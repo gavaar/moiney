@@ -6,14 +6,13 @@ import type { Id } from "@convex/_generated/dataModel";
 import { colors } from "@/lib/styles";
 
 const baseTx = {
-  _id: "tx1" as any,
-  _creationTime: 0,
+  id: "tx1" as any,
+  createdAt: 0,
   title: "shopping mall",
   kind: "expense" as const,
   value: -5000,
   date: new Date("2024-03-15").getTime(),
   from: "pipe-1" as Id<"pipes">,
-  userId: "" as Id<"users">,
 };
 
 const pipeInfo = {
@@ -23,38 +22,37 @@ const pipeInfo = {
 };
 
 const salaryPipe = {
-  _id: "salary-pipe" as Id<"pipes">,
+  id: "salary-pipe" as Id<"pipes">,
   icon: "cash-outline",
   name: "Salary",
 };
 
 const rentPipe = {
-  _id: "rent-pipe" as Id<"pipes">,
+  id: "rent-pipe" as Id<"pipes">,
   icon: "home-outline",
   name: "Rent",
 };
 
 const transferTx = {
-  _id: "tx-transfer" as any,
-  _creationTime: 0,
+  id: "tx-transfer" as any,
+  createdAt: 0,
   title: "send to rent",
   kind: "transfer" as const,
   value: -5000,
   date: new Date("2024-03-15").getTime(),
   from: "salary-pipe" as Id<"pipes">,
   to: "rent-pipe" as Id<"pipes">,
-  userId: "" as Id<"users">,
 };
 
 const feedPipeInfo = {
-  _id: "pipe-1" as Id<"pipes">,
+  id: "pipe-1" as Id<"pipes">,
   icon: "cart-outline",
   name: "Groceries",
 };
 
 const feedTx = {
-  _id: "tx-feed" as any,
-  _creationTime: 0,
+  id: "tx-feed" as any,
+  createdAt: 0,
   title: "weekly salary",
   kind: "feed" as const,
   value: 100000,
@@ -62,7 +60,6 @@ const feedTx = {
   pipeId: "pipe-1" as Id<"pipes">,
   from: undefined,
   to: "pipe-1" as Id<"pipes">,
-  userId: "" as Id<"users">,
 };
 
 const mockUsePipeSelection = vi.fn();
@@ -126,7 +123,7 @@ describe("TransactionItem", () => {
 
     fireEvent.click(screen.getByTestId("transaction-edit-history"));
 
-    expect(onShowEditHistory).toHaveBeenCalledWith(transaction._id);
+    expect(onShowEditHistory).toHaveBeenCalledWith(transaction.id);
   });
 
   it("renders positive value without sign", () => {
@@ -188,7 +185,7 @@ describe("TransactionItem", () => {
 
   it("shows disabled info modal when pipe has children", () => {
     const childrenMap = new Map<Id<"pipes">, any[]>();
-    childrenMap.set(pipeInfo.id, [{ _id: "child1" as Id<"pipes"> }]);
+    childrenMap.set(pipeInfo.id, [{ id: "child1" as Id<"pipes"> }]);
 
     mockUsePipeSelection.mockReturnValue({
       pipesById: { [pipeInfo.id]: pipeInfo },
@@ -205,7 +202,7 @@ describe("TransactionItem", () => {
     mockUsePipeSelection.mockReturnValue({
       pipesById: {
         "pipe-1": {
-          _id: "pipe-1" as Id<"pipes">,
+          id: "pipe-1" as Id<"pipes">,
           icon: pipeInfo.icon,
           name: pipeInfo.name,
           deletionJobId: "job-1",
@@ -272,7 +269,7 @@ describe("TransactionItem feed variant", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUsePipeSelection.mockReturnValue({
-      pipesById: { [feedPipeInfo._id]: feedPipeInfo },
+      pipesById: { [feedPipeInfo.id]: feedPipeInfo },
       childrenByParent: new Map(),
     });
   });

@@ -1,23 +1,20 @@
-import { type Id } from "@convex/_generated/dataModel";
 import { colors } from "@/lib/styles";
+import type { PipeModel } from "@features/pipes/data/pipes";
 
-type PipeReference = {
-  _id: Id<"pipes">;
-  parentId?: Id<"pipes">;
-  name: string;
-  icon: string;
-  deletionJobId?: string;
-};
+type PipeReference = Pick<
+  PipeModel,
+  "id" | "parentId" | "name" | "icon" | "deletionJobId"
+>;
 
 export function getTopmostPipeId(
   pipes: readonly PipeReference[],
-  startingPipeId: Id<"pipes">,
-): Id<"pipes"> {
+  startingPipeId: PipeModel["id"],
+): PipeModel["id"] {
   let topmostPipeId = startingPipeId;
-  let currentPipe = pipes.find((pipe) => pipe._id === topmostPipeId);
+  let currentPipe = pipes.find((pipe) => pipe.id === topmostPipeId);
   while (currentPipe?.parentId) {
     topmostPipeId = currentPipe.parentId;
-    currentPipe = pipes.find((pipe) => pipe._id === topmostPipeId);
+    currentPipe = pipes.find((pipe) => pipe.id === topmostPipeId);
   }
   return topmostPipeId;
 }
@@ -59,31 +56,31 @@ export function getButtonLabel(
 
 export function buildPipeItems(
   allPipes: readonly PipeReference[] | null | undefined,
-  pipeId: Id<"pipes">,
+  pipeId: PipeModel["id"],
 ): Array<{ id: string; name: string; icon: string }> {
   const pipes = allPipes ?? [];
 
-  const ancestorIds = new Set<Id<"pipes">>();
-  let currentId: Id<"pipes"> | undefined = pipeId;
+  const ancestorIds = new Set<PipeModel["id"]>();
+  let currentId: PipeModel["id"] | undefined = pipeId;
   while (currentId) {
     ancestorIds.add(currentId);
-    const pipe = pipes.find((p) => p._id === currentId);
+    const pipe = pipes.find((p) => p.id === currentId);
     currentId = pipe?.parentId;
   }
 
   const feeds = pipes.filter(
-    (p) => !p.parentId && !p.deletionJobId && !ancestorIds.has(p._id),
+    (p) => !p.parentId && !p.deletionJobId && !ancestorIds.has(p.id),
   );
 
   return [
     { id: "", name: "None", icon: "close-circle" },
-    ...feeds.map((p) => ({ id: p._id, name: p.name, icon: p.icon })),
+    ...feeds.map((p) => ({ id: p.id, name: p.name, icon: p.icon })),
   ];
 }
 
 export function buildPaidFromPipeItems(
   allPipes: readonly PipeReference[] | null | undefined,
-  pipeId: Id<"pipes">,
+  pipeId: PipeModel["id"],
   isNegative: boolean,
 ): Array<{ id: string; name: string; icon: string }> {
   const pipes = allPipes ?? [];
@@ -95,32 +92,32 @@ export function buildPaidFromPipeItems(
   const eligiblePipes = isNegative
     ? pipes.filter(
         (pipe) =>
-          !parentIds.has(pipe._id) &&
+          !parentIds.has(pipe.id) &&
           !pipe.deletionJobId &&
-          getTopmostPipeId(pipes, pipe._id) !== topmostPipeId,
+          getTopmostPipeId(pipes, pipe.id) !== topmostPipeId,
       )
     : pipes.filter(
         (pipe) =>
           !pipe.parentId &&
           !pipe.deletionJobId &&
-          pipe._id !== topmostPipeId,
+          pipe.id !== topmostPipeId,
       );
 
   return [
     { id: "", name: "None", icon: "close-circle" },
     ...eligiblePipes
-      .map((pipe) => ({ id: pipe._id, name: pipe.name, icon: pipe.icon })),
+      .map((pipe) => ({ id: pipe.id, name: pipe.name, icon: pipe.icon })),
   ];
 }
 
 export function getDestinationPipeName(
   allPipes:
-    | Array<{ _id: Id<"pipes">; name: string }>
+    | Array<Pick<PipeModel, "id" | "name">>
     | null
     | undefined,
-  sentToPipeId: Id<"pipes"> | null,
+  sentToPipeId: PipeModel["id"] | null,
 ): string | null {
   if (!sentToPipeId || !allPipes) return null;
-  const pipe = allPipes.find((p) => p._id === sentToPipeId);
+  const pipe = allPipes.find((p) => p.id === sentToPipeId);
   return pipe?.name ?? null;
 }

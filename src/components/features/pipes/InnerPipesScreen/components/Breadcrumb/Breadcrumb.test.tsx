@@ -18,7 +18,7 @@ describe("Breadcrumb", () => {
   it("renders pipe icon and one item name", () => {
     mockUsePipeSelection.mockReturnValue({
       selectedPipePath: ["pipe-1"],
-      allPipes: [{ _id: "pipe-1", name: "Groceries" }],
+      allPipes: [{ id: "pipe-1", name: "Groceries" }],
       selectPipe: vi.fn(),
     });
     render(<Breadcrumb />);
@@ -30,8 +30,8 @@ describe("Breadcrumb", () => {
     mockUsePipeSelection.mockReturnValue({
       selectedPipePath: ["pipe-1", "pipe-2"],
       allPipes: [
-        { _id: "pipe-1", name: "Groceries" },
-        { _id: "pipe-2", name: "Salary" },
+        { id: "pipe-1", name: "Groceries" },
+        { id: "pipe-2", name: "Salary" },
       ],
       selectPipe: vi.fn(),
     });
@@ -58,7 +58,7 @@ describe("Breadcrumb", () => {
     mockUsePipeSelection.mockReturnValue({
       selectedPipePath: ["pipe-1", "pipe-2", "pipe-3"],
       allPipes: [
-        { _id: "pipe-1", name: "Groceries" },
+        { id: "pipe-1", name: "Groceries" },
       ],
       selectPipe,
     });
@@ -73,8 +73,8 @@ describe("Breadcrumb", () => {
     mockUsePipeSelection.mockReturnValue({
       selectedPipePath: ["pipe-1", "pipe-2", "pipe-3"],
       allPipes: [
-        { _id: "pipe-1", name: "Groceries" },
-        { _id: "pipe-2", name: "Salary" },
+        { id: "pipe-1", name: "Groceries" },
+        { id: "pipe-2", name: "Salary" },
       ],
       selectPipe,
     });

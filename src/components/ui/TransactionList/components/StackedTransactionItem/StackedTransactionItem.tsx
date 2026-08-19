@@ -113,7 +113,7 @@ export function StackedTransactionItem({
   const fromValid =
     !!sourcePipe &&
     !sourcePipe.deletionJobId &&
-    (childrenByParent.get(sourcePipe._id)?.length ?? 0) === 0;
+    (childrenByParent.get(sourcePipe.id)?.length ?? 0) === 0;
   const toValid = !!destPipe && !destPipe.deletionJobId && destPipe.parentId === undefined;
   const viewOnly = !!deletedIcons.from || !!deletedIcons.to || !!deletedIcons.paidFrom;
   const disabled =
@@ -125,7 +125,7 @@ export function StackedTransactionItem({
         pipeName: primaryPipe.name,
         title: latestTransaction.title,
         value: formatAmount(group.latestValue),
-        ...(group.kind === "transfer" && destPipe ? { to: destPipe._id } : {}),
+         ...(group.kind === "transfer" && destPipe ? { to: destPipe.id } : {}),
         isFeed: group.kind === "feed",
       }
     : undefined;
@@ -223,7 +223,7 @@ export function StackedTransactionItem({
             <Text className="text-muted text-sm">Preserved history is view-only.</Text>
           </View>
         ) : primaryPipe ? (
-          <AmountForm variant="transaction" pipeId={primaryPipe._id} initState={amountFormInitState} />
+          <AmountForm variant="transaction" pipeId={primaryPipe.id} initState={amountFormInitState} />
         ) : null}
       </ModalShell>
 

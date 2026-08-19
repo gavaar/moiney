@@ -3,7 +3,7 @@ import { Icon, type IconName } from "@ui/Icon";
 import { colors } from "@/lib/styles";
 import { formatAmount } from "@/lib/format";
 import { Liquidity, MiniChildBox } from './components';
-import { Pipe } from '@/components/features/pipes/context/PipeSelectionContext';
+import type { PipeModel } from "@features/pipes/data/pipes";
 
 export type ChildSnapshot = {
   icon: string;
@@ -12,7 +12,7 @@ export type ChildSnapshot = {
   spent: number;
 };
 
-type PipeBoxProps = Pick<Pipe, 'name'|'icon'|'priority'|'fed'|'capacity'|'spent'> & {
+type PipeBoxProps = Pick<PipeModel, 'name'|'icon'|'priority'|'fed'|'capacity'|'spent'> & {
   showPriority: boolean;
   children?: ChildSnapshot[];
   onPress?: () => void;

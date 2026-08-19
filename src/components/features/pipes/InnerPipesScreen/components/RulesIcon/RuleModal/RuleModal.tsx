@@ -2,13 +2,13 @@ import { useCallback, useMemo, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
-import { type Id } from "@convex/_generated/dataModel";
 import { Button } from "@ui/Button";
 import { Input } from "@ui/Input";
 import { Icon, type IconName } from "@ui/Icon";
 import { ModalShell } from "@ui/Modal";
 import { useAlert } from "@ui/Alert";
 import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
+import type { PipeModel } from "@features/pipes/data/pipes";
 import { colors } from "@/lib/styles";
 import { formatAmount } from "@/lib/format";
 import { computeElapsedIntervals, type CronUnit } from "@domain/scheduling";
@@ -35,7 +35,7 @@ import {
 type Props = {
   visible: boolean;
   onClose: () => void;
-  pipeId: Id<"pipes">;
+  pipeId: PipeModel["id"];
 };
 
 export function RuleModal({ visible, onClose, pipeId }: Props) {

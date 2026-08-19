@@ -20,8 +20,8 @@ vi.mock("@ui/PipeBox", () => ({
 }));
 
 const mockPipes = [
-  { _id: "1" as Id<"pipes">, name: "Groceries", icon: "cart-outline", priority: 0, capacity: 0, fed: 0, spent: 0 },
-  { _id: "2" as Id<"pipes">, name: "Salary", icon: "cash-outline", priority: 0, capacity: 0, fed: 0, spent: 0 },
+  { id: "1" as Id<"pipes">, name: "Groceries", icon: "cart-outline", priority: 0, capacity: 0, fed: 0, spent: 0 },
+  { id: "2" as Id<"pipes">, name: "Salary", icon: "cash-outline", priority: 0, capacity: 0, fed: 0, spent: 0 },
 ];
 
 describe("PipesList", () => {
@@ -42,7 +42,7 @@ describe("PipesList", () => {
   it("only shows priority markers when requested", () => {
     const pipes = [
       ...mockPipes,
-      { _id: "3" as Id<"pipes">, name: "Rent", icon: "home-outline", priority: 1, capacity: 0, fed: 0, spent: 0 },
+      { id: "3" as Id<"pipes">, name: "Rent", icon: "home-outline", priority: 1, capacity: 0, fed: 0, spent: 0 },
     ];
 
     const { rerender } = render(<PipesList pipes={pipes} />);
@@ -67,7 +67,7 @@ describe("PipesList", () => {
     render(
       <PipesList
         pipes={mockPipes}
-        trailing={(pipe) => <span data-testid="trailing" data-pipe-id={pipe._id} />}
+        trailing={(pipe) => <span data-testid="trailing" data-pipe-id={pipe.id} />}
       />,
     );
     const trailing = screen.getAllByTestId("trailing");
@@ -80,7 +80,7 @@ describe("PipesList", () => {
     render(
       <PipesList
         pipes={mockPipes}
-        leading={(pipe) => <span data-testid="leading" data-pipe-id={pipe._id} />}
+        leading={(pipe) => <span data-testid="leading" data-pipe-id={pipe.id} />}
       />,
     );
     const leading = screen.getAllByTestId("leading");

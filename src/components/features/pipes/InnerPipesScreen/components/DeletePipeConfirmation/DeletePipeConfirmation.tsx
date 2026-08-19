@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
-import { type Id, type Doc } from "@convex/_generated/dataModel";
+import type {
+  PipeModel,
+} from "@features/pipes/data/pipes";
 import { Button } from "@ui/Button";
 import { Input } from "@ui/Input";
 import { Icon, type IconName } from "@ui/Icon";
@@ -14,27 +16,27 @@ import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
 type Props = {
   visible: boolean;
   onClose: () => void;
-  pipeId: Id<"pipes">;
+  pipeId: PipeModel["id"];
   onDeleted: () => void;
 };
 
 type DescendantNode = {
-  id: Id<"pipes">;
+  id: PipeModel["id"];
   name: string;
   icon: string;
   depth: number;
 };
 
 function collectDescendants(
-  pipeId: Id<"pipes">,
-  childrenByParent: Map<Id<"pipes">, Doc<"pipes">[]>,
+  pipeId: PipeModel["id"],
+  childrenByParent: Map<PipeModel["id"], PipeModel[]>,
   depth = 1,
 ): DescendantNode[] {
   const result: DescendantNode[] = [];
   const children = childrenByParent.get(pipeId) ?? [];
   for (const child of children) {
-    result.push({ id: child._id, name: child.name, icon: child.icon, depth });
-    result.push(...collectDescendants(child._id, childrenByParent, depth + 1));
+    result.push({ id: child.id, name: child.name, icon: child.icon, depth });
+    result.push(...collectDescendants(child.id, childrenByParent, depth + 1));
   }
   return result;
 }
@@ -43,7 +45,7 @@ export function DeletePipeConfirmation({ visible, onClose, pipeId, onDeleted }: 
   const { pipesById, childrenByParent } = usePipeSelection();
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteTransactions, setDeleteTransactions] = useState(false);
-  const [jobId, setJobId] = useState<Id<"pipeDeletionJobs"> | null>(null);
+  const [jobId, setJobId] = useState<NonNullable<PipeModel["deletionJobId"]> | null>(null);
   const showAlert = useAlert();
   const startPipeDeletion = useMutation(api.pipes.startPipeDeletion);
   const deletionStatus = useQuery(

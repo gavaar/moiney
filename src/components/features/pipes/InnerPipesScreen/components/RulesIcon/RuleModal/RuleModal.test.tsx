@@ -33,7 +33,7 @@ const pId = (id: string) => id as Id<"pipes">;
 
 function basePipe(overrides: Record<string, unknown> = {}) {
   return {
-    _id: pId("pipe-1"),
+    id: pId("pipe-1"),
     name: "Groceries",
     icon: "cart-outline",
     rule: undefined,

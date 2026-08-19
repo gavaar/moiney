@@ -1,16 +1,16 @@
 import { useState } from "react";
-import type { Id } from "@convex/_generated/dataModel";
 import {
   TransactionList,
   type TransactionListProps,
 } from "@ui/TransactionList";
+import type { TransactionModel } from "@features/transactions/data/transactions";
 import { TransactionCorrectionHistoryModal } from "./components/TransactionCorrectionHistory/TransactionCorrectionHistoryModal";
 
 export function TransactionListWithHistory(props: TransactionListProps) {
-  const [selectedTransactionId, setSelectedTransactionId] = useState<Id<"transactions"> | null>(null);
+  const [selectedTransactionId, setSelectedTransactionId] = useState<TransactionModel["id"] | null>(null);
 
   const selectedTransaction = props.transactions?.find(
-    (transaction) => transaction._id === selectedTransactionId,
+    (transaction) => transaction.id === selectedTransactionId,
   );
 
   return (

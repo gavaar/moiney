@@ -6,7 +6,8 @@ import {
   useTransactions,
   getSubtreePipeIds,
 } from "./TransactionsContext";
-import type { Doc, Id } from "@convex/_generated/dataModel";
+import type { Id } from "@convex/_generated/dataModel";
+import type { PipeModel } from "@features/pipes/data/pipes";
 
 const mockUseQuery = vi.fn();
 vi.mock("convex/react", () => ({
@@ -43,11 +44,9 @@ function TestConsumer() {
   );
 }
 
-function pipe(id: string, parentId?: string): Doc<"pipes"> {
+function pipe(id: string, parentId?: string): PipeModel {
   return {
-    _id: id as Id<"pipes">,
-    _creationTime: 0,
-    userId: "" as Id<"users">,
+    id: id as Id<"pipes">,
     parentId: parentId as Id<"pipes"> | undefined,
     name: "",
     icon: "",
@@ -60,9 +59,9 @@ function pipe(id: string, parentId?: string): Doc<"pipes"> {
 }
 
 function buildChildrenMap(
-  pipes: Doc<"pipes">[],
-): Map<Id<"pipes">, Doc<"pipes">[]> {
-  const map = new Map<Id<"pipes">, Doc<"pipes">[]>();
+  pipes: PipeModel[],
+): Map<Id<"pipes">, PipeModel[]> {
+  const map = new Map<Id<"pipes">, PipeModel[]>();
   for (const p of pipes) {
     if (p.parentId) {
       const siblings = map.get(p.parentId) ?? [];
@@ -265,7 +264,7 @@ describe("TransactionsProvider", () => {
     });
 
     const mockTxs = [
-      { _id: "tx1", title: "test", value: -50, date: 1000, from: "a" as Id<"pipes">, userId: "" as Id<"users">, _creationTime: 0 },
+      { _id: "tx1", title: "test", value: -50, date: 1000, kind: "expense", from: "a" as Id<"pipes">, userId: "" as Id<"users">, _creationTime: 0 },
     ];
     mockUseQuery.mockReturnValue(mockTxs);
 

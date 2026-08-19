@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { type Id } from "@convex/_generated/dataModel";
 import { FeedListScreen } from './FeedListScreen';
-import { Pipe } from '../context/PipeSelectionContext';
+import type { PipeModel } from "@features/pipes/data/pipes";
 
 const mockShowAlert = { success: vi.fn(), error: vi.fn() };
 vi.mock("@ui/Alert", () => ({
@@ -15,7 +15,7 @@ vi.mock("@features/pipes/components/PipesList", () => ({
     <div data-testid="pipes-list" data-count={pipes.length}>
       <button
         data-testid="select-pipe"
-        onClick={() => onSelectPipe?.(pipes[0]._id)}
+         onClick={() => onSelectPipe?.(pipes[0].id)}
       >
         Select {pipes[0].name}
       </button>
@@ -33,9 +33,9 @@ vi.mock("@features/pipes/FeedListScreen/components/AddFeedButton", () => ({
 }));
 
 const mockPipes = [
-  { _id: "pipe-1" as Id<"pipes">, name: "Groceries", icon: "cart-outline", capacity: 0, fed: 0, spent: 0 },
-  { _id: "pipe-2" as Id<"pipes">, name: "Salary", icon: "cash-outline", capacity: 0, fed: 0, spent: 0 },
-] as Pipe[];
+  { id: "pipe-1" as Id<"pipes">, name: "Groceries", icon: "cart-outline", capacity: 0, fed: 0, spent: 0 },
+  { id: "pipe-2" as Id<"pipes">, name: "Salary", icon: "cash-outline", capacity: 0, fed: 0, spent: 0 },
+] as PipeModel[];
 
 describe("FeedListScreen", () => {
   it("renders only the loading state while the initial query is pending", () => {

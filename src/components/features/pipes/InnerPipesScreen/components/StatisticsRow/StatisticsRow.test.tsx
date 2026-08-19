@@ -39,7 +39,7 @@ describe("StatisticsRow", () => {
   beforeEach(() => {
     mockPipesById = {
       test_pipe_id: {
-        _id: "test_pipe_id",
+        id: "test_pipe_id",
         name: "Test Pipe",
         icon: "home-outline",
       },
@@ -127,7 +127,7 @@ describe("StatisticsRow", () => {
     vi.setSystemTime(Date.UTC(2026, 6, 6, 12));
     mockPipesById = {
       test_pipe_id: {
-        _id: "test_pipe_id",
+        id: "test_pipe_id",
         name: "Test Pipe",
         icon: "home-outline",
         rule: "cron",
@@ -149,7 +149,7 @@ describe("StatisticsRow", () => {
     vi.setSystemTime(Date.UTC(2026, 6, 6, 12));
     mockPipesById = {
       test_pipe_id: {
-        _id: "test_pipe_id",
+        id: "test_pipe_id",
         name: "Test Pipe",
         icon: "home-outline",
         rule: "cron",

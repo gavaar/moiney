@@ -17,7 +17,7 @@ vi.mock("@features/pipes/context/PipeSelectionContext", () => ({
   usePipeSelection: () => ({
     pipesById: {
       "pipe-1": {
-        _id: "pipe-1",
+        id: "pipe-1",
         name: "Groceries",
         icon: "cart",
         description: "Old description",

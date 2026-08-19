@@ -11,26 +11,22 @@ const baseGroup: TransactionGroup = {
   kind: "expense",
   transactions: [
     {
-      _id: "tx1" as any,
-      _creationTime: 0,
+      id: "tx1" as Id<"transactions">,
+      createdAt: 0,
       title: "coffee",
       kind: "expense",
-       value: -500,
+      value: -500,
       date: new Date("2024-03-15").getTime(),
       from: "pipe-1" as Id<"pipes">,
-      to: undefined,
-      userId: "" as Id<"users">,
     },
     {
-      _id: "tx2" as any,
-      _creationTime: 0,
+      id: "tx2" as Id<"transactions">,
+      createdAt: 0,
       title: "coffee",
       kind: "expense",
-        value: -300,
+      value: -300,
       date: new Date("2024-03-20").getTime(),
       from: "pipe-1" as Id<"pipes">,
-      to: undefined,
-      userId: "" as Id<"users">,
     },
   ],
   count: 2,
@@ -44,7 +40,7 @@ const baseGroup: TransactionGroup = {
 };
 
 const pipeInfo = {
-  _id: "pipe-1" as Id<"pipes">,
+  id: "pipe-1" as Id<"pipes">,
   icon: "cart-outline",
   name: "Groceries",
 };

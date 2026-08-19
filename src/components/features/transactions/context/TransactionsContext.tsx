@@ -1,14 +1,17 @@
 import { createContext, useContext, useMemo, type ReactNode } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
-import { type Id, type Doc } from "@convex/_generated/dataModel";
-import type { TransactionWithPipeIcons } from "@/lib/transactions/types";
+import {
+  normalizeTransaction,
+  type TransactionModel,
+} from "@features/transactions/data/transactions";
+import type { PipeModel } from "@features/pipes/data/pipes";
 import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
 
 type TransactionsContextValue = {
-  transactions: TransactionWithPipeIcons[] | undefined;
+  transactions: TransactionModel[] | undefined;
   isLoading: boolean;
-  pipeIds: Id<"pipes">[] | undefined | null;
+  pipeIds: PipeModel["id"][] | undefined | null;
 };
 
 const TransactionsContext = createContext<TransactionsContextValue>({
@@ -22,18 +25,18 @@ export function useTransactions() {
 }
 
 export function getSubtreePipeIds(
-  childrenByParent: Map<Id<"pipes">, Doc<"pipes">[]>,
-  selectedPipeId: Id<"pipes"> | null,
-): Id<"pipes">[] | null {
+  childrenByParent: Map<PipeModel["id"], PipeModel[]>,
+  selectedPipeId: PipeModel["id"] | null,
+): PipeModel["id"][] | null {
   if (!selectedPipeId) return null;
 
-  const result: Id<"pipes">[] = [];
-  function dfs(nodeId: Id<"pipes">) {
+  const result: PipeModel["id"][] = [];
+  function dfs(nodeId: PipeModel["id"]) {
     result.push(nodeId);
     const nodeChildren = childrenByParent.get(nodeId);
     if (nodeChildren) {
       for (const child of nodeChildren) {
-        dfs(child._id);
+        dfs(child.id);
       }
     }
   }
@@ -55,9 +58,13 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
     return null;
   }, [allPipes, childrenByParent, selectedPipeId]);
 
-  const transactions = useQuery(
+  const persistedTransactions = useQuery(
     api.transactions.listTransactions,
     pipeIds !== undefined ? { pipeIds: pipeIds ?? undefined } : "skip",
+  );
+  const transactions = useMemo(
+    () => persistedTransactions?.map(normalizeTransaction),
+    [persistedTransactions],
   );
 
   return (

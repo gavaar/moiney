@@ -43,7 +43,7 @@ vi.mock("@features/pipes/context/PipeSelectionContext", () => ({
   usePipeSelection: () => ({
     allPipes: [
       {
-        _id: "feed-1" as Id<"pipes">,
+        id: "feed-1" as Id<"pipes">,
         _creationTime: 0,
         userId: "user-1" as Id<"users">,
         parentId: undefined,
@@ -54,7 +54,7 @@ vi.mock("@features/pipes/context/PipeSelectionContext", () => ({
         spent: 200,
       },
       {
-        _id: "feed-2" as Id<"pipes">,
+        id: "feed-2" as Id<"pipes">,
         _creationTime: 0,
         userId: "user-1" as Id<"users">,
         parentId: undefined,
@@ -65,7 +65,7 @@ vi.mock("@features/pipes/context/PipeSelectionContext", () => ({
         spent: 100,
       },
       {
-        _id: "child-1" as Id<"pipes">,
+        id: "child-1" as Id<"pipes">,
         _creationTime: 0,
         userId: "user-1" as Id<"users">,
         parentId: "feed-1" as Id<"pipes">,
@@ -211,9 +211,9 @@ describe("getButtonLabel", () => {
 
 describe("buildPipeItems", () => {
   const allPipes = [
-    { _id: "feed-1" as Id<"pipes">, parentId: undefined as Id<"pipes"> | undefined, name: "Salary", icon: "cash-outline" },
-    { _id: "feed-2" as Id<"pipes">, parentId: undefined as Id<"pipes"> | undefined, name: "Freelance", icon: "laptop-outline" },
-    { _id: "child-1" as Id<"pipes">, parentId: "feed-1" as Id<"pipes">, name: "Rent", icon: "home-outline" },
+    { id: "feed-1" as Id<"pipes">, parentId: undefined as Id<"pipes"> | undefined, name: "Salary", icon: "cash-outline" },
+    { id: "feed-2" as Id<"pipes">, parentId: undefined as Id<"pipes"> | undefined, name: "Freelance", icon: "laptop-outline" },
+    { id: "child-1" as Id<"pipes">, parentId: "feed-1" as Id<"pipes">, name: "Rent", icon: "home-outline" },
   ];
 
   it("returns None option and all feeds when pipeId has no root ancestor", () => {
@@ -244,7 +244,7 @@ describe("buildPipeItems", () => {
       [
         ...allPipes,
         {
-          _id: "deleting-feed" as Id<"pipes">,
+          id: "deleting-feed" as Id<"pipes">,
           parentId: undefined,
           name: "Deleting feed",
           icon: "trash",
@@ -266,12 +266,12 @@ describe("buildPipeItems", () => {
 
 describe("buildPaidFromPipeItems", () => {
   const allPipes = [
-    { _id: "feed-1" as Id<"pipes">, parentId: undefined, name: "Salary", icon: "cash-outline" },
-    { _id: "feed-2" as Id<"pipes">, parentId: undefined, name: "Freelance", icon: "laptop-outline" },
-    { _id: "feed-3" as Id<"pipes">, parentId: undefined, name: "Savings", icon: "wallet-outline" },
-    { _id: "child-1" as Id<"pipes">, parentId: "feed-1" as Id<"pipes">, name: "Rent", icon: "home-outline" },
-    { _id: "child-2" as Id<"pipes">, parentId: "feed-1" as Id<"pipes">, name: "Coffee", icon: "cafe-outline" },
-    { _id: "child-3" as Id<"pipes">, parentId: "feed-3" as Id<"pipes">, name: "Emergency", icon: "alert-outline" },
+    { id: "feed-1" as Id<"pipes">, parentId: undefined, name: "Salary", icon: "cash-outline" },
+    { id: "feed-2" as Id<"pipes">, parentId: undefined, name: "Freelance", icon: "laptop-outline" },
+    { id: "feed-3" as Id<"pipes">, parentId: undefined, name: "Savings", icon: "wallet-outline" },
+    { id: "child-1" as Id<"pipes">, parentId: "feed-1" as Id<"pipes">, name: "Rent", icon: "home-outline" },
+    { id: "child-2" as Id<"pipes">, parentId: "feed-1" as Id<"pipes">, name: "Coffee", icon: "cafe-outline" },
+    { id: "child-3" as Id<"pipes">, parentId: "feed-3" as Id<"pipes">, name: "Emergency", icon: "alert-outline" },
   ];
 
   it("offers childless pipes for a payment", () => {
@@ -294,7 +294,7 @@ describe("buildPaidFromPipeItems", () => {
 
   it("excludes deleting pipes from payer and refund options", () => {
     const deletingPipes = allPipes.map((pipe) =>
-      pipe._id === "feed-2"
+      pipe.id === "feed-2"
         ? { ...pipe, deletionJobId: "job-1" as Id<"pipeDeletionJobs"> }
         : pipe,
     );
@@ -311,15 +311,15 @@ describe("buildPaidFromPipeItems", () => {
 describe("getTopmostPipeId", () => {
   it("resolves a nested pipe to its root", () => {
     const pipes = [
-      { _id: "root" as Id<"pipes">, name: "Root", icon: "wallet" },
+      { id: "root" as Id<"pipes">, name: "Root", icon: "wallet" },
       {
-        _id: "child" as Id<"pipes">,
+        id: "child" as Id<"pipes">,
         parentId: "root" as Id<"pipes">,
         name: "Child",
         icon: "folder",
       },
       {
-        _id: "leaf" as Id<"pipes">,
+        id: "leaf" as Id<"pipes">,
         parentId: "child" as Id<"pipes">,
         name: "Leaf",
         icon: "cafe",
@@ -332,8 +332,8 @@ describe("getTopmostPipeId", () => {
 
 describe("getDestinationPipeName", () => {
   const allPipes = [
-    { _id: "feed-1" as Id<"pipes">, name: "Salary" },
-    { _id: "feed-2" as Id<"pipes">, name: "Freelance" },
+    { id: "feed-1" as Id<"pipes">, name: "Salary" },
+    { id: "feed-2" as Id<"pipes">, name: "Freelance" },
   ];
 
   it("returns null when sentToPipeId is null", () => {

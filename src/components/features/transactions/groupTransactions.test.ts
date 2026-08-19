@@ -1,21 +1,20 @@
 import { describe, expect, it } from "vitest";
 import { groupTransactions } from "./groupTransactions";
-import type { Doc } from "@convex/_generated/dataModel";
 import type { Id } from "@convex/_generated/dataModel";
+import type { TransactionModel } from "@features/transactions/data/transactions";
 
 function tx(
-  overrides: Partial<Doc<"transactions">> & { date: number },
-): Doc<"transactions"> {
+  overrides: Partial<TransactionModel> & { date: number },
+): TransactionModel {
+  const { kind = "expense", ...rest } = overrides;
   return {
-    _id: `tx-${Math.random()}` as any,
-    _creationTime: 0,
+    id: `tx-${Math.random()}` as Id<"transactions">,
+    createdAt: 0,
     title: "coffee",
     value: -5,
     from: "pipe-a" as Id<"pipes">,
-    to: undefined,
-    userId: "" as Id<"users">,
-    ...overrides,
-    kind: overrides.kind ?? "expense",
+    ...rest,
+    kind,
   };
 }
 
@@ -88,13 +87,13 @@ describe("groupTransactions", () => {
       title: "coffee",
       value: -500,
       date: 200,
-      _creationTime: 2,
+      createdAt: 2,
     });
     const refund = tx({
       title: "coffee",
       value: 200,
       date: 200,
-      _creationTime: 3,
+      createdAt: 3,
     });
 
     const [group] = groupTransactions([expense, refund]) as any[];

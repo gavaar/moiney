@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { Doc, Id } from "@convex/_generated/dataModel";
+import type { Id } from "@convex/_generated/dataModel";
 import { groupTransactions, type TransactionGroup } from "@features/transactions/groupTransactions";
+import type { TransactionModel } from "@features/transactions/data/transactions";
 import { buildFlatItems } from "./helpers";
 
 function transaction(
@@ -8,16 +9,15 @@ function transaction(
   title: string,
   value: number,
   date: number,
-): Doc<"transactions"> {
+): TransactionModel {
   return {
-    _id: id as Id<"transactions">,
-    _creationTime: date,
+    id: id as Id<"transactions">,
+    createdAt: date,
     title,
     kind: "expense",
     value,
     date,
     from: "food" as Id<"pipes">,
-    userId: "user" as Id<"users">,
   };
 }
 

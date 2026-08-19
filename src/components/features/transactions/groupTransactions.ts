@@ -1,42 +1,41 @@
-import type { Id } from "@convex/_generated/dataModel";
-import type { TransactionWithPipeIcons } from "@/lib/transactions/types";
 import {
   resolveTransactionKind,
   transactionGroupId,
   type TransactionKind,
 } from "@domain/transactions";
+import type { TransactionModel } from "@features/transactions/data/transactions";
 
 export type TransactionGroup = {
   id: string;
   kind: TransactionKind;
-  transactions: TransactionWithPipeIcons[];
+  transactions: TransactionModel[];
   count: number;
   title: string;
   totalValue: number;
   latestValue: number;
-  from: Id<"pipes"> | undefined;
-  to: Id<"pipes"> | undefined;
+  from: TransactionModel["from"];
+  to: TransactionModel["to"];
   oldestDate: number;
   latestDate: number;
 };
 
-export type TransactionListItem = TransactionWithPipeIcons | TransactionGroup;
+export type TransactionListItem = TransactionModel | TransactionGroup;
 
 function compareTransactions(
-  first: TransactionWithPipeIcons,
-  second: TransactionWithPipeIcons,
+  first: TransactionModel,
+  second: TransactionModel,
 ): number {
   return (
     second.date - first.date ||
-    second._creationTime - first._creationTime ||
-    second._id.localeCompare(first._id)
+    second.createdAt - first.createdAt ||
+    second.id.localeCompare(first.id)
   );
 }
 
 export function groupTransactions(
-  transactions: TransactionWithPipeIcons[],
+  transactions: TransactionModel[],
 ): TransactionListItem[] {
-  const groups = new Map<string, TransactionWithPipeIcons[]>();
+  const groups = new Map<string, TransactionModel[]>();
 
   for (const tx of transactions) {
     const key = transactionGroupId(tx);

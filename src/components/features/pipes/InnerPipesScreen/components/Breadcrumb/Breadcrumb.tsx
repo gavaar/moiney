@@ -6,7 +6,7 @@ export function Breadcrumb() {
   const { selectedPipePath, allPipes, selectPipe } = usePipeSelection();
 
   const items = selectedPipePath.map((id) => {
-    const pipe = allPipes?.find((p) => p._id === id);
+    const pipe = allPipes?.find((p) => p.id === id);
     return { id, name: pipe?.name ?? id, icon: pipe?.icon ?? 'pipe' };
   });
 
