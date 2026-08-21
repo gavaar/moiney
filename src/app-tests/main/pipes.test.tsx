@@ -63,6 +63,9 @@ vi.mock("@features/pipes/context/PipeSelectionContext", () => ({
     deselectPipe: vi.fn(),
   }),
 }));
+vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
+  usePipeCatalog: () => ({ feeds: [], isLoading: false }),
+}));
 
 import Pipes from "@/app/(main)/(tabs)/pipes";
 

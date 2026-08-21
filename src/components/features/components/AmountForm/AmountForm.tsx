@@ -14,7 +14,7 @@ import { Icon, type IconName } from "@ui/Icon";
 import { Input } from "@ui/Input";
 import { SlideToggle } from "@ui/SlideToggle";
 import { useAlert } from "@ui/Alert";
-import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
+import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import { parseMoney } from "@domain/money";
 import {
   buildPipeItems,
@@ -63,7 +63,7 @@ export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: 
 
   const showAlert = useAlert();
   const createTransaction = useMutation(api.transactions.createTransaction);
-  const { allPipes } = usePipeSelection();
+  const { allPipes } = usePipeCatalog();
   const recentTitles = useQuery(api.transactions.listRecentTitles, { pipeId });
 
   const isFeed = variant === "feed" || (variant === "transaction" && initState?.isFeed === true);

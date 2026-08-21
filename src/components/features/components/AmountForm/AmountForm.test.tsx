@@ -39,8 +39,8 @@ vi.mock("@convex/_generated/api", () => ({
   },
 }));
 
-vi.mock("@features/pipes/context/PipeSelectionContext", () => ({
-  usePipeSelection: () => ({
+vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
+  usePipeCatalog: () => ({
     allPipes: [
       {
         id: "feed-1" as Id<"pipes">,

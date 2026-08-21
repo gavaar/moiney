@@ -4,7 +4,7 @@ import { cn, colors } from "@/lib/styles";
 import { ModalShell } from '../Modal';
 import { AmountForm } from '@features/components/AmountForm';
 import { useState } from 'react';
-import { usePipeSelection } from '@features/pipes/context/PipeSelectionContext';
+import { usePipeCatalog } from '@features/pipes/context/PipeCatalogContext';
 import { resolveTransactionKind } from "@domain/transactions";
 import { formatAmount } from "@/lib/format";
 import type { TransactionModel } from "@features/transactions/data/transactions";
@@ -28,7 +28,7 @@ export function TransactionItem({ transaction, onShowEditHistory }: TransactionI
   const isNegative = transaction.value < 0;
   const [showForm, setShowForm] = useState(false);
   const [showDisabledInfo, setShowDisabledInfo] = useState(false);
-  const { pipesById, childrenByParent } = usePipeSelection();
+  const { pipesById, childrenByParent } = usePipeCatalog();
 
   const sourcePipe = transaction.from ? pipesById?.[transaction.from] : undefined;
   const destPipe = transaction.to ? pipesById?.[transaction.to] : undefined;

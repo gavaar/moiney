@@ -7,7 +7,7 @@ import { Input } from "@ui/Input";
 import { Icon, type IconName } from "@ui/Icon";
 import { ModalShell } from "@ui/Modal";
 import { useAlert } from "@ui/Alert";
-import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
+import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import type { PipeModel } from "@features/pipes/data/pipes";
 import { colors } from "@/lib/styles";
 import { formatAmount } from "@/lib/format";
@@ -39,7 +39,7 @@ type Props = {
 };
 
 export function RuleModal({ visible, onClose, pipeId }: Props) {
-  const { pipesById } = usePipeSelection();
+  const { pipesById } = usePipeCatalog();
   const pipe = pipesById?.[pipeId];
   const showAlert = useAlert();
   const updatePipeRule = useMutation(api.pipes.updatePipeRule);

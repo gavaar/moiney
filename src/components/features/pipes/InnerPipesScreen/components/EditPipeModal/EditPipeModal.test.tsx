@@ -27,6 +27,20 @@ vi.mock("@features/pipes/context/PipeSelectionContext", () => ({
     },
   }),
 }));
+vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
+  usePipeCatalog: () => ({
+    pipesById: {
+      "pipe-1": {
+        id: "pipe-1",
+        name: "Groceries",
+        icon: "cart",
+        description: "Old description",
+        priority: 1,
+        capacity: 100,
+      },
+    },
+  }),
+}));
 
 vi.mock("@ui/Modal", () => ({
   ModalShell: ({ visible, children }: any) => (visible ? <div>{children}</div> : null),

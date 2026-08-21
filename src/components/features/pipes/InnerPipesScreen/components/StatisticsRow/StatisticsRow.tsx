@@ -6,6 +6,7 @@ import { colors } from "@/lib/styles";
 import { formatAmount } from "@/lib/format";
 import { getDaysInMonth } from "@/lib/dates";
 import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
+import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -40,7 +41,8 @@ export function StatisticsRow({ fed, spent, pendingFedAdjustment = 0 }: Props) {
   const stmpdRef = useRef<View>(null);
   const cronRef = useRef<View>(null);
   const externalRef = useRef<View>(null);
-  const { selectedPipePath, pipesById } = usePipeSelection();
+  const { selectedPipePath } = usePipeSelection();
+  const { pipesById } = usePipeCatalog();
 
   const selectedId =
     selectedPipePath.length > 0

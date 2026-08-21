@@ -5,6 +5,10 @@ import userEvent from "@testing-library/user-event";
 import { PipesList } from "./PipesList";
 import { type Id } from "@convex/_generated/dataModel";
 
+vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
+  usePipeCatalog: () => ({ childrenByParent: new Map() }),
+}));
+
 vi.mock("@ui/PipeBox", () => ({
   PipeBox: (props: any) => (
     <button

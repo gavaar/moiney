@@ -6,6 +6,7 @@ import {
   type TransactionModel,
 } from "@features/transactions/data/transactions";
 import type { PipeModel } from "@features/pipes/data/pipes";
+import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
 
 type TransactionsContextValue = {
@@ -45,7 +46,8 @@ export function getSubtreePipeIds(
 }
 
 export function TransactionsProvider({ children }: { children: ReactNode }) {
-  const { allPipes, childrenByParent, selectedPipePath } = usePipeSelection();
+  const { allPipes, childrenByParent } = usePipeCatalog();
+  const { selectedPipePath } = usePipeSelection();
 
   const selectedPipeId =
     selectedPipePath.length > 0

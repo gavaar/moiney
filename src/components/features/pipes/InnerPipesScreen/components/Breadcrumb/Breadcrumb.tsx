@@ -1,9 +1,11 @@
 import { Text, TouchableOpacity, View } from "react-native";
 import { Icon } from "@ui/Icon";
 import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
+import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 
 export function Breadcrumb() {
-  const { selectedPipePath, allPipes, selectPipe } = usePipeSelection();
+  const { selectedPipePath, selectPipe } = usePipeSelection();
+  const { allPipes } = usePipeCatalog();
 
   const items = selectedPipePath.map((id) => {
     const pipe = allPipes?.find((p) => p.id === id);

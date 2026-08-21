@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { type Id } from "@convex/_generated/dataModel";
+import { PipeCatalogProvider, usePipeCatalog } from "./PipeCatalogContext";
 import { PipeSelectionProvider, usePipeSelection } from "./PipeSelectionContext";
 
 const mockUseQuery = vi.fn();
@@ -16,8 +17,8 @@ vi.mock("@convex/_generated/api", () => ({
 }));
 
 function TestConsumer() {
-  const { selectedPipePath, selectPipe, deselectPipe, isLoading, feeds, selectedName } =
-    usePipeSelection();
+  const { selectedPipePath, selectPipe, deselectPipe, selectedName } = usePipeSelection();
+  const { isLoading, feeds } = usePipeCatalog();
   return (
     <div>
       <span data-testid="path-length">{selectedPipePath.length}</span>
@@ -45,6 +46,16 @@ function TestConsumer() {
   );
 }
 
+function SelectionTree() {
+  return (
+    <PipeCatalogProvider>
+      <PipeSelectionProvider>
+        <TestConsumer />
+      </PipeSelectionProvider>
+    </PipeCatalogProvider>
+  );
+}
+
 const mockPipe = (id: string, name: string) => ({
   _id: id as Id<"pipes">,
   _creationTime: 0,
@@ -66,11 +77,7 @@ describe("PipeSelectionContext", () => {
 
   it("shows loading state when allPipes is undefined", () => {
     mockUseQuery.mockReturnValue(undefined);
-    render(
-      <PipeSelectionProvider>
-        <TestConsumer />
-      </PipeSelectionProvider>,
-    );
+    render(<SelectionTree />);
     expect(screen.getByTestId("is-loading").textContent).toBe("true");
     expect(screen.getByTestId("feeds-count").textContent).toBe("0");
     expect(screen.getByTestId("selected-name").textContent).toBe("(none)");
@@ -81,11 +88,7 @@ describe("PipeSelectionContext", () => {
       mockPipe("pipe-1", "Groceries"),
       mockPipe("pipe-2", "Salary"),
     ]);
-    render(
-      <PipeSelectionProvider>
-        <TestConsumer />
-      </PipeSelectionProvider>,
-    );
+    render(<SelectionTree />);
     expect(screen.getByTestId("is-loading").textContent).toBe("false");
     expect(screen.getByTestId("feeds-count").textContent).toBe("2");
   });
@@ -93,11 +96,7 @@ describe("PipeSelectionContext", () => {
   it("selects a pipe and resolves its name", async () => {
     const user = userEvent.setup();
     mockUseQuery.mockReturnValue([mockPipe("pipe-1", "Groceries")]);
-    render(
-      <PipeSelectionProvider>
-        <TestConsumer />
-      </PipeSelectionProvider>,
-    );
+    render(<SelectionTree />);
 
     expect(screen.getByTestId("path-length").textContent).toBe("0");
     await user.click(screen.getByTestId("select"));
@@ -108,11 +107,7 @@ describe("PipeSelectionContext", () => {
   it("deselects and clears the name", async () => {
     const user = userEvent.setup();
     mockUseQuery.mockReturnValue([mockPipe("pipe-1", "Groceries")]);
-    render(
-      <PipeSelectionProvider>
-        <TestConsumer />
-      </PipeSelectionProvider>,
-    );
+    render(<SelectionTree />);
 
     await user.click(screen.getByTestId("select"));
     expect(screen.getByTestId("selected-name").textContent).toBe("Groceries");
@@ -124,19 +119,11 @@ describe("PipeSelectionContext", () => {
   it("returns to the surviving parent when the selected pipe disappears", async () => {
     const user = userEvent.setup();
     mockUseQuery.mockReturnValue([mockPipe("pipe-1", "Groceries")]);
-    const view = render(
-      <PipeSelectionProvider>
-        <TestConsumer />
-      </PipeSelectionProvider>,
-    );
+    const view = render(<SelectionTree />);
 
     await user.click(screen.getByTestId("select"));
     mockUseQuery.mockReturnValue([]);
-    view.rerender(
-      <PipeSelectionProvider>
-        <TestConsumer />
-      </PipeSelectionProvider>,
-    );
+    view.rerender(<SelectionTree />);
 
     expect(screen.getByTestId("path-length").textContent).toBe("0");
   });
@@ -151,22 +138,14 @@ describe("PipeSelectionContext", () => {
         parentId: "child" as Id<"pipes">,
       },
     ]);
-    const view = render(
-      <PipeSelectionProvider>
-        <TestConsumer />
-      </PipeSelectionProvider>,
-    );
+    const view = render(<SelectionTree />);
 
     await user.click(screen.getByTestId("select-nested"));
     mockUseQuery.mockReturnValue([
       mockPipe("root", "Root"),
       { ...mockPipe("child", "Child"), parentId: "root" as Id<"pipes"> },
     ]);
-    view.rerender(
-      <PipeSelectionProvider>
-        <TestConsumer />
-      </PipeSelectionProvider>,
-    );
+    view.rerender(<SelectionTree />);
 
     expect(screen.getByTestId("selected-path").textContent).toBe("root,child");
     expect(screen.getByTestId("selected-name").textContent).toBe("Child");

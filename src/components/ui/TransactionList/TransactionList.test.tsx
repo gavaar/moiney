@@ -25,6 +25,9 @@ const mockUsePipeSelection = vi.fn();
 vi.mock("@features/pipes/context/PipeSelectionContext", () => ({
   usePipeSelection: () => mockUsePipeSelection(),
 }));
+vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
+  usePipeCatalog: () => mockUsePipeSelection(),
+}));
 
 vi.mock("@ui/Icon", () => ({
   Icon: ({ name }: any) => <span data-testid="mock-icon" data-name={name} />,

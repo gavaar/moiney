@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
+import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import type { PipeModel } from "@features/pipes/data/pipes";
 import {
   PipesList,
@@ -14,8 +15,8 @@ import { RulesIcon } from "./components/RulesIcon";
 import { StatisticsRow } from "./components/StatisticsRow";
 
 export function InnerPipesScreen() {
-  const { selectedPipe, selectedPipePath, childrenByParent, selectPipe } =
-    usePipeSelection();
+  const { selectedPipe, selectedPipePath, selectPipe } = usePipeSelection();
+  const { childrenByParent } = usePipeCatalog();
 
   const fed = selectedPipe?.fed ?? 0;
   const spent = selectedPipe?.spent ?? 0;

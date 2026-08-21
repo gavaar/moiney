@@ -12,9 +12,11 @@ let mockPipesById: any;
 vi.mock("@features/pipes/context/PipeSelectionContext", () => ({
   usePipeSelection: () => ({
     selectedPipePath: ["test_pipe_id"],
-    pipesById: mockPipesById,
     isLoading: false,
   }),
+}));
+vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
+  usePipeCatalog: () => ({ pipesById: mockPipesById }),
 }));
 
 import { StatisticsRow } from "./StatisticsRow";

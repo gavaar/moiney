@@ -7,7 +7,7 @@ import { type IconName } from "@ui/Icon";
 import { Input } from "@ui/Input";
 import { ModalShell } from "@ui/Modal";
 import { type Id } from "@convex/_generated/dataModel";
-import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
+import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import { parseMoney } from "@domain/money";
 
 type AddPipeModalProps = {
@@ -17,7 +17,7 @@ type AddPipeModalProps = {
 };
 
 export function AddPipeModal({ parentId, visible, onClose }: AddPipeModalProps) {
-  const { pipesById, childrenByParent } = usePipeSelection();
+  const { pipesById, childrenByParent } = usePipeCatalog();
   const parentPipe = pipesById?.[parentId];
   const parentName = parentPipe?.name ?? "";
   const hasChildren = (childrenByParent.get(parentId)?.length ?? 0) > 0;

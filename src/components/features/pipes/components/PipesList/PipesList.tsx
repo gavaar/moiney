@@ -1,7 +1,7 @@
 import { memo, type ReactNode } from "react";
 import { ScrollView, View } from "react-native";
 import { PipeBox, type ChildSnapshot } from "@ui/PipeBox";
-import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
+import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import type { PipeModel } from "@features/pipes/data/pipes";
 
 export type Pipe = Pick<
@@ -36,7 +36,7 @@ export const PipesList = memo(function PipesList({
   priority = false,
   footer,
 }: PipesListProps) {
-  const { childrenByParent } = usePipeSelection();
+  const { childrenByParent } = usePipeCatalog();
 
   return (
     <ScrollView className="flex-1" contentContainerStyle={{ flexGrow:1, gap: 8 }}>

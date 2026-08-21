@@ -20,6 +20,13 @@ vi.mock("@convex/_generated/api", () => ({
   },
 }));
 
+vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
+  usePipeCatalog: () => ({
+    pipesById: {},
+    childrenByParent: new Map(),
+  }),
+}));
+
 const parentId = "parent-1" as Id<"pipes">;
 const onClose = vi.fn();
 

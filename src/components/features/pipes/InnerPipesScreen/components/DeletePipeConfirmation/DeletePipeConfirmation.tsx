@@ -11,7 +11,7 @@ import { Icon, type IconName } from "@ui/Icon";
 import { ModalShell } from "@ui/Modal";
 import { colors } from "@/lib/styles";
 import { useAlert } from "@ui/Alert";
-import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
+import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 
 type Props = {
   visible: boolean;
@@ -42,7 +42,7 @@ function collectDescendants(
 }
 
 export function DeletePipeConfirmation({ visible, onClose, pipeId, onDeleted }: Props) {
-  const { pipesById, childrenByParent } = usePipeSelection();
+  const { pipesById, childrenByParent } = usePipeCatalog();
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteTransactions, setDeleteTransactions] = useState(false);
   const [jobId, setJobId] = useState<NonNullable<PipeModel["deletionJobId"]> | null>(null);

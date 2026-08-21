@@ -5,7 +5,7 @@ import { cn, colors } from "@/lib/styles";
 import { ModalShell } from "@ui/Modal";
 import { AmountForm } from "@features/components/AmountForm";
 import type { TransactionGroup } from "@features/transactions/groupTransactions";
-import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
+import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import { formatAmount } from "@/lib/format";
 
 type StackedTransactionItemProps = {
@@ -53,7 +53,7 @@ export function StackedTransactionItem({
   const disclosureRotation = useRef(
     new Animated.Value(expanded ? 1 : 0),
   ).current;
-  const { pipesById, childrenByParent } = usePipeSelection();
+  const { pipesById, childrenByParent } = usePipeCatalog();
 
   useEffect(() => {
     const animation = Animated.timing(disclosureRotation, {

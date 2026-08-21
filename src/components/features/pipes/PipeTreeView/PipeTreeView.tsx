@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { DimensionValue, Pressable, ScrollView, Text, View } from "react-native";
 import { Icon } from "@ui/Icon";
-import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
+import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import type { PipeModel } from "@features/pipes/data/pipes";
 import { colors } from "@/lib/styles";
 
@@ -90,7 +90,7 @@ type PipeTreeViewProps = {
 };
 
 export function PipeTreeView({ onSelectPipe }: PipeTreeViewProps) {
-  const { feeds, childrenByParent } = usePipeSelection();
+  const { feeds, childrenByParent } = usePipeCatalog();
 
   const childPipesById = useMemo(() => {
     const map = new Map<PipeModel["id"], PipeModel[]>();

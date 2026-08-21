@@ -14,7 +14,7 @@ vi.mock("@/lib/styles", () => ({
   colors: { error: "#C05959", success: "#46AE82" },
 }));
 
-vi.mock("@features/pipes/context/PipeSelectionContext", () => {
+vi.mock("@features/pipes/context/PipeCatalogContext", () => {
   const feeds = [
     { id: "feed-1" as Id<"pipes">, name: "Salary", icon: "cash-outline", priority: 0, capacity: 1000, fed: 800, spent: 300 },
     { id: "feed-2" as Id<"pipes">, name: "Gifts", icon: "gift-outline", priority: 0, capacity: 500, fed: 200, spent: 50 },
@@ -32,7 +32,7 @@ vi.mock("@features/pipes/context/PipeSelectionContext", () => {
   childrenByParent.set("child-1-1" as Id<"pipes">, [grandchild1, grandchild2]);
 
   return {
-    usePipeSelection: () => ({
+    usePipeCatalog: () => ({
       feeds,
       childrenByParent,
       selectedPipePath: [],

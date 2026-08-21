@@ -193,8 +193,16 @@ and rule fields.
 
 `TransactionsProvider`, history, pipe selection, transaction grouping, pipe
 lists, tree rendering, and transaction repeat/edit presentation now consume
-these models. The next frontend slice is 13.2: split the broad contexts and
-scope their subscriptions to the screens that use them.
+these models.
+
+13.2 is complete for context ownership and subscription scope. The read-only
+`PipeCatalogProvider` owns normalized pipe data and indexes, while
+`PipeSelectionProvider` owns only selection state. Catalog-only consumers no
+longer subscribe to selection state. The Pipes route receives catalog,
+selection, and latest-transaction providers through `PipesProviders`; History
+receives only the catalog provider; Profile receives neither. The next
+frontend slice is 13.3: move feature behavior out of shared UI and continue
+thinning route orchestration.
 
 ## Completed Accessibility Layout Work
 

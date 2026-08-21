@@ -14,6 +14,7 @@ import { ScreenHeader } from "@ui/ScreenHeader/ScreenHeader";
 import { SlideToggle } from "@ui/SlideToggle";
 import { Icon } from "@ui/Icon";
 import { colors } from "@/lib/styles";
+import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
 import { useTransactions } from "@features/transactions/context/TransactionsContext";
 import { InnerPipesScreen } from "@features/pipes/InnerPipesScreen";
@@ -25,7 +26,8 @@ export default function Pipes() {
   const [treeMode, setTreeMode] = useState(false);
   const [latestExpanded, setLatestExpanded] = useState(true);
   const open = useSharedValue(1);
-  const { feeds, isLoading, selectedName, selectedPipePath, selectPipe, deselectPipe } = usePipeSelection();
+  const { selectedName, selectedPipePath, selectPipe, deselectPipe } = usePipeSelection();
+  const { feeds, isLoading } = usePipeCatalog();
   const { transactions, isLoading: transactionLoading } = useTransactions();
 
   useEffect(() => {

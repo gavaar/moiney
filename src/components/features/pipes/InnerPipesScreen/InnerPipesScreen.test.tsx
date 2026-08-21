@@ -71,6 +71,9 @@ vi.mock("@features/pipes/context/PipeSelectionContext", async (importOriginal) =
     usePipeSelection: () => mockUsePipeSelection(),
   };
 });
+vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
+  usePipeCatalog: () => mockUsePipeSelection(),
+}));
 
 const baseMock = {
   selectedPipePath: [],

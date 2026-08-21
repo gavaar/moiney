@@ -9,6 +9,9 @@ const mockUsePipeSelection = vi.fn();
 vi.mock("@features/pipes/context/PipeSelectionContext", () => ({
   usePipeSelection: () => mockUsePipeSelection(),
 }));
+vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
+  usePipeCatalog: () => mockUsePipeSelection(),
+}));
 
 describe("Breadcrumb", () => {
   beforeEach(() => {
