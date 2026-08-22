@@ -7,8 +7,10 @@ const mocks = vi.hoisted(() => ({
   storage: {
     getRefreshToken: vi.fn(),
     getAccessToken: vi.fn(),
+    getAccountKey: vi.fn(),
     setRefreshToken: vi.fn(),
     setAccessToken: vi.fn(),
+    setAccountKey: vi.fn(),
   },
 }));
 
@@ -28,10 +30,13 @@ vi.mock("convex/react", () => {
 vi.mock("./storage", () => ({
   getRefreshToken: mocks.storage.getRefreshToken,
   getAccessToken: mocks.storage.getAccessToken,
+  getAccountKey: mocks.storage.getAccountKey,
   setRefreshToken: mocks.storage.setRefreshToken,
   setAccessToken: mocks.storage.setAccessToken,
+  setAccountKey: mocks.storage.setAccountKey,
   removeRefreshToken: vi.fn(),
   removeAccessToken: vi.fn(),
+  removeAccountKey: vi.fn(),
 }));
 
 vi.mock("@/lib/errors", () => ({
@@ -52,11 +57,12 @@ vi.mock("@convex/_generated/api", () => ({
 import { AuthProvider, useAuth } from "./auth";
 
 function AuthStateDisplay() {
-  const { isLoading, isAuthenticated } = useAuth();
+  const { accountKey, isLoading, isAuthenticated } = useAuth();
   return (
     <div>
       <span data-testid="loading">{isLoading.toString()}</span>
       <span data-testid="authenticated">{isAuthenticated.toString()}</span>
+      <span data-testid="account-key">{accountKey ?? "none"}</span>
     </div>
   );
 }
@@ -88,6 +94,7 @@ describe("AuthProvider", () => {
 
   it("resolves loading to false when refresh token exists and auth completes", async () => {
     mocks.storage.getRefreshToken.mockResolvedValue("rt");
+    mocks.storage.getAccountKey.mockResolvedValue("unknown:user@example.com");
 
     render(
       <AuthProvider>
@@ -109,6 +116,9 @@ describe("AuthProvider", () => {
     });
 
     expect(screen.getByTestId("authenticated").textContent).toBe("true");
+    expect(screen.getByTestId("account-key").textContent).toBe(
+      "unknown:user@example.com",
+    );
   });
 
   it("persists the replacement refresh token", async () => {

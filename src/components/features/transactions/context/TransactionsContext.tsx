@@ -1,5 +1,5 @@
-import { createContext, useContext, useMemo, type ReactNode } from "react";
-import { useQuery } from "convex/react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useConvex } from "convex/react";
 import { api } from "@convex/_generated/api";
 import {
   normalizeTransaction,
@@ -8,17 +8,21 @@ import {
 import type { PipeModel } from "@features/pipes/data/pipes";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
+import { useTransactionCache } from "@features/transactions/cache/TransactionCacheContext";
+import { pipeScope, RECENT_SCOPE } from "@features/transactions/cache/transactionSnapshot";
 
 type TransactionsContextValue = {
   transactions: TransactionModel[] | undefined;
   isLoading: boolean;
   pipeIds: PipeModel["id"][] | undefined | null;
+  refresh: () => void;
 };
 
 const TransactionsContext = createContext<TransactionsContextValue>({
   transactions: undefined,
   isLoading: true,
   pipeIds: undefined,
+  refresh: () => undefined,
 });
 
 export function useTransactions() {
@@ -46,8 +50,13 @@ export function getSubtreePipeIds(
 }
 
 export function TransactionsProvider({ children }: { children: ReactNode }) {
+  const convex = useConvex();
   const { allPipes, childrenByParent } = usePipeCatalog();
   const { selectedPipePath } = usePipeSelection();
+  const { cache, isHydrating, read, replace } = useTransactionCache();
+  const requestRef = useRef(0);
+  const [transactions, setTransactions] = useState<TransactionModel[] | undefined>();
+  const [isLoading, setIsLoading] = useState(true);
 
   const selectedPipeId =
     selectedPipePath.length > 0
@@ -60,21 +69,63 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
     return null;
   }, [allPipes, childrenByParent, selectedPipeId]);
 
-  const persistedTransactions = useQuery(
-    api.transactions.listTransactions,
-    pipeIds !== undefined ? { pipeIds: pipeIds ?? undefined } : "skip",
+  const scope = useMemo(
+    () =>
+      pipeIds === undefined
+        ? null
+        : selectedPipeId
+          ? pipeScope(pipeIds ?? [])
+          : RECENT_SCOPE,
+    [pipeIds, selectedPipeId],
   );
-  const transactions = useMemo(
-    () => persistedTransactions?.map(normalizeTransaction),
-    [persistedTransactions],
+  const cached = useMemo(
+    () =>
+      scope
+        ? read(scope)
+        : { transactions: [], complete: false, hasMore: false, updatedAt: 0 },
+    [read, scope, cache],
   );
+
+  const fetchScope = useCallback(async () => {
+    if (!scope || isHydrating) return;
+    const requestId = ++requestRef.current;
+    setIsLoading(true);
+    try {
+      const rows = await convex.query(
+        api.transactions.listTransactions,
+        selectedPipeId ? { pipeIds: pipeIds ?? [] } : {},
+      );
+      if (requestId !== requestRef.current) return;
+      const normalized = rows.map(normalizeTransaction);
+      setTransactions(normalized);
+      setIsLoading(false);
+      await replace(scope, normalized, false);
+    } catch {
+      if (requestId === requestRef.current) setIsLoading(false);
+    }
+  }, [convex, isHydrating, pipeIds, replace, scope, selectedPipeId]);
+
+  useEffect(() => {
+    if (!scope || isHydrating) {
+      requestRef.current += 1;
+      setTransactions(undefined);
+      setIsLoading(true);
+      return;
+    }
+
+    setTransactions(cached.transactions.length > 0 ? cached.transactions : undefined);
+    setIsLoading(cached.transactions.length === 0 && !cached.complete);
+
+    if (!cached.complete) void fetchScope();
+  }, [cached, fetchScope, isHydrating, scope]);
 
   return (
     <TransactionsContext.Provider
       value={{
         transactions,
-        isLoading: transactions === undefined,
+        isLoading,
         pipeIds,
+        refresh: () => void fetchScope(),
       }}
     >
       {children}

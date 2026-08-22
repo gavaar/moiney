@@ -1,19 +1,18 @@
 import { SafeAreaView } from "react-native-safe-area-context";
-import { usePaginatedQuery } from "convex/react";
-import { api } from "@convex/_generated/api";
 import { ScreenHeader } from "@ui/ScreenHeader/ScreenHeader";
 import { PipeCatalogProvider } from "@features/pipes/context/PipeCatalogContext";
 import { TransactionListWithHistory } from "@features/transactions/TransactionListWithHistory";
-import { normalizeTransaction } from "@features/transactions/data/transactions";
-import { useMemo } from 'react';
+import { useTransactionHistory } from "@features/transactions/cache/useTransactionHistory";
 
 export default function History() {
-  const { results, status, loadMore } = usePaginatedQuery(
-    api.transactions.listTransactionsPaginated,
-    {},
-    { initialNumItems: 12 },
-  );
-  const transactions = useMemo(() => results.map(normalizeTransaction), [results]);
+  const {
+    transactions,
+    isLoading,
+    isRefreshing,
+    loadMore,
+    loadMoreStatus,
+    refresh,
+  } = useTransactionHistory();
 
   return (
     <PipeCatalogProvider>
@@ -22,9 +21,11 @@ export default function History() {
 
         <TransactionListWithHistory
           transactions={transactions}
-          isLoading={status === "LoadingFirstPage"}
-          onLoadMore={() => loadMore(12)}
-          loadMoreStatus={status}
+          isLoading={isLoading}
+          onLoadMore={loadMore}
+          onRefresh={refresh}
+          refreshing={isRefreshing}
+          loadMoreStatus={loadMoreStatus}
         />
       </SafeAreaView>
     </PipeCatalogProvider>

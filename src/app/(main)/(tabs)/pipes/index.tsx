@@ -32,6 +32,7 @@ export default function Pipes() {
     transactions,
     isLoading: transactionLoading,
     pipeIds,
+    refresh: refreshTransactions,
   } = useTransactions();
 
   useEffect(() => {
@@ -135,6 +136,8 @@ export default function Pipes() {
               <TransactionListWithHistory
                 transactions={transactions}
                 isLoading={transactionLoading}
+                onRefresh={refreshTransactions}
+                refreshing={transactionLoading && transactions !== undefined}
                 visiblePipeIds={pipeIds ?? undefined}
               />
             </Animated.View>

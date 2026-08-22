@@ -12,6 +12,8 @@ export type TransactionListProps = {
   transactions: TransactionModel[] | undefined;
   isLoading?: boolean;
   onLoadMore?: () => void;
+  onRefresh?: () => void;
+  refreshing?: boolean;
   loadMoreStatus?: "LoadingFirstPage" | "CanLoadMore" | "LoadingMore" | "Exhausted";
   onShowEditHistory?: (transactionId: TransactionModel["id"]) => void;
   visiblePipeIds?: readonly NonNullable<TransactionModel["from"]>[];
@@ -21,6 +23,8 @@ export function TransactionList({
   transactions,
   isLoading,
   onLoadMore,
+  onRefresh,
+  refreshing = false,
   loadMoreStatus,
   onShowEditHistory,
   visiblePipeIds,
@@ -87,6 +91,8 @@ export function TransactionList({
       keyExtractor={(item) => item.key}
       onEndReached={handleLoadMore}
       onEndReachedThreshold={0.5}
+      onRefresh={onRefresh}
+      refreshing={refreshing}
       contentContainerClassName="gap-1 pb-4"
       renderItem={({ item }) => {
         if (item.kind === "group") {

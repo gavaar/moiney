@@ -15,6 +15,7 @@ import { Input } from "@ui/Input";
 import { SlideToggle } from "@ui/SlideToggle";
 import { useAlert } from "@ui/Alert";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
+import { useOptionalTransactionCache } from "@features/transactions/cache/TransactionCacheContext";
 import { parseMoney } from "@domain/money";
 import {
   buildPipeItems,
@@ -62,6 +63,7 @@ export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: 
   const [intent, setIntent] = useState<"repeat" | "edit">("repeat");
 
   const showAlert = useAlert();
+  const transactionCache = useOptionalTransactionCache();
   const createTransaction = useMutation(api.transactions.createTransaction);
   const { allPipes } = usePipeCatalog();
   const recentTitles = useQuery(api.transactions.listRecentTitles, { pipeId });
@@ -173,9 +175,10 @@ export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: 
       value: amount,
       date: date.getTime(),
     });
+    await transactionCache?.invalidateAll();
     resetForm();
     onSuccess?.();
-  }, [title, value, date, initState?.transactionId, onSuccess, resetForm, editTransaction]);
+  }, [title, value, date, initState?.transactionId, onSuccess, resetForm, editTransaction, transactionCache]);
 
   const handleRepeatSubmit = useCallback(async () => {
     const amount = parseMoney(value);
@@ -200,9 +203,10 @@ export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: 
           : {}),
       });
     }
+    await transactionCache?.invalidateAll();
     resetForm();
     onSuccess?.();
-  }, [isFeed, value, title, date, pipeId, spendMode, sentToPipeId, paidFromPipeId, onSuccess, resetForm, createTransaction]);
+  }, [isFeed, value, title, date, pipeId, spendMode, sentToPipeId, paidFromPipeId, onSuccess, resetForm, createTransaction, transactionCache]);
 
   const handleSubmit = useCallback(async () => {
     if (!isValid || loading) return;

@@ -200,13 +200,19 @@ these models.
 `PipeSelectionProvider` owns only selection state. Catalog-only consumers no
 longer subscribe to selection state. The Pipes route receives catalog,
 selection, and latest-transaction providers through `PipesProviders`; History
-receives only the catalog provider; Profile receives neither. The next
-13.3.1a is complete: same-title expense and transfer activity is grouped while
-transfers contribute zero to grouped totals, `paidFrom` participates in expense
+receives only the catalog provider; Profile receives neither. 13.3.0a is
+complete: same-title expense and transfer activity is grouped while transfers
+contribute zero to grouped totals, `paidFrom` participates in expense
 visibility, visible participating pipes drive the single-pipe versus
 `card-multiple` presentation, feeds remain separate, aggregate values drive row
-color, and newest-transaction repeat structure is preserved. The next frontend
-slice is
+color, and newest-transaction repeat structure is preserved.
+
+13.3.0b is complete: transaction snapshots are cache-first across app restarts.
+History seeds 100 rows and loads later pages in batches of 15 on explicit
+demand. The persistent cache stores every loaded row up to 300 unique
+transactions, uses separate scope snapshots for pipe selections, clears on
+explicit logout, and does not maintain live Convex subscriptions when a valid
+snapshot is available. The next frontend slice is
 13.3.1: move this feature behavior out of shared UI and continue thinning
 route orchestration.
 

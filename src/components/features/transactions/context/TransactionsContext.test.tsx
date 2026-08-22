@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import {
   TransactionsProvider,
   useTransactions,
@@ -10,8 +10,10 @@ import type { Id } from "@convex/_generated/dataModel";
 import type { PipeModel } from "@features/pipes/data/pipes";
 
 const mockUseQuery = vi.fn();
+const mockConvexQuery = vi.fn();
 vi.mock("convex/react", () => ({
   useQuery: (...args: unknown[]) => mockUseQuery(...args),
+  useConvex: () => ({ query: mockConvexQuery }),
 }));
 
 vi.mock("@convex/_generated/api", () => ({
@@ -26,8 +28,13 @@ vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
   usePipeCatalog: () => mockUsePipeSelection(),
 }));
 
+const mockUseTransactionCache = vi.fn();
+vi.mock("@features/transactions/cache/TransactionCacheContext", () => ({
+  useTransactionCache: () => mockUseTransactionCache(),
+}));
+
 function TestConsumer() {
-  const { transactions, isLoading, pipeIds } = useTransactions();
+  const { transactions, isLoading, pipeIds, refresh } = useTransactions();
   return (
     <div>
       <span data-testid="is-loading">
@@ -41,8 +48,9 @@ function TestConsumer() {
           ? "undefined"
           : pipeIds === null
             ? "null"
-            : pipeIds.join(",")}
+        : pipeIds.join(",")}
       </span>
+      <button onClick={refresh}>refresh</button>
     </div>
   );
 }
@@ -165,10 +173,61 @@ describe("getSubtreePipeIds", () => {
 describe("TransactionsProvider", () => {
   beforeEach(() => {
     mockUseQuery.mockReset();
+    mockConvexQuery.mockReset();
     mockUsePipeSelection.mockReset();
+    mockUseTransactionCache.mockReset();
+    mockUseTransactionCache.mockReturnValue({
+      cache: null,
+      isHydrating: false,
+      read: () => ({
+        transactions: [],
+        complete: false,
+        hasMore: false,
+        updatedAt: 0,
+      }),
+      replace: vi.fn(),
+    });
+    mockConvexQuery.mockResolvedValue([]);
   });
 
-  it("shows loading when allPipes is undefined", () => {
+  it("uses a complete selected-scope snapshot without opening a Convex query", async () => {
+    const cachedTransaction = {
+      id: "cached-1" as Id<"transactions">,
+      createdAt: 1,
+      title: "cached",
+      value: -100,
+      date: 1,
+      kind: "expense" as const,
+      from: "b" as Id<"pipes">,
+    };
+    mockUsePipeSelection.mockReturnValue({
+      allPipes: [pipe("a"), pipe("b", "a")],
+      childrenByParent: buildChildrenMap([pipe("a"), pipe("b", "a")]),
+      selectedPipePath: ["a" as Id<"pipes">],
+    });
+    mockUseTransactionCache.mockReturnValue({
+      isHydrating: false,
+      cache: {},
+      read: () => ({
+        transactions: [cachedTransaction],
+        complete: true,
+        hasMore: false,
+        updatedAt: 1,
+      }),
+    });
+
+    render(
+      <TransactionsProvider>
+        <TestConsumer />
+      </TransactionsProvider>,
+    );
+
+    expect(screen.getByTestId("transactions-count").textContent).toBe("1");
+    expect(mockUseQuery).not.toHaveBeenCalled();
+    expect(mockConvexQuery).not.toHaveBeenCalled();
+  });
+
+  it("shows loading when allPipes is undefined", async () => {
     mockUsePipeSelection.mockReturnValue({
       allPipes: undefined,
       childrenByParent: new Map(),
@@ -184,20 +243,42 @@ describe("TransactionsProvider", () => {
     expect(screen.getByTestId("is-loading").textContent).toBe("true");
     expect(screen.getByTestId("transactions-count").textContent).toBe("undefined");
     expect(screen.getByTestId("pipe-ids").textContent).toBe("undefined");
-    expect(mockUseQuery).toHaveBeenCalledWith(
-      expect.anything(),
-      "skip",
-    );
+    expect(mockConvexQuery).not.toHaveBeenCalled();
   });
 
-  it("passes null pipeIds when no pipe is selected", () => {
+  it("refreshes the current scope with one explicit query", async () => {
+    const pipes = [pipe("a"), pipe("b", "a")];
+    mockUsePipeSelection.mockReturnValue({
+      allPipes: pipes,
+      childrenByParent: buildChildrenMap(pipes),
+      selectedPipePath: ["a" as Id<"pipes">],
+    });
+    mockUseTransactionCache.mockReturnValue({
+      cache: {},
+      isHydrating: false,
+      read: () => ({ transactions: [], complete: true, hasMore: false, updatedAt: 1 }),
+      replace: vi.fn(),
+    });
+
+    render(
+      <TransactionsProvider>
+        <TestConsumer />
+      </TransactionsProvider>,
+    );
+    fireEvent.click(screen.getByText("refresh"));
+
+    await waitFor(() => expect(mockConvexQuery).toHaveBeenCalledWith(
+      expect.anything(),
+      { pipeIds: ["a", "b"] },
+    ));
+  });
+
+  it("passes null pipeIds when no pipe is selected", async () => {
     mockUsePipeSelection.mockReturnValue({
       allPipes: [pipe("a")],
       childrenByParent: new Map(),
       selectedPipePath: [],
     });
-
-    mockUseQuery.mockReturnValue(undefined);
 
     render(
       <TransactionsProvider>
@@ -206,13 +287,13 @@ describe("TransactionsProvider", () => {
     );
 
     expect(screen.getByTestId("pipe-ids").textContent).toBe("null");
-    expect(mockUseQuery).toHaveBeenCalledWith(
+    await waitFor(() => expect(mockConvexQuery).toHaveBeenCalledWith(
       expect.anything(),
-      { pipeIds: undefined },
-    );
+      {},
+    ));
   });
 
-  it("passes the selected parent and descendants", () => {
+  it("passes the selected parent and descendants", async () => {
     const pipes = [pipe("a"), pipe("b", "a"), pipe("c", "a")];
     const map = buildChildrenMap(pipes);
 
@@ -222,8 +303,6 @@ describe("TransactionsProvider", () => {
       selectedPipePath: ["a" as Id<"pipes">],
     });
 
-    mockUseQuery.mockReturnValue([]);
-
     render(
       <TransactionsProvider>
         <TestConsumer />
@@ -231,13 +310,13 @@ describe("TransactionsProvider", () => {
     );
 
     expect(screen.getByTestId("pipe-ids").textContent).toBe("a,b,c");
-    expect(mockUseQuery).toHaveBeenCalledWith(
+    await waitFor(() => expect(mockConvexQuery).toHaveBeenCalledWith(
       expect.anything(),
       { pipeIds: ["a", "b", "c"] },
-    );
+    ));
   });
 
-  it("passes [selectedPipeId] when a leaf pipe is selected", () => {
+  it("passes [selectedPipeId] when a leaf pipe is selected", async () => {
     const pipes = [pipe("a"), pipe("b", "a")];
     const map = buildChildrenMap(pipes);
 
@@ -247,8 +326,6 @@ describe("TransactionsProvider", () => {
       selectedPipePath: ["b" as Id<"pipes">],
     });
 
-    mockUseQuery.mockReturnValue([]);
-
     render(
       <TransactionsProvider>
         <TestConsumer />
@@ -256,9 +333,13 @@ describe("TransactionsProvider", () => {
     );
 
     expect(screen.getByTestId("pipe-ids").textContent).toBe("b");
+    await waitFor(() => expect(mockConvexQuery).toHaveBeenCalledWith(
+      expect.anything(),
+      { pipeIds: ["b"] },
+    ));
   });
 
-  it("exposes transactions from useQuery", () => {
+  it("exposes transactions from useQuery", async () => {
     mockUsePipeSelection.mockReturnValue({
       allPipes: [pipe("a")],
       childrenByParent: new Map(),
@@ -268,7 +349,7 @@ describe("TransactionsProvider", () => {
     const mockTxs = [
       { _id: "tx1", title: "test", value: -50, date: 1000, kind: "expense", from: "a" as Id<"pipes">, userId: "" as Id<"users">, _creationTime: 0 },
     ];
-    mockUseQuery.mockReturnValue(mockTxs);
+    mockConvexQuery.mockResolvedValue(mockTxs);
 
     render(
       <TransactionsProvider>
@@ -276,7 +357,9 @@ describe("TransactionsProvider", () => {
       </TransactionsProvider>,
     );
 
-    expect(screen.getByTestId("transactions-count").textContent).toBe("1");
-    expect(screen.getByTestId("is-loading").textContent).toBe("false");
+    await waitFor(() => {
+      expect(screen.getByTestId("transactions-count").textContent).toBe("1");
+      expect(screen.getByTestId("is-loading").textContent).toBe("false");
+    });
   });
 });

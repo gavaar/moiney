@@ -12,6 +12,7 @@ import { ModalShell } from "@ui/Modal";
 import { colors } from "@/lib/styles";
 import { useAlert } from "@ui/Alert";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
+import { useOptionalTransactionCache } from "@features/transactions/cache/TransactionCacheContext";
 
 type Props = {
   visible: boolean;
@@ -47,6 +48,7 @@ export function DeletePipeConfirmation({ visible, onClose, pipeId, onDeleted }: 
   const [deleteTransactions, setDeleteTransactions] = useState(false);
   const [jobId, setJobId] = useState<NonNullable<PipeModel["deletionJobId"]> | null>(null);
   const showAlert = useAlert();
+  const transactionCache = useOptionalTransactionCache();
   const startPipeDeletion = useMutation(api.pipes.startPipeDeletion);
   const deletionStatus = useQuery(
     api.pipes.getPipeDeletionStatus,
@@ -76,6 +78,7 @@ export function DeletePipeConfirmation({ visible, onClose, pipeId, onDeleted }: 
       );
       setJobId(null);
       setIsDeleting(false);
+      void transactionCache?.invalidateAll();
       onDeleted();
       onClose();
     }
@@ -86,12 +89,14 @@ export function DeletePipeConfirmation({ visible, onClose, pipeId, onDeleted }: 
     onClose,
     onDeleted,
     showAlert,
+    transactionCache,
   ]);
 
   const handleConfirm = async () => {
     setIsDeleting(true);
     try {
       const result = await startPipeDeletion({ pipeId, deleteTransactions });
+      await transactionCache?.invalidateAll();
       setJobId(result.jobId);
     } catch (error) {
       showAlert.error(`${error}`);

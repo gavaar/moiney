@@ -280,3 +280,21 @@ Missing and foreign transfer pipes use the same non-disclosing expected error.
 Invalid topology uses stable error codes for a non-root destination, a source
 with children, and a destination in the source tree. Valid transfers conserve
 integer cents and create one transaction and one title-usage update.
+
+## D014: Transaction Snapshot Cache
+
+Status: Implemented
+
+Transaction lists use an account-scoped persistent snapshot as a stale,
+read-only display source. A valid snapshot suppresses live Convex query
+subscriptions on app open. History seeds 100 rows and loads additional pages
+of 15 only after explicit demand. Every loaded transaction is persisted until
+the cache reaches 300 unique transaction entities, after which the least
+recently refreshed entries are evicted. History and selected-pipe scopes maintain
+separate ordered snapshots over the shared entity cache.
+
+The server remains authoritative. Explicit refresh, cache misses, and load-more
+requests use one-shot reads; cached rows are replaced or reconciled with the
+server result. Cached data is never used for authorization or mutation
+decisions. Explicit logout clears the active account's transaction cache, and
+cache entries are isolated by deployment and account identity.

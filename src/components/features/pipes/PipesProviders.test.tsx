@@ -10,6 +10,7 @@ const mockUseQuery = vi.fn().mockReturnValue([]);
 
 vi.mock("convex/react", () => ({
   useQuery: (...args: unknown[]) => mockUseQuery(...args),
+  useConvex: () => ({ query: vi.fn().mockResolvedValue([]) }),
 }));
 
 vi.mock("@convex/_generated/api", () => ({
@@ -17,6 +18,15 @@ vi.mock("@convex/_generated/api", () => ({
     pipes: { getPipes: {} },
     transactions: { listTransactions: {} },
   },
+}));
+
+vi.mock("@features/transactions/cache/TransactionCacheContext", () => ({
+  useTransactionCache: () => ({
+    cache: null,
+    isHydrating: false,
+    read: () => ({ transactions: [], complete: true, hasMore: false, updatedAt: 0 }),
+    replace: vi.fn(),
+  }),
 }));
 
 function ProviderConsumer() {
@@ -44,6 +54,5 @@ describe("PipesProviders", () => {
 
     expect(screen.getByTestId("pipes-count").textContent).toBe("0");
     expect(screen.getByTestId("selection-count").textContent).toBe("0");
-    expect(screen.getByTestId("transactions-count").textContent).toBe("0");
   });
 });

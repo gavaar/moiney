@@ -17,6 +17,7 @@ import {
 const PIPE_ID = "pipe-1" as Id<"pipes">;
 const mockCreateTransaction = vi.fn().mockResolvedValue(undefined);
 const mockEditTransactionFn = vi.fn().mockResolvedValue(undefined);
+const mockInvalidateAll = vi.fn().mockResolvedValue(undefined);
 
 const mockRecentTitles: string[] = [];
 vi.mock("convex/react", () => ({
@@ -81,6 +82,10 @@ vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
     pipesById: {},
     isLoading: false,
   }),
+}));
+
+vi.mock("@features/transactions/cache/TransactionCacheContext", () => ({
+  useOptionalTransactionCache: () => ({ invalidateAll: mockInvalidateAll }),
 }));
 
 vi.mock("@ui/Input", () => ({
@@ -395,6 +400,7 @@ describe("AmountForm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockRecentTitles.length = 0;
+    mockInvalidateAll.mockResolvedValue(undefined);
   });
 
   describe("variant='feed'", () => {
@@ -500,6 +506,7 @@ describe("AmountForm", () => {
 
       await waitFor(() => {
         expect(onSuccess).toHaveBeenCalled();
+        expect(mockInvalidateAll).toHaveBeenCalled();
       });
     });
 
