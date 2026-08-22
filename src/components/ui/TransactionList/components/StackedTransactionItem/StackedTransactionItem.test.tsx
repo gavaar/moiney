@@ -5,10 +5,45 @@ import { Animated } from "react-native";
 import { StackedTransactionItem } from "./StackedTransactionItem";
 import type { TransactionGroup } from "@features/transactions/groupTransactions";
 import type { Id } from "@convex/_generated/dataModel";
+import { colors } from "@/lib/styles";
+
+vi.mock("react-native", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react-native")>();
+  return {
+    ...actual,
+    Pressable: ({
+      accessibilityLabel,
+      accessibilityRole,
+      children,
+      onPress,
+      testID,
+      ...props
+    }: any) => (
+      <button
+        {...props}
+        aria-label={accessibilityLabel}
+        data-testid={testID}
+        onClick={onPress}
+        role={accessibilityRole}
+      >
+        {children}
+      </button>
+    ),
+  };
+});
+
+vi.mock("@/lib/styles", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/styles")>();
+  return {
+    ...actual,
+    cn: (...classes: unknown[]) => classes.filter(Boolean).join(" "),
+  };
+});
 
 const baseGroup: TransactionGroup = {
   id: '["expense","coffee","pipe-1",null]',
   kind: "expense",
+  isMixed: false,
   transactions: [
     {
       id: "tx1" as Id<"transactions">,
@@ -35,6 +70,7 @@ const baseGroup: TransactionGroup = {
   latestValue: -300,
   from: "pipe-1" as Id<"pipes">,
   to: undefined,
+  visiblePipeIds: ["pipe-1" as Id<"pipes">],
   oldestDate: new Date("2024-03-15").getTime(),
   latestDate: new Date("2024-03-20").getTime(),
 };
@@ -95,7 +131,53 @@ describe("StackedTransactionItem", () => {
         onToggle={vi.fn()}
       />,
     );
-    expect(screen.getAllByTestId("mock-icon")[0]).toBeDefined();
+    expect(screen.getAllByTestId("mock-icon")[0]).toMatchObject({
+      dataset: { name: "cart-outline", color: colors.muted },
+    });
+  });
+
+  it("uses the multi-pipe icon when multiple visible pipes participate", () => {
+    const group = {
+      ...baseGroup,
+      visiblePipeIds: ["pipe-1", "pipe-2"] as Id<"pipes">[],
+    };
+
+    render(
+      <StackedTransactionItem
+        group={group}
+        expanded={false}
+        onToggle={vi.fn()}
+      />,
+    );
+
+    const multiPipeIcon = screen
+      .getAllByTestId("mock-icon")
+      .find((icon) => icon.getAttribute("data-name") === "card-multiple");
+    expect(multiPipeIcon).toBeDefined();
+    expect(multiPipeIcon?.getAttribute("data-color")).toBe(colors.surface);
+  });
+
+  it.each([
+    ["negative", -100, "bg-error/30"],
+    ["positive", 100, "bg-success/30"],
+  ])("uses the aggregate value for %s group color", (_label, totalValue, expectedClass) => {
+    const group = {
+      ...baseGroup,
+      kind: "transfer" as const,
+      totalValue,
+    };
+
+    render(
+      <StackedTransactionItem
+        group={group}
+        expanded={false}
+        onToggle={vi.fn()}
+      />,
+    );
+
+    const main = screen.getByTestId("transaction-group-main");
+    expect(main.className).toContain(expectedClass);
+    expect(main.className).not.toContain("bg-accent/30");
   });
 
   it("renders the title capitalized", () => {
@@ -228,6 +310,35 @@ describe("StackedTransactionItem", () => {
     expect(screen.getAllByTestId("mock-icon")[0].getAttribute("data-name")).toBe("cart-outline");
     fireEvent.click(screen.getByText("Coffee"));
     expect(screen.getByText(/Preserved history is view-only/)).toBeDefined();
+  });
+
+  it("uses a deleted paidFrom icon when the payer is the visible pipe", () => {
+    mockUsePipeSelection.mockReturnValue({
+      pipesById: {},
+      childrenByParent: new Map(),
+    });
+    const group: TransactionGroup = {
+      ...baseGroup,
+      from: "outside" as Id<"pipes">,
+      visiblePipeIds: ["payer" as Id<"pipes">],
+      transactions: baseGroup.transactions.map((transaction) => ({
+        ...transaction,
+        from: "outside" as Id<"pipes">,
+        paidFrom: "payer" as Id<"pipes">,
+        paidFromIcon: "cash-outline",
+      })),
+    };
+
+    render(
+      <StackedTransactionItem
+        group={group}
+        expanded={false}
+        onToggle={vi.fn()}
+      />,
+    );
+
+    expect(screen.getAllByTestId("mock-icon")[0].getAttribute("data-name"))
+      .toBe("cash-outline");
   });
 
   it("does not open repeat for a group whose source pipe is being deleted", () => {

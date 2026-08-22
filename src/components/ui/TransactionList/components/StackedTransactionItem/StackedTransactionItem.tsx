@@ -77,16 +77,8 @@ export function StackedTransactionItem({
   };
   const bgClass = useMemo(() => {
     if (group.totalValue === 0) return "bg-surface";
-
-    switch(group.kind) {
-      case "feed":
-        return "bg-secondary/30";
-      case "transfer":
-        return "bg-accent/30";
-      case "expense":
-        return isNegative ? "bg-error/30" : "bg-primary/30";
-    }
-  }, [group.kind, isNegative]);
+    return isNegative ? "bg-error/30" : "bg-success/30";
+  }, [group.totalValue, isNegative]);
 
   const latestTransaction = group.transactions[0];
   const sourcePipe = group.from ? pipesById?.[group.from] : undefined;
@@ -96,20 +88,27 @@ export function StackedTransactionItem({
     to: group.transactions.find((transaction) => transaction.toIcon)?.toIcon,
     paidFrom: group.transactions.find((transaction) => transaction.paidFromIcon)?.paidFromIcon,
   };
-  const icons = {
-    from: {
-      name: sourcePipe?.icon ?? deletedIcons.from ?? "pipe-disconnected",
-      color: sourcePipe || deletedIcons.from ? colors.muted : colors.surface,
-    },
-    to: {
-      name: destPipe?.icon ?? deletedIcons.to ?? "pipe-disconnected",
-      color: destPipe || deletedIcons.to ? colors.muted : colors.surface,
-    },
-    paidFrom: {
-      name: deletedIcons.paidFrom ?? "pipe-disconnected",
-      color: deletedIcons.paidFrom ? colors.muted : colors.surface,
-    },
-  };
+  const visiblePipeId = group.visiblePipeIds[0];
+  const visiblePipe = visiblePipeId ? pipesById?.[visiblePipeId] : undefined;
+  const visibleDeletedIcon = visiblePipeId
+    ? group.transactions.reduce<string | undefined>((icon, transaction) => {
+        if (icon) return icon;
+        if (transaction.from === visiblePipeId) return transaction.fromIcon;
+        if (transaction.to === visiblePipeId) return transaction.toIcon;
+        if (transaction.paidFrom === visiblePipeId) return transaction.paidFromIcon;
+        return undefined;
+      }, undefined)
+    : undefined;
+  const groupIconName =
+    group.visiblePipeIds.length > 1
+      ? "card-multiple"
+      : visiblePipe?.icon ?? visibleDeletedIcon ?? "pipe-disconnected";
+  const groupIconColor =
+    group.visiblePipeIds.length > 1
+      ? colors.surface
+      : visiblePipe || visibleDeletedIcon
+        ? colors.muted
+        : colors.surface;
   const fromValid =
     !!sourcePipe &&
     !sourcePipe.deletionJobId &&
@@ -153,21 +152,10 @@ export function StackedTransactionItem({
           onPress={handlePress}
         >
           <Icon
-            name={safeIconName(group.kind === "feed" ? icons.to.name : icons.from.name)}
+            name={safeIconName(groupIconName)}
             size={16}
-            color={group.kind === "feed" ? icons.to.color : icons.from.color}
+            color={groupIconColor}
           />
-
-          {group.kind === "transfer" ? (
-            <>
-              <Icon
-                name={isNegative ? "ray-start-arrow" : "ray-end-arrow"}
-                size={14}
-                color={colors.muted}
-              />
-              <Icon name={safeIconName(icons.to.name)} size={16} color={icons.to.color} />
-            </>
-          ) : null}
 
           <Text
             className={cn(

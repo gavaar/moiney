@@ -28,7 +28,11 @@ export default function Pipes() {
   const open = useSharedValue(1);
   const { selectedName, selectedPipePath, selectPipe, deselectPipe } = usePipeSelection();
   const { feeds, isLoading } = usePipeCatalog();
-  const { transactions, isLoading: transactionLoading } = useTransactions();
+  const {
+    transactions,
+    isLoading: transactionLoading,
+    pipeIds,
+  } = useTransactions();
 
   useEffect(() => {
     open.value = withTiming(latestExpanded ? 1 : 0, { duration: 220 });
@@ -131,6 +135,7 @@ export default function Pipes() {
               <TransactionListWithHistory
                 transactions={transactions}
                 isLoading={transactionLoading}
+                visiblePipeIds={pipeIds ?? undefined}
               />
             </Animated.View>
           ) : null}

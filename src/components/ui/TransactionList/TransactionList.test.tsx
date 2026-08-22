@@ -88,6 +88,28 @@ describe("TransactionList", () => {
     expect(screen.getByText("x2")).toBeDefined();
   });
 
+  it("does not group transactions outside the visible pipe scope", () => {
+    const inScope = tx("tx-in-scope", {
+      title: "coffee",
+      from: "pipe-1" as Id<"pipes">,
+      date: 100,
+    });
+    const outsideScope = tx("tx-outside-scope", {
+      title: "coffee",
+      from: "pipe-2" as Id<"pipes">,
+      date: 200,
+    });
+
+    render(
+      <TransactionList
+        transactions={[inScope, outsideScope]}
+        visiblePipeIds={["pipe-1" as Id<"pipes">]}
+      />,
+    );
+
+    expect(screen.queryByText("x2")).toBeNull();
+  });
+
   it("shows empty state when no transactions", () => {
     render(<TransactionList transactions={[]} />);
     expect(screen.getByText("No transactions yet")).toBeDefined();

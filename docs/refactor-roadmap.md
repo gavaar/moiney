@@ -201,8 +201,14 @@ these models.
 longer subscribe to selection state. The Pipes route receives catalog,
 selection, and latest-transaction providers through `PipesProviders`; History
 receives only the catalog provider; Profile receives neither. The next
-frontend slice is 13.3: move feature behavior out of shared UI and continue
-thinning route orchestration.
+13.3.1a is complete: same-title expense and transfer activity is grouped while
+transfers contribute zero to grouped totals, `paidFrom` participates in expense
+visibility, visible participating pipes drive the single-pipe versus
+`card-multiple` presentation, feeds remain separate, aggregate values drive row
+color, and newest-transaction repeat structure is preserved. The next frontend
+slice is
+13.3.1: move this feature behavior out of shared UI and continue thinning
+route orchestration.
 
 ## Completed Accessibility Layout Work
 

@@ -213,7 +213,7 @@ describe("TransactionsProvider", () => {
   });
 
   it("passes the selected parent and descendants", () => {
-    const pipes = [pipe("b", "a"), pipe("c", "a")];
+    const pipes = [pipe("a"), pipe("b", "a"), pipe("c", "a")];
     const map = buildChildrenMap(pipes);
 
     mockUsePipeSelection.mockReturnValue({
@@ -230,11 +230,10 @@ describe("TransactionsProvider", () => {
       </TransactionsProvider>,
     );
 
-    expect(screen.getByTestId("pipe-ids").textContent).toContain("b");
-    expect(screen.getByTestId("pipe-ids").textContent).toContain("c");
+    expect(screen.getByTestId("pipe-ids").textContent).toBe("a,b,c");
     expect(mockUseQuery).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ pipeIds: expect.arrayContaining(["a" as Id<"pipes">, "b" as Id<"pipes">, "c" as Id<"pipes">]) }),
+      { pipeIds: ["a", "b", "c"] },
     );
   });
 

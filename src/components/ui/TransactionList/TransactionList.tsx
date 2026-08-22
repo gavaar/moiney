@@ -14,6 +14,7 @@ export type TransactionListProps = {
   onLoadMore?: () => void;
   loadMoreStatus?: "LoadingFirstPage" | "CanLoadMore" | "LoadingMore" | "Exhausted";
   onShowEditHistory?: (transactionId: TransactionModel["id"]) => void;
+  visiblePipeIds?: readonly NonNullable<TransactionModel["from"]>[];
 };
 
 export function TransactionList({
@@ -22,12 +23,13 @@ export function TransactionList({
   onLoadMore,
   loadMoreStatus,
   onShowEditHistory,
+  visiblePipeIds,
 }: TransactionListProps) {
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
 
   const grouped = useMemo(
-    () => (transactions ? groupTransactions(transactions) : []),
-    [transactions],
+    () => (transactions ? groupTransactions(transactions, visiblePipeIds) : []),
+    [transactions, visiblePipeIds],
   );
 
   const flatItems = useMemo(

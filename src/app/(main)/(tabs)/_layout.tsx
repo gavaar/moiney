@@ -14,7 +14,7 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen
-        name="pipes/index"
+        name="pipes"
         options={{
           title: "Pipes",
           tabBarIcon: ({ color, size }) => (

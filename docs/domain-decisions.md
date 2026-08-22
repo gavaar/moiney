@@ -169,12 +169,21 @@ separate kind. Refunds retain the same structural kind and reverse monetary
 polarity.
 
 Expense grouping intentionally ignores `paidFrom`; matching ordinary and
-pay-by-transfer expenses group together across dates. Group identity includes
-kind, title, `from`, and `to` through a collision-free encoding; transaction
-value and `paidFrom` are not identity fields. A collapsed group displays the
-signed sum of the loaded transactions and uses the newest transaction's value
-for the generic repeat form. Expanding the group exposes individual
-transactions that preserve their payer and values.
+pay-by-transfer expenses group together across dates. Expense and transfer
+activity now share a title-based group, while feeds retain their structural
+feed identity. A group is evaluated against the currently visible pipe scope:
+an expense contributes its value when its logical `from` or `paidFrom` pipe is
+visible, while a transfer contributes zero because its value duplicates the
+corresponding expense activity. Transactions with no visible logical pipe are
+excluded from the scoped group.
+
+Collapsed groups retain the newest transaction's structure for the generic
+repeat form and expose the scope-visible participating pipes. One visible pipe
+uses its icon; multiple visible pipes use the `card-multiple` icon. Transaction
+value is not an identity field, and `paidFrom` is not an identity field but does
+count as a participating pipe for scoped visibility and icon selection.
+Expanding the group exposes individual transactions that preserve their payer
+and values.
 
 Transaction titles are canonicalized with `trim().toLowerCase()` before
 persistence and title-usage indexing. Whitespace-only titles are rejected.
