@@ -213,8 +213,12 @@ demand. The persistent cache stores every loaded row up to 300 unique
 transactions, uses separate scope snapshots for pipe selections, clears on
 explicit logout, and does not maintain live Convex subscriptions when a valid
 snapshot is available. The next frontend slice is
-13.3.1: move this feature behavior out of shared UI and continue thinning
-route orchestration.
+13.3.0c is complete: current-cycle L2S uses `fed - spent`, external pending
+adjustments remain outside that calculation, the existing external-adjustment
+chip explains the signed settlement amount, and pipe bars show pending
+adjustments as accent overlays without changing the raw fed value. The next
+frontend slice is 13.3.1: move this feature behavior out of shared UI and
+continue thinning route orchestration.
 
 ## Completed Accessibility Layout Work
 

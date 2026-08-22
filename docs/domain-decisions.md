@@ -243,6 +243,10 @@ Therefore:
   both `spent` and `pendingFedAdjustment`.
 - Capacity updates continue to use logical `spent`, not the pending liquidity
   adjustment.
+- The current-cycle L2S presentation is `fed - spent` and intentionally ignores
+  `pendingFedAdjustment`. The external adjustment is shown separately because
+  it describes settlement that will affect `fed` when the rule runs, not
+  additional current-cycle spending capacity.
 - Pipe-tree projections aggregate pending adjustments, deletion balances use
   them, and the detailed pipe statistics expose nonzero values as an external
   settlement indicator.

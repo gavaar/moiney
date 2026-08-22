@@ -25,6 +25,39 @@ describe("PipeBars", () => {
     expect(screen.getByTestId("bar-fed-fill")).toBeDefined();
   });
 
+  it("overlays a positive external adjustment at the beginning of the fed bar", () => {
+    render(
+      <PipeBars
+        fed={5000}
+        spent={4500}
+        capacity={5000}
+        pendingFedAdjustment={500}
+      />,
+    );
+
+    const adjustment = screen.getByTestId("bar-fed-adjustment-fill");
+    expect(adjustment.style.backgroundColor).toBe(toRgb(colors.accent));
+    expect(adjustment.style.left).toBe("0%");
+    expect(adjustment.style.width).toBe("10%");
+    expect(screen.queryByText("55.00")).toBeNull();
+  });
+
+  it("overlays a negative external adjustment at the end of the fed bar", () => {
+    render(
+      <PipeBars
+        fed={15000}
+        spent={14415}
+        capacity={15000}
+        pendingFedAdjustment={-900}
+      />,
+    );
+
+    const adjustment = screen.getByTestId("bar-fed-adjustment-fill");
+    expect(adjustment.style.backgroundColor).toBe(toRgb(colors.accent));
+    expect(adjustment.style.left).toBe("94%");
+    expect(adjustment.style.width).toBe("6%");
+  });
+
   it("renders spent bar with red fill when positive", () => {
     render(<PipeBars fed={150000} spent={120000} capacity={200000} />);
     const fill = screen.getByTestId("bar-spent-fill");
@@ -39,11 +72,20 @@ describe("PipeBars", () => {
 
   it("renders capacity bar with a dashed line", () => {
     render(<PipeBars fed={150000} spent={120000} capacity={200000} />);
-    expect(screen.getByTestId("bar-capacity-fill").style.borderTopStyle).toBe("dashed");
+    expect(screen.getByTestId("bar-capacity-fill").style.borderTopStyle).toBe(
+      "dashed",
+    );
   });
 
   it("hides the spent bar when rule is instant_settlement", () => {
-    render(<PipeBars fed={150000} spent={0} capacity={200000} rule="instant_settlement" />);
+    render(
+      <PipeBars
+        fed={150000}
+        spent={0}
+        capacity={200000}
+        rule="instant_settlement"
+      />,
+    );
     expect(screen.queryByText("spent")).toBeNull();
     expect(screen.queryByTestId("bar-spent-fill")).toBeNull();
     expect(screen.getByTestId("bar-fed-fill")).toBeDefined();
@@ -51,7 +93,14 @@ describe("PipeBars", () => {
   });
 
   it("shows the spent bar when rule is spend_overflow", () => {
-    render(<PipeBars fed={150000} spent={120000} capacity={200000} rule="spend_overflow" />);
+    render(
+      <PipeBars
+        fed={150000}
+        spent={120000}
+        capacity={200000}
+        rule="spend_overflow"
+      />,
+    );
     expect(screen.getByTestId("bar-spent-fill")).toBeDefined();
   });
 });

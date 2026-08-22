@@ -59,6 +59,7 @@ export function InnerPipesScreen() {
           fed={fed}
           spent={spent}
           capacity={capacity}
+          pendingFedAdjustment={pendingFedAdjustment}
           rule={selectedPipe?.rule}
         />
         <View className="flex-row items-center gap-2 px-5 pb-2">
@@ -86,7 +87,7 @@ export function InnerPipesScreen() {
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={{ flexGrow: 1 }}
           >
-           <AmountForm pipeId={selectedPipe.id} variant="spend" />
+            <AmountForm pipeId={selectedPipe.id} variant="spend" />
           </ScrollView>
         ) : null}
         <PipesList
