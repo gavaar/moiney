@@ -31,7 +31,7 @@ This roadmap persists the whole-project audit beyond any single chat session. Wo
 | 10. Financial mutation semantics | Completed | Define corrections, rule effects, idempotency, and accounting projections | Updates 8-9 |
 | 11. Convex model boundaries | Completed | Make registered functions thin, validated, authorized wrappers over deep model operations | Updates 1-3, 8-10 |
 | 12. Bounded backend work | Completed | Scope recascade, batch cleanup/crons/deletion, and index hot transaction queries | Updates 6, 10-11 plus measurements |
-| 13. Frontend ownership | In progress | Normalize backend models, narrow contexts/subscriptions, restore dependency direction, and move feature behavior out of shared UI and route files | Updates 5, 8, 11 |
+| 13. Frontend ownership | Completed | Normalize backend models, narrow contexts/subscriptions, restore dependency direction, and move feature behavior out of shared UI and route files | Updates 5, 8, 11 |
 | 14. Complex component refactors | Pending | Refactor AmountForm, RuleModal, PipeTreeView, and transaction rows internally by responsibility after their ownership boundaries are established | Updates 5, 8, 13 |
 | 15. Measured runtime performance | Pending | Profile and improve virtualization, subscriptions, startup, icons, and repeated modals | Updates 12-14 |
 | 16. Maintenance hardening | Pending | Accessibility, observability, dependencies, dead APIs, behavioral tests, and documentation | Prior updates as applicable |
@@ -212,13 +212,11 @@ History seeds 100 rows and loads later pages in batches of 15 on explicit
 demand. The persistent cache stores every loaded row up to 300 unique
 transactions, uses separate scope snapshots for pipe selections, clears on
 explicit logout, and does not maintain live Convex subscriptions when a valid
-snapshot is available. The next frontend slice is
-13.3.0c is complete: current-cycle L2S uses `fed - spent`, external pending
+snapshot is available. 13.3.0c is complete: current-cycle L2S uses `fed - spent`, external pending
 adjustments remain outside that calculation, the existing external-adjustment
 chip explains the signed settlement amount, and pipe bars show pending
 adjustments as accent overlays without changing the raw fed value. The next
-frontend slice is 13.3.1: move this feature behavior out of shared UI and
-continue thinning route orchestration.
+frontend ownership slice was 13.3.1.
 
 13.3.1 is complete: transaction presentation moved from `src/components/ui`
 to `src/components/features/transactions/components` with its behavioral tests,
@@ -231,9 +229,10 @@ cache, pagination, provider, and accessibility behavior remained unchanged.
 `PipesList` consumes the feature-owned barrel without changing presentation or
 selection behavior. 13.3.4 is complete: `ScreenHeader` is now a generic
 slot-based primitive, `AppScreenHeader` owns `MoineyVers`, and main/auth
-consumers no longer make the shared header import feature behavior. The
-remaining ownership slice is 13.3.5 for moving login/sign-up screen logic and
-auth adapters out of route files. Internal transaction-row decomposition and
+consumers no longer make the shared header import feature behavior. 13.3.5 is
+complete: login and sign-up logic now lives in feature-owned screens, username
+availability is behind a feature auth adapter, and auth routes are thin
+re-exports. Update 13 is complete; internal transaction-row decomposition and
 animation migration remain in Update 14.
 
 ## Completed Accessibility Layout Work

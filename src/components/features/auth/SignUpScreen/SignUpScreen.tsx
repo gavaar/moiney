@@ -1,0 +1,156 @@
+import { Text, View } from "react-native";
+import { Button } from "@ui/Button";
+import { Input } from "@ui/Input";
+import { useAuth } from "@/lib/auth";
+import { useForm } from "@/lib/forms";
+import { useDebounce } from "@/lib/hooks";
+import { AuthScreenLayout } from "@ui/AuthScreenLayout";
+import { Link } from "expo-router";
+import { useState } from "react";
+import { colors } from "@/lib/styles";
+import { MoineyVers } from "@features/app/AppScreenHeader";
+import { useUsernameAvailability } from "@features/auth/data/auth";
+
+export function SignUpScreen() {
+  const [showPassword, setShowPassword] = useState(false);
+  const [showRepeatPassword, setShowRepeatPassword] = useState(false);
+  const { signUp } = useAuth();
+
+  const { values, setField, errors, loading, handleSubmit, validateField } = useForm({
+    initialValues: {
+      username: "",
+      email: "",
+      password: "",
+      repeatPassword: "",
+    },
+    validate: (v) => {
+      const e: Record<string, string> = {};
+      if (!v.username.trim()) e.username = "Username is required";
+      if (!v.email) e.email = "Email is required";
+      else if (!/\S+@\S+\.\S+/.test(v.email)) e.email = "Invalid email";
+      if (!v.password) e.password = "Password is required";
+      else if (v.password.length < 8)
+        e.password = "Password must be at least 8 characters";
+      if (v.password !== v.repeatPassword)
+        e.repeatPassword = "Passwords do not match";
+      return e;
+    },
+    onSubmit: async (v) => {
+      await signUp(v.username, v.email, v.password);
+    },
+  });
+
+  const debouncedUsername = useDebounce(values.username, 400);
+
+  const usernameToCheck =
+    debouncedUsername.trim().length >= 1 && !loading
+      ? debouncedUsername
+      : undefined;
+
+  const usernameAvailable = useUsernameAvailability(usernameToCheck);
+
+  let usernameStatus: "checking" | "available" | "unavailable" | undefined;
+  if (usernameToCheck) {
+    if (usernameAvailable === undefined) {
+      usernameStatus = "checking";
+    } else if (usernameAvailable) {
+      usernameStatus = "available";
+    } else {
+      usernameStatus = "unavailable";
+    }
+  }
+
+  const showAsyncError =
+    usernameStatus === "unavailable" && values.username === debouncedUsername;
+  const asyncUsernameError = showAsyncError
+    ? "Username is already taken"
+    : undefined;
+  const usernameError = errors.username || asyncUsernameError;
+
+  const hasEmptyFields =
+    !values.username.trim() ||
+    !values.email ||
+    !values.password ||
+    !values.repeatPassword;
+  const { form: _formError, ...fieldErrors } = errors;
+  const hasClientErrors = Object.keys(fieldErrors).length > 0;
+  const hasCurrentUsernameAvailability =
+    values.username === debouncedUsername && usernameStatus === "available";
+  const canSubmit =
+    !hasEmptyFields && !hasClientErrors && hasCurrentUsernameAvailability && !loading;
+
+  return (
+    <AuthScreenLayout
+      title="Create Account"
+      subtitle="Start tracking your finances"
+      footer={
+        <View className="items-center">
+          <Link
+            href="/login"
+            replace
+            style={{ color: colors.secondary }}
+            className="text-sm font-medium"
+          >
+            Already have an account? Sign In
+          </Link>
+          < MoineyVers />
+        </View>
+      }
+    >
+      <Input
+        label="Username"
+        placeholder="Choose a username"
+        value={values.username}
+        onChangeText={(v) => setField("username", v)}
+        autoCapitalize="none"
+        autoCorrect={false}
+        error={usernameError}
+        status={values.username ? usernameStatus : undefined}
+      />
+      <Input
+        label="Email"
+        placeholder="Enter your email"
+        value={values.email}
+        onChangeText={(v) => setField("email", v)}
+        onBlur={() => validateField("email")}
+        autoCapitalize="none"
+        autoCorrect={false}
+        keyboardType="email-address"
+        error={errors.email}
+      />
+      <Input
+        label="Password"
+        placeholder="At least 8 characters"
+        value={values.password}
+        onChangeText={(v) => setField("password", v)}
+        onBlur={() => validateField("password")}
+        secureTextEntry={!showPassword}
+        endIcon={showPassword ? "eye-off" : "eye"}
+        onEndIconPress={() => setShowPassword((v) => !v)}
+        error={errors.password}
+      />
+      <Input
+        label="Repeat Password"
+        placeholder="Confirm your password"
+        value={values.repeatPassword}
+        onChangeText={(v) => setField("repeatPassword", v)}
+        onBlur={() => validateField("repeatPassword")}
+        secureTextEntry={!showRepeatPassword}
+        endIcon={showRepeatPassword ? "eye-off" : "eye"}
+        onEndIconPress={() => setShowRepeatPassword((v) => !v)}
+        error={errors.repeatPassword}
+      />
+
+      {errors.form ? (
+        <Text className="text-sm text-error">{errors.form}</Text>
+      ) : null}
+
+      <Button
+        title="Create Account"
+        loading={loading}
+        disabled={!canSubmit}
+        onPress={handleSubmit}
+      />
+    </AuthScreenLayout>
+  );
+}

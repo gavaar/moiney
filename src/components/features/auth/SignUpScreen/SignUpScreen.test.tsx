@@ -2,16 +2,16 @@
 
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import SignUp from "@/app/(auth)/sign-up";
+import { SignUpScreen } from "./SignUpScreen";
 
 const mocks = vi.hoisted(() => ({
   availability: undefined as boolean | undefined,
   signUp: vi.fn(),
-  useQuery: vi.fn(),
+  useUsernameAvailability: vi.fn(),
 }));
 
-vi.mock("convex/react", () => ({
-  useQuery: mocks.useQuery,
+vi.mock("@features/auth/data/auth", () => ({
+  useUsernameAvailability: mocks.useUsernameAvailability,
 }));
 
 vi.mock("@/lib/auth", () => ({
@@ -48,8 +48,8 @@ describe("SignUp", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     mocks.availability = undefined;
-    mocks.useQuery.mockImplementation((_query, args) =>
-      args === "skip" ? undefined : mocks.availability,
+    mocks.useUsernameAvailability.mockImplementation((username) =>
+      username ? mocks.availability : undefined,
     );
   });
 
@@ -59,14 +59,14 @@ describe("SignUp", () => {
   });
 
   it("disables submission until the current username has been checked", () => {
-    const view = render(<SignUp />);
+    const view = render(<SignUpScreen />);
 
     fireEvent.change(screen.getByLabelText("Username"), {
       target: { value: "alice" },
     });
     act(() => vi.advanceTimersByTime(400));
     mocks.availability = true;
-    view.rerender(<SignUp />);
+    view.rerender(<SignUpScreen />);
 
     fireEvent.change(screen.getByLabelText("Email"), {
       target: { value: "alice@example.com" },
@@ -89,13 +89,13 @@ describe("SignUp", () => {
   });
 
   it("does not check a whitespace-only username for availability", () => {
-    render(<SignUp />);
+    render(<SignUpScreen />);
 
     fireEvent.change(screen.getByLabelText("Username"), {
       target: { value: "   " },
     });
     act(() => vi.advanceTimersByTime(400));
 
-    expect(mocks.useQuery.mock.calls.at(-1)?.[1]).toBe("skip");
+    expect(mocks.useUsernameAvailability.mock.calls.at(-1)?.[0]).toBeUndefined();
   });
 });
