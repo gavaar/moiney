@@ -27,8 +27,8 @@ vi.mock("expo-router/react-navigation", () => ({
   useFocusEffect: mocks.useFocusEffect,
 }));
 
-vi.mock("@ui/ScreenHeader/ScreenHeader", () => ({
-  ScreenHeader: ({ right }: { right: React.ReactNode }) => <div>{right}</div>,
+vi.mock("@features/app/AppScreenHeader", () => ({
+  AppScreenHeader: ({ right }: { right: React.ReactNode }) => <div>{right}</div>,
 }));
 vi.mock("@ui/SlideToggle", () => ({
   SlideToggle: ({ onChange, value }: { onChange: (v: string) => void; value: string }) => (

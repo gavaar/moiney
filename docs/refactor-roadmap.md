@@ -225,15 +225,16 @@ to `src/components/features/transactions/components` with its behavioral tests,
 while grouping, repeat, edit-history, deleted-history, and accessibility
 behavior remained unchanged. 13.3.2 is complete: Pipes and History route files
 now only compose feature-owned screens; their mode, collapse, back-navigation,
-cache, pagination, provider, and accessibility behavior remained unchanged. The
+cache, pagination, provider, and accessibility behavior remained unchanged.
 13.3.3 is complete:
 `PipeBox`, `Liquidity`, and `MiniChildBox` now live under the pipes feature and
 `PipesList` consumes the feature-owned barrel without changing presentation or
-selection behavior. The remaining ownership slices are planned as 13.3.4 for
-separating release/update behavior from the generic `ScreenHeader`, and 13.3.5
-for moving login/sign-up screen logic and auth adapters out of route files.
-Internal transaction-row decomposition and animation migration remain in Update
-14.
+selection behavior. 13.3.4 is complete: `ScreenHeader` is now a generic
+slot-based primitive, `AppScreenHeader` owns `MoineyVers`, and main/auth
+consumers no longer make the shared header import feature behavior. The
+remaining ownership slice is 13.3.5 for moving login/sign-up screen logic and
+auth adapters out of route files. Internal transaction-row decomposition and
+animation migration remain in Update 14.
 
 ## Completed Accessibility Layout Work
 
@@ -244,7 +245,10 @@ section when Update 16 is marked Completed.**
 - The leaf `AmountForm` in `InnerPipesScreen` scrolls within its bounded region so expanding `Paid from another pipe?` no longer bleeds into the Latest transactions section.
 - The Latest transactions section is collapsible. The title row is a full-width `bg-surface` bar (accessible disclosure button, `expanded` state) that defaults to open; when collapsed the pipe area reclaims the vertical space. The chevron rotates with `react-native-reanimated` (`LinearTransition` + `FadeInDown`/`FadeOutUp`). The pipe area and transaction section both carry a layout transition so the collapse animates both regions together instead of snapping the feed list. In tree view the section is minimized (collapsed) rather than removed: switching to tree collapses it and switching back to list view re-opens it.
 
-Verified with behavioral tests in `src/app-tests/main/pipes.test.tsx` and a source-structure layout assertion in `PipeTreeView.test.tsx` (matching the `AddPipeModal.test.tsx` precedent). Full suite and type check are green.
+Verified with behavioral tests in
+`src/components/features/pipes/PipesScreen/PipesScreen.test.tsx` and a
+source-structure layout assertion in `PipeTreeView.test.tsx` (matching the
+`AddPipeModal.test.tsx` precedent). Full suite and type check are green.
 
 ## Animation Approach
 

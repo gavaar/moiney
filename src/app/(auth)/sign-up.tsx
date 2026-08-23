@@ -10,7 +10,7 @@ import { AuthScreenLayout } from "@ui/AuthScreenLayout";
 import { Link } from "expo-router";
 import { useState } from "react";
 import { colors } from "@/lib/styles";
-import { MoineyVers } from '@/components/features/components/MoineyVers';
+import { MoineyVers } from "@features/app/AppScreenHeader";
 
 export default function SignUp() {
   const [showPassword, setShowPassword] = useState(false);

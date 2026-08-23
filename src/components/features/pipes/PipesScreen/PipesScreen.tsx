@@ -10,7 +10,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ScreenHeader } from "@ui/ScreenHeader/ScreenHeader";
+import { AppScreenHeader } from "@features/app/AppScreenHeader";
 import { SlideToggle } from "@ui/SlideToggle";
 import { Icon } from "@ui/Icon";
 import { colors } from "@/lib/styles";
@@ -65,8 +65,8 @@ export function PipesScreen() {
   );
 
   return (
-    <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-background px-4 pb-1">
-      <ScreenHeader
+    <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-background pb-1">
+      <AppScreenHeader
         title="Pipes"
         right={
           <SlideToggle
@@ -84,6 +84,7 @@ export function PipesScreen() {
       />
 
       <Animated.View
+        className="px-4"
         style={{ flex: 2 }}
         layout={LinearTransition.duration(220)}
       >
@@ -106,6 +107,7 @@ export function PipesScreen() {
       </Animated.View>
 
       <Animated.View
+        className="px-4"
         layout={LinearTransition.duration(220)}
         style={{ flex: latestExpanded ? 1 : 0, overflow: "hidden" }}
       >
