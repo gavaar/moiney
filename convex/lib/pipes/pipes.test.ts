@@ -2,8 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import {
   collectChildSubtree,
   executePipeRule,
-  recalcPipeSubtree,
   recascadeTree,
+  reconcileAffectedPipeRoots,
   resolveTopMostAncestor,
 } from "./pipes";
 import {
@@ -21,6 +21,42 @@ import {
 } from "../../../domain/scheduling";
 
 describe("recascadeTree deletion safety", () => {
+  it("skips patches when every fed value already matches", async () => {
+    const patch = vi.fn();
+    const ctx = {
+      db: {
+        query: vi.fn(() => ({
+          withIndex: vi.fn(() => ({
+            collect: vi.fn().mockResolvedValue([
+              {
+                _id: "root",
+                userId: "user-1",
+                priority: 0,
+                capacity: 0,
+                fed: 0,
+                spent: 0,
+              },
+              {
+                _id: "child",
+                userId: "user-1",
+                parentId: "root",
+                priority: 0,
+                capacity: 100,
+                fed: 100,
+                spent: 0,
+              },
+            ]),
+          })),
+        })),
+        patch,
+      },
+    } as any;
+
+    await recascadeTree(ctx, "user-1" as any);
+
+    expect(patch).not.toHaveBeenCalled();
+  });
+
   it("rejects before patching when a user pipe is being deleted", async () => {
     const patch = vi.fn();
     const ctx = {
@@ -62,9 +98,9 @@ describe("recascadeTree deletion safety", () => {
       },
     } as any;
 
-    await expect(recalcPipeSubtree(ctx, "root" as any)).rejects.toThrow(
-      "Pipe is being deleted",
-    );
+    await expect(
+      reconcileAffectedPipeRoots(ctx, ["root" as any]),
+    ).rejects.toThrow("Pipe is being deleted");
     expect(patch).not.toHaveBeenCalled();
   });
 });
@@ -767,13 +803,17 @@ describe("recalculatePipes", () => {
 });
 
 function makeDb(docs: Record<string, any>) {
-  const patch = vi.fn(async (id: any, p: any) => {
+  const patch = vi.fn(async (...args: any[]) => {
+    const [id, p] = args.length === 3 ? args.slice(1) : args;
     docs[id] = { ...docs[id], ...p };
   });
   let field: string | undefined;
   let value: unknown;
   const db = {
-    get: async (id: any) => (id in docs ? docs[id] : null),
+    get: async (tableOrId: any, maybeId?: any) => {
+      const id = maybeId ?? tableOrId;
+      return id in docs ? docs[id] : null;
+    },
     patch,
     query: () => {
       const builder = {
@@ -836,7 +876,7 @@ describe("collectChildSubtree", () => {
   });
 });
 
-describe("recalcPipeSubtree", () => {
+describe("reconcileAffectedPipeRoots", () => {
   function pipe(id: string, parentId: any, fed: number, capacity?: number, priority = 0) {
     return { _id: id, parentId, fed, capacity, priority };
   }
@@ -853,7 +893,7 @@ describe("recalcPipeSubtree", () => {
     };
     const { db, patch } = makeDb(docs);
 
-    await recalcPipeSubtree({ db } as any, "home" as any);
+    await reconcileAffectedPipeRoots({ db } as any, ["home" as any]);
 
     const fed = new Map<string, number>();
     for (const [id, d] of Object.entries(docs)) fed.set(id, d.fed);
@@ -867,7 +907,9 @@ describe("recalcPipeSubtree", () => {
     expect(fed.get("dumb")).toBe(400);
 
     // unrelated tree ("z") patched zero times
-    const patchedIds = patch.mock.calls.map((c) => c[0]);
+    const patchedIds = patch.mock.calls.map((call) =>
+      call.length === 3 ? call[1] : call[0],
+    );
     expect(patchedIds).not.toContain("z");
   });
 
@@ -878,7 +920,33 @@ describe("recalcPipeSubtree", () => {
     };
     const { db, patch } = makeDb(docs);
 
-    await recalcPipeSubtree({ db } as any, "b" as any);
+    await reconcileAffectedPipeRoots({ db } as any, ["b" as any]);
+
+    expect(patch).not.toHaveBeenCalled();
+  });
+});
+
+describe("reconcileAffectedPipeRoots multi-root validation", () => {
+  it("validates every affected tree before reconciliation patches", async () => {
+    const docs: Record<string, any> = {
+      source: { _id: "source", priority: 0, fed: 100 },
+      destination: { _id: "destination", priority: 0, fed: 100 },
+      frozenChild: {
+        _id: "frozenChild",
+        parentId: "destination",
+        priority: 0,
+        fed: 0,
+        deletionJobId: "job-1",
+      },
+    };
+    const { db, patch } = makeDb(docs);
+
+    await expect(
+      reconcileAffectedPipeRoots(
+        { db } as any,
+        ["source" as any, "destination" as any],
+      ),
+    ).rejects.toThrow("Pipe is being deleted");
 
     expect(patch).not.toHaveBeenCalled();
   });
@@ -1145,7 +1213,7 @@ describe("executePipeRule", () => {
 
     await executePipeRule(ctx, "pipe-1" as any);
 
-    expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+    expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
       fed: 300,
       spent: 0,
     });
@@ -1168,7 +1236,7 @@ describe("executePipeRule", () => {
 
       await executePipeRule(ctx, "pipe-1" as any);
 
-      expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
         fed: fedExpected,
         spent: 0,
         capacity: capacityExpected,
@@ -1187,7 +1255,7 @@ describe("executePipeRule", () => {
 
     await executePipeRule(ctx, "pipe-1" as any);
 
-    expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+    expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
       fed: 300,
       spent: 0,
       capacity: 900,
@@ -1208,7 +1276,7 @@ describe("executePipeRule", () => {
 
     await executePipeRule(ctx, "pipe-1" as any);
 
-    expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+    expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
       fed: 300,
       spent: 0,
       capacity: 900,
@@ -1231,7 +1299,7 @@ describe("executePipeRule", () => {
       now: Date.UTC(2026, 5, 15, 13),
     });
 
-    expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+    expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
       fed: 300,
       spent: 0,
       cronNextDate: Date.UTC(2026, 5, 16, 5),

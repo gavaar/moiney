@@ -6,6 +6,7 @@ import { colors } from "@/lib/styles";
 import { formatAmount } from "@/lib/format";
 import { getDaysInMonth } from "@/lib/dates";
 import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
+import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -40,7 +41,8 @@ export function StatisticsRow({ fed, spent, pendingFedAdjustment = 0 }: Props) {
   const stmpdRef = useRef<View>(null);
   const cronRef = useRef<View>(null);
   const externalRef = useRef<View>(null);
-  const { selectedPipePath, pipesById } = usePipeSelection();
+  const { selectedPipePath } = usePipeSelection();
+  const { pipesById } = usePipeCatalog();
 
   const selectedId =
     selectedPipePath.length > 0
@@ -57,7 +59,7 @@ export function StatisticsRow({ fed, spent, pendingFedAdjustment = 0 }: Props) {
     () => [
       {
         label: "L2S",
-        value: fed + pendingFedAdjustment - spent,
+        value: fed - spent,
         title: "Left to spend (L2S)",
         description: "How much left can be spent from this pipe at the moment",
         ref: l2sRef,
@@ -100,8 +102,8 @@ export function StatisticsRow({ fed, spent, pendingFedAdjustment = 0 }: Props) {
                   : "Refunded elsewhere",
               description:
                 pendingFedAdjustment > 0
-                  ? "This spending was paid from another pipe but still belongs to this pipe."
-                  : "This refund was received by another pipe but still reduces spending here.",
+                  ? `This spending counts toward this pipe, but another pipe paid for it. The next rule run will add ${formatAmount(Math.abs(pendingFedAdjustment))} to this pipe's fed balance.`
+                  : `This refund reduces this pipe's spending, but another pipe received it. The next rule run will subtract ${formatAmount(Math.abs(pendingFedAdjustment))} from this pipe's fed balance.`,
               icon: "swap-horizontal-outline" as IconName,
               ref: externalRef,
               external: true,

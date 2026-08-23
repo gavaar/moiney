@@ -1,28 +1,26 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { internalMutation, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import {
   paginationOptsValidator,
   paginationResultValidator,
 } from "convex/server";
+import type { Doc, Id } from "./_generated/dataModel";
+import type { QueryCtx } from "./_generated/server";
 import { requireAuth } from "./lib/auth";
-import { updateOrCreateTitleUsage } from "./lib/transactions";
 import {
-  executePipeRule,
-  recascadeTree,
-  resolveTopMostAncestor,
-} from "./lib/pipes";
-import {
-  canonicalizeTransactionTitle,
-  deriveTransactionKind,
-  transactionAccountingEffects,
   transactionRoleNames,
+  type TransactionRole,
 } from "../domain/transactions";
-import { validateTransactionAmount } from "../domain/money";
-import { shouldTriggerPipeRule } from "../domain/pipes";
+import {
+  createTransactionOperation,
+  editTransactionOperation,
+} from "./lib/transactions/operations";
+import { MAX_PIPES_PER_USER } from "./lib/constants";
 
 const TITLE_USAGE_RETENTION_MS = 365 * 24 * 60 * 60 * 1000;
 const TITLE_USAGE_CLEANUP_BATCH_SIZE = 100;
+const RECENT_TRANSACTION_LIMIT = 12;
 const correctionSnapshot = v.object({
   title: v.string(),
   value: v.number(),
@@ -35,26 +33,76 @@ const correctionHistoryItem = v.object({
   current: correctionSnapshot,
 });
 
-function transactionsQuery(
-  ctx: any,
-  userId: string,
-  pipeIds: string[] | undefined,
-) {
-  let q = ctx.db
+function transactionsQuery(ctx: QueryCtx, userId: Id<"users">) {
+  return ctx.db
     .query("transactions")
-    .withIndex("by_userId_date", (q: any) => q.eq("userId", userId));
+    .withIndex("by_userId_date", (q) => q.eq("userId", userId))
+    .order("desc");
+}
 
-  if (pipeIds && pipeIds.length > 0) {
-    q = q.filter((fq: any) =>
-      fq.or(
-        ...pipeIds.flatMap((id) =>
-          transactionRoleNames.map((role) => fq.eq(fq.field(role), id)),
-        ),
-      ),
-    );
+async function loadRecentTransactionsForRole(
+  ctx: QueryCtx,
+  userId: Id<"users">,
+  pipeId: Id<"pipes">,
+  role: TransactionRole,
+): Promise<Doc<"transactions">[]> {
+  if (role === "from") {
+    return await ctx.db
+      .query("transactions")
+      .withIndex("by_userId_from_date", (q) =>
+        q.eq("userId", userId).eq("from", pipeId),
+      )
+      .order("desc")
+      .take(RECENT_TRANSACTION_LIMIT);
   }
 
-  return q.order("desc");
+  if (role === "to") {
+    return await ctx.db
+      .query("transactions")
+      .withIndex("by_userId_to_date", (q) =>
+        q.eq("userId", userId).eq("to", pipeId),
+      )
+      .order("desc")
+      .take(RECENT_TRANSACTION_LIMIT);
+  }
+
+  return await ctx.db
+    .query("transactions")
+    .withIndex("by_userId_paidFrom_date", (q) =>
+      q.eq("userId", userId).eq("paidFrom", pipeId),
+    )
+    .order("desc")
+    .take(RECENT_TRANSACTION_LIMIT);
+}
+
+async function loadRecentTransactionsForPipes(
+  ctx: QueryCtx,
+  userId: Id<"users">,
+  pipeIds: Id<"pipes">[],
+): Promise<Doc<"transactions">[]> {
+  const uniquePipeIds = [...new Set(pipeIds)];
+  if (uniquePipeIds.length > MAX_PIPES_PER_USER) {
+    throw new ConvexError({ code: "TOO_MANY_PIPE_FILTERS" });
+  }
+
+  const rows = await Promise.all(
+    uniquePipeIds.flatMap((pipeId) =>
+      transactionRoleNames.map((role) =>
+        loadRecentTransactionsForRole(ctx, userId, pipeId, role),
+      ),
+    ),
+  );
+  const unique = new Map<Id<"transactions">, Doc<"transactions">>();
+  for (const transaction of rows.flat()) {
+    unique.set(transaction._id, transaction);
+  }
+
+  return [...unique.values()]
+    .sort(
+      (left, right) =>
+        right.date - left.date || right._creationTime - left._creationTime,
+    )
+    .slice(0, RECENT_TRANSACTION_LIMIT);
 }
 
 export const createTransaction = mutation({
@@ -66,194 +114,10 @@ export const createTransaction = mutation({
     to: v.optional(v.id("pipes")),
     paidFrom: v.optional(v.id("pipes")),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
     const userId = await requireAuth(ctx);
-    const usageNow = Date.now();
-    const title = canonicalizeTransactionTitle(args.title);
-    const value = args.value;
-
-    if (args.paidFrom && (!args.from || args.to)) {
-      throw new Error("Pay by transfer requires from and paidFrom only");
-    }
-
-    if (!args.from && !args.to) {
-      throw new Error("Either 'from' or 'to' must be provided");
-    }
-    const kind = deriveTransactionKind(args);
-    validateTransactionAmount(value, kind === "feed" ? "feed" : "transaction");
-    for (const pipeId of new Set([args.from, args.to, args.paidFrom])) {
-      if (!pipeId) continue;
-      const pipe = await ctx.db.get("pipes", pipeId);
-      if (pipe?.deletionJobId) throw new Error("Pipe is being deleted");
-    }
-
-    // Feed: no source pipe — money flows into `to`
-    if (!args.from && args.to) {
-      const destPipe = await ctx.db.get(args.to);
-      if (!destPipe) throw new Error("Pipe not found");
-      if (destPipe.userId !== userId) throw new Error("Not authorized");
-
-      const { to } = transactionAccountingEffects({ to: args.to }, value);
-      await ctx.db.patch(args.to, {
-        fed: destPipe.fed + to.fedDelta
-      });
-
-      if (shouldTriggerPipeRule(destPipe.rule, to.spentDelta, destPipe.spent + to.spentDelta, destPipe.capacity)) {
-        await executePipeRule(ctx, args.to);
-      }
-
-      await ctx.db.insert("transactions", {
-        title,
-        value,
-        date: args.date,
-        kind,
-        from: undefined,
-        to: args.to,
-        userId,
-      });
-
-      await updateOrCreateTitleUsage(ctx, {
-        pipeId: args.to,
-        userId,
-        title,
-        now: usageNow,
-      });
-
-      await recascadeTree(ctx, userId);
-      return;
-    }
-
-    // Spend or Transfer: source pipe required
-    const pipeId = args.from!;
-    if (args.paidFrom && pipeId === args.paidFrom) {
-      throw new Error("Paid from pipe must be different");
-    }
-    const pipe = await ctx.db.get(pipeId);
-    if (!pipe) throw new Error("Pipe not found");
-    if (pipe.userId !== userId) throw new Error("Not authorized");
-
-    if (args.paidFrom) {
-      const paidFromPipe = await ctx.db.get(args.paidFrom);
-      if (!paidFromPipe) throw new Error("Paid from pipe not found");
-      if (paidFromPipe.userId !== userId) throw new Error("Not authorized");
-
-      const [fromRootId, paidFromRootId] = await Promise.all([
-        resolveTopMostAncestor(ctx, pipeId),
-        resolveTopMostAncestor(ctx, args.paidFrom),
-      ]);
-      if (fromRootId === paidFromRootId) {
-        throw new Error("Paid from pipe must be outside the transaction tree");
-      }
-
-      const fromChildren = await ctx.db
-        .query("pipes")
-        .withIndex("by_parentId", (q) => q.eq("parentId", pipeId))
-        .take(1);
-      if (fromChildren.length > 0) {
-        throw new Error("Transaction pipe must not have children");
-      }
-
-      if (value > 0) {
-        if (paidFromPipe.parentId) {
-          throw new Error(
-            "Refund destination must be a root outside the transaction tree",
-          );
-        }
-      } else {
-        const paidFromChildren = await ctx.db
-          .query("pipes")
-          .withIndex("by_parentId", (q) => q.eq("parentId", args.paidFrom!))
-          .take(1);
-        if (paidFromChildren.length > 0) {
-          throw new Error("Paid from pipe must not have children");
-        }
-      }
-
-      const { from, paidFrom } = transactionAccountingEffects(
-        { from: pipeId, paidFrom: args.paidFrom },
-        value,
-      );
-      const newSpent = pipe.spent + from.spentDelta;
-      await ctx.db.patch(pipeId, {
-        spent: newSpent,
-        pendingFedAdjustment: (pipe.pendingFedAdjustment ?? 0) + from.fedDelta,
-      });
-      await ctx.db.patch(args.paidFrom, {
-        fed: paidFromPipe.fed + paidFrom.fedDelta,
-      });
-
-      if (shouldTriggerPipeRule(pipe.rule, from.spentDelta, newSpent, pipe.capacity)) {
-        await executePipeRule(ctx, pipeId);
-      }
-      await recascadeTree(ctx, userId);
-
-      await ctx.db.insert("transactions", {
-        title,
-        value,
-        date: args.date,
-        kind,
-        from: pipeId,
-        paidFrom: args.paidFrom,
-        userId,
-      });
-      await updateOrCreateTitleUsage(ctx, {
-        pipeId,
-        userId,
-        title,
-        now: usageNow,
-      });
-      return;
-    }
-
-    if (args.to) {
-      if (pipeId === args.to) throw new Error("Cannot transfer to self");
-
-      const destPipe = await ctx.db.get(args.to);
-      if (!destPipe) throw new Error("Destination pipe not found");
-      if (destPipe.userId !== userId) throw new Error("Not authorized");
-
-      const { from, to: to } = transactionAccountingEffects(
-        { from: pipeId, to: args.to },
-        value,
-      );
-      await ctx.db.patch(pipeId, { fed: pipe.fed + from.fedDelta });
-      await ctx.db.patch(args.to, {
-        fed: destPipe.fed + to.fedDelta,
-      });
-
-      if (shouldTriggerPipeRule(pipe.rule, from.spentDelta, pipe.spent, pipe.capacity)) {
-        await executePipeRule(ctx, pipeId);
-      }
-    } else {
-      const { from } = transactionAccountingEffects({ from: pipeId }, value);
-      const newSpent = pipe.spent + from.spentDelta;
-      await ctx.db.patch(pipeId, {
-        spent: newSpent,
-      });
-
-      if (shouldTriggerPipeRule(pipe.rule, from.spentDelta, newSpent, pipe.capacity)) {
-        await executePipeRule(ctx, pipeId);
-      }
-    }
-
-    await recascadeTree(ctx, userId);
-
-    await ctx.db.insert("transactions", {
-      title,
-      value,
-      date: args.date,
-      kind,
-      from: pipeId,
-      to: args.to,
-      userId,
-    });
-
-    await updateOrCreateTitleUsage(ctx, {
-      pipeId,
-      userId,
-      title,
-      now: usageNow,
-    });
+    return await createTransactionOperation(ctx, userId, args, Date.now());
   },
 });
 
@@ -264,150 +128,10 @@ export const editTransaction = mutation({
     value: v.number(),
     date: v.number(),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
     const userId = await requireAuth(ctx);
-
-    const tx = await ctx.db.get(args.transactionId);
-    if (!tx) throw new Error("Transaction not found");
-    if (tx.userId !== userId) throw new Error("Not authorized");
-    const currentTitle = canonicalizeTransactionTitle(args.title);
-    if (
-      tx.fromIcon !== undefined ||
-      tx.toIcon !== undefined ||
-      tx.paidFromIcon !== undefined
-    ) {
-      throw new Error("Transaction is view-only");
-    }
-    for (const pipeId of new Set([tx.from, tx.to, tx.paidFrom])) {
-      if (!pipeId) continue;
-      const pipe = await ctx.db.get("pipes", pipeId);
-      if (pipe?.deletionJobId) throw new Error("Pipe is being deleted");
-    }
-
-    const valueDiff = args.value - tx.value;
-    validateTransactionAmount(
-      args.value,
-      tx.kind === "feed" ? "feed" : "transaction",
-    );
-
-    if (valueDiff !== 0) {
-      if (tx.from && tx.paidFrom) {
-        const fromPipe = await ctx.db.get(tx.from);
-        const paidFromPipe = await ctx.db.get(tx.paidFrom);
-        if (!fromPipe || !paidFromPipe) throw new Error("Pipe not found");
-
-        if (args.value > 0) {
-          if (paidFromPipe.parentId) {
-            throw new Error(
-              "Refund destination must be a root outside the transaction tree",
-            );
-          }
-        } else {
-          const paidFromChildren = await ctx.db
-            .query("pipes")
-            .withIndex("by_parentId", (q) => q.eq("parentId", tx.paidFrom!))
-            .take(1);
-          if (paidFromChildren.length > 0) {
-            throw new Error("Paid from pipe must not have children");
-          }
-        }
-
-        const { from, paidFrom: paidFrom } = transactionAccountingEffects(
-          { from: tx.from, paidFrom: tx.paidFrom },
-          valueDiff,
-        );
-        const newSpent = fromPipe.spent + from.spentDelta;
-        await ctx.db.patch(tx.from, {
-          spent: newSpent,
-          pendingFedAdjustment:
-            (fromPipe.pendingFedAdjustment ?? 0) + from.fedDelta,
-        });
-        await ctx.db.patch(tx.paidFrom, {
-          fed: paidFromPipe.fed + paidFrom.fedDelta,
-        });
-        if (
-          shouldTriggerPipeRule(
-            fromPipe.rule,
-            from.spentDelta,
-            newSpent,
-            fromPipe.capacity,
-          )
-        ) {
-          await executePipeRule(ctx, tx.from);
-        }
-        await recascadeTree(ctx, userId);
-      } else if (tx.from && tx.to) {
-        const src = await ctx.db.get(tx.from);
-        const dst = await ctx.db.get(tx.to);
-        if (!src || !dst) throw new Error("Pipe not found");
-
-        const { from, to } = transactionAccountingEffects(
-          { from: tx.from, to: tx.to },
-          valueDiff,
-        );
-        await ctx.db.patch(tx.from, { fed: src.fed + from.fedDelta });
-        await ctx.db.patch(tx.to, { fed: dst.fed + to.fedDelta });
-        if (shouldTriggerPipeRule(src.rule, from.spentDelta, src.spent, src.capacity)) {
-          await executePipeRule(ctx, tx.from);
-        }
-        await recascadeTree(ctx, userId);
-      } else if (tx.from) {
-        const pipe = await ctx.db.get(tx.from);
-        if (!pipe) throw new Error("Pipe not found");
-
-        const { from } = transactionAccountingEffects(
-          { from: tx.from },
-          valueDiff,
-        );
-        const newSpent = pipe.spent + from.spentDelta;
-        await ctx.db.patch(tx.from, { spent: newSpent });
-        if (shouldTriggerPipeRule(pipe.rule, from.spentDelta, newSpent, pipe.capacity)) {
-          await executePipeRule(ctx, tx.from);
-        }
-        await recascadeTree(ctx, userId);
-      } else if (tx.to) {
-        const pipe = await ctx.db.get(tx.to);
-        if (!pipe) throw new Error("Pipe not found");
-
-        const { to } = transactionAccountingEffects({ to: tx.to }, valueDiff);
-        await ctx.db.patch(tx.to, { fed: pipe.fed + to.fedDelta });
-        if (shouldTriggerPipeRule(pipe.rule, to.spentDelta, pipe.spent, pipe.capacity)) {
-          await executePipeRule(ctx, tx.to);
-        }
-        await recascadeTree(ctx, userId);
-      }
-    }
-
-    const hasCorrection =
-      currentTitle !== tx.title ||
-      args.value !== tx.value ||
-      args.date !== tx.date;
-    const editedAt = hasCorrection ? Date.now() : undefined;
-
-    if (editedAt !== undefined) {
-      await ctx.db.insert("transactionCorrections", {
-        transactionId: args.transactionId,
-        userId,
-        editedAt,
-        previous: {
-          title: tx.title,
-          value: tx.value,
-          date: tx.date,
-        },
-        current: {
-          title: currentTitle,
-          value: args.value,
-          date: args.date,
-        },
-      });
-    }
-
-    await ctx.db.patch(args.transactionId, {
-      title: currentTitle,
-      value: args.value,
-      date: args.date,
-      ...(editedAt !== undefined ? { editedAt } : {}),
-    });
+    return await editTransactionOperation(ctx, userId, args, Date.now());
   },
 });
 
@@ -449,8 +173,10 @@ export const listTransactions = query({
   },
   handler: async (ctx, args) => {
     const userId = await requireAuth(ctx);
-    const q = transactionsQuery(ctx, userId, args.pipeIds);
-    return await q.take(12);
+    if (args.pipeIds && args.pipeIds.length > 0) {
+      return await loadRecentTransactionsForPipes(ctx, userId, args.pipeIds);
+    }
+    return await transactionsQuery(ctx, userId).take(RECENT_TRANSACTION_LIMIT);
   },
 });
 
@@ -475,12 +201,11 @@ export const listRecentTitles = query({
 
 export const listTransactionsPaginated = query({
   args: {
-    pipeIds: v.optional(v.array(v.id("pipes"))),
     paginationOpts: paginationOptsValidator,
   },
   handler: async (ctx, args) => {
     const userId = await requireAuth(ctx);
-    const q = transactionsQuery(ctx, userId, args.pipeIds);
+    const q = transactionsQuery(ctx, userId);
     return await q.paginate(args.paginationOpts);
   },
 });

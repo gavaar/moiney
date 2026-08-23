@@ -1,22 +1,26 @@
 import { useState } from "react";
-import type { Id } from "@convex/_generated/dataModel";
 import {
   TransactionList,
   type TransactionListProps,
-} from "@ui/TransactionList";
+} from "@features/transactions/components/TransactionList";
+import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
+import type { TransactionModel } from "@features/transactions/data/transactions";
 import { TransactionCorrectionHistoryModal } from "./components/TransactionCorrectionHistory/TransactionCorrectionHistoryModal";
 
 export function TransactionListWithHistory(props: TransactionListProps) {
-  const [selectedTransactionId, setSelectedTransactionId] = useState<Id<"transactions"> | null>(null);
+  const { allPipes } = usePipeCatalog();
+  const [selectedTransactionId, setSelectedTransactionId] = useState<TransactionModel["id"] | null>(null);
+  const visiblePipeIds = props.visiblePipeIds ?? allPipes?.map((pipe) => pipe.id);
 
   const selectedTransaction = props.transactions?.find(
-    (transaction) => transaction._id === selectedTransactionId,
+    (transaction) => transaction.id === selectedTransactionId,
   );
 
   return (
     <>
       <TransactionList
         {...props}
+        visiblePipeIds={visiblePipeIds}
         onShowEditHistory={setSelectedTransactionId}
       />
       {selectedTransactionId ? (

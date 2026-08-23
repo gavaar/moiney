@@ -8,6 +8,9 @@ import {
   getAccessToken,
   setAccessToken as storeAccessToken,
   removeAccessToken,
+  getAccountKey,
+  setAccountKey as storeAccountKey,
+  removeAccountKey,
 } from "./storage";
 import { toUserFriendly } from "@/lib/errors";
 
@@ -24,10 +27,17 @@ export function getConvexClient(): ConvexReactClient {
 type AuthContextValue = {
   isLoading: boolean;
   isAuthenticated: boolean;
+  accountKey: string | null;
   login: (username: string, password: string) => Promise<void>;
   signUp: (username: string, email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
 };
+
+function cacheAccountKey(username: string): string {
+  return `${process.env.EXPO_PUBLIC_CONVEX_URL ?? "unknown"}:${username
+    .trim()
+    .toLowerCase()}`;
+}
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
 
@@ -93,6 +103,7 @@ const fetchTokenFn: AuthTokenFetcher = async ({ forceRefreshToken }) => {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [accountKey, setAccountKey] = useState<string | null>(null);
   const authSetupRef = useRef(false);
 
   const handleAuthChange = useCallback((isAuth: boolean) => {
@@ -105,10 +116,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     authSetupRef.current = true;
 
     getRefreshToken()
-      .then((token) => {
+      .then(async (token) => {
         if (token) {
+          setAccountKey(await getAccountKey());
           getConvexClient().setAuth(fetchTokenFn, handleAuthChange);
         } else {
+          setAccountKey(null);
           setIsAuthenticated(false);
           setIsLoading(false);
         }
@@ -122,10 +135,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (username: string, password: string) => {
     try {
       const result = await getConvexClient().action(api.auth.signIn, { username, password });
+      const nextAccountKey = cacheAccountKey(username);
       await storeRefreshToken(result.refreshToken);
+      await storeAccountKey(nextAccountKey);
       if (result.accessToken) {
         await storeAccessToken(result.accessToken);
       }
+      setAccountKey(nextAccountKey);
       getConvexClient().setAuth(fetchTokenFn, handleAuthChange);
     } catch (e) {
       toUserFriendly(e);
@@ -135,10 +151,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUp = useCallback(async (username: string, email: string, password: string) => {
     try {
       const result = await getConvexClient().action(api.auth.signUp, { username, email, password });
+      const nextAccountKey = cacheAccountKey(username);
       await storeRefreshToken(result.refreshToken);
+      await storeAccountKey(nextAccountKey);
       if (result.accessToken) {
         await storeAccessToken(result.accessToken);
       }
+      setAccountKey(nextAccountKey);
       getConvexClient().setAuth(fetchTokenFn, handleAuthChange);
     } catch (e) {
       toUserFriendly(e);
@@ -155,13 +174,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       getConvexClient().clearAuth();
       await removeAccessToken();
       await removeRefreshToken();
+      await removeAccountKey();
+      setAccountKey(null);
       setIsAuthenticated(false);
     }
   }, []);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ isLoading, isAuthenticated, login, signUp, signOut }),
-    [isLoading, isAuthenticated, login, signUp, signOut],
+    () => ({ isLoading, isAuthenticated, accountKey, login, signUp, signOut }),
+    [isLoading, isAuthenticated, accountKey, login, signUp, signOut],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

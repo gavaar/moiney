@@ -23,8 +23,8 @@ vi.mock("convex/react", () => ({
     ref === h.api.pipes.updatePipeRule ? h.updatePipeRule : h.executePipeRuleNow,
 }));
 vi.mock("@ui/Alert", () => ({ useAlert: () => h.showAlert }));
-vi.mock("@features/pipes/context/PipeSelectionContext", () => ({
-  usePipeSelection: () => h.usePipeSelection(),
+vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
+  usePipeCatalog: () => h.usePipeSelection(),
 }));
 
 import { RuleModal } from "./RuleModal";
@@ -33,7 +33,7 @@ const pId = (id: string) => id as Id<"pipes">;
 
 function basePipe(overrides: Record<string, unknown> = {}) {
   return {
-    _id: pId("pipe-1"),
+    id: pId("pipe-1"),
     name: "Groceries",
     icon: "cart-outline",
     rule: undefined,

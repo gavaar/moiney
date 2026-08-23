@@ -57,6 +57,31 @@ Before deleting the subtree, compute the selected subtree's aggregate `fed - spe
 
 The implementation creates an idempotent deletion job, freezes the selected subtree, and processes role-indexed transaction pages and finalization in bounded scheduled batches. Preserved transactions render embedded role icons without additional history reads. The job credits the immediate parent exactly once with the planned subtree balance and records completion for safe retries. Title-usage cleanup remains owned by its existing stale-usage maintenance job.
 
+The freeze blocks writes involving the selected subtree. Presentation-only
+name, icon, and description updates in another tree do not perform accounting
+reconciliation and remain allowed while deletion is in progress.
+Feeds and ordinary expenses in another root likewise reconcile only their
+affected tree and remain allowed; every member of the affected tree is still
+checked for a deletion freeze.
+Transfers and pay-by-transfer expenses in other roots reconcile only their two
+affected trees and remain allowed; both trees are fully checked before
+reconciliation.
+Ordinary expense value edits in another root use the same affected-tree scope
+and current-period accounting policy.
+Transfer value edits in other roots reconcile only their two affected trees and
+apply the same topology and current-period accounting policy.
+Pay-by-transfer value edits in other roots reconcile only their two affected
+trees and apply the same logical spending, pending liquidity, payer liquidity,
+and current-period accounting policy.
+Adding a child pipe in another root reconciles only that affected tree and
+remains allowed; every member of the affected tree is checked for a deletion
+freeze before reconciliation.
+Rule updates in another root reconcile only that affected tree and remain
+allowed; every member of the affected tree is checked before reconciliation.
+Capacity and priority edits in another root reconcile only that affected tree
+and remain allowed; every member of the affected tree is checked before
+reconciliation.
+
 ## D003: Transaction Involvement
 
 Status: Implemented
@@ -134,6 +159,15 @@ When a cron execution is overdue for multiple occurrences, it settles the pipe
 once and applies `capUpdateValue` multiplied by the number of due occurrences.
 It then advances `cronNextDate` once beyond the explicit execution clock.
 
+The pipe detail `expected` presentation shows the monthly spending target from
+the next rule configuration. A leaf uses `capUpdateValue` or falls back to its
+current `capacity`. Daily, monthly, and yearly cron values are normalized to a
+monthly integer-cent amount using the current month and the cron interval;
+fractional cents round to the nearest cent. A pipe with children shows the sum
+of each immediate child's normalized `capUpdateValue` or fallback capacity.
+This presentation intentionally does not calculate post-rule capacity or
+include leftover fed from the previous cycle.
+
 ## D009: (reserved)
 
 Status: Implemented
@@ -144,12 +178,21 @@ separate kind. Refunds retain the same structural kind and reverse monetary
 polarity.
 
 Expense grouping intentionally ignores `paidFrom`; matching ordinary and
-pay-by-transfer expenses group together across dates. Group identity includes
-kind, title, `from`, and `to` through a collision-free encoding; transaction
-value and `paidFrom` are not identity fields. A collapsed group displays the
-signed sum of the loaded transactions and uses the newest transaction's value
-for the generic repeat form. Expanding the group exposes individual
-transactions that preserve their payer and values.
+pay-by-transfer expenses group together across dates. Expense and transfer
+activity now share a title-based group, while feeds retain their structural
+feed identity. A group is evaluated against the currently visible pipe scope:
+an expense contributes its value when its logical `from` or `paidFrom` pipe is
+visible, while a transfer contributes zero because its value duplicates the
+corresponding expense activity. Transactions with no visible logical pipe are
+excluded from the scoped group.
+
+Collapsed groups retain the newest transaction's structure for the generic
+repeat form and expose the scope-visible participating pipes. One visible pipe
+uses its icon; multiple visible pipes use the `card-multiple` icon. Transaction
+value is not an identity field, and `paidFrom` is not an identity field but does
+count as a participating pipe for scoped visibility and icon selection.
+Expanding the group exposes individual transactions that preserve their payer
+and values.
 
 Transaction titles are canonicalized with `trim().toLowerCase()` before
 persistence and title-usage indexing. Whitespace-only titles are rejected.
@@ -209,6 +252,10 @@ Therefore:
   both `spent` and `pendingFedAdjustment`.
 - Capacity updates continue to use logical `spent`, not the pending liquidity
   adjustment.
+- The current-cycle L2S presentation is `fed - spent` and intentionally ignores
+  `pendingFedAdjustment`. The external adjustment is shown separately because
+  it describes settlement that will affect `fed` when the rule runs, not
+  additional current-cycle spending capacity.
 - Pipe-tree projections aggregate pending adjustments, deletion balances use
   them, and the detailed pipe statistics expose nonzero values as an external
   settlement indicator.
@@ -232,3 +279,35 @@ Convex client mutation retries and atomic cron schedule advancement provide
 transport-level idempotency. No operation identifiers are persisted for
 separate user submissions; manual rule execution remains intentionally
 repeatable.
+
+## D013: Transfer Pipe Eligibility
+
+Status: Implemented
+
+A transfer originates from an owned leaf pipe and terminates at an owned root
+pipe in another tree. The backend validates source ownership, destination
+ownership, source leaf status, destination root status, and tree separation
+before applying accounting effects.
+
+Missing and foreign transfer pipes use the same non-disclosing expected error.
+Invalid topology uses stable error codes for a non-root destination, a source
+with children, and a destination in the source tree. Valid transfers conserve
+integer cents and create one transaction and one title-usage update.
+
+## D014: Transaction Snapshot Cache
+
+Status: Implemented
+
+Transaction lists use an account-scoped persistent snapshot as a stale,
+read-only display source. A valid snapshot suppresses live Convex query
+subscriptions on app open. History seeds 100 rows and loads additional pages
+of 15 only after explicit demand. Every loaded transaction is persisted until
+the cache reaches 300 unique transaction entities, after which the least
+recently refreshed entries are evicted. History and selected-pipe scopes maintain
+separate ordered snapshots over the shared entity cache.
+
+The server remains authoritative. Explicit refresh, cache misses, and load-more
+requests use one-shot reads; cached rows are replaced or reconciled with the
+server result. Cached data is never used for authorization or mutation
+decisions. Explicit logout clears the active account's transaction cache, and
+cache entries are isolated by deployment and account identity.

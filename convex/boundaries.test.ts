@@ -3,10 +3,45 @@ import { convexTest } from "convex-test";
 import { describe, expect, it, vi } from "vitest";
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
+import { MAX_PIPES_PER_USER } from "./lib/constants";
 import schema from "./schema";
 import { modules } from "./test.setup";
 
 describe("Convex boundaries", () => {
+  it("returns a structured pipe-limit error without creating a feed", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", {
+        username: "alice",
+        email: "alice@example.com",
+        password: "hash",
+      });
+      for (let index = 0; index < MAX_PIPES_PER_USER; index += 1) {
+        await ctx.db.insert("pipes", {
+          userId,
+          name: `Pipe ${index}`,
+          icon: "wallet-outline",
+          priority: index,
+          capacity: 0,
+          fed: 0,
+          spent: 0,
+        });
+      }
+      return userId;
+    });
+
+    await expect(
+      t.withIdentity({ subject: userId }).mutation(api.pipes.addFeed, {
+        name: "One too many",
+        icon: "add-circle-outline",
+      }),
+    ).rejects.toMatchObject({ data: { code: "PIPE_LIMIT_REACHED" } });
+
+    const pipes = await t.run((ctx) => ctx.db.query("pipes").collect());
+    expect(pipes).toHaveLength(MAX_PIPES_PER_USER);
+    expect(pipes.some((pipe) => pipe.name === "One too many")).toBe(false);
+  });
+
   it("clears a pipe description through the registered mutation contract", async () => {
     const t = convexTest(schema, modules);
     const { userId, pipeId } = await t.run(async (ctx) => {
@@ -37,9 +72,70 @@ describe("Convex boundaries", () => {
     expect(pipe).not.toHaveProperty("description");
   });
 
-  it("rejects creating a pipe beneath another user's parent without writes", async () => {
+  it("returns the same expected error for missing and foreign pipes before updating a pipe", async () => {
     const t = convexTest(schema, modules);
-    const { userA, parentId } = await t.run(async (ctx) => {
+    const { userId, missingPipeId, foreignPipeId } = await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", {
+        username: "alice",
+        email: "alice@example.com",
+        password: "hash-a",
+      });
+      const otherUserId = await ctx.db.insert("users", {
+        username: "bob",
+        email: "bob@example.com",
+        password: "hash-b",
+      });
+      const missingPipeId = await ctx.db.insert("pipes", {
+        userId,
+        name: "Deleted",
+        icon: "trash-outline",
+        priority: 0,
+        capacity: 100,
+        fed: 50,
+        spent: 0,
+      });
+      await ctx.db.delete("pipes", missingPipeId);
+      const foreignPipeId = await ctx.db.insert("pipes", {
+        userId: otherUserId,
+        name: "Foreign",
+        icon: "wallet-outline",
+        description: "unchanged",
+        priority: 0,
+        capacity: 1000,
+        fed: 500,
+        spent: 100,
+      });
+      await ctx.db.insert("pipes", {
+        userId,
+        name: "Owned",
+        icon: "home-outline",
+        priority: 0,
+        capacity: 1000,
+        fed: 250,
+        spent: 25,
+      });
+      return { userId, missingPipeId, foreignPipeId };
+    });
+    const before = await t.run((ctx) => ctx.db.query("pipes").collect());
+    const asUser = t.withIdentity({ subject: userId });
+
+    for (const pipeId of [missingPipeId, foreignPipeId]) {
+      await expect(
+        asUser.mutation(api.pipes.updatePipe, {
+          pipeId,
+          name: "Changed",
+          capacity: 999,
+        }),
+      ).rejects.toMatchObject({ data: { code: "PIPE_NOT_FOUND" } });
+    }
+
+    const after = await t.run((ctx) => ctx.db.query("pipes").collect());
+    expect(after).toEqual(before);
+  });
+
+  it("returns the same expected error for missing and foreign parents before adding a pipe", async () => {
+    const t = convexTest(schema, modules);
+    const { userA, missingParentId, foreignParentId } = await t.run(async (ctx) => {
       const userA = await ctx.db.insert("users", {
         username: "alice",
         email: "alice@example.com",
@@ -50,7 +146,17 @@ describe("Convex boundaries", () => {
         email: "bob@example.com",
         password: "hash-b",
       });
-      const parentId = await ctx.db.insert("pipes", {
+      const missingParentId = await ctx.db.insert("pipes", {
+        userId: userA,
+        name: "Deleted parent",
+        icon: "trash-outline",
+        priority: 0,
+        capacity: 100,
+        fed: 50,
+        spent: 10,
+      });
+      await ctx.db.delete("pipes", missingParentId);
+      const foreignParentId = await ctx.db.insert("pipes", {
         userId: userB,
         name: "Bob's pipe",
         icon: "pipe",
@@ -59,28 +165,25 @@ describe("Convex boundaries", () => {
         fed: 50,
         spent: 10,
       });
-      return { userA, parentId };
+      return { userA, missingParentId, foreignParentId };
     });
     const asUserA = t.withIdentity({ subject: userA });
+    const before = await t.run((ctx) => ctx.db.query("pipes").collect());
 
-    await expect(
-      asUserA.mutation(api.pipes.addPipe, {
-        name: "Unauthorized child",
-        icon: "pipe",
-        priority: 1,
-        capacity: 25,
-        parentId,
-      }),
-    ).rejects.toThrow("Parent pipe not found");
+    for (const parentId of [missingParentId, foreignParentId]) {
+      await expect(
+        asUserA.mutation(api.pipes.addPipe, {
+          name: "Unauthorized child",
+          icon: "pipe",
+          priority: 1,
+          capacity: 25,
+          parentId,
+        }),
+      ).rejects.toMatchObject({ data: { code: "PIPE_NOT_FOUND" } });
+    }
 
-    const pipes = await t.run((ctx) => ctx.db.query("pipes").collect());
-    expect(pipes).toHaveLength(1);
-    expect(pipes[0]).toMatchObject({
-      _id: parentId,
-      capacity: 100,
-      fed: 50,
-      spent: 10,
-    });
+    const after = await t.run((ctx) => ctx.db.query("pipes").collect());
+    expect(after).toEqual(before);
   });
 
   it("settles pending accounting before converting a leaf into a parent", async () => {
@@ -127,6 +230,279 @@ describe("Convex boundaries", () => {
     expect((rawParent?.fed ?? 0) + (child?.fed ?? 0)).toBe(1000);
   });
 
+  it("adds a child in one tree while an unrelated tree is frozen", async () => {
+    const t = convexTest(schema, modules);
+    const { userId, frozenId, parentId, deletionJobId } = await t.run(
+      async (ctx) => {
+        const userId = await ctx.db.insert("users", {
+          username: "alice",
+          email: "alice@example.com",
+          password: "hash",
+        });
+        const frozenId = await ctx.db.insert("pipes", {
+          userId,
+          name: "Frozen",
+          icon: "trash-outline",
+          priority: 0,
+          capacity: 100,
+          fed: 50,
+          spent: 0,
+        });
+        const parentId = await ctx.db.insert("pipes", {
+          userId,
+          name: "Household",
+          icon: "home-outline",
+          priority: 1,
+          capacity: 500,
+          fed: 300,
+          spent: 25,
+        });
+        const deletionJobId = await ctx.db.insert("pipeDeletionJobs", {
+          userId,
+          deleteTransactions: false,
+          memberPipeIds: [frozenId],
+          initialBalance: 50,
+          phase: "processingTransactions",
+          memberIndex: 0,
+          role: "from",
+        });
+        await ctx.db.patch("pipes", frozenId, { deletionJobId });
+        return { userId, frozenId, parentId, deletionJobId };
+      },
+    );
+
+    const childId = await t.withIdentity({ subject: userId }).mutation(
+      api.pipes.addPipe,
+      {
+        name: "Coffee",
+        icon: "cafe",
+        priority: 0,
+        capacity: 200,
+        parentId,
+      },
+    );
+
+    const state = await t.run(async (ctx) => ({
+      frozen: await ctx.db.get("pipes", frozenId),
+      parent: await ctx.db.get("pipes", parentId),
+      child: await ctx.db.get("pipes", childId),
+    }));
+    expect(state.frozen?.deletionJobId).toBe(deletionJobId);
+    expect(state.parent).toMatchObject({
+      capacity: 0,
+      fed: 75,
+      spent: 0,
+      pendingFedAdjustment: 0,
+    });
+    expect(state.child).toMatchObject({ fed: 200, spent: 0 });
+    expect((state.parent?.fed ?? 0) + (state.child?.fed ?? 0)).toBe(275);
+  });
+
+  it("returns the same expected error for missing and foreign pipes before updating a pipe rule", async () => {
+    const t = convexTest(schema, modules);
+    const { userId, missingPipeId, foreignPipeId } = await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", {
+        username: "alice",
+        email: "alice@example.com",
+        password: "hash-a",
+      });
+      const otherUserId = await ctx.db.insert("users", {
+        username: "bob",
+        email: "bob@example.com",
+        password: "hash-b",
+      });
+      const missingPipeId = await ctx.db.insert("pipes", {
+        userId,
+        name: "Deleted",
+        icon: "trash-outline",
+        priority: 0,
+        capacity: 100,
+        fed: 50,
+        spent: 10,
+      });
+      await ctx.db.delete("pipes", missingPipeId);
+      const foreignPipeId = await ctx.db.insert("pipes", {
+        userId: otherUserId,
+        name: "Foreign",
+        icon: "wallet-outline",
+        priority: 0,
+        capacity: 1000,
+        fed: 500,
+        spent: 100,
+        rule: "spend_overflow",
+      });
+      await ctx.db.insert("pipes", {
+        userId,
+        name: "Owned",
+        icon: "home-outline",
+        priority: 0,
+        capacity: 500,
+        fed: 250,
+        spent: 25,
+      });
+      return { userId, missingPipeId, foreignPipeId };
+    });
+    const before = await t.run((ctx) => ctx.db.query("pipes").collect());
+    const asUser = t.withIdentity({ subject: userId });
+
+    for (const pipeId of [missingPipeId, foreignPipeId]) {
+      await expect(
+        asUser.mutation(api.pipes.updatePipeRule, {
+          pipeId,
+          rule: "instant_settlement",
+          capUpdateValue: 25,
+        }),
+      ).rejects.toMatchObject({ data: { code: "PIPE_NOT_FOUND" } });
+    }
+
+    const after = await t.run((ctx) => ctx.db.query("pipes").collect());
+    expect(after).toEqual(before);
+  });
+
+  it("updates a rule in one tree while an unrelated tree is frozen", async () => {
+    const t = convexTest(schema, modules);
+    const { userId, frozenId, editableId, deletionJobId } = await t.run(
+      async (ctx) => {
+        const userId = await ctx.db.insert("users", {
+          username: "alice",
+          email: "alice@example.com",
+          password: "hash",
+        });
+        const frozenId = await ctx.db.insert("pipes", {
+          userId,
+          name: "Frozen",
+          icon: "trash-outline",
+          priority: 0,
+          capacity: 100,
+          fed: 50,
+          spent: 0,
+        });
+        const editableId = await ctx.db.insert("pipes", {
+          userId,
+          name: "Coffee",
+          icon: "cafe",
+          priority: 1,
+          capacity: 500,
+          fed: 300,
+          spent: 25,
+        });
+        const deletionJobId = await ctx.db.insert("pipeDeletionJobs", {
+          userId,
+          deleteTransactions: false,
+          memberPipeIds: [frozenId],
+          initialBalance: 50,
+          phase: "processingTransactions",
+          memberIndex: 0,
+          role: "from",
+        });
+        await ctx.db.patch("pipes", frozenId, { deletionJobId });
+        return { userId, frozenId, editableId, deletionJobId };
+      },
+    );
+
+    await expect(
+      t.withIdentity({ subject: userId }).mutation(api.pipes.updatePipeRule, {
+        pipeId: editableId,
+        rule: "instant_settlement",
+        capUpdateValue: 25,
+      }),
+    ).resolves.toBeNull();
+
+    const state = await t.run(async (ctx) => ({
+      frozen: await ctx.db.get("pipes", frozenId),
+      editable: await ctx.db.get("pipes", editableId),
+    }));
+    expect(state.frozen?.deletionJobId).toBe(deletionJobId);
+    expect(state.editable).toMatchObject({
+      rule: "instant_settlement",
+      capUpdateValue: 25,
+      fed: 300,
+      spent: 25,
+    });
+  });
+
+  it("continues through the mutable cron index after processing and skipping a blocked candidate", async () => {
+    const t = convexTest(schema, modules);
+    const now = Date.UTC(2026, 5, 15, 13);
+    const nextDate = Date.UTC(2026, 5, 15, 5);
+    const { firstId, frozenId, lastId } = await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", {
+        username: "alice",
+        email: "alice@example.com",
+        password: "hash",
+      });
+      const lastUserId = await ctx.db.insert("users", {
+        username: "bob",
+        email: "bob@example.com",
+        password: "hash",
+      });
+      const makeCronPipe = (
+        ownerId: typeof userId,
+        name: string,
+        date = nextDate,
+      ) =>
+        ctx.db.insert("pipes", {
+          userId: ownerId,
+          name,
+          icon: "clock-outline",
+          priority: 0,
+          capacity: 500,
+          fed: 100,
+          spent: 20,
+          rule: "cron" as const,
+          cronNextDate: date,
+          cronInterval: { interval: 1, unit: "days" as const },
+        });
+      const firstId = await makeCronPipe(userId, "First");
+      const frozenId = await makeCronPipe(userId, "Frozen");
+      for (let index = 0; index < 498; index += 1) {
+        await makeCronPipe(userId, `Filler ${index}`);
+      }
+      const lastId = await makeCronPipe(lastUserId, "Last", nextDate + 1);
+      const deletionJobId = await ctx.db.insert("pipeDeletionJobs", {
+        userId,
+        deleteTransactions: false,
+        memberPipeIds: [frozenId],
+        initialBalance: 80,
+        phase: "processingTransactions",
+        memberIndex: 0,
+        role: "from",
+      });
+      await ctx.db.patch("pipes", frozenId, { deletionJobId });
+      return { firstId, frozenId, lastId };
+    });
+
+    await t.mutation(internal.pipes.runDueCronRules, { now });
+
+    const afterFirstPage = await t.run(async (ctx) => ({
+      first: await ctx.db.get("pipes", firstId),
+      frozen: await ctx.db.get("pipes", frozenId),
+      last: await ctx.db.get("pipes", lastId),
+    }));
+    expect(afterFirstPage.first?.cronNextDate).toBe(
+      Date.UTC(2026, 5, 16, 5),
+    );
+    expect(afterFirstPage.frozen?.cronNextDate).toBe(nextDate);
+    expect(afterFirstPage.last?.cronNextDate).toBe(nextDate + 1);
+
+    vi.useFakeTimers();
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    vi.useRealTimers();
+
+    const afterContinuation = await t.run(async (ctx) => ({
+      first: await ctx.db.get("pipes", firstId),
+      frozen: await ctx.db.get("pipes", frozenId),
+      last: await ctx.db.get("pipes", lastId),
+    }));
+    expect(afterContinuation.first?.cronNextDate).toBe(
+      Date.UTC(2026, 5, 16, 5),
+    );
+    expect(afterContinuation.frozen?.cronNextDate).toBe(nextDate);
+    expect(afterContinuation.last?.cronNextDate).toBe(
+      Date.UTC(2026, 5, 16, 5),
+    );
+  });
+
   it("rejects the removed any_spend rule identifier after migration", async () => {
     const t = convexTest(schema, modules);
     const { userId, pipeId } = await t.run(async (ctx) => {
@@ -154,6 +530,381 @@ describe("Convex boundaries", () => {
         rule: "any_spend" as any,
       }),
     ).rejects.toThrow();
+  });
+
+  it("rejects a transfer to a non-root destination without changing accounting", async () => {
+    const t = convexTest(schema, modules);
+    const { userId, sourceId, destinationId } = await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", {
+        username: "alice",
+        email: "alice@example.com",
+        password: "hash",
+      });
+      const sourceId = await ctx.db.insert("pipes", {
+        userId,
+        name: "Source",
+        icon: "wallet-outline",
+        priority: 0,
+        capacity: 1000,
+        fed: 1000,
+        spent: 0,
+      });
+      const destinationRootId = await ctx.db.insert("pipes", {
+        userId,
+        name: "Destination root",
+        icon: "bank",
+        priority: 0,
+        capacity: 1000,
+        fed: 500,
+        spent: 0,
+      });
+      const destinationId = await ctx.db.insert("pipes", {
+        userId,
+        parentId: destinationRootId,
+        name: "Destination child",
+        icon: "cash-outline",
+        priority: 0,
+        capacity: 1000,
+        fed: 500,
+        spent: 0,
+      });
+      return { userId, sourceId, destinationId };
+    });
+    const asUser = t.withIdentity({ subject: userId });
+
+    await expect(
+      asUser.mutation(api.transactions.createTransaction, {
+        title: "transfer",
+        value: -100,
+        date: 3000,
+        from: sourceId,
+        to: destinationId,
+      }),
+    ).rejects.toMatchObject({
+      data: { code: "TRANSFER_DESTINATION_NOT_ROOT" },
+    });
+
+    const state = await t.run(async (ctx) => ({
+      source: await ctx.db.get("pipes", sourceId),
+      destination: await ctx.db.get("pipes", destinationId),
+      transactions: await ctx.db.query("transactions").collect(),
+      titleUsage: await ctx.db.query("transactionTitleUsage").collect(),
+    }));
+    expect(state.source).toMatchObject({ fed: 1000, spent: 0 });
+    expect(state.destination).toMatchObject({ fed: 500, spent: 0 });
+    expect(state.transactions).toEqual([]);
+    expect(state.titleUsage).toEqual([]);
+  });
+
+  it("rejects a transfer to the source pipe's own root", async () => {
+    const t = convexTest(schema, modules);
+    const { userId, rootId, sourceId } = await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", {
+        username: "alice",
+        email: "alice@example.com",
+        password: "hash",
+      });
+      const rootId = await ctx.db.insert("pipes", {
+        userId,
+        name: "Root",
+        icon: "bank",
+        priority: 0,
+        capacity: 1000,
+        fed: 500,
+        spent: 0,
+      });
+      const sourceId = await ctx.db.insert("pipes", {
+        userId,
+        parentId: rootId,
+        name: "Source leaf",
+        icon: "wallet-outline",
+        priority: 0,
+        capacity: 1000,
+        fed: 500,
+        spent: 0,
+      });
+      return { userId, rootId, sourceId };
+    });
+
+    await expect(
+      t.withIdentity({ subject: userId }).mutation(
+        api.transactions.createTransaction,
+        {
+          title: "transfer",
+          value: -100,
+          date: 3000,
+          from: sourceId,
+          to: rootId,
+        },
+      ),
+    ).rejects.toMatchObject({ data: { code: "TRANSFER_SAME_TREE" } });
+
+    const state = await t.run(async (ctx) => ({
+      root: await ctx.db.get("pipes", rootId),
+      source: await ctx.db.get("pipes", sourceId),
+      transactions: await ctx.db.query("transactions").collect(),
+      titleUsage: await ctx.db.query("transactionTitleUsage").collect(),
+    }));
+    expect(state.root).toMatchObject({ fed: 500, spent: 0 });
+    expect(state.source).toMatchObject({ fed: 500, spent: 0 });
+    expect(state.transactions).toEqual([]);
+    expect(state.titleUsage).toEqual([]);
+  });
+
+  it("rejects a transfer from a pipe with children", async () => {
+    const t = convexTest(schema, modules);
+    const { userId, sourceId, destinationId } = await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", {
+        username: "alice",
+        email: "alice@example.com",
+        password: "hash",
+      });
+      const sourceId = await ctx.db.insert("pipes", {
+        userId,
+        name: "Source parent",
+        icon: "wallet-outline",
+        priority: 0,
+        capacity: 1000,
+        fed: 1000,
+        spent: 0,
+      });
+      await ctx.db.insert("pipes", {
+        userId,
+        parentId: sourceId,
+        name: "Source child",
+        icon: "cash-outline",
+        priority: 0,
+        capacity: 500,
+        fed: 500,
+        spent: 0,
+      });
+      const destinationId = await ctx.db.insert("pipes", {
+        userId,
+        name: "Destination root",
+        icon: "bank",
+        priority: 0,
+        capacity: 1000,
+        fed: 500,
+        spent: 0,
+      });
+      return { userId, sourceId, destinationId };
+    });
+
+    await expect(
+      t.withIdentity({ subject: userId }).mutation(
+        api.transactions.createTransaction,
+        {
+          title: "transfer",
+          value: -100,
+          date: 3000,
+          from: sourceId,
+          to: destinationId,
+        },
+      ),
+    ).rejects.toMatchObject({ data: { code: "TRANSFER_SOURCE_NOT_LEAF" } });
+
+    const state = await t.run(async (ctx) => ({
+      source: await ctx.db.get("pipes", sourceId),
+      destination: await ctx.db.get("pipes", destinationId),
+      transactions: await ctx.db.query("transactions").collect(),
+      titleUsage: await ctx.db.query("transactionTitleUsage").collect(),
+    }));
+    expect(state.source).toMatchObject({ fed: 1000, spent: 0 });
+    expect(state.destination).toMatchObject({ fed: 500, spent: 0 });
+    expect(state.transactions).toEqual([]);
+    expect(state.titleUsage).toEqual([]);
+  });
+
+  it("rejects a transfer to another user's root without revealing it", async () => {
+    const t = convexTest(schema, modules);
+    const { userId, sourceId, destinationId } = await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", {
+        username: "alice",
+        email: "alice@example.com",
+        password: "hash-a",
+      });
+      const otherUserId = await ctx.db.insert("users", {
+        username: "bob",
+        email: "bob@example.com",
+        password: "hash-b",
+      });
+      const sourceId = await ctx.db.insert("pipes", {
+        userId,
+        name: "Source",
+        icon: "wallet-outline",
+        priority: 0,
+        capacity: 1000,
+        fed: 1000,
+        spent: 0,
+      });
+      const destinationId = await ctx.db.insert("pipes", {
+        userId: otherUserId,
+        name: "Foreign destination",
+        icon: "bank",
+        priority: 0,
+        capacity: 1000,
+        fed: 500,
+        spent: 0,
+      });
+      return { userId, sourceId, destinationId };
+    });
+
+    await expect(
+      t.withIdentity({ subject: userId }).mutation(
+        api.transactions.createTransaction,
+        {
+          title: "transfer",
+          value: -100,
+          date: 3000,
+          from: sourceId,
+          to: destinationId,
+        },
+      ),
+    ).rejects.toMatchObject({ data: { code: "TRANSACTION_PIPE_NOT_FOUND" } });
+
+    const state = await t.run(async (ctx) => ({
+      source: await ctx.db.get("pipes", sourceId),
+      destination: await ctx.db.get("pipes", destinationId),
+      transactions: await ctx.db.query("transactions").collect(),
+      titleUsage: await ctx.db.query("transactionTitleUsage").collect(),
+    }));
+    expect(state.source).toMatchObject({ fed: 1000, spent: 0 });
+    expect(state.destination).toMatchObject({ fed: 500, spent: 0 });
+    expect(state.transactions).toEqual([]);
+    expect(state.titleUsage).toEqual([]);
+  });
+
+  it("rejects a transfer from another user's pipe without revealing it", async () => {
+    const t = convexTest(schema, modules);
+    const { userId, sourceId, destinationId } = await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", {
+        username: "alice",
+        email: "alice@example.com",
+        password: "hash-a",
+      });
+      const otherUserId = await ctx.db.insert("users", {
+        username: "bob",
+        email: "bob@example.com",
+        password: "hash-b",
+      });
+      const sourceId = await ctx.db.insert("pipes", {
+        userId: otherUserId,
+        name: "Foreign source",
+        icon: "wallet-outline",
+        priority: 0,
+        capacity: 1000,
+        fed: 1000,
+        spent: 0,
+      });
+      const destinationId = await ctx.db.insert("pipes", {
+        userId,
+        name: "Destination",
+        icon: "bank",
+        priority: 0,
+        capacity: 1000,
+        fed: 500,
+        spent: 0,
+      });
+      return { userId, sourceId, destinationId };
+    });
+
+    await expect(
+      t.withIdentity({ subject: userId }).mutation(
+        api.transactions.createTransaction,
+        {
+          title: "transfer",
+          value: -100,
+          date: 3000,
+          from: sourceId,
+          to: destinationId,
+        },
+      ),
+    ).rejects.toMatchObject({ data: { code: "TRANSACTION_PIPE_NOT_FOUND" } });
+
+    const state = await t.run(async (ctx) => ({
+      source: await ctx.db.get("pipes", sourceId),
+      destination: await ctx.db.get("pipes", destinationId),
+      transactions: await ctx.db.query("transactions").collect(),
+    }));
+    expect(state.source).toMatchObject({ fed: 1000, spent: 0 });
+    expect(state.destination).toMatchObject({ fed: 500, spent: 0 });
+    expect(state.transactions).toEqual([]);
+  });
+
+  it("conserves cents for a valid cross-tree transfer", async () => {
+    const t = convexTest(schema, modules);
+    const { userId, sourceId, destinationId } = await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", {
+        username: "alice",
+        email: "alice@example.com",
+        password: "hash",
+      });
+      const sourceRootId = await ctx.db.insert("pipes", {
+        userId,
+        name: "Source root",
+        icon: "wallet-outline",
+        priority: 0,
+        capacity: 700,
+        fed: 0,
+        spent: 0,
+      });
+      const sourceId = await ctx.db.insert("pipes", {
+        userId,
+        parentId: sourceRootId,
+        name: "Source leaf",
+        icon: "cash-outline",
+        priority: 0,
+        capacity: 700,
+        fed: 700,
+        spent: 0,
+      });
+      const destinationId = await ctx.db.insert("pipes", {
+        userId,
+        name: "Destination root",
+        icon: "bank",
+        priority: 0,
+        capacity: 1000,
+        fed: 500,
+        spent: 0,
+      });
+      return { userId, sourceId, destinationId };
+    });
+
+    const result = await t.withIdentity({ subject: userId }).mutation(
+      api.transactions.createTransaction,
+      {
+        title: "  SAVINGS  ",
+        value: -100,
+        date: 3000,
+        from: sourceId,
+        to: destinationId,
+      },
+    );
+
+    const state = await t.run(async (ctx) => ({
+      source: await ctx.db.get("pipes", sourceId),
+      destination: await ctx.db.get("pipes", destinationId),
+      transactions: await ctx.db.query("transactions").collect(),
+      titleUsage: await ctx.db.query("transactionTitleUsage").collect(),
+    }));
+    expect(result).toBeNull();
+    expect(state.source).toMatchObject({ fed: 600, spent: 0 });
+    expect(state.destination).toMatchObject({ fed: 600, spent: 0 });
+    expect((state.source?.fed ?? 0) + (state.destination?.fed ?? 0)).toBe(1200);
+    expect(state.transactions).toHaveLength(1);
+    expect(state.transactions[0]).toMatchObject({
+      title: "savings",
+      kind: "transfer",
+      value: -100,
+      from: sourceId,
+      to: destinationId,
+    });
+    expect(state.titleUsage).toHaveLength(1);
+    expect(state.titleUsage[0]).toMatchObject({
+      pipeId: sourceId,
+      title: "savings",
+      count: 1,
+    });
   });
 
   it("atomically registers one canonical account and linked session", async () => {
@@ -204,6 +955,38 @@ describe("Convex boundaries", () => {
     }));
     expect(stateAfterDuplicate.users).toHaveLength(1);
     expect(stateAfterDuplicate.sessions).toHaveLength(1);
+  });
+
+  it("cleans expired sessions across bounded continuations", async () => {
+    const t = convexTest(schema, modules);
+    const now = 10_000;
+    await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", {
+        username: "cleanup-user",
+        email: "cleanup@example.com",
+        password: "hash",
+      });
+      for (let index = 0; index < 201; index += 1) {
+        await ctx.db.insert("sessions", {
+          userId,
+          refreshTokenHash: `cleanup-hash-${index}`,
+          familyId: `cleanup-family-${index}`,
+          active: false,
+          expiresAt: index === 150 ? now : now - 1,
+          createdAt: index,
+        });
+      }
+    });
+
+    await t.mutation(internal.sessions.cleanupExpired, { now });
+
+    vi.useFakeTimers();
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    vi.useRealTimers();
+
+    const sessions = await t.run((ctx) => ctx.db.query("sessions").collect());
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0].expiresAt).toBe(now);
   });
 
   it("filters transactions through from, to, and paidFrom involvement", async () => {
@@ -507,6 +1290,120 @@ describe("Convex boundaries", () => {
     vi.useRealTimers();
   });
 
+  it("finishes the maximum-size deletion with conserved parent credit", async () => {
+    vi.useFakeTimers();
+    try {
+      const t = convexTest(schema, modules);
+      const { userId, parentId, deletedRootId } = await t.run(async (ctx) => {
+        const userId = await ctx.db.insert("users", {
+          username: "maximum-deletion-user",
+          email: "maximum-deletion@example.com",
+          password: "hash",
+        });
+        const parentId = await ctx.db.insert("pipes", {
+          userId,
+          name: "Surviving parent",
+          icon: "pipe",
+          priority: 0,
+          capacity: 1000,
+          fed: 100,
+          spent: 0,
+        });
+        const deletedRootId = await ctx.db.insert("pipes", {
+          userId,
+          parentId,
+          name: "Deleted root",
+          icon: "trash-outline",
+          priority: 0,
+          capacity: 1000,
+          fed: 500,
+          spent: 0,
+        });
+        for (let index = 0; index < 498; index += 1) {
+          await ctx.db.insert("pipes", {
+            userId,
+            parentId: deletedRootId,
+            name: `Deleted child ${index}`,
+            icon: "pipe",
+            priority: index,
+            capacity: 100,
+            fed: 0,
+            spent: 0,
+          });
+        }
+        return { userId, parentId, deletedRootId };
+      });
+
+      const before = await t.run(async (ctx) => {
+        const pipes = await ctx.db.query("pipes").collect();
+        return {
+          parent: pipes.find((pipe) => pipe._id === parentId)!,
+          totalBalance: pipes.reduce(
+            (total, pipe) =>
+              total +
+              pipe.fed +
+              (pipe.pendingFedAdjustment ?? 0) -
+              pipe.spent,
+            0,
+          ),
+        };
+      });
+
+      const result = await t
+        .withIdentity({ subject: userId })
+        .mutation(api.pipes.startPipeDeletion, {
+          pipeId: deletedRootId,
+          deleteTransactions: true,
+        });
+      const planned = await t.run((ctx) =>
+        ctx.db.get("pipeDeletionJobs", result.jobId),
+      );
+
+      expect(planned?.memberPipeIds).toHaveLength(499);
+      expect(planned?.initialBalance).toBe(500);
+      const frozenCount = await t.run(async (ctx) =>
+        (await ctx.db.query("pipes").collect()).filter(
+          (pipe) => pipe.deletionJobId === result.jobId,
+        ).length,
+      );
+      expect(frozenCount).toBe(499);
+
+      // convex-test supports maxIterations at runtime, but its installed type omits it.
+      await (t as any).finishAllScheduledFunctions(vi.runAllTimers, 2000);
+
+      const after = await t.run(async (ctx) => {
+        const pipes = await ctx.db.query("pipes").collect();
+        return {
+          job: await ctx.db.get("pipeDeletionJobs", result.jobId),
+          pipes,
+        };
+      });
+      expect(after.job?.phase).toBe("complete");
+      expect(after.pipes).toHaveLength(1);
+      expect(after.pipes[0]._id).toBe(parentId);
+      expect(after.pipes[0].fed).toBe(
+        before.parent.fed + planned!.initialBalance,
+      );
+      expect(
+        after.pipes.reduce(
+          (total, pipe) =>
+            total + pipe.fed + (pipe.pendingFedAdjustment ?? 0) - pipe.spent,
+          0,
+        ),
+      ).toBe(before.totalBalance);
+
+      await t.mutation(internal.pipes.processPipeDeletion, {
+        jobId: result.jobId,
+      });
+      const afterRetry = await t.run((ctx) =>
+        ctx.db.get("pipes", parentId),
+      );
+      expect(afterRetry?.fed).toBe(after.pipes[0].fed);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("deletes only orphaned transactions across every transaction role", async () => {
     vi.useFakeTimers();
     const t = convexTest(schema, modules);
@@ -667,6 +1564,306 @@ describe("Convex boundaries", () => {
     ).rejects.toThrow("Pipe is being deleted");
   });
 
+  it("allows an expense in one root while an unrelated root is frozen", async () => {
+    const t = convexTest(schema, modules);
+    const { userId, frozenId, spendingId, deletionJobId } = await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", {
+        username: "alice",
+        email: "alice@example.com",
+        password: "hash",
+      });
+      const frozenId = await ctx.db.insert("pipes", {
+        userId,
+        name: "Frozen",
+        icon: "trash-outline",
+        priority: 0,
+        capacity: 100,
+        fed: 50,
+        spent: 0,
+      });
+      const spendingId = await ctx.db.insert("pipes", {
+        userId,
+        name: "Spending",
+        icon: "wallet-outline",
+        priority: 1,
+        capacity: 500,
+        fed: 300,
+        spent: 25,
+      });
+      const deletionJobId = await ctx.db.insert("pipeDeletionJobs", {
+        userId,
+        deleteTransactions: false,
+        memberPipeIds: [frozenId],
+        initialBalance: 50,
+        phase: "processingTransactions",
+        memberIndex: 0,
+        role: "from",
+      });
+      await ctx.db.patch("pipes", frozenId, { deletionJobId });
+      return { userId, frozenId, spendingId, deletionJobId };
+    });
+    const asUser = t.withIdentity({ subject: userId });
+
+    await expect(
+      asUser.mutation(api.transactions.createTransaction, {
+        title: "groceries",
+        value: -40,
+        date: 100,
+        from: spendingId,
+      }),
+    ).resolves.toBeNull();
+
+    const state = await t.run(async (ctx) => ({
+      frozen: await ctx.db.get("pipes", frozenId),
+      spending: await ctx.db.get("pipes", spendingId),
+      transactions: await ctx.db.query("transactions").collect(),
+    }));
+    expect(state.frozen?.deletionJobId).toBe(deletionJobId);
+    expect(state.spending).toMatchObject({ fed: 300, spent: 65 });
+    expect(state.transactions).toEqual([
+      expect.objectContaining({
+        title: "groceries",
+        kind: "expense",
+        value: -40,
+        from: spendingId,
+      }),
+    ]);
+  });
+
+  it("allows a feed in one root while an unrelated root is frozen", async () => {
+    const t = convexTest(schema, modules);
+    const { userId, frozenId, destinationId, deletionJobId } = await t.run(
+      async (ctx) => {
+        const userId = await ctx.db.insert("users", {
+          username: "alice",
+          email: "alice@example.com",
+          password: "hash",
+        });
+        const frozenId = await ctx.db.insert("pipes", {
+          userId,
+          name: "Frozen",
+          icon: "trash-outline",
+          priority: 0,
+          capacity: 100,
+          fed: 50,
+          spent: 0,
+        });
+        const destinationId = await ctx.db.insert("pipes", {
+          userId,
+          name: "Income",
+          icon: "wallet-outline",
+          priority: 1,
+          capacity: 500,
+          fed: 300,
+          spent: 0,
+        });
+        const deletionJobId = await ctx.db.insert("pipeDeletionJobs", {
+          userId,
+          deleteTransactions: false,
+          memberPipeIds: [frozenId],
+          initialBalance: 50,
+          phase: "processingTransactions",
+          memberIndex: 0,
+          role: "from",
+        });
+        await ctx.db.patch("pipes", frozenId, { deletionJobId });
+        return { userId, frozenId, destinationId, deletionJobId };
+      },
+    );
+    const asUser = t.withIdentity({ subject: userId });
+
+    await expect(
+      asUser.mutation(api.transactions.createTransaction, {
+        title: "salary",
+        value: 40,
+        date: 100,
+        to: destinationId,
+      }),
+    ).resolves.toBeNull();
+
+    const state = await t.run(async (ctx) => ({
+      frozen: await ctx.db.get("pipes", frozenId),
+      destination: await ctx.db.get("pipes", destinationId),
+      transactions: await ctx.db.query("transactions").collect(),
+    }));
+    expect(state.frozen?.deletionJobId).toBe(deletionJobId);
+    expect(state.destination).toMatchObject({ fed: 340, spent: 0 });
+    expect(state.transactions).toEqual([
+      expect.objectContaining({
+        title: "salary",
+        kind: "feed",
+        value: 40,
+        to: destinationId,
+      }),
+    ]);
+  });
+
+  it("allows a transfer across two roots while an unrelated root is frozen", async () => {
+    const t = convexTest(schema, modules);
+    const { userId, frozenId, sourceId, destinationId, deletionJobId } =
+      await t.run(async (ctx) => {
+        const userId = await ctx.db.insert("users", {
+          username: "alice",
+          email: "alice@example.com",
+          password: "hash",
+        });
+        const frozenId = await ctx.db.insert("pipes", {
+          userId,
+          name: "Frozen",
+          icon: "trash-outline",
+          priority: 0,
+          capacity: 100,
+          fed: 50,
+          spent: 0,
+        });
+        const sourceId = await ctx.db.insert("pipes", {
+          userId,
+          name: "Source",
+          icon: "wallet-outline",
+          priority: 1,
+          capacity: 500,
+          fed: 300,
+          spent: 0,
+        });
+        const destinationId = await ctx.db.insert("pipes", {
+          userId,
+          name: "Destination",
+          icon: "bank",
+          priority: 2,
+          capacity: 500,
+          fed: 300,
+          spent: 0,
+        });
+        const deletionJobId = await ctx.db.insert("pipeDeletionJobs", {
+          userId,
+          deleteTransactions: false,
+          memberPipeIds: [frozenId],
+          initialBalance: 50,
+          phase: "processingTransactions",
+          memberIndex: 0,
+          role: "from",
+        });
+        await ctx.db.patch("pipes", frozenId, { deletionJobId });
+        return { userId, frozenId, sourceId, destinationId, deletionJobId };
+      });
+    const asUser = t.withIdentity({ subject: userId });
+
+    await expect(
+      asUser.mutation(api.transactions.createTransaction, {
+        title: "move money",
+        value: -40,
+        date: 100,
+        from: sourceId,
+        to: destinationId,
+      }),
+    ).resolves.toBeNull();
+
+    const state = await t.run(async (ctx) => ({
+      frozen: await ctx.db.get("pipes", frozenId),
+      source: await ctx.db.get("pipes", sourceId),
+      destination: await ctx.db.get("pipes", destinationId),
+      transactions: await ctx.db.query("transactions").collect(),
+    }));
+    expect(state.frozen?.deletionJobId).toBe(deletionJobId);
+    expect(state.source).toMatchObject({ fed: 260, spent: 0 });
+    expect(state.destination).toMatchObject({ fed: 340, spent: 0 });
+    expect((state.source?.fed ?? 0) + (state.destination?.fed ?? 0)).toBe(600);
+    expect(state.transactions).toEqual([
+      expect.objectContaining({
+        title: "move money",
+        kind: "transfer",
+        value: -40,
+        from: sourceId,
+        to: destinationId,
+      }),
+    ]);
+  });
+
+  it("allows pay-by-transfer across two roots while an unrelated root is frozen", async () => {
+    const t = convexTest(schema, modules);
+    const { userId, frozenId, logicalId, payerId, deletionJobId } = await t.run(
+      async (ctx) => {
+        const userId = await ctx.db.insert("users", {
+          username: "alice",
+          email: "alice@example.com",
+          password: "hash",
+        });
+        const frozenId = await ctx.db.insert("pipes", {
+          userId,
+          name: "Frozen",
+          icon: "trash-outline",
+          priority: 0,
+          capacity: 100,
+          fed: 50,
+          spent: 0,
+        });
+        const logicalId = await ctx.db.insert("pipes", {
+          userId,
+          name: "Coffee",
+          icon: "cafe",
+          priority: 1,
+          capacity: 500,
+          fed: 300,
+          spent: 25,
+        });
+        const payerId = await ctx.db.insert("pipes", {
+          userId,
+          name: "Bank",
+          icon: "bank",
+          priority: 2,
+          capacity: 500,
+          fed: 300,
+          spent: 0,
+        });
+        const deletionJobId = await ctx.db.insert("pipeDeletionJobs", {
+          userId,
+          deleteTransactions: false,
+          memberPipeIds: [frozenId],
+          initialBalance: 50,
+          phase: "processingTransactions",
+          memberIndex: 0,
+          role: "from",
+        });
+        await ctx.db.patch("pipes", frozenId, { deletionJobId });
+        return { userId, frozenId, logicalId, payerId, deletionJobId };
+      },
+    );
+    const asUser = t.withIdentity({ subject: userId });
+
+    await expect(
+      asUser.mutation(api.transactions.createTransaction, {
+        title: "coffee",
+        value: -40,
+        date: 100,
+        from: logicalId,
+        paidFrom: payerId,
+      }),
+    ).resolves.toBeNull();
+
+    const state = await t.run(async (ctx) => ({
+      frozen: await ctx.db.get("pipes", frozenId),
+      logical: await ctx.db.get("pipes", logicalId),
+      payer: await ctx.db.get("pipes", payerId),
+      transactions: await ctx.db.query("transactions").collect(),
+    }));
+    expect(state.frozen?.deletionJobId).toBe(deletionJobId);
+    expect(state.logical).toMatchObject({
+      fed: 300,
+      spent: 65,
+      pendingFedAdjustment: 40,
+    });
+    expect(state.payer).toMatchObject({ fed: 260, spent: 0 });
+    expect(state.transactions).toEqual([
+      expect.objectContaining({
+        title: "coffee",
+        kind: "expense",
+        value: -40,
+        from: logicalId,
+        paidFrom: payerId,
+      }),
+    ]);
+  });
+
   it("rejects topology edits against a frozen deletion subtree", async () => {
     const t = convexTest(schema, modules);
     const { userId, pipeId } = await t.run(async (ctx) => {
@@ -699,6 +1896,504 @@ describe("Convex boundaries", () => {
         name: "renamed",
       }),
     ).rejects.toThrow("Pipe is being deleted");
+  });
+
+  it("allows metadata updates in another tree while deletion is frozen", async () => {
+    const t = convexTest(schema, modules);
+    const { userId, frozenId, editableId } = await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", {
+        username: "alice",
+        email: "alice@example.com",
+        password: "hash",
+      });
+      const frozenId = await ctx.db.insert("pipes", {
+        userId,
+        name: "Frozen",
+        icon: "trash-outline",
+        priority: 0,
+        capacity: 100,
+        fed: 50,
+        spent: 0,
+      });
+      const editableId = await ctx.db.insert("pipes", {
+        userId,
+        name: "Editable",
+        icon: "wallet-outline",
+        priority: 1,
+        capacity: 500,
+        fed: 300,
+        spent: 25,
+      });
+      return { userId, frozenId, editableId };
+    });
+    const asUser = t.withIdentity({ subject: userId });
+
+    await asUser.mutation(api.pipes.startPipeDeletion, {
+      pipeId: frozenId,
+      deleteTransactions: false,
+    });
+    await asUser.mutation(api.pipes.updatePipe, {
+      pipeId: editableId,
+      name: "Renamed",
+      icon: "cash-outline",
+      description: "Presentation only",
+    });
+
+    const editable = await t.run((ctx) => ctx.db.get("pipes", editableId));
+    expect(editable).toMatchObject({
+      name: "Renamed",
+      icon: "cash-outline",
+      description: "Presentation only",
+      capacity: 500,
+      fed: 300,
+      spent: 25,
+    });
+  });
+
+  it("allows a capacity update in one tree while an unrelated tree is frozen", async () => {
+    const t = convexTest(schema, modules);
+    const { userId, frozenId, editableId, deletionJobId } = await t.run(
+      async (ctx) => {
+        const userId = await ctx.db.insert("users", {
+          username: "alice",
+          email: "alice@example.com",
+          password: "hash",
+        });
+        const frozenId = await ctx.db.insert("pipes", {
+          userId,
+          name: "Frozen",
+          icon: "trash-outline",
+          priority: 0,
+          capacity: 100,
+          fed: 50,
+          spent: 0,
+        });
+        const editableId = await ctx.db.insert("pipes", {
+          userId,
+          name: "Editable",
+          icon: "wallet-outline",
+          priority: 1,
+          capacity: 500,
+          fed: 300,
+          spent: 25,
+        });
+        const deletionJobId = await ctx.db.insert("pipeDeletionJobs", {
+          userId,
+          deleteTransactions: false,
+          memberPipeIds: [frozenId],
+          initialBalance: 50,
+          phase: "processingTransactions",
+          memberIndex: 0,
+          role: "from",
+        });
+        await ctx.db.patch("pipes", frozenId, { deletionJobId });
+        return { userId, frozenId, editableId, deletionJobId };
+      },
+    );
+
+    await expect(
+      t.withIdentity({ subject: userId }).mutation(api.pipes.updatePipe, {
+        pipeId: editableId,
+        capacity: 600,
+      }),
+    ).resolves.toBeNull();
+
+    const state = await t.run(async (ctx) => ({
+      frozen: await ctx.db.get("pipes", frozenId),
+      editable: await ctx.db.get("pipes", editableId),
+    }));
+    expect(state.frozen?.deletionJobId).toBe(deletionJobId);
+    expect(state.editable).toMatchObject({
+      capacity: 600,
+      fed: 300,
+      spent: 25,
+    });
+  });
+
+  it("allows an expense edit in one root while an unrelated root is frozen", async () => {
+    const t = convexTest(schema, modules);
+    const { userId, frozenId, spendingId, transactionId, deletionJobId } =
+      await t.run(async (ctx) => {
+        const userId = await ctx.db.insert("users", {
+          username: "alice",
+          email: "alice@example.com",
+          password: "hash",
+        });
+        const frozenId = await ctx.db.insert("pipes", {
+          userId,
+          name: "Frozen",
+          icon: "trash-outline",
+          priority: 0,
+          capacity: 100,
+          fed: 50,
+          spent: 0,
+        });
+        const spendingId = await ctx.db.insert("pipes", {
+          userId,
+          name: "Spending",
+          icon: "wallet-outline",
+          priority: 1,
+          capacity: 500,
+          fed: 300,
+          spent: 25,
+        });
+        const transactionId = await ctx.db.insert("transactions", {
+          userId,
+          title: "groceries",
+          kind: "expense",
+          value: -20,
+          date: 100,
+          from: spendingId,
+        });
+        const deletionJobId = await ctx.db.insert("pipeDeletionJobs", {
+          userId,
+          deleteTransactions: false,
+          memberPipeIds: [frozenId],
+          initialBalance: 50,
+          phase: "processingTransactions",
+          memberIndex: 0,
+          role: "from",
+        });
+        await ctx.db.patch("pipes", frozenId, { deletionJobId });
+        return {
+          userId,
+          frozenId,
+          spendingId,
+          transactionId,
+          deletionJobId,
+        };
+      });
+
+    await expect(
+      t.withIdentity({ subject: userId }).mutation(
+        api.transactions.editTransaction,
+        {
+          transactionId,
+          title: "groceries",
+          value: -40,
+          date: 100,
+        },
+      ),
+    ).resolves.toBeNull();
+
+    const state = await t.run(async (ctx) => ({
+      frozen: await ctx.db.get("pipes", frozenId),
+      spending: await ctx.db.get("pipes", spendingId),
+      transaction: await ctx.db.get("transactions", transactionId),
+      corrections: await ctx.db.query("transactionCorrections").collect(),
+    }));
+    expect(state.frozen?.deletionJobId).toBe(deletionJobId);
+    expect(state.spending).toMatchObject({ fed: 300, spent: 45 });
+    expect(state.transaction).toMatchObject({ value: -40, editedAt: expect.any(Number) });
+    expect(state.corrections).toEqual([
+      expect.objectContaining({
+        transactionId,
+        previous: { title: "groceries", value: -20, date: 100 },
+        current: { title: "groceries", value: -40, date: 100 },
+      }),
+    ]);
+  });
+
+  it("allows a feed edit in one root while an unrelated root is frozen", async () => {
+    const t = convexTest(schema, modules);
+    const { userId, frozenId, destinationId, transactionId, deletionJobId } =
+      await t.run(async (ctx) => {
+        const userId = await ctx.db.insert("users", {
+          username: "alice",
+          email: "alice@example.com",
+          password: "hash",
+        });
+        const frozenId = await ctx.db.insert("pipes", {
+          userId,
+          name: "Frozen",
+          icon: "trash-outline",
+          priority: 0,
+          capacity: 100,
+          fed: 50,
+          spent: 0,
+        });
+        const destinationId = await ctx.db.insert("pipes", {
+          userId,
+          name: "Income",
+          icon: "wallet-outline",
+          priority: 1,
+          capacity: 500,
+          fed: 300,
+          spent: 0,
+        });
+        const transactionId = await ctx.db.insert("transactions", {
+          userId,
+          title: "salary",
+          kind: "feed",
+          value: 100,
+          date: 100,
+          to: destinationId,
+        });
+        const deletionJobId = await ctx.db.insert("pipeDeletionJobs", {
+          userId,
+          deleteTransactions: false,
+          memberPipeIds: [frozenId],
+          initialBalance: 50,
+          phase: "processingTransactions",
+          memberIndex: 0,
+          role: "from",
+        });
+        await ctx.db.patch("pipes", frozenId, { deletionJobId });
+        return {
+          userId,
+          frozenId,
+          destinationId,
+          transactionId,
+          deletionJobId,
+        };
+      });
+
+    await expect(
+      t.withIdentity({ subject: userId }).mutation(
+        api.transactions.editTransaction,
+        {
+          transactionId,
+          title: "salary",
+          value: 140,
+          date: 100,
+        },
+      ),
+    ).resolves.toBeNull();
+
+    const state = await t.run(async (ctx) => ({
+      frozen: await ctx.db.get("pipes", frozenId),
+      destination: await ctx.db.get("pipes", destinationId),
+      transaction: await ctx.db.get("transactions", transactionId),
+      corrections: await ctx.db.query("transactionCorrections").collect(),
+    }));
+    expect(state.frozen?.deletionJobId).toBe(deletionJobId);
+    expect(state.destination).toMatchObject({ fed: 340, spent: 0 });
+    expect(state.transaction).toMatchObject({ value: 140, editedAt: expect.any(Number) });
+    expect(state.corrections).toEqual([
+      expect.objectContaining({
+        transactionId,
+        previous: { title: "salary", value: 100, date: 100 },
+        current: { title: "salary", value: 140, date: 100 },
+      }),
+    ]);
+  });
+
+  it("allows a transfer edit across two roots while an unrelated root is frozen", async () => {
+    const t = convexTest(schema, modules);
+    const {
+      userId,
+      frozenId,
+      sourceId,
+      destinationId,
+      transactionId,
+      deletionJobId,
+    } = await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", {
+        username: "alice",
+        email: "alice@example.com",
+        password: "hash",
+      });
+      const frozenId = await ctx.db.insert("pipes", {
+        userId,
+        name: "Frozen",
+        icon: "trash-outline",
+        priority: 0,
+        capacity: 100,
+        fed: 50,
+        spent: 0,
+      });
+      const sourceId = await ctx.db.insert("pipes", {
+        userId,
+        name: "Source",
+        icon: "wallet-outline",
+        priority: 1,
+        capacity: 500,
+        fed: 260,
+        spent: 0,
+      });
+      const destinationId = await ctx.db.insert("pipes", {
+        userId,
+        name: "Destination",
+        icon: "bank",
+        priority: 2,
+        capacity: 500,
+        fed: 340,
+        spent: 0,
+      });
+      const transactionId = await ctx.db.insert("transactions", {
+        userId,
+        title: "move money",
+        kind: "transfer",
+        value: -40,
+        date: 100,
+        from: sourceId,
+        to: destinationId,
+      });
+      const deletionJobId = await ctx.db.insert("pipeDeletionJobs", {
+        userId,
+        deleteTransactions: false,
+        memberPipeIds: [frozenId],
+        initialBalance: 50,
+        phase: "processingTransactions",
+        memberIndex: 0,
+        role: "from",
+      });
+      await ctx.db.patch("pipes", frozenId, { deletionJobId });
+      return {
+        userId,
+        frozenId,
+        sourceId,
+        destinationId,
+        transactionId,
+        deletionJobId,
+      };
+    });
+
+    await expect(
+      t.withIdentity({ subject: userId }).mutation(
+        api.transactions.editTransaction,
+        {
+          transactionId,
+          title: "move money",
+          value: -80,
+          date: 100,
+        },
+      ),
+    ).resolves.toBeNull();
+
+    const state = await t.run(async (ctx) => ({
+      frozen: await ctx.db.get("pipes", frozenId),
+      source: await ctx.db.get("pipes", sourceId),
+      destination: await ctx.db.get("pipes", destinationId),
+      transaction: await ctx.db.get("transactions", transactionId),
+      corrections: await ctx.db.query("transactionCorrections").collect(),
+    }));
+    expect(state.frozen?.deletionJobId).toBe(deletionJobId);
+    expect(state.source).toMatchObject({ fed: 220, spent: 0 });
+    expect(state.destination).toMatchObject({ fed: 380, spent: 0 });
+    expect((state.source?.fed ?? 0) + (state.destination?.fed ?? 0)).toBe(600);
+    expect(state.transaction).toMatchObject({
+      value: -80,
+      editedAt: expect.any(Number),
+    });
+    expect(state.corrections).toEqual([
+      expect.objectContaining({
+        transactionId,
+        previous: { title: "move money", value: -40, date: 100 },
+        current: { title: "move money", value: -80, date: 100 },
+      }),
+    ]);
+  });
+
+  it("allows a pay-by-transfer edit across two roots while an unrelated root is frozen", async () => {
+    const t = convexTest(schema, modules);
+    const {
+      userId,
+      frozenId,
+      logicalId,
+      payerId,
+      transactionId,
+      deletionJobId,
+    } = await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", {
+        username: "alice",
+        email: "alice@example.com",
+        password: "hash",
+      });
+      const frozenId = await ctx.db.insert("pipes", {
+        userId,
+        name: "Frozen",
+        icon: "trash-outline",
+        priority: 0,
+        capacity: 100,
+        fed: 50,
+        spent: 0,
+      });
+      const logicalId = await ctx.db.insert("pipes", {
+        userId,
+        name: "Coffee",
+        icon: "cafe",
+        priority: 1,
+        capacity: 500,
+        fed: 300,
+        spent: 65,
+        pendingFedAdjustment: 40,
+      });
+      const payerId = await ctx.db.insert("pipes", {
+        userId,
+        name: "Bank",
+        icon: "bank",
+        priority: 2,
+        capacity: 500,
+        fed: 260,
+        spent: 0,
+      });
+      const transactionId = await ctx.db.insert("transactions", {
+        userId,
+        title: "coffee",
+        kind: "expense",
+        value: -40,
+        date: 100,
+        from: logicalId,
+        paidFrom: payerId,
+      });
+      const deletionJobId = await ctx.db.insert("pipeDeletionJobs", {
+        userId,
+        deleteTransactions: false,
+        memberPipeIds: [frozenId],
+        initialBalance: 50,
+        phase: "processingTransactions",
+        memberIndex: 0,
+        role: "from",
+      });
+      await ctx.db.patch("pipes", frozenId, { deletionJobId });
+      return {
+        userId,
+        frozenId,
+        logicalId,
+        payerId,
+        transactionId,
+        deletionJobId,
+      };
+    });
+
+    await expect(
+      t.withIdentity({ subject: userId }).mutation(
+        api.transactions.editTransaction,
+        {
+          transactionId,
+          title: "coffee",
+          value: -80,
+          date: 100,
+        },
+      ),
+    ).resolves.toBeNull();
+
+    const state = await t.run(async (ctx) => ({
+      frozen: await ctx.db.get("pipes", frozenId),
+      logical: await ctx.db.get("pipes", logicalId),
+      payer: await ctx.db.get("pipes", payerId),
+      transaction: await ctx.db.get("transactions", transactionId),
+      corrections: await ctx.db.query("transactionCorrections").collect(),
+    }));
+    expect(state.frozen?.deletionJobId).toBe(deletionJobId);
+    expect(state.logical).toMatchObject({
+      fed: 300,
+      spent: 105,
+      pendingFedAdjustment: 80,
+    });
+    expect(state.payer).toMatchObject({ fed: 220, spent: 0 });
+    expect(state.transaction).toMatchObject({
+      value: -80,
+      editedAt: expect.any(Number),
+    });
+    expect(state.corrections).toEqual([
+      expect.objectContaining({
+        transactionId,
+        previous: { title: "coffee", value: -40, date: 100 },
+        current: { title: "coffee", value: -80, date: 100 },
+      }),
+    ]);
   });
 
   it("rejects editing a transaction in a frozen deletion subtree", async () => {
@@ -743,6 +2438,280 @@ describe("Convex boundaries", () => {
         date: 200,
       }),
     ).rejects.toThrow("Pipe is being deleted");
+  });
+
+  it("rejects editing a transaction that references another user's pipe", async () => {
+    const t = convexTest(schema, modules);
+    const { userId, pipeId, transactionId } = await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", {
+        username: "alice",
+        email: "alice@example.com",
+        password: "hash-a",
+      });
+      const otherUserId = await ctx.db.insert("users", {
+        username: "bob",
+        email: "bob@example.com",
+        password: "hash-b",
+      });
+      const pipeId = await ctx.db.insert("pipes", {
+        userId: otherUserId,
+        name: "Foreign",
+        icon: "wallet-outline",
+        priority: 0,
+        capacity: 1000,
+        fed: 500,
+        spent: 100,
+      });
+      const transactionId = await ctx.db.insert("transactions", {
+        userId,
+        title: "expense",
+        kind: "expense",
+        value: -100,
+        date: 100,
+        from: pipeId,
+      });
+      return { userId, pipeId, transactionId };
+    });
+
+    await expect(
+      t.withIdentity({ subject: userId }).mutation(
+        api.transactions.editTransaction,
+        {
+          transactionId,
+          title: "changed",
+          value: -200,
+          date: 200,
+        },
+      ),
+    ).rejects.toMatchObject({ data: { code: "TRANSACTION_PIPE_NOT_FOUND" } });
+
+    const state = await t.run(async (ctx) => ({
+      pipe: await ctx.db.get("pipes", pipeId),
+      transaction: await ctx.db.get("transactions", transactionId),
+      corrections: await ctx.db.query("transactionCorrections").collect(),
+    }));
+    expect(state.pipe).toMatchObject({ fed: 500, spent: 100 });
+    expect(state.transaction).toMatchObject({
+      title: "expense",
+      value: -100,
+      date: 100,
+    });
+    expect(state.corrections).toEqual([]);
+  });
+
+  it("rejects editing a transfer whose destination is in the source tree", async () => {
+    const t = convexTest(schema, modules);
+    const { userId, sourceId, destinationId, transactionId } = await t.run(
+      async (ctx) => {
+        const userId = await ctx.db.insert("users", {
+          username: "alice",
+          email: "alice@example.com",
+          password: "hash",
+        });
+        const destinationId = await ctx.db.insert("pipes", {
+          userId,
+          name: "Root",
+          icon: "bank",
+          priority: 0,
+          capacity: 1000,
+          fed: 500,
+          spent: 0,
+        });
+        const sourceId = await ctx.db.insert("pipes", {
+          userId,
+          parentId: destinationId,
+          name: "Leaf",
+          icon: "wallet-outline",
+          priority: 0,
+          capacity: 500,
+          fed: 300,
+          spent: 0,
+        });
+        const transactionId = await ctx.db.insert("transactions", {
+          userId,
+          title: "legacy transfer",
+          kind: "transfer",
+          value: -100,
+          date: 100,
+          from: sourceId,
+          to: destinationId,
+        });
+        return { userId, sourceId, destinationId, transactionId };
+      },
+    );
+
+    await expect(
+      t.withIdentity({ subject: userId }).mutation(
+        api.transactions.editTransaction,
+        {
+          transactionId,
+          title: "legacy transfer",
+          value: -200,
+          date: 100,
+        },
+      ),
+    ).rejects.toMatchObject({ data: { code: "TRANSFER_SAME_TREE" } });
+
+    const state = await t.run(async (ctx) => ({
+      source: await ctx.db.get("pipes", sourceId),
+      destination: await ctx.db.get("pipes", destinationId),
+      transaction: await ctx.db.get("transactions", transactionId),
+      corrections: await ctx.db.query("transactionCorrections").collect(),
+    }));
+    expect(state.source).toMatchObject({ fed: 300, spent: 0 });
+    expect(state.destination).toMatchObject({ fed: 500, spent: 0 });
+    expect(state.transaction).toMatchObject({ value: -100, date: 100 });
+    expect(state.corrections).toEqual([]);
+  });
+
+  it("rejects editing a transfer whose destination is not a root", async () => {
+    const t = convexTest(schema, modules);
+    const { userId, sourceId, destinationId, transactionId } = await t.run(
+      async (ctx) => {
+        const userId = await ctx.db.insert("users", {
+          username: "alice",
+          email: "alice@example.com",
+          password: "hash",
+        });
+        const sourceId = await ctx.db.insert("pipes", {
+          userId,
+          name: "Source",
+          icon: "wallet-outline",
+          priority: 0,
+          capacity: 1000,
+          fed: 500,
+          spent: 0,
+        });
+        const otherRootId = await ctx.db.insert("pipes", {
+          userId,
+          name: "Other root",
+          icon: "bank",
+          priority: 0,
+          capacity: 1000,
+          fed: 500,
+          spent: 0,
+        });
+        const destinationId = await ctx.db.insert("pipes", {
+          userId,
+          parentId: otherRootId,
+          name: "Nested destination",
+          icon: "cash",
+          priority: 0,
+          capacity: 500,
+          fed: 200,
+          spent: 0,
+        });
+        const transactionId = await ctx.db.insert("transactions", {
+          userId,
+          title: "legacy transfer",
+          kind: "transfer",
+          value: -100,
+          date: 100,
+          from: sourceId,
+          to: destinationId,
+        });
+        return { userId, sourceId, destinationId, transactionId };
+      },
+    );
+
+    await expect(
+      t.withIdentity({ subject: userId }).mutation(
+        api.transactions.editTransaction,
+        {
+          transactionId,
+          title: "legacy transfer",
+          value: -200,
+          date: 100,
+        },
+      ),
+    ).rejects.toMatchObject({
+      data: { code: "TRANSFER_DESTINATION_NOT_ROOT" },
+    });
+
+    const state = await t.run(async (ctx) => ({
+      source: await ctx.db.get("pipes", sourceId),
+      destination: await ctx.db.get("pipes", destinationId),
+      transaction: await ctx.db.get("transactions", transactionId),
+      corrections: await ctx.db.query("transactionCorrections").collect(),
+    }));
+    expect(state.source).toMatchObject({ fed: 500, spent: 0 });
+    expect(state.destination).toMatchObject({ fed: 200, spent: 0 });
+    expect(state.transaction).toMatchObject({ value: -100, date: 100 });
+    expect(state.corrections).toEqual([]);
+  });
+
+  it("rejects editing a transfer whose source has children", async () => {
+    const t = convexTest(schema, modules);
+    const { userId, sourceId, destinationId, transactionId } = await t.run(
+      async (ctx) => {
+        const userId = await ctx.db.insert("users", {
+          username: "alice",
+          email: "alice@example.com",
+          password: "hash",
+        });
+        const sourceId = await ctx.db.insert("pipes", {
+          userId,
+          name: "Source",
+          icon: "wallet-outline",
+          priority: 0,
+          capacity: 1000,
+          fed: 500,
+          spent: 0,
+        });
+        await ctx.db.insert("pipes", {
+          userId,
+          parentId: sourceId,
+          name: "Child",
+          icon: "cash",
+          priority: 0,
+          capacity: 500,
+          fed: 100,
+          spent: 0,
+        });
+        const destinationId = await ctx.db.insert("pipes", {
+          userId,
+          name: "Destination",
+          icon: "bank",
+          priority: 0,
+          capacity: 1000,
+          fed: 200,
+          spent: 0,
+        });
+        const transactionId = await ctx.db.insert("transactions", {
+          userId,
+          title: "legacy transfer",
+          kind: "transfer",
+          value: -100,
+          date: 100,
+          from: sourceId,
+          to: destinationId,
+        });
+        return { userId, sourceId, destinationId, transactionId };
+      },
+    );
+
+    await expect(
+      t.withIdentity({ subject: userId }).mutation(
+        api.transactions.editTransaction,
+        {
+          transactionId,
+          title: "legacy transfer",
+          value: -200,
+          date: 100,
+        },
+      ),
+    ).rejects.toMatchObject({ data: { code: "TRANSFER_SOURCE_NOT_LEAF" } });
+
+    const state = await t.run(async (ctx) => ({
+      source: await ctx.db.get("pipes", sourceId),
+      destination: await ctx.db.get("pipes", destinationId),
+      transaction: await ctx.db.get("transactions", transactionId),
+      corrections: await ctx.db.query("transactionCorrections").collect(),
+    }));
+    expect(state.source).toMatchObject({ fed: 500, spent: 0 });
+    expect(state.destination).toMatchObject({ fed: 200, spent: 0 });
+    expect(state.transaction).toMatchObject({ value: -100, date: 100 });
+    expect(state.corrections).toEqual([]);
   });
 
   it("accepts Convex pagination metadata for correction history", async () => {
@@ -1055,6 +3024,60 @@ describe("Convex boundaries", () => {
       fed: 500,
       spent: 0,
       pendingFedAdjustment: 0,
+    });
+  });
+
+  it("returns the same expected error for missing and foreign pipes before manual rule execution", async () => {
+    const t = convexTest(schema, modules);
+    const { userId, missingPipeId, foreignPipeId } = await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", {
+        username: "alice",
+        email: "alice@example.com",
+        password: "hash-a",
+      });
+      const otherUserId = await ctx.db.insert("users", {
+        username: "bob",
+        email: "bob@example.com",
+        password: "hash-b",
+      });
+      const missingPipeId = await ctx.db.insert("pipes", {
+        userId,
+        name: "Deleted",
+        icon: "trash-outline",
+        priority: 0,
+        capacity: 1000,
+        fed: 500,
+        spent: 100,
+      });
+      await ctx.db.delete("pipes", missingPipeId);
+      const foreignPipeId = await ctx.db.insert("pipes", {
+        userId: otherUserId,
+        name: "Foreign",
+        icon: "wallet-outline",
+        priority: 0,
+        capacity: 1000,
+        fed: 500,
+        spent: 100,
+        pendingFedAdjustment: 25,
+      });
+      return { userId, missingPipeId, foreignPipeId };
+    });
+    const asUser = t.withIdentity({ subject: userId });
+
+    for (const pipeId of [missingPipeId, foreignPipeId]) {
+      await expect(
+        asUser.mutation(api.pipes.executePipeRuleNow, { pipeId }),
+      ).rejects.toMatchObject({ data: { code: "PIPE_NOT_FOUND" } });
+    }
+
+    const foreignPipe = await t.run((ctx) =>
+      ctx.db.get("pipes", foreignPipeId),
+    );
+    expect(foreignPipe).toMatchObject({
+      capacity: 1000,
+      fed: 500,
+      spent: 100,
+      pendingFedAdjustment: 25,
     });
   });
 

@@ -1,7 +1,9 @@
 import { useCallback } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
-import { type Id } from "@convex/_generated/dataModel";
+import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
+import type { PipeModel } from "@features/pipes/data/pipes";
+import { expectedMonthlyCapacity } from "@features/pipes/data/expectedCapacity";
 import {
   PipesList,
   type Pipe as PipesListPipe,
@@ -14,8 +16,8 @@ import { RulesIcon } from "./components/RulesIcon";
 import { StatisticsRow } from "./components/StatisticsRow";
 
 export function InnerPipesScreen() {
-  const { selectedPipe, selectedPipePath, childrenByParent, selectPipe } =
-    usePipeSelection();
+  const { selectedPipe, selectedPipePath, selectPipe } = usePipeSelection();
+  const { childrenByParent } = usePipeCatalog();
 
   const fed = selectedPipe?.fed ?? 0;
   const spent = selectedPipe?.spent ?? 0;
@@ -25,16 +27,23 @@ export function InnerPipesScreen() {
 
   const selectedId = selectedPipePath[selectedPipePath.length - 1];
   const children = childrenByParent.get(selectedId) ?? [];
+  const expected = selectedPipe
+    ? expectedMonthlyCapacity(
+        { ...selectedPipe, capacity },
+        childrenByParent,
+        Date.now(),
+      )
+    : 0;
 
   const handleSelectPipe = useCallback(
-    (id: Id<"pipes">) => selectPipe([...selectedPipePath, id]),
+    (id: PipeModel["id"]) => selectPipe([...selectedPipePath, id]),
     [selectedPipePath, selectPipe],
   );
 
   const leading = useCallback(
     (pipe: PipesListPipe) => (
       <RulesIcon
-        pipeId={pipe._id}
+        pipeId={pipe.id}
         rule={pipe.rule}
         fed={pipe.fed}
         capacity={pipe.capacity}
@@ -42,7 +51,7 @@ export function InnerPipesScreen() {
         cronNextDate={pipe.cronNextDate}
         cronInterval={pipe.cronInterval}
         disabled={
-          (childrenByParent.get(pipe._id)?.length ?? 0) > 0 ||
+          (childrenByParent.get(pipe.id)?.length ?? 0) > 0 ||
           Boolean(pipe.deletionJobId)
         }
       />
@@ -58,6 +67,8 @@ export function InnerPipesScreen() {
           fed={fed}
           spent={spent}
           capacity={capacity}
+          expected={expected}
+          pendingFedAdjustment={pendingFedAdjustment}
           rule={selectedPipe?.rule}
         />
         <View className="flex-row items-center gap-2 px-5 pb-2">
@@ -85,7 +96,7 @@ export function InnerPipesScreen() {
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={{ flexGrow: 1 }}
           >
-            <AmountForm pipeId={selectedPipe._id} variant="spend" />
+            <AmountForm pipeId={selectedPipe.id} variant="spend" />
           </ScrollView>
         ) : null}
         <PipesList

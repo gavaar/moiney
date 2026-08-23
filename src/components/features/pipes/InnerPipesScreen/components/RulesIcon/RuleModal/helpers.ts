@@ -1,6 +1,6 @@
-import { type Doc } from "@convex/_generated/dataModel";
 import { type IconName } from "@ui/Icon";
 import { type CronUnit } from "@domain/scheduling";
+import type { PipeModel } from "@features/pipes/data/pipes";
 import { type RuleId } from "./config";
 import { divideMoney, formatMoneyInput, parseMoney } from "@domain/money";
 
@@ -86,7 +86,7 @@ export function hasRuleDiff(deps: {
   interval: number;
   unit: CronUnit;
   starting?: number;
-  pipe?: Doc<"pipes">;
+  pipe?: PipeModel;
 }): boolean {
   const { selectedRule, isCron, capNumber, interval, unit, starting, pipe } = deps;
   const intendedRule = selectedRule === "none" ? undefined : selectedRule;

@@ -12,9 +12,11 @@ let mockPipesById: any;
 vi.mock("@features/pipes/context/PipeSelectionContext", () => ({
   usePipeSelection: () => ({
     selectedPipePath: ["test_pipe_id"],
-    pipesById: mockPipesById,
     isLoading: false,
   }),
+}));
+vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
+  usePipeCatalog: () => ({ pipesById: mockPipesById }),
 }));
 
 import { StatisticsRow } from "./StatisticsRow";
@@ -39,7 +41,7 @@ describe("StatisticsRow", () => {
   beforeEach(() => {
     mockPipesById = {
       test_pipe_id: {
-        _id: "test_pipe_id",
+        id: "test_pipe_id",
         name: "Test Pipe",
         icon: "home-outline",
       },
@@ -61,13 +63,13 @@ describe("StatisticsRow", () => {
     expect(screen.getByText(/StMpD: 13\.33/)).toBeDefined();
   });
 
-  it("shows paid-elsewhere adjustment in L2S and explains the purple chip", async () => {
+  it("keeps paid-elsewhere adjustments out of L2S and explains the purple chip", async () => {
     const user = userEvent.setup();
     render(
       <StatisticsRow fed={100000} spent={40000} pendingFedAdjustment={25000} />,
     );
 
-    expect(screen.getByText(/L2S: 850\.00/)).toBeDefined();
+    expect(screen.getByText(/L2S: 600\.00/)).toBeDefined();
     expect(screen.getByTestId("external-adjustment-chip")).toBeDefined();
     expect(screen.getByText("+250.00")).toBeDefined();
     expect(
@@ -81,9 +83,14 @@ describe("StatisticsRow", () => {
 
     await user.click(screen.getByTestId("external-adjustment-chip"));
     expect(screen.getByText(/Paid elsewhere/)).toBeDefined();
+    expect(
+      screen.getByText(
+        "This spending counts toward this pipe, but another pipe paid for it. The next rule run will add 250.00 to this pipe's fed balance.",
+      ),
+    ).toBeDefined();
   });
 
-  it("labels a negative external adjustment as refunded elsewhere", async () => {
+  it("keeps refunded-elsewhere adjustments out of L2S and explains the purple chip", async () => {
     const user = userEvent.setup();
     render(
       <StatisticsRow
@@ -93,11 +100,16 @@ describe("StatisticsRow", () => {
       />,
     );
 
-    expect(screen.getByText(/L2S: 350\.00/)).toBeDefined();
+    expect(screen.getByText(/L2S: 600\.00/)).toBeDefined();
     expect(screen.getByText("-250.00")).toBeDefined();
 
     await user.click(screen.getByTestId("external-adjustment-chip"));
     expect(screen.getByText(/Refunded elsewhere/)).toBeDefined();
+    expect(
+      screen.getByText(
+        "This refund reduces this pipe's spending, but another pipe received it. The next rule run will subtract 250.00 from this pipe's fed balance.",
+      ),
+    ).toBeDefined();
   });
 
   it("opens stat description popover on tap", async () => {
@@ -127,7 +139,7 @@ describe("StatisticsRow", () => {
     vi.setSystemTime(Date.UTC(2026, 6, 6, 12));
     mockPipesById = {
       test_pipe_id: {
-        _id: "test_pipe_id",
+        id: "test_pipe_id",
         name: "Test Pipe",
         icon: "home-outline",
         rule: "cron",
@@ -149,7 +161,7 @@ describe("StatisticsRow", () => {
     vi.setSystemTime(Date.UTC(2026, 6, 6, 12));
     mockPipesById = {
       test_pipe_id: {
-        _id: "test_pipe_id",
+        id: "test_pipe_id",
         name: "Test Pipe",
         icon: "home-outline",
         rule: "cron",

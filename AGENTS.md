@@ -90,6 +90,7 @@ For every new or modified registered Convex function:
 - Define argument and return validators.
 - Prefer structured expected errors over client parsing of error-message text.
 - Avoid unbounded `.collect()`, post-index database `.filter()`, and unbounded fan-out mutations.
+- Use the smallest correct read/write set. Reuse documents already loaded in the current function, pass them into helpers, avoid duplicate point reads and unchanged writes, and bound every query. Do not add a cache for a document read only once or reuse pre-write data when correctness requires post-write state.
 - Use explicit table names with `ctx.db.get`, `patch`, `replace`, and `delete` when touched code supports it.
 - Use the migration skill and widen-migrate-narrow for persisted breaking schema changes.
 - Do not add persisted fields, indexes, status values, background phases, or API result fields without an identified current consumer or enforced invariant. Future observability or recovery possibilities are not sufficient justification.

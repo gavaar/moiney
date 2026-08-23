@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { create, revokeSessionFamily, rotateRefreshToken } from "./sessions";
+import {
+  cleanupExpired,
+  create,
+  revokeSessionFamily,
+  rotateRefreshToken,
+} from "./sessions";
 
 describe("create", () => {
   it("revokes the oldest active session before creating an eleventh", async () => {
@@ -171,5 +176,38 @@ describe("revokeSessionFamily", () => {
       expect.objectContaining({ active: false, revokedAt: expect.any(Number) }),
     );
     expect(ctx.db.delete).not.toHaveBeenCalled();
+  });
+});
+
+describe("cleanupExpired", () => {
+  it("deletes expired sessions from one page and schedules the next page", async () => {
+    const now = 10_000;
+    const paginate = vi.fn().mockResolvedValue({
+      page: [
+        { _id: "expired", expiresAt: now - 1 },
+        { _id: "current", expiresAt: now },
+      ],
+      isDone: false,
+      continueCursor: "cursor-2",
+    });
+    const scheduler = { runAfter: vi.fn() };
+    const ctx = {
+      db: {
+        delete: vi.fn(),
+        query: vi.fn(() => ({ paginate })),
+      },
+      scheduler,
+    };
+
+    await (cleanupExpired as any)._handler(ctx, { now });
+
+    expect(paginate).toHaveBeenCalledWith({ numItems: 100, cursor: null });
+    expect(ctx.db.delete).toHaveBeenCalledTimes(1);
+    expect(ctx.db.delete).toHaveBeenCalledWith("sessions", "expired");
+    expect(scheduler.runAfter).toHaveBeenCalledWith(
+      0,
+      expect.anything(),
+      { now, cursor: "cursor-2" },
+    );
   });
 });

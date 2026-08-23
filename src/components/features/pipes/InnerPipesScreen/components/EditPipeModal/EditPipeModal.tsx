@@ -8,7 +8,7 @@ import { ModalShell } from "@ui/Modal";
 import { Button } from "@ui/Button";
 import { useAlert } from "@ui/Alert";
 import { type Id } from "@convex/_generated/dataModel";
-import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
+import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import { colors } from "@/lib/styles";
 import { formatMoneyInput, parseMoney } from "@domain/money";
 
@@ -19,7 +19,7 @@ type EditPipeModalProps = {
 };
 
 export function EditPipeModal({ visible, onClose, pipeId }: EditPipeModalProps) {
-  const { pipesById } = usePipeSelection();
+  const { pipesById } = usePipeCatalog();
   const pipe = pipesById?.[pipeId];
 
   const [name, setName] = useState(pipe?.name ?? "");

@@ -1,19 +1,19 @@
 import { useMemo } from "react";
 import { DimensionValue, Pressable, ScrollView, Text, View } from "react-native";
 import { Icon } from "@ui/Icon";
-import { usePipeSelection, type Pipe } from "@features/pipes/context/PipeSelectionContext";
+import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
+import type { PipeModel } from "@features/pipes/data/pipes";
 import { colors } from "@/lib/styles";
-import { type Id } from "@convex/_generated/dataModel";
 
 const BAR_WIDTH = 100;
 
 type TreeRowData = {
-  id: Id<"pipes">;
+  id: PipeModel["id"];
   depth: number;
   prefix: string;
-  pipe: Pipe;
+  pipe: PipeModel;
   groupMax: number;
-  path: Id<"pipes">[];
+  path: PipeModel["id"][];
   isLeaf: boolean;
 };
 
@@ -28,15 +28,15 @@ function buildPrefix(depth: number, hasMoreSiblings: boolean[], isLastChild: boo
 }
 
 function buildTreeRows(
-  feeds: Pipe[],
-  childrenByParent: Map<Id<"pipes">, Pipe[]>,
+  feeds: PipeModel[],
+  childrenByParent: Map<PipeModel["id"], PipeModel[]>,
 ): TreeRowData[] {
   const rows: TreeRowData[] = [];
 
-  function groupMax(pipes: Pipe[]): number {
+  function groupMax(pipes: PipeModel[]): number {
     let m = 0;
     for (const p of pipes) {
-      const childPipes = childrenByParent.get(p._id);
+      const childPipes = childrenByParent.get(p.id);
       if (childPipes === undefined || childPipes.length === 0) {
         m = Math.max(m, Math.abs(p.fed), Math.abs(p.spent), Math.abs(p.capacity));
       }
@@ -44,10 +44,10 @@ function buildTreeRows(
     return m || 1;
   }
 
-  function sortSiblings(pipes: Pipe[]): Pipe[] {
+  function sortSiblings(pipes: PipeModel[]): PipeModel[] {
     return [...pipes].sort((a, b) => {
-      const aLeaf = !childrenByParent.has(a._id) || (childrenByParent.get(a._id)?.length ?? 0) === 0;
-      const bLeaf = !childrenByParent.has(b._id) || (childrenByParent.get(b._id)?.length ?? 0) === 0;
+      const aLeaf = !childrenByParent.has(a.id) || (childrenByParent.get(a.id)?.length ?? 0) === 0;
+      const bLeaf = !childrenByParent.has(b.id) || (childrenByParent.get(b.id)?.length ?? 0) === 0;
       if (aLeaf && !bLeaf) return -1;
       if (!aLeaf && bLeaf) return 1;
       if (aLeaf && bLeaf) return Math.max(Math.abs(b.fed), Math.abs(b.spent)) - Math.max(Math.abs(a.fed), Math.abs(a.spent));
@@ -55,18 +55,18 @@ function buildTreeRows(
     });
   }
 
-  function dfs(pipes: Pipe[], depth: number, hasMoreSiblings: boolean[], gMax: number, parentPath: Id<"pipes">[]) {
+  function dfs(pipes: PipeModel[], depth: number, hasMoreSiblings: boolean[], gMax: number, parentPath: PipeModel["id"][]) {
     const sorted = sortSiblings(pipes);
     for (let i = 0; i < sorted.length; i++) {
       const pipe = sorted[i];
       const isLastChild = i === sorted.length - 1;
-      const path = [...parentPath, pipe._id];
+      const path = [...parentPath, pipe.id];
 
-      const children = childrenByParent.get(pipe._id);
+      const children = childrenByParent.get(pipe.id);
       const hasChildren = children !== undefined && children.length > 0;
 
       rows.push({
-        id: pipe._id,
+        id: pipe.id,
         depth,
         prefix: buildPrefix(depth, hasMoreSiblings, isLastChild),
         pipe,
@@ -86,14 +86,14 @@ function buildTreeRows(
 }
 
 type PipeTreeViewProps = {
-  onSelectPipe: (path: Id<"pipes">[]) => void;
+  onSelectPipe: (path: PipeModel["id"][]) => void;
 };
 
 export function PipeTreeView({ onSelectPipe }: PipeTreeViewProps) {
-  const { feeds, childrenByParent } = usePipeSelection();
+  const { feeds, childrenByParent } = usePipeCatalog();
 
   const childPipesById = useMemo(() => {
-    const map = new Map<Id<"pipes">, Pipe[]>();
+    const map = new Map<PipeModel["id"], PipeModel[]>();
     for (const [parentId, docs] of childrenByParent) {
       map.set(parentId, docs);
     }

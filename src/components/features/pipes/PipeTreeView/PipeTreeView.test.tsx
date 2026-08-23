@@ -14,17 +14,17 @@ vi.mock("@/lib/styles", () => ({
   colors: { error: "#C05959", success: "#46AE82" },
 }));
 
-vi.mock("@features/pipes/context/PipeSelectionContext", () => {
+vi.mock("@features/pipes/context/PipeCatalogContext", () => {
   const feeds = [
-    { _id: "feed-1" as Id<"pipes">, name: "Salary", icon: "cash-outline", priority: 0, capacity: 1000, fed: 800, spent: 300 },
-    { _id: "feed-2" as Id<"pipes">, name: "Gifts", icon: "gift-outline", priority: 0, capacity: 500, fed: 200, spent: 50 },
+    { id: "feed-1" as Id<"pipes">, name: "Salary", icon: "cash-outline", priority: 0, capacity: 1000, fed: 800, spent: 300 },
+    { id: "feed-2" as Id<"pipes">, name: "Gifts", icon: "gift-outline", priority: 0, capacity: 500, fed: 200, spent: 50 },
   ];
 
-  const child1 = { _id: "child-1-1" as Id<"pipes">, name: "Rent", icon: "home-outline", priority: 0, capacity: 600, fed: 500, spent: 500 };
-  const child2 = { _id: "child-1-2" as Id<"pipes">, name: "Food", icon: "cart-outline", priority: 1, capacity: 400, fed: 300, spent: 150 };
+  const child1 = { id: "child-1-1" as Id<"pipes">, name: "Rent", icon: "home-outline", priority: 0, capacity: 600, fed: 500, spent: 500 };
+  const child2 = { id: "child-1-2" as Id<"pipes">, name: "Food", icon: "cart-outline", priority: 1, capacity: 400, fed: 300, spent: 150 };
 
-  const grandchild1 = { _id: "gc-1-1-1" as Id<"pipes">, name: "Electricity", icon: "flash-outline", priority: 0, capacity: 200, fed: 150, spent: 100 };
-  const grandchild2 = { _id: "gc-1-1-2" as Id<"pipes">, name: "Water", icon: "water-outline", priority: 1, capacity: 100, fed: 80, spent: 40 };
+  const grandchild1 = { id: "gc-1-1-1" as Id<"pipes">, name: "Electricity", icon: "flash-outline", priority: 0, capacity: 200, fed: 150, spent: 100 };
+  const grandchild2 = { id: "gc-1-1-2" as Id<"pipes">, name: "Water", icon: "water-outline", priority: 1, capacity: 100, fed: 80, spent: 40 };
 
   const childrenByParent = new Map<Id<"pipes">, any[]>();
   childrenByParent.set("feed-1" as Id<"pipes">, [child1, child2]);
@@ -32,14 +32,14 @@ vi.mock("@features/pipes/context/PipeSelectionContext", () => {
   childrenByParent.set("child-1-1" as Id<"pipes">, [grandchild1, grandchild2]);
 
   return {
-    usePipeSelection: () => ({
+    usePipeCatalog: () => ({
       feeds,
       childrenByParent,
       selectedPipePath: [],
       isLoading: false,
     }),
     toPipe: (doc: any) => ({
-      _id: doc._id,
+      id: doc.id,
       name: doc.name,
       icon: doc.icon,
       priority: doc.priority,

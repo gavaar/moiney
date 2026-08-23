@@ -16,6 +16,7 @@ const CURATED_ICONS = [
   { name: "calendar-outline", family: "Ionicons" as const },
   { name: "camera-outline", family: "Ionicons" as const },
   { name: "car-sport-outline", family: "Ionicons" as const },
+  { name: "card-multiple", family: "MaterialCommunityIcons" as const },
   { name: "card-outline", family: "Ionicons" as const },
   { name: "cart-outline", family: "Ionicons" as const },
   { name: "cash-outline", family: "Ionicons" as const },

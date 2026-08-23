@@ -1,12 +1,12 @@
 import { memo, type ReactNode } from "react";
 import { ScrollView, View } from "react-native";
-import { type Doc, type Id } from "@convex/_generated/dataModel";
-import { PipeBox, type ChildSnapshot } from "@ui/PipeBox";
-import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
+import { PipeBox, type ChildSnapshot } from "@features/pipes/components/PipeBox";
+import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
+import type { PipeModel } from "@features/pipes/data/pipes";
 
 export type Pipe = Pick<
-  Doc<"pipes">,
-  | "_id"
+  PipeModel,
+  | "id"
   | "name"
   | "icon"
   | "priority"
@@ -21,7 +21,7 @@ export type Pipe = Pick<
 
 type PipesListProps = {
   pipes: Pipe[];
-  onSelectPipe?: (id: Id<"pipes">) => void;
+  onSelectPipe?: (id: PipeModel["id"]) => void;
   leading?: (pipe: Pipe) => ReactNode;
   trailing?: (pipe: Pipe) => ReactNode;
   priority?: boolean;
@@ -36,12 +36,12 @@ export const PipesList = memo(function PipesList({
   priority = false,
   footer,
 }: PipesListProps) {
-  const { childrenByParent } = usePipeSelection();
+  const { childrenByParent } = usePipeCatalog();
 
   return (
     <ScrollView className="flex-1" contentContainerStyle={{ flexGrow:1, gap: 8 }}>
       {pipes.map((item, idx) => {
-        const childBoxes: ChildSnapshot[] | undefined = (childrenByParent.get(item._id) ?? []).map((child) => ({
+        const childBoxes: ChildSnapshot[] | undefined = (childrenByParent.get(item.id) ?? []).map((child) => ({
           icon: child.icon,
           capacity: child.capacity ?? 0,
           fed: child.fed ?? 0,
@@ -49,7 +49,7 @@ export const PipesList = memo(function PipesList({
         }));
 
         return (
-          <View key={item._id} className="flex-row items-center">
+          <View key={item.id} className="flex-row items-center">
             {leading?.(item)}
             <PipeBox
               name={item.name}
@@ -60,7 +60,7 @@ export const PipesList = memo(function PipesList({
               spent={item.spent}
               showPriority={priority && item.priority !== pipes[idx - 1]?.priority}
               children={childBoxes}
-              onPress={() => onSelectPipe?.(item._id)}
+              onPress={() => onSelectPipe?.(item.id)}
             />
             {trailing?.(item)}
           </View>

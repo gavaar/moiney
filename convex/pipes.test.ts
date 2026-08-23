@@ -52,9 +52,34 @@ describe("updatePipe", () => {
       description: null,
     });
 
-    expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+    expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
       description: undefined,
     });
+    expect(ctx.db._chain.collect).not.toHaveBeenCalled();
+  });
+
+  it("recascades after a capacity update", async () => {
+    const ctx = mockCtx();
+    ctx.db.get.mockResolvedValue(A_PIPE);
+
+    await (updatePipe as any)._handler(ctx, {
+      pipeId: "pipe-1",
+      capacity: 750,
+    });
+
+    expect(ctx.db._chain.collect).toHaveBeenCalledTimes(1);
+  });
+
+  it("recascades after a priority update", async () => {
+    const ctx = mockCtx();
+    ctx.db.get.mockResolvedValue(A_PIPE);
+
+    await (updatePipe as any)._handler(ctx, {
+      pipeId: "pipe-1",
+      priority: 2,
+    });
+
+    expect(ctx.db._chain.collect).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -72,7 +97,7 @@ describe("updatePipeRule", () => {
       rule: null,
     });
 
-    expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+    expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
       rule: undefined,
       capUpdateValue: undefined,
       cronNextDate: undefined,
@@ -88,7 +113,7 @@ describe("updatePipeRule", () => {
       pipeId: "pipe-1",
     });
 
-    expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+    expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
       rule: undefined,
       capUpdateValue: undefined,
       cronNextDate: undefined,
@@ -105,7 +130,7 @@ describe("updatePipeRule", () => {
       rule: "spend_overflow",
     });
 
-    expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+    expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
       rule: "spend_overflow",
       capUpdateValue: undefined,
       cronNextDate: undefined,
@@ -123,7 +148,7 @@ describe("updatePipeRule", () => {
       capUpdateValue: 25,
     });
 
-    expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+    expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
       rule: "spend_overflow",
       capUpdateValue: 25,
       cronNextDate: undefined,
@@ -141,7 +166,7 @@ describe("updatePipeRule", () => {
       capUpdateValue: -10,
     });
 
-    expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+    expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
        rule: "instant_settlement",
       capUpdateValue: -10,
       cronNextDate: undefined,
@@ -158,7 +183,7 @@ describe("updatePipeRule", () => {
       rule: "instant_settlement",
     });
 
-    expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+    expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
        rule: "instant_settlement",
       capUpdateValue: undefined,
       cronNextDate: undefined,
@@ -180,7 +205,7 @@ describe("updatePipeRule", () => {
       capUpdateValue: 500,
     });
 
-    expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+    expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
       rule: "cron",
       capUpdateValue: 500,
       capacity: 500,
@@ -203,7 +228,7 @@ describe("updatePipeRule", () => {
       starting,
     });
 
-    expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+    expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
       rule: "cron",
       capUpdateValue: undefined,
       cronNextDate: Date.UTC(2099, 8, 15, 5),
@@ -232,7 +257,7 @@ describe("updatePipeRule", () => {
         pipeId: "pipe-1",
         rule: null,
       }),
-    ).rejects.toThrow("Pipe not found");
+    ).rejects.toMatchObject({ data: { code: "PIPE_NOT_FOUND" } });
   });
 
   it("throws when the user does not own the pipe", async () => {
@@ -247,7 +272,7 @@ describe("updatePipeRule", () => {
         unit: "days",
         starting: Date.UTC(2099, 0, 1),
       }),
-    ).rejects.toThrow("Not authorized");
+    ).rejects.toMatchObject({ data: { code: "PIPE_NOT_FOUND" } });
   });
 
   it("credits missed intervals to capacity when started is in the past", async () => {
@@ -267,6 +292,7 @@ describe("updatePipeRule", () => {
     const firstOccurrence = computeCronNextDate(starting, 1, "months", starting - 1);
     const elapsed = countDueCronOccurrences(firstOccurrence, 1, "months", Date.now());
     expect(ctx.db.patch).toHaveBeenCalledWith(
+      "pipes",
       "pipe-1",
       expect.objectContaining({
         capacity: 100 + elapsed * 50,
@@ -287,8 +313,8 @@ describe("updatePipeRule", () => {
     };
 
     await (updatePipeRule as any)._handler(ctx, args);
-    const first = ctx.db.patch.mock.calls[0][1].capacity;
-    const firstNextDate = ctx.db.patch.mock.calls[0][1].cronNextDate;
+    const first = ctx.db.patch.mock.calls[0][2].capacity;
+    const firstNextDate = ctx.db.patch.mock.calls[0][2].cronNextDate;
 
     ctx.db.get.mockResolvedValue({
       _id: "pipe-1",
@@ -316,7 +342,7 @@ describe("updatePipeRule", () => {
       starting: Date.UTC(2026, 0, 15),
     });
 
-    expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+    expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
       rule: "cron",
       capUpdateValue: undefined,
       cronNextDate: expect.any(Number),
@@ -336,7 +362,7 @@ describe("executePipeRuleNow", () => {
 
     await expect(
       (executePipeRuleNow as any)._handler(ctx, { pipeId: "pipe-1" }),
-    ).rejects.toThrow("Pipe not found");
+    ).rejects.toMatchObject({ data: { code: "PIPE_NOT_FOUND" } });
   });
 
   it("throws when the user does not own the pipe", async () => {
@@ -345,7 +371,7 @@ describe("executePipeRuleNow", () => {
 
     await expect(
       (executePipeRuleNow as any)._handler(ctx, { pipeId: "pipe-1" }),
-    ).rejects.toThrow("Not authorized");
+    ).rejects.toMatchObject({ data: { code: "PIPE_NOT_FOUND" } });
   });
 
   it("consolidates fed/spent and tops up capacity via the rule executor", async () => {
@@ -361,7 +387,7 @@ describe("executePipeRuleNow", () => {
 
     await (executePipeRuleNow as any)._handler(ctx, { pipeId: "pipe-1" });
 
-    expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+    expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
       fed: 60,
       spent: 0,
       capacity: 510,
@@ -380,7 +406,7 @@ describe("executePipeRuleNow", () => {
 
     await (executePipeRuleNow as any)._handler(ctx, { pipeId: "pipe-1" });
 
-    expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+    expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
       fed: 60,
       spent: 0,
     });
@@ -403,12 +429,13 @@ describe("executePipeRuleNow", () => {
     await (executePipeRuleNow as any)._handler(ctx, { pipeId: "pipe-1" });
 
     expect(ctx.db.patch).toHaveBeenCalledWith(
+      "pipes",
       "pipe-1",
       expect.objectContaining({
         cronNextDate: expect.any(Number),
       }),
     );
-    const patch = ctx.db.patch.mock.calls[0][1];
+    const patch = ctx.db.patch.mock.calls[0][2];
     expect(patch.cronNextDate).toBeGreaterThan(Date.now());
     expect(patch.cronNextDate % (24 * 60 * 60 * 1000)).toBe(
       Date.UTC(2020, 0, 1, 5) % (24 * 60 * 60 * 1000),
@@ -454,7 +481,15 @@ describe("runDueCronRules", () => {
       predicate(q);
       calls.push({ index: name, ...(q.eqArgs ? { eq: q.eqArgs } : {}), ...(q.ltArgs ? { lt: q.ltArgs } : {}) });
       return {
-        collect: vi.fn().mockResolvedValue(name === "by_parentId" ? [] : pipes),
+        collect: vi
+          .fn()
+          .mockResolvedValue(name === "by_parentId" ? [] : pipes),
+        take: vi.fn().mockResolvedValue(pipes),
+        paginate: vi.fn().mockResolvedValue({
+          page: name === "by_parentId" ? [] : pipes,
+          isDone: true,
+          continueCursor: "done",
+        }),
       };
     });
     const query = vi.fn(() => ({ withIndex }));
@@ -479,7 +514,260 @@ describe("runDueCronRules", () => {
     expect(cronCall.lt).toEqual(["cronNextDate", END_OF_TODAY]);
   });
 
-  it("runs executePipeRule for each pipe the index returns", async () => {
+  it("uses one captured clock for the page bound and settlement", async () => {
+    const laterClock = Date.UTC(2026, 5, 16, 13);
+    const { calls, query } = mockQueryChain([dueToday]);
+    const ctx = mockCtx();
+    ctx.db.query = query;
+    ctx.db.get.mockResolvedValue(dueToday);
+    const nowSpy = vi
+      .spyOn(Date, "now")
+      .mockReturnValueOnce(NOW)
+      .mockReturnValue(laterClock);
+
+    try {
+      await (runDueCronRules as any)._handler(ctx, {});
+    } finally {
+      nowSpy.mockRestore();
+    }
+
+    const cronCall = calls.find((c) => c.index === "by_rule_cronNextDate");
+    expect(cronCall.lt).toEqual(["cronNextDate", END_OF_TODAY]);
+    expect(ctx.db.patch).toHaveBeenCalledWith(
+      "pipes",
+      "pipe-1",
+      expect.objectContaining({
+        cronNextDate: Date.UTC(2026, 5, 16, 5),
+      }),
+    );
+  });
+
+  it("loads one bounded snapshot for multiple due pipes in one tree", async () => {
+    const root = {
+      _id: "root",
+      userId: "user-1",
+      priority: 0,
+      capacity: 1000,
+      fed: 500,
+      spent: 200,
+      rule: "cron" as const,
+      cronNextDate: Date.UTC(2026, 5, 15, 5),
+      cronInterval: { interval: 1, unit: "days" as const },
+    };
+    const child = {
+      _id: "child",
+      userId: "user-1",
+      parentId: "root",
+      priority: 0,
+      capacity: 100,
+      fed: 0,
+      spent: 0,
+      rule: "cron" as const,
+      cronNextDate: Date.UTC(2026, 5, 15, 5),
+      cronInterval: { interval: 1, unit: "days" as const },
+    };
+    const takeUserSnapshot = vi.fn().mockResolvedValue([root, child]);
+    const query = vi.fn(() => ({
+      withIndex: vi.fn((name: string) => {
+        if (name === "by_rule_cronNextDate") {
+          return {
+            paginate: vi.fn().mockResolvedValue({
+              page: [root, child],
+              isDone: true,
+              continueCursor: "done",
+            }),
+          };
+        }
+        if (name === "by_userId") {
+          return { take: takeUserSnapshot };
+        }
+        throw new Error(`unexpected index: ${name}`);
+      }),
+    }));
+    const ctx = mockCtx();
+    ctx.db.query = query;
+    ctx.db.get.mockResolvedValue(root);
+
+    await (runDueCronRules as any)._handler(ctx, { now: NOW });
+
+    expect(takeUserSnapshot).toHaveBeenCalledTimes(1);
+    expect(ctx.db.patch).toHaveBeenCalledWith(
+      "pipes",
+      "root",
+      expect.objectContaining({
+        spent: 0,
+        cronNextDate: Date.UTC(2026, 5, 16, 5),
+      }),
+    );
+    expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "child", {
+      fed: 100,
+      cronNextDate: Date.UTC(2026, 5, 16, 5),
+    });
+  });
+
+  it("does not load a user snapshot for a candidate that is not due yet", async () => {
+    const futurePipe = {
+      ...dueToday,
+      cronNextDate: Date.UTC(2026, 5, 15, 23),
+    };
+    const takeUserSnapshot = vi.fn();
+    const query = vi.fn(() => ({
+      withIndex: vi.fn((name: string) => {
+        if (name === "by_rule_cronNextDate") {
+          return {
+            paginate: vi.fn().mockResolvedValue({
+              page: [futurePipe],
+              isDone: true,
+              continueCursor: "done",
+            }),
+          };
+        }
+        return { take: takeUserSnapshot };
+      }),
+    }));
+    const ctx = mockCtx();
+    ctx.db.query = query;
+
+    await (runDueCronRules as any)._handler(ctx, { now: NOW });
+
+    expect(takeUserSnapshot).not.toHaveBeenCalled();
+    expect(ctx.db.patch).not.toHaveBeenCalled();
+  });
+
+  it("schedules the next bounded cron page with the original clock and cursor", async () => {
+    const scheduler = { runAfter: vi.fn() };
+    const page = {
+      page: [dueToday],
+      isDone: false,
+      continueCursor: "cursor-2",
+    };
+    const paginate = vi.fn().mockResolvedValue(page);
+    const query = vi.fn(() => ({
+      withIndex: vi.fn((name: string) => ({
+        collect: vi
+          .fn()
+          .mockResolvedValue(name === "by_parentId" ? [] : [dueToday]),
+        take: vi.fn().mockResolvedValue([dueToday]),
+        paginate,
+      })),
+    }));
+    const ctx = mockCtx();
+    ctx.db.query = query;
+    ctx.db.get.mockResolvedValue(dueToday);
+    ctx.scheduler = scheduler;
+
+    await (runDueCronRules as any)._handler(ctx, { now: NOW });
+
+    expect(paginate).toHaveBeenCalledWith({ numItems: 500, cursor: null });
+    expect(scheduler.runAfter).toHaveBeenCalledWith(
+      0,
+      expect.anything(),
+      { now: NOW, cursor: "cursor-2" },
+    );
+  });
+
+  it("defers whole user groups when the aggregate snapshot bound is reached", async () => {
+    const candidates = Array.from({ length: 5 }, (_, index) => ({
+      ...dueToday,
+      _id: `pipe-${index}`,
+      userId: `user-${index}`,
+    }));
+    const snapshots = candidates.map((candidate) => [
+      candidate,
+      ...Array.from({ length: 499 }, (_, index) => ({
+        _id: `${candidate._id}-filler-${index}`,
+        userId: candidate.userId,
+        priority: 0,
+        capacity: 100,
+        fed: 0,
+        spent: 0,
+      })),
+    ]);
+    const takeUserSnapshot = vi.fn().mockImplementation(() =>
+      Promise.resolve(snapshots.shift()),
+    );
+    const scheduler = { runAfter: vi.fn() };
+    const query = vi.fn(() => ({
+      withIndex: vi.fn((name: string, predicate: (q: any) => void) => {
+        const q = {
+          eq: vi.fn(() => q),
+          lt: vi.fn(() => q),
+        };
+        predicate(q);
+        if (name === "by_rule_cronNextDate") {
+          return {
+            paginate: vi.fn().mockResolvedValue({
+              page: candidates,
+              isDone: true,
+              continueCursor: "done",
+            }),
+          };
+        }
+        return { take: takeUserSnapshot };
+      }),
+    }));
+    const ctx = mockCtx();
+    ctx.db.query = query;
+    ctx.scheduler = scheduler;
+
+    await (runDueCronRules as any)._handler(ctx, { now: NOW });
+
+    expect(takeUserSnapshot).toHaveBeenCalledTimes(4);
+    expect(scheduler.runAfter).toHaveBeenCalledWith(
+      0,
+      expect.anything(),
+      { now: NOW, pendingPipeIds: ["pipe-4"] },
+    );
+  });
+
+  it("processes deferred IDs before resuming the index cursor", async () => {
+    const pendingPipe = {
+      ...dueToday,
+      _id: "pending-pipe",
+    };
+    const scheduler = { runAfter: vi.fn() };
+    const query = vi.fn(() => ({
+      withIndex: vi.fn((name: string, predicate: (q: any) => void) => {
+        const q = {
+          eq: vi.fn(() => q),
+          lt: vi.fn(() => q),
+        };
+        predicate(q);
+        if (name === "by_rule_cronNextDate") {
+          throw new Error("the cursor must resume after pending IDs");
+        }
+        return {
+          take: vi.fn().mockResolvedValue([pendingPipe]),
+        };
+      }),
+    }));
+    const ctx = mockCtx();
+    ctx.db.query = query;
+    ctx.db.get.mockResolvedValue(pendingPipe);
+    ctx.scheduler = scheduler;
+
+    await (runDueCronRules as any)._handler(ctx, {
+      now: NOW,
+      cursor: "cursor-2",
+      pendingPipeIds: ["pending-pipe"],
+    });
+
+    expect(ctx.db.get).toHaveBeenCalledWith("pipes", "pending-pipe");
+    expect(ctx.db.patch).toHaveBeenCalledWith(
+      "pipes",
+      "pending-pipe",
+      expect.objectContaining({
+        cronNextDate: Date.UTC(2026, 5, 16, 5),
+      }),
+    );
+    expect(scheduler.runAfter).toHaveBeenCalledWith(
+      0,
+      expect.anything(),
+      { now: NOW, cursor: "cursor-2" },
+    );
+  });
+
+  it("settles each due pipe from the grouped snapshot", async () => {
     const { query } = mockQueryChain([dueToday]);
     const ctx = mockCtx();
     ctx.db.query = query;
@@ -488,7 +776,7 @@ describe("runDueCronRules", () => {
     await (runDueCronRules as any)._handler(ctx, { now: NOW });
 
     expect(ctx.db.patch).toHaveBeenCalledTimes(1);
-    expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+    expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
       fed: 300,
       spent: 0,
       cronNextDate: Date.UTC(2026, 5, 16, 5),
@@ -508,7 +796,7 @@ describe("runDueCronRules", () => {
 
     await (runDueCronRules as any)._handler(ctx, { now: NOW });
 
-    expect(ctx.db.patch).toHaveBeenCalledWith("pipe-1", {
+    expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
       fed: 300,
       spent: 0,
       capacity: 830,
@@ -537,31 +825,24 @@ describe("runDueCronRules", () => {
       spent: 0,
       capacity: 100,
     };
-    let parentId: string | undefined;
     const query = vi.fn(() => ({
-      withIndex: vi.fn((name: string, predicate: (q: any) => void) => {
-        if (name === "by_parentId") {
-          const q = {
-            eq: vi.fn((_field: string, value: string) => {
-              parentId = value;
-              return q;
-            }),
-          };
-          predicate(q);
+      withIndex: vi.fn((name: string) => {
+        if (name === "by_rule_cronNextDate") {
           return {
-            collect: vi.fn().mockResolvedValue(parentId === "root" ? [deletingChild] : []),
+            paginate: vi.fn().mockResolvedValue({
+              page: [duePipe],
+              isDone: true,
+              continueCursor: "done",
+            }),
           };
         }
         return {
-          collect: vi.fn().mockResolvedValue([duePipe]),
+          take: vi.fn().mockResolvedValue([root, duePipe, deletingChild]),
         };
       }),
     }));
     const ctx = mockCtx();
     ctx.db.query = query;
-    ctx.db.get.mockImplementation((id: string) =>
-      id === "due-pipe" ? duePipe : root,
-    );
 
     await (runDueCronRules as any)._handler(ctx, { now: NOW });
 
@@ -586,7 +867,7 @@ describe("addPipe", () => {
         capacity: 50,
         parentId: "missing-parent",
       }),
-    ).rejects.toThrow("Parent pipe not found");
+    ).rejects.toMatchObject({ data: { code: "PIPE_NOT_FOUND" } });
 
     expect(ctx.db.insert).not.toHaveBeenCalled();
     expect(ctx.db.patch).not.toHaveBeenCalled();
@@ -607,7 +888,7 @@ describe("addPipe", () => {
         capacity: 50,
         parentId: "foreign-parent",
       }),
-    ).rejects.toThrow("Parent pipe not found");
+    ).rejects.toMatchObject({ data: { code: "PIPE_NOT_FOUND" } });
 
     expect(ctx.db.insert).not.toHaveBeenCalled();
     expect(ctx.db.patch).not.toHaveBeenCalled();
@@ -627,9 +908,18 @@ describe("addPipe", () => {
       cronNextDate: 1234,
       cronInterval: { interval: 1, unit: "days" },
     };
+    let indexName: string | undefined;
     const chain = {
-      withIndex: vi.fn(() => chain),
-      collect: vi.fn().mockResolvedValue([parentPipe]),
+      withIndex: vi.fn((name: string) => {
+        indexName = name;
+        return chain;
+      }),
+      collect: vi.fn(async () =>
+        indexName === "by_userId" ? [parentPipe] : [],
+      ),
+      take: vi.fn(async () =>
+        indexName === "by_userId" ? [parentPipe] : [],
+      ),
     };
     const ctx = mockCtx();
     ctx.db.get.mockResolvedValue(parentPipe);

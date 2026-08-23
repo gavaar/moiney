@@ -1,3 +1,54 @@
+import { computeCronNextDate, type CronUnit } from "../scheduling";
+
+export type PipeRuleState = {
+  fed: number;
+  spent: number;
+  pendingFedAdjustment?: number;
+  capacity: number;
+  rule?: "spend_overflow" | "instant_settlement" | "cron";
+  capUpdateValue?: number;
+  cronNextDate?: number;
+  cronInterval?: { interval: number; unit: CronUnit };
+};
+
+export type PipeRulePatch = {
+  fed: number;
+  spent: 0;
+  pendingFedAdjustment?: 0;
+  capacity?: number;
+  cronNextDate?: number;
+};
+
+export function calculatePipeRulePatch(
+  pipe: PipeRuleState,
+  opts: { now: number; capUpdateValue?: number },
+): PipeRulePatch {
+  const patch: PipeRulePatch = {
+    fed: pipe.fed + (pipe.pendingFedAdjustment ?? 0) - pipe.spent,
+    spent: 0,
+  };
+
+  if (pipe.pendingFedAdjustment !== undefined) {
+    patch.pendingFedAdjustment = 0;
+  }
+
+  const capUpdateValue = opts.capUpdateValue ?? pipe.capUpdateValue;
+  if (capUpdateValue != null) {
+    patch.capacity = pipe.capacity - pipe.spent + capUpdateValue;
+  }
+
+  if (pipe.rule === "cron" && pipe.cronInterval && pipe.cronNextDate != null) {
+    patch.cronNextDate = computeCronNextDate(
+      pipe.cronNextDate,
+      pipe.cronInterval.interval,
+      pipe.cronInterval.unit,
+      opts.now,
+    );
+  }
+
+  return patch;
+}
+
 export function splitEvenly<TPipeId extends string>(
   children: Array<{ id: TPipeId; capacity?: number; fed?: number }>,
   budget: number,

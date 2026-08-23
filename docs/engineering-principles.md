@@ -84,6 +84,15 @@ Indexes and denormalized projections are introduced for demonstrated access patt
 
 Persisted-contract discipline applies to fields, indexes, status values, background phases, and API result fields: each must have an identified current consumer or enforced invariant. Speculative observability, recovery, or future filtering does not justify adding it, and unused persisted structure should be removed when its consumer disappears.
 
+Treat every `db.get`, query range, insert, patch, and delete as explicit
+transaction work. Before completing a modified Convex function, trace its
+read/write set and remove redundant operations. Prefer invocation-scoped reuse
+of loaded documents over generalized caching, avoid writing unchanged fields or
+documents, and bound queries by the contract they enforce. Narrow broad
+reconciliation only when behavioral tests prove accounting and topology
+invariants remain intact; do not reuse pre-write data when post-write state is
+required for correctness.
+
 ## Performance Method
 
 Use the sequence Measure, Optimize, Remeasure, Validate.

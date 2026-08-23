@@ -1,7 +1,6 @@
 import type { Doc, Id } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
-import { recalculatePipes } from "../../../domain/pipes";
-import { computeCronNextDate } from "../../../domain/scheduling";
+import { calculatePipeRulePatch, recalculatePipes } from "../../../domain/pipes";
 
 export async function executePipeRule(
   ctx: MutationCtx,
@@ -13,33 +12,17 @@ export async function executePipeRule(
   } = {},
 ) {
   const { now = Date.now(), pipe: cachedPipe } = opts;
-  const pipe = cachedPipe ?? (await ctx.db.get(pipeId));
+  const pipe = cachedPipe ?? (await ctx.db.get("pipes", pipeId));
   if (!pipe) throw new Error("Pipe not found");
 
-  const leftoverFed = pipe.fed + (pipe.pendingFedAdjustment ?? 0) - pipe.spent;
-  const patch: Record<string, unknown> = {
-    fed: leftoverFed,
-    spent: 0,
-  };
-  if (pipe.pendingFedAdjustment !== undefined) {
-    patch.pendingFedAdjustment = 0;
-  }
-
-  const capUpdateValue = opts.capUpdateValue ?? pipe.capUpdateValue;
-  if (capUpdateValue != null) {
-    patch.capacity = pipe.capacity - pipe.spent + capUpdateValue;
-  }
-
-  if (pipe.rule === "cron" && pipe.cronInterval && pipe.cronNextDate != null) {
-    patch.cronNextDate = computeCronNextDate(
-      pipe.cronNextDate,
-      pipe.cronInterval.interval,
-      pipe.cronInterval.unit,
+  await ctx.db.patch(
+    "pipes",
+    pipeId,
+    calculatePipeRulePatch(pipe, {
       now,
-    );
-  }
-
-  await ctx.db.patch(pipeId, patch);
+      capUpdateValue: opts.capUpdateValue,
+    }),
+  );
 }
 
 // ── DB operations ──
@@ -55,25 +38,34 @@ export async function recascadeTree(ctx: MutationCtx, userId: Id<"users">) {
   }
 
   const updates = recalculatePipes(allPipes);
+  const currentFed = new Map(allPipes.map((pipe) => [pipe._id, pipe.fed]));
 
-  await Promise.all(updates.map((u) => ctx.db.patch(u._id, { fed: u.fed })));
+  await Promise.all(
+    updates
+      .filter((update) => (currentFed.get(update._id) ?? 0) !== update.fed)
+      .map((update) =>
+        ctx.db.patch("pipes", update._id, { fed: update.fed }),
+      ),
+  );
 }
 
 export async function resolveTopMostAncestor(
   ctx: MutationCtx,
   startingPipeId: Id<"pipes">,
   cache?: Map<Id<"pipes">, Id<"pipes">>,
+  getPipe: (pipeId: Id<"pipes">) => Promise<Doc<"pipes"> | null> = (pipeId) =>
+    ctx.db.get("pipes", pipeId),
 ): Promise<Id<"pipes">> {
   const cached = cache?.get(startingPipeId);
   if (cached) return cached;
 
-  const first = await ctx.db.get(startingPipeId);
+  const first = await getPipe(startingPipeId);
   if (!first) throw new Error("Pipe not found");
 
   const visited: Id<"pipes">[] = [first._id];
   let cursor: Doc<"pipes"> = first;
   while (cursor.parentId) {
-    const parent = await ctx.db.get(cursor.parentId);
+    const parent = await getPipe(cursor.parentId);
     if (!parent) break;
     visited.push(parent._id);
     cursor = parent;
@@ -103,26 +95,39 @@ export async function collectChildSubtree(
   return out;
 }
 
-export async function recalcPipeSubtree(
+export async function reconcileAffectedPipeRoots(
   ctx: MutationCtx,
-  pipeId: Id<"pipes">,
+  affectedPipeIds: Iterable<Id<"pipes">>,
+  getPipe: (pipeId: Id<"pipes">) => Promise<Doc<"pipes"> | null> = (pipeId) =>
+    ctx.db.get("pipes", pipeId),
 ): Promise<void> {
-  const cache = new Map<Id<"pipes">, Id<"pipes">>();
-  const rootId = await resolveTopMostAncestor(ctx, pipeId, cache);
-  const root = await ctx.db.get(rootId);
-  const children = await collectChildSubtree(ctx, rootId);
-  const subtree: Doc<"pipes">[] = root ? [root, ...children] : [];
+  const rootCache = new Map<Id<"pipes">, Id<"pipes">>();
+  const rootIds = new Set<Id<"pipes">>();
+  for (const pipeId of new Set(affectedPipeIds)) {
+    rootIds.add(
+      await resolveTopMostAncestor(ctx, pipeId, rootCache, getPipe),
+    );
+  }
 
-  if (subtree.some((pipe) => pipe.deletionJobId)) {
+  const trees = await Promise.all(
+    [...rootIds].map(async (rootId) => {
+      const root = await ctx.db.get("pipes", rootId);
+      if (!root) throw new Error("Pipe not found");
+      return [root, ...(await collectChildSubtree(ctx, rootId))];
+    }),
+  );
+  if (trees.some((tree) => tree.some((pipe) => pipe.deletionJobId))) {
     throw new Error("Pipe is being deleted");
   }
 
-  const updates = recalculatePipes(subtree);
-  const currentFed = new Map(subtree.map((p) => [p._id, p.fed]));
-
   await Promise.all(
-    updates
-      .filter((u) => (currentFed.get(u._id) ?? 0) !== u.fed)
-      .map((u) => ctx.db.patch(u._id, { fed: u.fed })),
+    trees.flatMap((tree) => {
+      const currentFed = new Map(tree.map((pipe) => [pipe._id, pipe.fed]));
+      return recalculatePipes(tree)
+        .filter((update) => (currentFed.get(update._id) ?? 0) !== update.fed)
+        .map((update) =>
+          ctx.db.patch("pipes", update._id, { fed: update.fed }),
+        );
+    }),
   );
 }

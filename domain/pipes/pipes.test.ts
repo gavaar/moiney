@@ -1,9 +1,39 @@
 import { describe, expect, it } from "vitest";
 import {
+  calculatePipeRulePatch,
   recalculatePipes,
   shouldTriggerPipeRule,
   splitEvenly,
 } from "./pipes";
+
+describe("calculatePipeRulePatch", () => {
+  it("calculates a cron settlement without database access", () => {
+    expect(
+      calculatePipeRulePatch(
+        {
+          fed: 500,
+          spent: 200,
+          pendingFedAdjustment: 25,
+          capacity: 1000,
+          capUpdateValue: 10,
+          rule: "cron",
+          cronInterval: { interval: 1, unit: "days" },
+          cronNextDate: Date.UTC(2026, 5, 15, 12),
+        },
+        {
+          now: Date.UTC(2026, 5, 15, 13),
+          capUpdateValue: 30,
+        },
+      ),
+    ).toEqual({
+      fed: 325,
+      spent: 0,
+      pendingFedAdjustment: 0,
+      capacity: 830,
+      cronNextDate: Date.UTC(2026, 5, 16, 5),
+    });
+  });
+});
 
 describe("shouldTriggerPipeRule", () => {
   it.each([

@@ -1,16 +1,15 @@
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
-import { type Id } from "@convex/_generated/dataModel";
 import { colors } from "@/lib/styles";
 import { PipesList } from "@features/pipes/components/PipesList";
+import type { PipeModel } from "@features/pipes/data/pipes";
 import { AddFeedButton, FeedAmountModal } from "@features/pipes/FeedListScreen/components";
-import { Pipe } from '../context/PipeSelectionContext';
 import { ModalShell } from '@ui/Modal';
 import { useState } from 'react';
 
 type FeedListScreenProps = {
   isLoading: boolean;
-  pipes: Pipe[];
-  onSelectFeed: (id: Id<"pipes">) => void;
+  pipes: PipeModel[];
+  onSelectFeed: (id: PipeModel["id"]) => void;
 };
 
 const FeedDescription = () => (
@@ -48,7 +47,7 @@ export function FeedListScreen({
         <PipesList
           pipes={pipes}
           onSelectPipe={onSelectFeed}
-          trailing={(pipe) => <FeedAmountModal pipeId={pipe._id} feedName={pipe.name} />}
+           trailing={(pipe) => <FeedAmountModal pipeId={pipe.id} feedName={pipe.name} />}
           footer={<View className="self-center my-2"><AddFeedButton /></View>}
         />
       ) : (
