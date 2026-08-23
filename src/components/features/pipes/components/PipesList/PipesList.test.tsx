@@ -9,7 +9,7 @@ vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
   usePipeCatalog: () => ({ childrenByParent: new Map() }),
 }));
 
-vi.mock("@ui/PipeBox", () => ({
+vi.mock("@features/pipes/components/PipeBox", () => ({
   PipeBox: (props: any) => (
     <button
       data-testid="feed-box"

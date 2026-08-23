@@ -1,6 +1,6 @@
 import { memo, type ReactNode } from "react";
 import { ScrollView, View } from "react-native";
-import { PipeBox, type ChildSnapshot } from "@ui/PipeBox";
+import { PipeBox, type ChildSnapshot } from "@features/pipes/components/PipeBox";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import type { PipeModel } from "@features/pipes/data/pipes";
 
