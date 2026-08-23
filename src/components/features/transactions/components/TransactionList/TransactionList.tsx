@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { ActivityIndicator, FlatList, Text, View } from "react-native";
-import { TransactionItem } from "@ui/TransactionItem";
+import { TransactionItem } from "@features/transactions/components/TransactionItem";
 import { StackedTransactionItem } from "./components";
 import { groupTransactions } from "@features/transactions/groupTransactions";
 import type { TransactionGroup } from "@features/transactions/groupTransactions";

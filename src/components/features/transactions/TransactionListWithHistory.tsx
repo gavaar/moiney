@@ -2,7 +2,7 @@ import { useState } from "react";
 import {
   TransactionList,
   type TransactionListProps,
-} from "@ui/TransactionList";
+} from "@features/transactions/components/TransactionList";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import type { TransactionModel } from "@features/transactions/data/transactions";
 import { TransactionCorrectionHistoryModal } from "./components/TransactionCorrectionHistory/TransactionCorrectionHistoryModal";

@@ -44,7 +44,7 @@ vi.mock("@features/pipes/InnerPipesScreen", () => ({
 }));
 vi.mock("@features/pipes/PipeTreeView", () => ({ PipeTreeView: () => null }));
 vi.mock("@features/pipes/FeedListScreen", () => ({ FeedListScreen: () => null }));
-vi.mock("@ui/TransactionList", () => ({
+vi.mock("@features/transactions/components/TransactionList", () => ({
   TransactionList: () => <div data-testid="latest-list" />,
 }));
 vi.mock("@ui/Icon", () => ({

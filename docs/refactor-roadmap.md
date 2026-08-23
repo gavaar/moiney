@@ -31,8 +31,8 @@ This roadmap persists the whole-project audit beyond any single chat session. Wo
 | 10. Financial mutation semantics | Completed | Define corrections, rule effects, idempotency, and accounting projections | Updates 8-9 |
 | 11. Convex model boundaries | Completed | Make registered functions thin, validated, authorized wrappers over deep model operations | Updates 1-3, 8-10 |
 | 12. Bounded backend work | Completed | Scope recascade, batch cleanup/crons/deletion, and index hot transaction queries | Updates 6, 10-11 plus measurements |
-| 13. Frontend ownership | In progress | Normalize backend models, narrow contexts/subscriptions, and restore dependency direction | Updates 5, 8, 11 |
-| 14. Complex component refactors | Pending | Refactor AmountForm, RuleModal, PipeTreeView, and transaction rows by responsibility | Updates 5, 8, 13 |
+| 13. Frontend ownership | In progress | Normalize backend models, narrow contexts/subscriptions, restore dependency direction, and move feature behavior out of shared UI and route files | Updates 5, 8, 11 |
+| 14. Complex component refactors | Pending | Refactor AmountForm, RuleModal, PipeTreeView, and transaction rows internally by responsibility after their ownership boundaries are established | Updates 5, 8, 13 |
 | 15. Measured runtime performance | Pending | Profile and improve virtualization, subscriptions, startup, icons, and repeated modals | Updates 12-14 |
 | 16. Maintenance hardening | Pending | Accessibility, observability, dependencies, dead APIs, behavioral tests, and documentation | Prior updates as applicable |
 
@@ -219,6 +219,16 @@ chip explains the signed settlement amount, and pipe bars show pending
 adjustments as accent overlays without changing the raw fed value. The next
 frontend slice is 13.3.1: move this feature behavior out of shared UI and
 continue thinning route orchestration.
+
+13.3.1 is complete: transaction presentation moved from `src/components/ui`
+to `src/components/features/transactions/components` with its behavioral tests,
+while grouping, repeat, edit-history, deleted-history, and accessibility
+behavior remained unchanged. The remaining ownership slices are planned as
+13.3.2 for Pipes and History route extraction, 13.3.3 for moving pipe
+presentation such as `PipeBox` under the pipes feature, 13.3.4 for separating
+release/update behavior from the generic `ScreenHeader`, and 13.3.5 for moving
+login/sign-up screen logic and auth adapters out of route files. Internal
+transaction-row decomposition and animation migration remain in Update 14.
 
 ## Completed Accessibility Layout Work
 

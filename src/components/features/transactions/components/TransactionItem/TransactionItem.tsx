@@ -1,7 +1,7 @@
 import { Pressable, Text, View } from "react-native";
 import { Icon, safeIconName } from "@ui/Icon";
 import { cn, colors } from "@/lib/styles";
-import { ModalShell } from '../Modal';
+import { ModalShell } from "@ui/Modal";
 import { AmountForm } from '@features/components/AmountForm';
 import { useState } from 'react';
 import { usePipeCatalog } from '@features/pipes/context/PipeCatalogContext';
