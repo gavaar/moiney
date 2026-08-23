@@ -3,6 +3,7 @@ import { ScrollView, Text, View } from "react-native";
 import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import type { PipeModel } from "@features/pipes/data/pipes";
+import { expectedMonthlyCapacity } from "@features/pipes/data/expectedCapacity";
 import {
   PipesList,
   type Pipe as PipesListPipe,
@@ -26,6 +27,13 @@ export function InnerPipesScreen() {
 
   const selectedId = selectedPipePath[selectedPipePath.length - 1];
   const children = childrenByParent.get(selectedId) ?? [];
+  const expected = selectedPipe
+    ? expectedMonthlyCapacity(
+        { ...selectedPipe, capacity },
+        childrenByParent,
+        Date.now(),
+      )
+    : 0;
 
   const handleSelectPipe = useCallback(
     (id: PipeModel["id"]) => selectPipe([...selectedPipePath, id]),
@@ -59,6 +67,7 @@ export function InnerPipesScreen() {
           fed={fed}
           spent={spent}
           capacity={capacity}
+          expected={expected}
           pendingFedAdjustment={pendingFedAdjustment}
           rule={selectedPipe?.rule}
         />

@@ -63,9 +63,9 @@ export function MoineyVers() {
               className="text-primary underline"
               onPress={openLatestRelease}
             >
-              GitHub latest release
+              GitHub
             </Text>
-            .
+            {" "}({latestRelease?.name}).
           </Text>
         </View>
       </ModalShell>

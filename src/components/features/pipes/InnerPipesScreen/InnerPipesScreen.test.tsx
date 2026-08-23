@@ -126,6 +126,42 @@ describe("InnerPipesScreen", () => {
     expect(screen.getByTestId("bar-capacity-fill")).toBeDefined();
   });
 
+  it("uses a child's cap update for the selected parent's expected value", () => {
+    const childrenByParent = new Map();
+    childrenByParent.set("parent", [
+      {
+        id: "child",
+        name: "Child",
+        icon: "pipe",
+        capacity: 36000,
+        fed: 0,
+        spent: 0,
+        capUpdateValue: 12000,
+        rule: "instant_settlement",
+      },
+    ]);
+
+    mockUsePipeSelection.mockReturnValue({
+      ...baseMock,
+      selectedPipePath: ["parent"],
+      selectedPipe: {
+        id: "parent",
+        name: "Parent",
+        icon: "pipe",
+        capacity: 36000,
+        fed: 0,
+        spent: 0,
+      },
+      selectedName: "Parent",
+      childrenByParent,
+    });
+
+    render(<InnerPipesScreen />);
+
+    expect(screen.getByText("expected")).toBeDefined();
+    expect(screen.getByText("120.00")).toBeDefined();
+  });
+
   it("hides the spent bar when the selected pipe rule is instant_settlement", () => {
     mockUsePipeSelection.mockReturnValue({
       ...baseMock,

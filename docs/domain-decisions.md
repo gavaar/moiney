@@ -159,6 +159,15 @@ When a cron execution is overdue for multiple occurrences, it settles the pipe
 once and applies `capUpdateValue` multiplied by the number of due occurrences.
 It then advances `cronNextDate` once beyond the explicit execution clock.
 
+The pipe detail `expected` presentation shows the monthly spending target from
+the next rule configuration. A leaf uses `capUpdateValue` or falls back to its
+current `capacity`. Daily, monthly, and yearly cron values are normalized to a
+monthly integer-cent amount using the current month and the cron interval;
+fractional cents round to the nearest cent. A pipe with children shows the sum
+of each immediate child's normalized `capUpdateValue` or fallback capacity.
+This presentation intentionally does not calculate post-rule capacity or
+include leftover fed from the previous cycle.
+
 ## D009: (reserved)
 
 Status: Implemented

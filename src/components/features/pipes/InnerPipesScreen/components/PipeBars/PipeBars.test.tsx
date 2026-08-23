@@ -11,18 +11,66 @@ const toRgb = (hex: string) => {
 
 describe("PipeBars", () => {
   it("renders labels and values", () => {
-    render(<PipeBars fed={150000} spent={120000} capacity={200000} />);
+    render(
+      <PipeBars
+        fed={150000}
+        spent={120000}
+        capacity={200000}
+        expected={180000}
+      />,
+    );
     expect(screen.getByText("fed")).toBeDefined();
     expect(screen.getByText("spent")).toBeDefined();
     expect(screen.getByText("capacity")).toBeDefined();
+    expect(screen.getByText("expected")).toBeDefined();
     expect(screen.getByText("1,500.00")).toBeDefined();
     expect(screen.getByText("1,200.00")).toBeDefined();
     expect(screen.getByText("2,000.00")).toBeDefined();
+    expect(screen.getByText("1,800.00")).toBeDefined();
+  });
+
+  it.each([
+    ["capacity", 0, 10000, "bar-capacity-fill"],
+    ["expected", 10000, 0, "bar-expected-fill"],
+  ])("hides the %s bar when its value is zero", (_label, capacity, expected, hiddenTestId) => {
+    render(
+      <PipeBars
+        fed={5000}
+        spent={1000}
+        capacity={capacity}
+        expected={expected}
+      />,
+    );
+
+    expect(screen.queryByTestId(hiddenTestId)).toBeNull();
   });
 
   it("renders fed bar with green fill", () => {
-    render(<PipeBars fed={150000} spent={120000} capacity={200000} />);
+    render(
+      <PipeBars
+        fed={150000}
+        spent={120000}
+        capacity={200000}
+        expected={180000}
+      />,
+    );
     expect(screen.getByTestId("bar-fed-fill")).toBeDefined();
+  });
+
+  it("renders expected as a red dashed row above fed", () => {
+    render(
+      <PipeBars
+        fed={10000}
+        spent={4000}
+        capacity={15000}
+        expected={12000}
+      />,
+    );
+
+    const expected = screen.getByTestId("bar-expected-fill");
+    expect(expected.style.borderTopStyle).toBe("dashed");
+    expect(expected.style.borderTopColor).toBe(toRgb(colors.error));
+    expect(expected.style.width).toBe("80%");
   });
 
   it("overlays a positive external adjustment at the beginning of the fed bar", () => {
@@ -31,6 +79,7 @@ describe("PipeBars", () => {
         fed={5000}
         spent={4500}
         capacity={5000}
+        expected={5000}
         pendingFedAdjustment={500}
       />,
     );
@@ -48,6 +97,7 @@ describe("PipeBars", () => {
         fed={15000}
         spent={14415}
         capacity={15000}
+        expected={15000}
         pendingFedAdjustment={-900}
       />,
     );
@@ -59,19 +109,40 @@ describe("PipeBars", () => {
   });
 
   it("renders spent bar with red fill when positive", () => {
-    render(<PipeBars fed={150000} spent={120000} capacity={200000} />);
+    render(
+      <PipeBars
+        fed={150000}
+        spent={120000}
+        capacity={200000}
+        expected={200000}
+      />,
+    );
     const fill = screen.getByTestId("bar-spent-fill");
     expect(fill.style.backgroundColor).toBe(toRgb(colors.error));
   });
 
   it("renders spent bar with green fill when negative", () => {
-    render(<PipeBars fed={10000} spent={-50000} capacity={200000} />);
+    render(
+      <PipeBars
+        fed={10000}
+        spent={-50000}
+        capacity={200000}
+        expected={200000}
+      />,
+    );
     const fill = screen.getByTestId("bar-spent-fill");
     expect(fill.style.backgroundColor).toBe(toRgb(colors.primary));
   });
 
   it("renders capacity bar with a dashed line", () => {
-    render(<PipeBars fed={150000} spent={120000} capacity={200000} />);
+    render(
+      <PipeBars
+        fed={150000}
+        spent={120000}
+        capacity={200000}
+        expected={200000}
+      />,
+    );
     expect(screen.getByTestId("bar-capacity-fill").style.borderTopStyle).toBe(
       "dashed",
     );
@@ -83,6 +154,7 @@ describe("PipeBars", () => {
         fed={150000}
         spent={0}
         capacity={200000}
+        expected={200000}
         rule="instant_settlement"
       />,
     );
@@ -98,6 +170,7 @@ describe("PipeBars", () => {
         fed={150000}
         spent={120000}
         capacity={200000}
+        expected={200000}
         rule="spend_overflow"
       />,
     );

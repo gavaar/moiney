@@ -218,6 +218,11 @@ chip explains the signed settlement amount, and pipe bars show pending
 adjustments as accent overlays without changing the raw fed value. The next
 frontend ownership slice was 13.3.1.
 
+13.3.0d is complete: `PipeBars` now shows an `expected` red dashed target from
+the monthly-normalized rule update, with child pipes aggregated and fractional
+cents rounded to the nearest cent. The expected target remains separate from
+current capacity, fed, spent, and pending settlement values.
+
 13.3.1 is complete: transaction presentation moved from `src/components/ui`
 to `src/components/features/transactions/components` with its behavioral tests,
 while grouping, repeat, edit-history, deleted-history, and accessibility

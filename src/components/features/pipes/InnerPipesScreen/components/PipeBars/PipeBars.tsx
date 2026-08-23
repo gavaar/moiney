@@ -6,6 +6,7 @@ type PipeBarsProps = {
   fed: number;
   spent: number;
   capacity: number;
+  expected: number;
   pendingFedAdjustment?: number;
   rule?: "spend_overflow" | "instant_settlement" | "cron";
 };
@@ -116,6 +117,7 @@ export function PipeBars({
   fed,
   spent,
   capacity,
+  expected,
   pendingFedAdjustment = 0,
   rule,
 }: PipeBarsProps) {
@@ -124,16 +126,28 @@ export function PipeBars({
     Math.abs(fed),
     Math.abs(capacity),
     Math.abs(spent),
+    Math.abs(expected),
   );
   return (
     <View className="gap-1 pb-3">
-      <BarRow
-        label="capacity"
-        value={capacity}
-        maxAbs={maxAbs}
-        color={capacity < 0 ? colors.errorDark : colors.primary}
-        dashed
-      />
+      {capacity !== 0 ? (
+        <BarRow
+          label="capacity"
+          value={capacity}
+          maxAbs={maxAbs}
+          color={capacity < 0 ? colors.errorDark : colors.primary}
+          dashed
+        />
+      ) : null}
+      {expected !== 0 ? (
+        <BarRow
+          label="expected"
+          value={expected}
+          maxAbs={maxAbs}
+          color={expected < 0 ? colors.errorDark : colors.error}
+          dashed
+        />
+      ) : null}
       <FedBarRow
         fed={fed}
         pendingFedAdjustment={pendingFedAdjustment}
