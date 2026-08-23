@@ -223,12 +223,14 @@ continue thinning route orchestration.
 13.3.1 is complete: transaction presentation moved from `src/components/ui`
 to `src/components/features/transactions/components` with its behavioral tests,
 while grouping, repeat, edit-history, deleted-history, and accessibility
-behavior remained unchanged. The remaining ownership slices are planned as
-13.3.2 for Pipes and History route extraction, 13.3.3 for moving pipe
-presentation such as `PipeBox` under the pipes feature, 13.3.4 for separating
-release/update behavior from the generic `ScreenHeader`, and 13.3.5 for moving
-login/sign-up screen logic and auth adapters out of route files. Internal
-transaction-row decomposition and animation migration remain in Update 14.
+behavior remained unchanged. 13.3.2 is complete: Pipes and History route files
+now only compose feature-owned screens; their mode, collapse, back-navigation,
+cache, pagination, provider, and accessibility behavior remained unchanged. The
+remaining ownership slices are planned as 13.3.3 for moving pipe presentation
+such as `PipeBox` under the pipes feature, 13.3.4 for separating release/update
+behavior from the generic `ScreenHeader`, and 13.3.5 for moving login/sign-up
+screen logic and auth adapters out of route files. Internal transaction-row
+decomposition and animation migration remain in Update 14.
 
 ## Completed Accessibility Layout Work
 

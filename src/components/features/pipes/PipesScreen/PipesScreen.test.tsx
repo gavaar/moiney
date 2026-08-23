@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -48,7 +47,9 @@ vi.mock("@features/transactions/components/TransactionList", () => ({
   TransactionList: () => <div data-testid="latest-list" />,
 }));
 vi.mock("@ui/Icon", () => ({
-  Icon: ({ testID }: any) => <span data-testid={testID ?? "icon"} />,
+  Icon: ({ name, testID }: any) => (
+    <span data-testid={testID ?? "icon"} data-icon-name={name} />
+  ),
 }));
 vi.mock("@features/transactions/context/TransactionsContext", () => ({
   useTransactions: () => ({ transactions: [], isLoading: false }),
@@ -67,7 +68,7 @@ vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
   usePipeCatalog: () => ({ feeds: [], isLoading: false }),
 }));
 
-import Pipes from "@/app/(main)/(tabs)/pipes";
+import { PipesScreen } from "./PipesScreen";
 
 describe("Pipes Android back handling", () => {
   beforeEach(() => {
@@ -81,7 +82,7 @@ describe("Pipes Android back handling", () => {
 
   it("navigates to the parent, falls through at root, and scopes its listener to focus", () => {
     mocks.selectedPipePath = ["root", "child"];
-    const { rerender } = render(<Pipes />);
+    const { rerender } = render(<PipesScreen />);
     expect(mocks.addEventListener).not.toHaveBeenCalled();
 
     const removeNestedListener = mocks.focusEffect?.();
@@ -93,7 +94,7 @@ describe("Pipes Android back handling", () => {
     expect(mocks.remove).toHaveBeenCalledOnce();
 
     mocks.selectedPipePath = [];
-    rerender(<Pipes />);
+    rerender(<PipesScreen />);
     const removeRootListener = mocks.focusEffect?.();
     const rootBackHandler = mocks.addEventListener.mock.calls[1][1];
     expect(rootBackHandler()).toBe(false);
@@ -104,7 +105,7 @@ describe("Pipes Android back handling", () => {
 
   it("collapses and expands the latest transactions section", async () => {
     const user = userEvent.setup();
-    render(<Pipes />);
+    render(<PipesScreen />);
 
     expect(screen.getByTestId("latest-list")).toBeDefined();
     await user.click(screen.getByRole("button", { name: "Collapse latest transactions" }));
@@ -115,7 +116,7 @@ describe("Pipes Android back handling", () => {
 
   it("minimizes the latest transactions section in tree view instead of removing it", async () => {
     const user = userEvent.setup();
-    render(<Pipes />);
+    render(<PipesScreen />);
 
     expect(screen.getByTestId("latest-list")).toBeDefined();
     expect(
@@ -132,14 +133,14 @@ describe("Pipes Android back handling", () => {
     await waitFor(() => expect(screen.getByTestId("latest-list")).toBeDefined());
   });
 
-  it("styles the latest transactions bar as a tappable surface with a rotating chevron", () => {
-    const source = readFileSync(
-      "src/app/(main)/(tabs)/pipes/index.tsx",
-      "utf8",
-    );
+  it("renders the latest transactions control with an accessible chevron", () => {
+    render(<PipesScreen />);
 
-    expect(source).toContain("bg-surface");
-    expect(source).toContain("px-3");
-    expect(source).toContain('name="chevron-up"');
+    expect(screen.getByRole("button", {
+      name: "Collapse latest transactions",
+    })).toBeDefined();
+    expect(screen.getByTestId("icon").getAttribute("data-icon-name")).toBe(
+      "chevron-up",
+    );
   });
 });
