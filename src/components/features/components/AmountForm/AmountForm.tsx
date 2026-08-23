@@ -18,12 +18,16 @@ import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import { useOptionalTransactionCache } from "@features/transactions/cache/TransactionCacheContext";
 import { parseMoney } from "@domain/money";
 import {
+  buildCreateTransactionCommand,
+  buildEditTransactionCommand,
   buildPipeItems,
   buildPaidFromPipeItems,
   getButtonIcon,
   getButtonLabel,
   getButtonStyle,
   getDestinationPipeName,
+  getIntentDate,
+  transitionSpendMode,
 } from "./helpers";
 
 type SpentMode = "spend" | "transfer";
@@ -102,22 +106,26 @@ export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: 
   );
 
   const handleModeChange = useCallback((newMode: string) => {
-    setSpendMode(newMode as SpentMode);
-    if (newMode === "spend") {
-      setSentToPipeId(null);
-    } else {
-      setPaidFromPipeId(null);
-      setShowPaidFrom(false);
-    }
-  }, []);
+    const nextState = transitionSpendMode(
+      {
+        spendMode,
+        sentToPipeId,
+        paidFromPipeId,
+        showPaidFrom,
+      },
+      newMode as SpentMode,
+    );
+    setSpendMode(nextState.spendMode);
+    setSentToPipeId(nextState.sentToPipeId);
+    setPaidFromPipeId(nextState.paidFromPipeId);
+    setShowPaidFrom(nextState.showPaidFrom);
+  }, [paidFromPipeId, sentToPipeId, showPaidFrom, spendMode]);
 
   const handleIntentChange = useCallback((newIntent: string) => {
-    setIntent(newIntent as "repeat" | "edit");
-    if (newIntent === "edit" && initState?.date) {
-      setDate(new Date(initState.date));
-    } else if (newIntent === "repeat") {
-      setDate(new Date());
-    }
+    const intentValue = newIntent as "repeat" | "edit";
+    setIntent(intentValue);
+    const nextDate = getIntentDate(intentValue, initState?.date, new Date());
+    if (nextDate) setDate(nextDate);
   }, [initState?.date]);
 
   const handleValueChange = useCallback((text: string) => {
@@ -169,12 +177,14 @@ export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: 
 
   const handleEditSubmit = useCallback(async () => {
     const amount = parseMoney(value);
-    await editTransaction({
-      transactionId: initState?.transactionId!,
-      title,
-      value: amount,
-      date: date.getTime(),
-    });
+    await editTransaction(
+      buildEditTransactionCommand({
+        transactionId: initState?.transactionId!,
+        title,
+        amount,
+        date: date.getTime(),
+      }),
+    );
     await transactionCache?.invalidateAll();
     resetForm();
     onSuccess?.();
@@ -182,27 +192,18 @@ export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: 
 
   const handleRepeatSubmit = useCallback(async () => {
     const amount = parseMoney(value);
-    if (isFeed) {
-      await createTransaction({
-        title: title.trim(),
-        value: amount,
-        date: date.getTime(),
-        to: pipeId,
-      });
-    } else {
-      await createTransaction({
+    await createTransaction(
+      buildCreateTransactionCommand({
         title,
-        value: amount,
+        amount,
         date: date.getTime(),
-        from: pipeId,
-        ...(spendMode === "transfer" && sentToPipeId ? { to: sentToPipeId } : {}),
-        ...(spendMode === "spend" && paidFromPipeId
-          ? {
-              paidFrom: paidFromPipeId,
-            }
-          : {}),
-      });
-    }
+        pipeId,
+        isFeed,
+        spendMode,
+        sentToPipeId,
+        paidFromPipeId,
+      }),
+    );
     await transactionCache?.invalidateAll();
     resetForm();
     onSuccess?.();

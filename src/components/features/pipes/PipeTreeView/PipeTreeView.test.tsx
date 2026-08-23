@@ -113,7 +113,7 @@ describe("PipeTreeView", () => {
 
   it("lets the name column grow and keeps the name clamped", () => {
     const source = readFileSync(
-      "src/components/features/pipes/PipeTreeView/PipeTreeView.tsx",
+      "src/components/features/pipes/PipeTreeView/TreeRow.tsx",
       "utf8",
     );
 

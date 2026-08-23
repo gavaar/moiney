@@ -1,10 +1,133 @@
 import { colors } from "@/lib/styles";
+import type { Id } from "@convex/_generated/dataModel";
 import type { PipeModel } from "@features/pipes/data/pipes";
 
 type PipeReference = Pick<
   PipeModel,
   "id" | "parentId" | "name" | "icon" | "deletionJobId"
 >;
+
+type CreateTransactionCommand = {
+  title: string;
+  value: number;
+  date: number;
+  from?: PipeModel["id"];
+  to?: PipeModel["id"];
+  paidFrom?: PipeModel["id"];
+};
+
+type CreateTransactionInput = {
+  title: string;
+  amount: number;
+  date: number;
+  pipeId: PipeModel["id"];
+  isFeed: boolean;
+  spendMode: "spend" | "transfer";
+  sentToPipeId: PipeModel["id"] | null;
+  paidFromPipeId: PipeModel["id"] | null;
+};
+
+type EditTransactionCommand = {
+  transactionId: Id<"transactions">;
+  title: string;
+  value: number;
+  date: number;
+};
+
+type EditTransactionInput = {
+  transactionId: Id<"transactions">;
+  title: string;
+  amount: number;
+  date: number;
+};
+
+type SpendMode = "spend" | "transfer";
+
+type SpendModeState = {
+  spendMode: SpendMode;
+  sentToPipeId: PipeModel["id"] | null;
+  paidFromPipeId: PipeModel["id"] | null;
+  showPaidFrom: boolean;
+};
+
+export function buildCreateTransactionCommand({
+  title,
+  amount,
+  date,
+  pipeId,
+  isFeed,
+  spendMode,
+  sentToPipeId,
+  paidFromPipeId,
+}: CreateTransactionInput): CreateTransactionCommand {
+  if (isFeed) {
+    return {
+      title: title.trim(),
+      value: amount,
+      date,
+      to: pipeId,
+    };
+  }
+
+  return {
+    title,
+    value: amount,
+    date,
+    from: pipeId,
+    ...(spendMode === "transfer" && sentToPipeId
+      ? { to: sentToPipeId }
+      : {}),
+    ...(spendMode === "spend" && paidFromPipeId
+      ? { paidFrom: paidFromPipeId }
+      : {}),
+  };
+}
+
+export function buildEditTransactionCommand({
+  transactionId,
+  title,
+  amount,
+  date,
+}: EditTransactionInput): EditTransactionCommand {
+  return {
+    transactionId,
+    title,
+    value: amount,
+    date,
+  };
+}
+
+export function getIntentDate(
+  intent: "repeat" | "edit",
+  initialDate: number | undefined,
+  now: Date,
+): Date | undefined {
+  if (intent === "edit" && initialDate !== undefined) {
+    return new Date(initialDate);
+  }
+  if (intent === "repeat") return new Date(now);
+  return undefined;
+}
+
+export function transitionSpendMode(
+  state: SpendModeState,
+  nextMode: SpendMode,
+): SpendModeState {
+  if (nextMode === "spend") {
+    return {
+      ...state,
+      spendMode: nextMode,
+      sentToPipeId: null,
+    };
+  }
+
+  return {
+    ...state,
+    spendMode: nextMode,
+    paidFromPipeId: null,
+    showPaidFrom: false,
+  };
+}
 
 export function getTopmostPipeId(
   pipes: readonly PipeReference[],
