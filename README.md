@@ -26,7 +26,7 @@ moiney/
 |   `-- lib/                # Cross-feature infrastructure and utilities
 |-- convex/                 # Schema, registered functions, and backend model operations
 |-- benchmarks/             # Repeatable performance measurements
-|-- docs/                   # Engineering principles, decisions, and roadmap
+|-- docs/                   # Engineering principles and domain decisions
 |-- assets/
 `-- app.json
 ```
