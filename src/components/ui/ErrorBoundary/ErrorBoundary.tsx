@@ -27,11 +27,19 @@ export class ErrorBoundary extends Component<Props, State> {
 
       return (
         <View className="flex-1 items-center justify-center gap-4 bg-background p-6">
-          <Text className="text-lg font-bold text-text">Something went wrong</Text>
+          <Text
+            accessibilityRole="alert"
+            accessibilityLabel="Something went wrong"
+            className="text-lg font-bold text-text"
+          >
+            Something went wrong
+          </Text>
           <Text className="text-sm text-secondary text-center">
             {this.state.error.message}
           </Text>
           <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Try Again"
             onPress={() => this.setState({ error: null })}
             className="rounded-lg bg-primary px-4 py-2"
           >

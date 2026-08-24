@@ -18,27 +18,6 @@ vi.mock("@ui/Alert", () => ({
   useAlert: () => mockShowAlert,
 }));
 
-vi.mock("@features/pipes/context/PipeSelectionContext", () => ({
-  usePipeSelection: () => ({
-     selectedPipe: { id: pId("pipe_root"), name: "Root Pipe", icon: "home-outline", priority: 0, capacity: 0, fed: 0, spent: 0 },
-    childrenByParent: new Map([
-      [pId("pipe_root"), [
-         { id: pId("pipe_child_1"), name: "Child 1", icon: "cafe", parentId: pId("pipe_root"), priority: 0, capacity: 0, fed: 0, spent: 0 },
-         { id: pId("pipe_child_2"), name: "Child 2", icon: "car-sport-outline", parentId: pId("pipe_root"), priority: 0, capacity: 0, fed: 0, spent: 0 },
-      ]],
-      [pId("pipe_child_1"), [
-         { id: pId("pipe_gc_1"), name: "Grandchild 1", icon: "game-controller-outline", parentId: pId("pipe_child_1"), priority: 0, capacity: 0, fed: 0, spent: 0 },
-      ]],
-    ]),
-    pipesById: {
-       pipe_root: { id: pId("pipe_root"), name: "Root Pipe", icon: "home-outline", parentId: undefined, priority: 0, capacity: 0, fed: 0, spent: 0 },
-       pipe_child_1: { id: pId("pipe_child_1"), name: "Child 1", icon: "cafe", parentId: pId("pipe_root"), priority: 0, capacity: 0, fed: 0, spent: 0 },
-       pipe_child_2: { id: pId("pipe_child_2"), name: "Child 2", icon: "car-sport-outline", parentId: pId("pipe_root"), priority: 0, capacity: 0, fed: 0, spent: 0 },
-       pipe_gc_1: { id: pId("pipe_gc_1"), name: "Grandchild 1", icon: "game-controller-outline", parentId: pId("pipe_child_1"), priority: 0, capacity: 0, fed: 0, spent: 0 },
-    },
-    isLoading: false,
-  }),
-}));
 vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
   usePipeCatalog: () => ({
     pipesById: {

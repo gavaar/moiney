@@ -19,6 +19,8 @@ export function FeedAmountModal({ pipeId, feedName }: Props) {
     <>
       <Pressable
         className="p-2 rounded-full"
+        accessibilityRole="button"
+        accessibilityLabel={`Add money to ${feedName}`}
         onPress={() => setVisible(true)}
         testID="feed-amount-trigger"
       >

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { type Id } from "@convex/_generated/dataModel";
@@ -8,7 +8,6 @@ import { FeedAmountModal } from "./FeedAmountModal";
 
 const PIPE_ID = "pipe-1" as Id<"pipes">;
 
-const mockOnSuccess = vi.fn();
 let capturedOnSuccess: (() => void) | null = null;
 
 vi.mock("@features/components/AmountForm", () => ({
@@ -32,6 +31,11 @@ describe("FeedAmountModal", () => {
   it("renders the add icon trigger", () => {
     render(<FeedAmountModal pipeId={PIPE_ID} feedName="Groceries" />);
     expect(screen.getByTestId("feed-amount-trigger")).toBeTruthy();
+  });
+
+  it("gives the add icon trigger an accessible name", () => {
+    render(<FeedAmountModal pipeId={PIPE_ID} feedName="Groceries" />);
+    expect(screen.getByRole("button", { name: "Add money to Groceries" })).toBeTruthy();
   });
 
   it("opens modal on trigger press", async () => {

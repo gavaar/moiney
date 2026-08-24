@@ -15,6 +15,10 @@ export function CheckboxInput({ label, checked, onChange, disabled }: Props) {
       testID="checkbox-touchable"
       onPress={() => !disabled && onChange(!checked)}
       disabled={disabled}
+      accessibilityRole="checkbox"
+      accessibilityLabel={label}
+      accessibilityState={{ checked, disabled }}
+      aria-checked={checked}
       className={cn("flex-row items-center gap-2", disabled && "opacity-50")}
     >
       <View

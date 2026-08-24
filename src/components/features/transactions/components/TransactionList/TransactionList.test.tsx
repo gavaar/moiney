@@ -5,6 +5,30 @@ import { TransactionList } from "./TransactionList";
 import type { Id } from "@convex/_generated/dataModel";
 import type { TransactionModel } from "@features/transactions/data/transactions";
 
+vi.mock("react-native", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react-native")>();
+  return {
+    ...actual,
+    FlatList: ({
+      data,
+      keyExtractor,
+      renderItem,
+      onEndReached,
+      ListFooterComponent,
+    }: any) => (
+      <div>
+        <button data-testid="transaction-list-end" onClick={onEndReached}>
+          end
+        </button>
+        {data.map((item: any, index: number) => (
+          <div key={keyExtractor(item, index)}>{renderItem({ item, index })}</div>
+        ))}
+        {typeof ListFooterComponent === "function" ? <ListFooterComponent /> : ListFooterComponent}
+      </div>
+    ),
+  };
+});
+
 function tx(
   id: string,
   overrides: Partial<TransactionModel> & { date: number },
@@ -22,9 +46,6 @@ function tx(
 }
 
 const mockUsePipeSelection = vi.fn();
-vi.mock("@features/pipes/context/PipeSelectionContext", () => ({
-  usePipeSelection: () => mockUsePipeSelection(),
-}));
 vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
   usePipeCatalog: () => mockUsePipeSelection(),
 }));
@@ -120,6 +141,24 @@ describe("TransactionList", () => {
     expect(screen.getByTestId("loading-indicator")).toBeDefined();
   });
 
+  it("labels the initial loading indicator", () => {
+    render(<TransactionList transactions={undefined} isLoading={true} />);
+    expect(screen.getByRole("progressbar", { name: "Loading transactions" })).toBeTruthy();
+  });
+
+  it("shows an accessible error when loading fails", () => {
+    render(
+      <TransactionList
+        transactions={undefined}
+        error="Unable to load transactions."
+      />,
+    );
+
+    expect(
+      screen.getByRole("alert", { name: "Unable to load transactions." }),
+    ).toBeDefined();
+  });
+
   it.each([
     { isLoading: true, loadMoreStatus: undefined },
     { isLoading: false, loadMoreStatus: "LoadingFirstPage" as const },
@@ -161,6 +200,7 @@ describe("TransactionList", () => {
         loadMoreStatus="CanLoadMore"
       />,
     );
-    expect(onLoadMore).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId("transaction-list-end"));
+    expect(onLoadMore).toHaveBeenCalledOnce();
   });
 });

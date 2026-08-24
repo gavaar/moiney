@@ -56,6 +56,16 @@ describe("Breadcrumb", () => {
     expect(selectPipe).toHaveBeenCalledWith([]);
   });
 
+  it("gives the root navigation control an accessible name", () => {
+    mockUsePipeSelection.mockReturnValue({
+      selectedPipePath: ["pipe-1"],
+      allPipes: [{ id: "pipe-1", name: "Groceries" }],
+      selectPipe: vi.fn(),
+    });
+    render(<Breadcrumb />);
+    expect(screen.getByRole("button", { name: "Go to pipe root" })).toBeDefined();
+  });
+
   it("calls selectPipe with single-item path when first item is pressed", async () => {
     const selectPipe = vi.fn();
     mockUsePipeSelection.mockReturnValue({

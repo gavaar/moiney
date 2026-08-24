@@ -39,6 +39,7 @@ export function FeedListScreen({
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator
             testID="loading-indicator"
+            accessibilityLabel="Loading feeds"
             size="small"
             color={colors.primary}
           />

@@ -16,6 +16,8 @@ export function Breadcrumb() {
     <View className="flex-row items-center gap-2 pb-3">
       <TouchableOpacity
         testID="breadcrumb-home"
+        accessibilityRole="button"
+        accessibilityLabel="Go to pipe root"
         onPress={() => selectPipe([])}
         className="rounded-full p-1"
       >

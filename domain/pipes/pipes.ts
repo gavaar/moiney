@@ -383,15 +383,3 @@ export function recalculatePipes<TPipeId extends string>(
 
   return pipes.map((p) => ({ _id: p._id, fed: fedById.get(p._id) ?? 0 }));
 }
-
-export function collectDescendants<TPipeId extends string>(
-  id: TPipeId,
-  childrenByParent: Map<TPipeId, TPipeId[]>,
-): TPipeId[] {
-  const ids: TPipeId[] = [];
-  for (const childId of childrenByParent.get(id) ?? []) {
-    ids.push(...collectDescendants(childId, childrenByParent));
-    ids.push(childId);
-  }
-  return ids;
-}

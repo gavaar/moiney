@@ -33,6 +33,13 @@ describe("TextInput", () => {
     expect(screen.getByTestId("end-icon-button")).toBeTruthy();
   });
 
+  it("labels the input and password visibility control", () => {
+    render(<TextInput label="Password" endIcon="eye" onEndIconPress={() => {}} />);
+
+    expect(screen.getByRole("textbox", { name: "Password" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Show password" })).toBeTruthy();
+  });
+
   it("handles end icon press", async () => {
     const onPress = vi.fn();
     render(<TextInput label="Password" endIcon="eye" onEndIconPress={onPress} />);

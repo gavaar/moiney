@@ -81,6 +81,9 @@ export function NumberInput({
           testID="decrement-button"
           onPress={handleDecrement}
           disabled={disabled || atMin}
+          accessibilityRole="button"
+          accessibilityLabel={`Decrease ${label}`}
+          accessibilityState={{ disabled: disabled || atMin }}
           className={cn(
             "h-10 w-10 items-center justify-center rounded-lg border border-border",
             disabled || atMin ? "opacity-40" : "",
@@ -95,6 +98,7 @@ export function NumberInput({
             borderStyle,
           )}
           keyboardType="numeric"
+          accessibilityLabel={label}
           value={String(value)}
           onChangeText={handleChangeText}
           editable={!disabled}
@@ -107,6 +111,9 @@ export function NumberInput({
           testID="increment-button"
           onPress={handleIncrement}
           disabled={disabled || atMax}
+          accessibilityRole="button"
+          accessibilityLabel={`Increase ${label}`}
+          accessibilityState={{ disabled: disabled || atMax }}
           className={cn(
             "h-10 w-10 items-center justify-center rounded-lg border",
             disabled || atMax ? "border-border opacity-40" : "border-border",

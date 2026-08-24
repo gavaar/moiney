@@ -22,7 +22,7 @@ This roadmap persists the whole-project audit beyond any single chat session. Wo
 | 3B. Authentication provider decision | Deferred | Reevaluate managed auth before a public release | Update 3A |
 | 3C. Custom-auth hardening | Completed | Add rotation, replay detection, rate limits, recovery, and storage policy | Update 3A |
 | 4. Quality gates | Completed | Require tests and type checking before deploy; improve native and Convex boundary coverage | None |
-| 5. Transaction identity | Completed | Model transaction kinds and collision-free grouping, including `paidFrom` | D003, D007 |
+| 5. Transaction identity | Completed | Model transaction kinds and collision-free grouping, including `paidFrom` | D003, D009 |
 | 6. Pipe deletion contract | Completed | Process orphaned history in bounded pages, preserve deleted-role icons, and return subtree balance to the parent | D002, money command contract |
 | 6a. Pipe module boundaries | Completed | Separate shared pipe logic and deletion operations while preserving Convex registration paths | Update 6 |
 | 7. Independent correctness fixes | Completed | Repair selection, back handling, description clearing, cron diff, input handlers, recent-title selection, and loading states | Relevant focused tests |
@@ -32,25 +32,21 @@ This roadmap persists the whole-project audit beyond any single chat session. Wo
 | 11. Convex model boundaries | Completed | Make registered functions thin, validated, authorized wrappers over deep model operations | Updates 1-3, 8-10 |
 | 12. Bounded backend work | Completed | Scope recascade, batch cleanup/crons/deletion, and index hot transaction queries | Updates 6, 10-11 plus measurements |
 | 13. Frontend ownership | Completed | Normalize backend models, narrow contexts/subscriptions, restore dependency direction, and move feature behavior out of shared UI and route files | Updates 5, 8, 11 |
-| 14. Complex component refactors | Pending | Refactor AmountForm, RuleModal, PipeTreeView, and transaction rows internally by responsibility after their ownership boundaries are established | Updates 5, 8, 13 |
-| 15. Measured runtime performance | Pending | Profile and improve virtualization, subscriptions, startup, icons, and repeated modals | Updates 12-14 |
-| 16. Maintenance hardening | Pending | Accessibility, observability, dependencies, dead APIs, behavioral tests, and documentation | Prior updates as applicable |
+| 14. Complex component refactors | Completed | Refactor AmountForm, RuleModal, PipeTreeView, and transaction rows internally by responsibility after their ownership boundaries are established | Updates 5, 8, 13 |
+| 15. Measured runtime performance | Completed | Profile and improve virtualization, subscriptions, startup, icons, and repeated modals | Updates 12-14 |
+| 16. Maintenance hardening | Completed | Accessibility, observability, dependencies, dead APIs, behavioral tests, and documentation | Prior updates as applicable |
 
 ## Confirmed High-Priority Risks
 
 - Backend financial and topology invariants are incomplete.
 - Several maintenance functions and transaction scans are unbounded.
 
-## Refactor Targets
+## Current Maintenance Scope
 
-- `convex/lib/pipes.ts`: separate pure cron, allocation/tree logic, and database orchestration.
-- `convex/transactions.ts`: move classification, validation, and accounting operations behind a deep model API.
-- `convex/pipes.ts`: extract ownership, topology, deletion planning, and reconciliation.
-- `AmountForm.tsx`: use typed drafts, pure transitions, and command construction.
-- `RuleModal.tsx`: use a canonical schedule draft and normalized command comparison.
-- `PipeTreeView.tsx`: share graph/liquidity logic and virtualize rendering.
-- Transaction presentation: move feature-aware rows and lists out of `ui`.
-- Auth provider: separate session state, persistence, and remote gateway concerns.
+- Add accessible names and state to shared controls and important financial views.
+- Make transaction loading failures visible without exposing backend details.
+- Remove dead internal APIs, stale declarations, and obsolete documentation.
+- Add behavioral coverage for shared primitives and failure paths.
 
 Line count alone is not a refactor requirement. Cohesive components such as the calendar may remain intact.
 
@@ -58,9 +54,14 @@ Line count alone is not a refactor requirement. Cohesive components such as the 
 
 Before architecture-heavy optimization, record representative baselines for 20, 200, and 500 pipes and for growing transaction histories. Measure React commits, frame time, memory, active subscriptions, Convex reads/writes, query scans, mutation latency, and OCC conflicts.
 
-Update 15 must report before-and-after measurements rather than relying only on static predictions.
+Update 15 required before-and-after measurements rather than relying only on static predictions.
 
 ## Current Next Step
+
+Updates 14, 15, and 16 are complete. The JavaScript baseline and device
+validation are recorded below.
+
+## Historical Progress
 
 Updates 9 and 10 are complete. The framework-independent money core parses,
 validates, and formats integer-cents amounts; backend mutation arguments use
@@ -183,7 +184,7 @@ measurement is deferred because no production database exists.
 
 ## Update 13 Progress
 
-Update 13 is in progress. 13.1, the frontend model and adapter slice, is
+Update 13 is complete. 13.1, the frontend model and adapter slice, is
 complete for the current transaction and pipe read paths. Feature-owned
 adapters in `src/components/features/transactions/data/transactions.ts` and
 `src/components/features/pipes/data/pipes.ts` map persisted Convex documents to
@@ -237,30 +238,97 @@ slot-based primitive, `AppScreenHeader` owns `MoineyVers`, and main/auth
 consumers no longer make the shared header import feature behavior. 13.3.5 is
 complete: login and sign-up logic now lives in feature-owned screens, username
 availability is behind a feature auth adapter, and auth routes are thin
-re-exports. Update 13 is complete; internal transaction-row decomposition and
-animation migration remain in Update 14.
+re-exports.
 
-## Completed Accessibility Layout Work
+## Update 14 Progress
 
-Implemented ahead of Update 16 to keep large-font layouts usable. **Prune this
-section when Update 16 is marked Completed.**
+Update 14 is complete. Internal responsibilities were extracted without
+changing external behavior, persistence, or domain contracts:
 
-- `PipeTreeView` rows now give the name column all available horizontal space (`flex-1`) with a fixed right-side mini bar, and pipe names clamp via `numberOfLines={1}` instead of wrapping or overflowing a precomputed fixed width.
-- The leaf `AmountForm` in `InnerPipesScreen` scrolls within its bounded region so expanding `Paid from another pipe?` no longer bleeds into the Latest transactions section.
-- The Latest transactions section is collapsible. The title row is a full-width `bg-surface` bar (accessible disclosure button, `expanded` state) that defaults to open; when collapsed the pipe area reclaims the vertical space. The chevron rotates with `react-native-reanimated` (`LinearTransition` + `FadeInDown`/`FadeOutUp`). The pipe area and transaction section both carry a layout transition so the collapse animates both regions together instead of snapping the feed list. In tree view the section is minimized (collapsed) rather than removed: switching to tree collapses it and switching back to list view re-opens it.
+- `StackedTransactionItem` disclosure rotation now uses Reanimated while
+  preserving its accessibility and expansion behavior.
+- `AmountForm` delegates create and edit command construction to typed pure
+  helpers, uses an explicit-clock intent-date transition, and owns
+  spend/transfer state cleanup through a pure transition.
+- `RuleModal` delegates canonical rule-update command construction to a typed
+  helper and owns cron-unit pacing compatibility through a pure transition.
+- `PipeTreeView` delegates tree-row construction, compact bar rendering, and
+  row presentation to feature-owned modules with focused behavioral coverage.
 
-Verified with behavioral tests in
-`src/components/features/pipes/PipesScreen/PipesScreen.test.tsx` and a
-source-structure layout assertion in `PipeTreeView.test.tsx` (matching the
-`AddPipeModal.test.tsx` precedent). Full suite and type check are green.
+Virtualization and other runtime optimizations were completed in Update 15
+following the measurement gate above.
+
+## Update 15 Progress
+
+Update 15 is complete. The reproducible baseline command is
+`bun run benchmark:performance`, implemented in
+`benchmarks/update15-performance.ts`. It measures pure JavaScript preparation
+work for tree rows, transaction grouping, and flattened transaction-list items,
+and remains available as a regression benchmark for later runtime changes.
+
+Baseline captured on 2026-08-23 with Bun 1.3.14:
+
+| Operation | Input | Output | p50 ms | p95 ms |
+| --- | ---: | ---: | ---: | ---: |
+| `build-tree-rows` | 20 pipes | 20 rows | 0.020 | 0.060 |
+| `build-tree-rows` | 200 pipes | 200 rows | 0.092 | 0.148 |
+| `build-tree-rows` | 500 pipes | 500 rows | 0.220 | 0.275 |
+| `group-transactions` | 100 transactions | 10 items | 0.153 | 0.194 |
+| `group-transactions` | 300 transactions | 10 items | 0.329 | 0.435 |
+| `group-transactions` | 500 transactions | 10 items | 0.176 | 0.251 |
+| `build-flat-items-collapsed` | 100 transactions | 10 items | 0.004 | 0.011 |
+| `build-flat-items-collapsed` | 300 transactions | 10 items | 0.001 | 0.002 |
+| `build-flat-items-collapsed` | 500 transactions | 10 items | 0.000 | 0.004 |
+| `build-flat-items-expanded` | 100 transactions | 110 items | 0.021 | 0.043 |
+| `build-flat-items-expanded` | 300 transactions | 310 items | 0.022 | 0.045 |
+| `build-flat-items-expanded` | 500 transactions | 510 items | 0.023 | 0.029 |
+
+These numbers do not measure React commits, native frame time, memory, active
+subscriptions, or Convex reads. Device validation was completed separately and
+the user confirmed that the updated app behavior, cache persistence, and native
+runtime behavior work properly.
+`PipeTreeView` now uses the default React Native `FlatList` virtualization with
+no speculative window or clipping overrides. `TransactionList` already uses
+`FlatList`.
+
+The subscription and cache audit found no redundant reactive transaction path:
+`PipeCatalogProvider` owns one catalog subscription, transaction list and
+history flows use one-shot Convex reads behind the cache, and correction-history
+pagination is mounted only while its modal is visible. No query changes were
+justified by the available signals. Web and Android Expo bundles were also
+exported successfully: the web bundle selected the `localStorage` adapter, and
+the Android bundle selected the `expo-file-system` cache adapter and
+`expo-secure-store` auth adapter.
+
+## Update 16 Progress
+
+Update 16 is complete after Update 15 device validation. The hardening work
+includes:
+
+- Accessible names and state for shared toggles, inputs, loading controls, pipe actions, calendar navigation, financial tree rows, alerts, and error recovery.
+- Stable, user-visible errors for latest transaction and paginated history failures, including cached-data refresh failures.
+- Direct behavioral coverage for shared alerts, error boundaries, popovers, correction-history wiring, and transaction pagination callbacks.
+- Removal of unused session helpers, stale auth storage declarations, obsolete test mocks, unused test declarations, and an unused domain export.
+- Expo SDK 57 patch alignment, including a root `expo-constants` override to
+  deduplicate the older range published by `expo-linking@57.0.7`, and removal
+  of two direct dev dependencies with no repository consumers.
+- Current README and roadmap documentation, including the completed runtime validation and current animation/worklets constraints.
+
+No telemetry dependency was added because the project has no selected crash
+reporting provider or operational event sink. Optional peer packages and
+future dependency upgrades remain outside this update.
+
+`bunx expo-doctor` no longer reports duplicate native dependencies. Its four
+remaining failures are package-manager/tooling checks that invoke `npm
+explain` under Bun 1.3.14, plus the corresponding icon-package check; the
+application's direct and resolved Expo dependencies are otherwise aligned.
 
 ## Animation Approach
 
 `react-native-reanimated` is the standard animation library. `vitest.setup.ts`
 provides a lightweight Reanimated mock so existing and new animation tests run
-in jsdom. Migrate remaining built-in RN `Animated` usages (e.g.,
-`StackedTransactionItem` disclosure) to Reanimated incrementally as their
-components are touched.
+in jsdom. Current feature animations, including the transaction disclosure,
+use Reanimated.
 
 Worklets `bundleMode` is disabled (`babel.config.js` and `metro.config.js`
 use plain `react-native-worklets/plugin`) because worklets 0.10.1's Bundle

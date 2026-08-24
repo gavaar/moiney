@@ -78,7 +78,7 @@ export function Popover({
 
   return (
     <RNModal transparent visible={visible} onRequestClose={onClose} animationType="fade">
-      <Pressable className="flex-1" onPress={onClose}>
+      <Pressable testID="popover-backdrop" className="flex-1" onPress={onClose}>
         <View
           className="bg-surface border border-border rounded-xl p-2"
           style={{ position: "absolute", top, left }}

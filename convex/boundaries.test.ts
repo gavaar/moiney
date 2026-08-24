@@ -3300,7 +3300,7 @@ describe("Convex boundaries", () => {
 
   it("applies an edit after settlement to the current period and reruns instant settlement", async () => {
     const t = convexTest(schema, modules);
-    const { userId, pipeId, transactionId } = await t.run(async (ctx) => {
+    const { userId, transactionId } = await t.run(async (ctx) => {
       const userId = await ctx.db.insert("users", {
         username: "alice",
         email: "alice@example.com",
@@ -3324,7 +3324,7 @@ describe("Convex boundaries", () => {
         date: 2000,
         from: pipeId,
       });
-      return { userId, pipeId, transactionId };
+      return { userId, transactionId };
     });
 
     await t.withIdentity({ subject: userId }).mutation(api.transactions.editTransaction, {

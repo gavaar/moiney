@@ -525,6 +525,11 @@ describe("AmountForm", () => {
       expect(screen.getByTestId("eraser-button")).toBeTruthy();
     });
 
+    it("gives the eraser button an accessible name", () => {
+      render(<AmountForm pipeId={PIPE_ID} variant="feed" />);
+      expect(screen.getByRole("button", { name: "Clear form" })).toBeTruthy();
+    });
+
     it("does not render mode toggle", () => {
       render(<AmountForm pipeId={PIPE_ID} variant="feed" />);
       expect(screen.queryByTestId("slide-toggle-upload")).toBeNull();
@@ -540,6 +545,11 @@ describe("AmountForm", () => {
       render(<AmountForm pipeId={PIPE_ID} variant="feed" />);
       const btn = screen.getByTestId("submit-button");
       expect(btn.getAttribute("aria-disabled")).toBe("true");
+    });
+
+    it("gives the submit button an accessible action name", () => {
+      render(<AmountForm pipeId={PIPE_ID} variant="feed" />);
+      expect(screen.getByRole("button", { name: "Feed" })).toBeTruthy();
     });
 
     it("submit button is disabled when amount is zero", () => {

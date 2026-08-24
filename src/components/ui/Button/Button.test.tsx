@@ -25,4 +25,11 @@ describe("Button", () => {
     render(<Button title="Run now" onPress={() => {}} />);
     expect(screen.queryByTestId("icon")).toBeNull();
   });
+
+  it("keeps an accessible action name and busy state while loading", () => {
+    render(<Button title="Run now" loading onPress={() => {}} />);
+
+    const button = screen.getByRole("button", { name: "Run now" });
+    expect(button.getAttribute("aria-busy")).toBe("true");
+  });
 });

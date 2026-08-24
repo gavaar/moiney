@@ -48,6 +48,8 @@ export function TextInput({
       <View className="relative">
         <RNTextInput
           {...props}
+          accessibilityLabel={label}
+          accessibilityState={{ disabled }}
           className={cn(
             "rounded-lg border bg-surface px-3 py-2.5 text-base text-text",
             hasTrailing && "pr-10",
@@ -69,14 +71,29 @@ export function TextInput({
         {hasTrailing ? (
           <View className="absolute right-3 top-0 bottom-0 flex-row items-center gap-1">
             {status === "checking" ? (
-              <ActivityIndicator testID="status-checking" size="small" color={colors.secondary} />
+              <ActivityIndicator
+                testID="status-checking"
+                accessibilityLabel={`${label} checking`}
+                size="small"
+                color={colors.secondary}
+              />
             ) : status === "available" ? (
-              <Icon testID="status-available" name="checkmark-circle" size={20} color={colors.success} />
+              <View accessible accessibilityRole="image" accessibilityLabel={`${label} available`}>
+                <Icon testID="status-available" name="checkmark-circle" size={20} color={colors.success} />
+              </View>
             ) : status === "unavailable" ? (
-              <Icon testID="status-unavailable" name="close-circle" size={20} color={colors.error} />
+              <View accessible accessibilityRole="image" accessibilityLabel={`${label} unavailable`}>
+                <Icon testID="status-unavailable" name="close-circle" size={20} color={colors.error} />
+              </View>
             ) : null}
             {endIcon ? (
-              <Pressable testID="end-icon-button" onPress={onEndIconPress} hitSlop={8}>
+              <Pressable
+                testID="end-icon-button"
+                accessibilityRole="button"
+                accessibilityLabel={endIcon === "eye" ? "Show password" : "Hide password"}
+                onPress={onEndIconPress}
+                hitSlop={8}
+              >
                 <Icon name={endIcon} size={20} color={colors.secondary} />
               </Pressable>
             ) : null}
@@ -84,7 +101,9 @@ export function TextInput({
         ) : null}
       </View>
       {error ? (
-        <Text className="text-sm text-error">{error}</Text>
+        <Text accessibilityRole="alert" accessibilityLabel={error} className="text-sm text-error">
+          {error}
+        </Text>
       ) : maxLength !== undefined ? (
         <Text className={cn("text-sm", currentLength > maxLength ? "text-error" : "text-muted")}>
           {currentLength} / {maxLength}

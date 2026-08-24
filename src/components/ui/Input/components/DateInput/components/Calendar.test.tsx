@@ -36,6 +36,14 @@ describe("Calendar", () => {
     expect(screen.getAllByTestId(/^day-/).length).toBe(31);
   });
 
+  it("labels calendar navigation controls", () => {
+    renderCalendar();
+    expect(screen.getByRole("button", { name: "Previous month" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Select calendar view" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Next month" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Choose today" })).toBeTruthy();
+  });
+
   it("marks the selected day", () => {
     renderCalendar();
     expect(screen.getByTestId("day-21").getAttribute("aria-selected")).toBe("true");

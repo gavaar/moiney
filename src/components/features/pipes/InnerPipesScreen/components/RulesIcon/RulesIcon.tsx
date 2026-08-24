@@ -63,7 +63,12 @@ export function RulesIcon({
 
   return (
     <>
-      <TouchableOpacity className="p-3" onPress={() => setModalVisible(true)}>
+      <TouchableOpacity
+        className="p-3"
+        accessibilityRole="button"
+        accessibilityLabel="Pipe rule settings"
+        onPress={() => setModalVisible(true)}
+      >
         <View className="relative w-6 h-6" testID="rules-icon-box">
           {ringProgress !== undefined ? (
             <View className="absolute inset-0 items-center justify-center">

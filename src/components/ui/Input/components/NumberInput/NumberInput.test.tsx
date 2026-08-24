@@ -13,6 +13,14 @@ describe("NumberInput", () => {
     expect(screen.getByDisplayValue("5")).toBeTruthy();
   });
 
+  it("labels the numeric controls for assistive technology", () => {
+    render(<NumberInput label="Priority" value={5} onChange={() => {}} />);
+
+    expect(screen.getByRole("button", { name: "Decrease Priority" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Increase Priority" })).toBeTruthy();
+    expect(screen.getByRole("textbox", { name: "Priority" })).toBeTruthy();
+  });
+
   it("increments value on plus press", async () => {
     const onChange = vi.fn();
     render(<NumberInput label="Test" value={5} onChange={onChange} />);

@@ -104,6 +104,8 @@ export function Calendar({ visible, value, onChange, onClose }: Props) {
         <View className="flex-row items-center justify-between mb-2">
           <Pressable
             testID="calendar-prev"
+            accessibilityRole="button"
+            accessibilityLabel="Previous month"
             onPress={handlePrev}
             hitSlop={8}
             className="p-2 rounded-full"
@@ -112,6 +114,8 @@ export function Calendar({ visible, value, onChange, onClose }: Props) {
           </Pressable>
           <Pressable
             testID="calendar-title"
+            accessibilityRole="button"
+            accessibilityLabel="Select calendar view"
             onPress={handleTitlePress}
             hitSlop={8}
             className="px-2 py-1 rounded-lg"
@@ -120,6 +124,8 @@ export function Calendar({ visible, value, onChange, onClose }: Props) {
           </Pressable>
           <Pressable
             testID="calendar-next"
+            accessibilityRole="button"
+            accessibilityLabel="Next month"
             onPress={handleNext}
             hitSlop={8}
             className="p-2 rounded-full"
@@ -138,7 +144,13 @@ export function Calendar({ visible, value, onChange, onClose }: Props) {
           <YearsView cursor={cursor} value={value} onSelectYear={handleSelectYear} />
         ) : null}
 
-        <Pressable testID="calendar-today" onPress={handleToday} className="items-center py-1">
+        <Pressable
+          testID="calendar-today"
+          accessibilityRole="button"
+          accessibilityLabel="Choose today"
+          onPress={handleToday}
+          className="items-center py-1"
+        >
           <Text className="text-primary text-sm font-medium">Today</Text>
         </Pressable>
       </View>

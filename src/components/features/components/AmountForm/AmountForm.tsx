@@ -161,6 +161,9 @@ export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: 
     () => getDestinationPipeName(allPipes, sentToPipeId),
     [allPipes, sentToPipeId],
   );
+  const actionLabel = intent === "edit"
+    ? "Update transaction"
+    : getButtonLabel(isFeed ? "feed" : "spend", isNegative, destinationPipeName);
 
   const resetForm = useCallback(() => {
     setTitle("");
@@ -238,8 +241,8 @@ export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: 
           {isTransactionVariant && initState?.transactionId && (
             <SlideToggle
               options={[
-                { value: "repeat", icon: "repeat-once" },
-                { value: "edit", icon: "pencil-outline" },
+                { value: "repeat", label: "Repeat transaction", icon: "repeat-once" },
+                { value: "edit", label: "Edit transaction", icon: "pencil-outline" },
               ]}
               value={intent}
               onChange={handleIntentChange}
@@ -252,8 +255,8 @@ export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: 
         <View className="flex-row items-center justify-center pt-2">
           <SlideToggle
             options={[
-              { value: "repeat", icon: "repeat-once" },
-              { value: "edit", icon: "pencil-outline" },
+              { value: "repeat", label: "Repeat transaction", icon: "repeat-once" },
+              { value: "edit", label: "Edit transaction", icon: "pencil-outline" },
             ]}
             value={intent}
             onChange={handleIntentChange}
@@ -268,8 +271,8 @@ export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: 
           </Text>
           <SlideToggle
             options={[
-              { value: "spend", icon: "upload" },
-              { value: "transfer", icon: "repeat" },
+              { value: "spend", label: "Spend", icon: "upload" },
+              { value: "transfer", label: "Transfer", icon: "repeat" },
             ]}
             value={spendMode}
             onChange={handleModeChange}
@@ -351,6 +354,9 @@ export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: 
       <View className="flex-row items-center justify-between gap-3 pt-2">
         <TouchableOpacity
           testID="eraser-button"
+          accessibilityRole="button"
+          accessibilityLabel="Clear form"
+          accessibilityState={{ disabled: loading }}
           onPress={resetForm}
           disabled={loading}
           className={cn(
@@ -363,6 +369,10 @@ export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: 
 
         <Pressable
           testID="submit-button"
+          accessibilityRole="button"
+          accessibilityLabel={actionLabel}
+          accessibilityState={{ disabled: !isValid || loading, busy: loading }}
+          aria-busy={loading}
           onPress={handleSubmit}
           disabled={!isValid || loading}
           className={cn(
@@ -372,7 +382,10 @@ export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: 
           )}
         >
           {loading ? (
-            <ActivityIndicator color={buttonStyle.iconColor} />
+            <ActivityIndicator
+              accessibilityLabel={`Submitting ${actionLabel}`}
+              color={buttonStyle.iconColor}
+            />
           ) : (
             <>
               <Icon
@@ -386,7 +399,7 @@ export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: 
                   buttonStyle.textColor,
                 )}
               >
-                {intent === "edit" ? "Update transaction" : getButtonLabel(isFeed ? "feed" : "spend", isNegative, destinationPipeName)}
+                {actionLabel}
               </Text>
             </>
           )}

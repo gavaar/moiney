@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { ScrollView } from "react-native";
+import { FlatList } from "react-native";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import type { PipeModel } from "@features/pipes/data/pipes";
 import { TreeRow } from "./TreeRow";
@@ -26,10 +26,13 @@ export function PipeTreeView({ onSelectPipe }: PipeTreeViewProps) {
   ]);
 
   return (
-    <ScrollView className="flex-1">
-      {rows.map((row) => (
-        <TreeRow key={row.id} row={row} onPress={() => onSelectPipe(row.path)} />
-      ))}
-    </ScrollView>
+    <FlatList
+      className="flex-1"
+      data={rows}
+      keyExtractor={(row) => String(row.id)}
+      renderItem={({ item }) => (
+        <TreeRow row={item} onPress={() => onSelectPipe(item.path)} />
+      )}
+    />
   );
 }

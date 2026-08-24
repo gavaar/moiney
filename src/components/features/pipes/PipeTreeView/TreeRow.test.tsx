@@ -48,4 +48,14 @@ describe("TreeRow", () => {
 
     expect(onPress).toHaveBeenCalledOnce();
   });
+
+  it("exposes the pipe values in its accessible label", () => {
+    render(<TreeRow row={row} onPress={() => {}} />);
+
+    expect(
+      screen.getByRole("button", {
+        name: "Rent. Fed 0.80. Spent 0.20. Capacity 1.00.",
+      }),
+    ).toBeDefined();
+  });
 });
