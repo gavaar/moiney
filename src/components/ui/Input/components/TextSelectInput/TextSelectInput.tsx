@@ -53,8 +53,10 @@ export function TextSelectInput({
             disabled && "opacity-60",
             borderStyle,
           )}
-          placeholderTextColor="#9CA3AF"
-          editable={!disabled}
+           placeholderTextColor="#9CA3AF"
+           accessibilityLabel={label}
+           accessibilityState={{ disabled }}
+           editable={!disabled}
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
@@ -93,7 +95,9 @@ export function TextSelectInput({
         )}
       </View>
       {error ? (
-        <Text className="text-sm text-error">{error}</Text>
+        <Text accessibilityRole="alert" accessibilityLabel={error} className="text-sm text-error">
+          {error}
+        </Text>
       ) : maxLength !== undefined ? (
         <Text className={cn("text-sm", currentLength > maxLength ? "text-error" : "text-muted")}>
           {currentLength} / {maxLength}

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { Animated } from "react-native";
+import * as Reanimated from "react-native-reanimated";
 import { StackedTransactionItem } from "./StackedTransactionItem";
 import type { TransactionGroup } from "@features/transactions/groupTransactions";
 import type { Id } from "@convex/_generated/dataModel";
@@ -82,9 +82,6 @@ const pipeInfo = {
 };
 
 const mockUsePipeSelection = vi.fn();
-vi.mock("@features/pipes/context/PipeSelectionContext", () => ({
-  usePipeSelection: () => mockUsePipeSelection(),
-}));
 vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
   usePipeCatalog: () => mockUsePipeSelection(),
 }));
@@ -433,11 +430,7 @@ describe("StackedTransactionItem", () => {
   });
 
   it("animates one compact down chevron between disclosure states", () => {
-    const start = vi.fn();
-    const stop = vi.fn();
-    const timing = vi
-      .spyOn(Animated, "timing")
-      .mockReturnValue({ start, stop } as unknown as Animated.CompositeAnimation);
+    const withTiming = vi.spyOn(Reanimated, "withTiming");
     const { rerender } = render(
       <StackedTransactionItem
         group={baseGroup}
@@ -459,13 +452,9 @@ describe("StackedTransactionItem", () => {
       .filter((icon) => icon.getAttribute("data-name") === "chevron-down");
     expect(chevrons).toHaveLength(1);
     expect(chevrons[0].getAttribute("data-size")).toBe("12");
-    expect(timing).toHaveBeenLastCalledWith(
-      expect.anything(),
-      expect.objectContaining({ toValue: 1, useNativeDriver: true }),
-    );
-    expect(start).toHaveBeenCalled();
+    expect(withTiming).toHaveBeenLastCalledWith(1, { duration: 180 });
 
-    timing.mockRestore();
+    withTiming.mockRestore();
   });
 
   it("renders normally when expanded (no crash)", () => {

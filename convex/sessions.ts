@@ -2,22 +2,8 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import {
   internalMutation,
-  internalQuery,
   type MutationCtx,
 } from "./_generated/server";
-
-const sessionValidator = v.object({
-  _id: v.id("sessions"),
-  _creationTime: v.number(),
-  userId: v.id("users"),
-  refreshTokenHash: v.string(),
-  familyId: v.optional(v.string()),
-  active: v.optional(v.boolean()),
-  rotatedAt: v.optional(v.number()),
-  revokedAt: v.optional(v.number()),
-  expiresAt: v.number(),
-  createdAt: v.number(),
-});
 
 const rotationResultValidator = v.union(
   v.object({ status: v.literal("invalid") }),
@@ -73,17 +59,6 @@ export const create = internalMutation({
       active: true,
       createdAt: Date.now(),
     });
-  },
-});
-
-export const getByHash = internalQuery({
-  args: { refreshTokenHash: v.string() },
-  returns: v.union(v.null(), sessionValidator),
-  handler: async (ctx, args) => {
-    return await ctx.db
-      .query("sessions")
-      .withIndex("by_refreshTokenHash", (q) => q.eq("refreshTokenHash", args.refreshTokenHash))
-      .unique();
   },
 });
 
@@ -186,38 +161,6 @@ export const revokeSessionFamily = internalMutation({
       });
     }
     return null;
-  },
-});
-
-export const getByUserId = internalQuery({
-  args: { userId: v.id("users") },
-  handler: async (ctx, args) => {
-    return await ctx.db
-      .query("sessions")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
-      .collect();
-  },
-});
-
-export const deleteById = internalMutation({
-  args: { id: v.id("sessions") },
-  returns: v.null(),
-  handler: async (ctx, args) => {
-    await ctx.db.delete("sessions", args.id);
-    return null;
-  },
-});
-
-export const deleteByUserId = internalMutation({
-  args: { userId: v.id("users") },
-  handler: async (ctx, args) => {
-    const sessions = await ctx.db
-      .query("sessions")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
-      .collect();
-    for (const session of sessions) {
-      await ctx.db.delete(session._id);
-    }
   },
 });
 

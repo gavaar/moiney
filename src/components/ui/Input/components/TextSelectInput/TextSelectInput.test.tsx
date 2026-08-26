@@ -38,6 +38,11 @@ describe("TextSelectInput", () => {
     expect(screen.getByPlaceholderText("What was this for?")).toBeTruthy();
   });
 
+  it("labels the text field", () => {
+    render(<ControlledWrapper />);
+    expect(screen.getByRole("textbox", { name: "Title" })).toBeTruthy();
+  });
+
   it("shows options on focus", () => {
     render(<ControlledWrapper />);
     const input = screen.getByPlaceholderText("What was this for?");

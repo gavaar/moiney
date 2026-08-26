@@ -49,6 +49,7 @@ describe("FeedListScreen", () => {
     expect(screen.queryByTestId("pipes-list")).toBeNull();
     expect(screen.queryByTestId("add-feed-button")).toBeNull();
     expect(container.querySelector("[data-testid=loading-indicator]")).toBeTruthy();
+    expect(screen.getByRole("progressbar", { name: "Loading feeds" })).toBeTruthy();
   });
 
   it("renders PipesList and AddFeedButton when pipes exist", () => {

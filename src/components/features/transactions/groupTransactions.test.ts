@@ -202,7 +202,6 @@ describe("groupTransactions", () => {
     const t3 = tx({ title: "bagel", date: 200 }); // singleton between them
     const result = groupTransactions([t1, t2, t3]);
     expect(result).toHaveLength(2);
-    const group = result[0] as any;
     expect(result[0]).toHaveProperty("count", 2); // group (latest=300) first
     expect(result[1]).toBe(t3); // singleton (200) second
   });

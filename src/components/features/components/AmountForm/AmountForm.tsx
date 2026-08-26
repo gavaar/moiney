@@ -17,20 +17,27 @@ import { useAlert } from "@ui/Alert";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import { useOptionalTransactionCache } from "@features/transactions/cache/TransactionCacheContext";
 import { parseMoney } from "@domain/money";
+import { formatAmount } from "@/lib/format";
 import {
+  buildCreateTransactionCommand,
+  buildEditTransactionCommand,
   buildPipeItems,
   buildPaidFromPipeItems,
   getButtonIcon,
   getButtonLabel,
   getButtonStyle,
   getDestinationPipeName,
+  getIntentDate,
+  transitionSpendMode,
 } from "./helpers";
 
 type SpentMode = "spend" | "transfer";
 
 type Props = {
   pipeId: Id<"pipes">;
-  variant?: "feed" | "spend" | "transaction";
+  variant?: "feed" | "boiler" | "spend" | "transaction";
+  boilerName?: string;
+  currentFed?: number;
   initState?: {
     pipeIcon: string;
     pipeName: string;
@@ -45,9 +52,19 @@ type Props = {
   onSuccess?: () => void;
 };
 
-export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: Props) {
+export function AmountForm({
+  pipeId,
+  variant = "spend",
+  boilerName,
+  currentFed = 0,
+  initState,
+  onSuccess,
+}: Props) {
+  const isBoiler = variant === "boiler";
   const [title, setTitle] = useState(initState?.title ?? "");
-  const [value, setValue] = useState(initState?.value ?? "");
+  const [value, setValue] = useState(initState?.value ?? (isBoiler ? "0" : ""));
+  const initialCurrentFedValue = (currentFed / 100).toFixed(2);
+  const [currentFedValue, setCurrentFedValue] = useState(initialCurrentFedValue);
   const [date, setDate] = useState(new Date());
   const [loading, setLoading] = useState(false);
   const [sentToPipeId, setSentToPipeId] = useState<Id<"pipes"> | null>(
@@ -65,25 +82,50 @@ export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: 
   const showAlert = useAlert();
   const transactionCache = useOptionalTransactionCache();
   const createTransaction = useMutation(api.transactions.createTransaction);
+  const contributeToBoiler = useMutation(
+    api.transactions.contributeToBoiler,
+  );
   const { allPipes } = usePipeCatalog();
   const recentTitles = useQuery(api.transactions.listRecentTitles, { pipeId });
 
-  const isFeed = variant === "feed" || (variant === "transaction" && initState?.isFeed === true);
+  const isFeed =
+    variant === "feed" ||
+    isBoiler ||
+    (variant === "transaction" && initState?.isFeed === true);
   const isTransactionVariant = variant === "transaction";
 
   const isValidAmount = useMemo(() => {
     if (value === "" || value === "-") return false;
     try {
       const amount = parseMoney(value);
-      return isFeed ? amount > 0 : amount !== 0;
+      return isBoiler ? amount >= 0 : isFeed ? amount > 0 : amount !== 0;
     } catch {
       return false;
     }
-  }, [value, isFeed]);
+  }, [value, isBoiler, isFeed]);
+
+  const parsedCurrentFed = useMemo(() => {
+    if (!isBoiler || currentFedValue === "" || currentFedValue === "-") {
+      return null;
+    }
+    try {
+      return parseMoney(currentFedValue);
+    } catch {
+      return null;
+    }
+  }, [currentFedValue, isBoiler]);
+  const currentFedChanged = parsedCurrentFed !== null && parsedCurrentFed !== currentFed;
+  const boilerContributionAmount =
+    isBoiler && isValidAmount ? parseMoney(value) : 0;
 
   const isValid =
-    title.trim() !== "" &&
+    (isBoiler
+      ? boilerContributionAmount === 0 || title.trim() !== ""
+      : title.trim() !== "") &&
     isValidAmount &&
+    (!isBoiler ||
+      (parsedCurrentFed !== null &&
+        (boilerContributionAmount > 0 || currentFedChanged))) &&
     (isFeed || isTransactionVariant || spendMode !== "transfer" || sentToPipeId !== null);
 
   const isNegative = value === "" ? !isFeed : value.startsWith("-");
@@ -102,22 +144,26 @@ export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: 
   );
 
   const handleModeChange = useCallback((newMode: string) => {
-    setSpendMode(newMode as SpentMode);
-    if (newMode === "spend") {
-      setSentToPipeId(null);
-    } else {
-      setPaidFromPipeId(null);
-      setShowPaidFrom(false);
-    }
-  }, []);
+    const nextState = transitionSpendMode(
+      {
+        spendMode,
+        sentToPipeId,
+        paidFromPipeId,
+        showPaidFrom,
+      },
+      newMode as SpentMode,
+    );
+    setSpendMode(nextState.spendMode);
+    setSentToPipeId(nextState.sentToPipeId);
+    setPaidFromPipeId(nextState.paidFromPipeId);
+    setShowPaidFrom(nextState.showPaidFrom);
+  }, [paidFromPipeId, sentToPipeId, showPaidFrom, spendMode]);
 
   const handleIntentChange = useCallback((newIntent: string) => {
-    setIntent(newIntent as "repeat" | "edit");
-    if (newIntent === "edit" && initState?.date) {
-      setDate(new Date(initState.date));
-    } else if (newIntent === "repeat") {
-      setDate(new Date());
-    }
+    const intentValue = newIntent as "repeat" | "edit";
+    setIntent(intentValue);
+    const nextDate = getIntentDate(intentValue, initState?.date, new Date());
+    if (nextDate) setDate(nextDate);
   }, [initState?.date]);
 
   const handleValueChange = useCallback((text: string) => {
@@ -153,60 +199,72 @@ export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: 
     () => getDestinationPipeName(allPipes, sentToPipeId),
     [allPipes, sentToPipeId],
   );
+  const actionLabel = intent === "edit"
+    ? "Update transaction"
+    : getButtonLabel(isFeed ? "feed" : "spend", isNegative, destinationPipeName);
 
   const resetForm = useCallback(() => {
     setTitle("");
-    setValue("");
+    setValue(isBoiler ? "0" : "");
+    setCurrentFedValue(initialCurrentFedValue);
     setDate(new Date());
     setSentToPipeId(null);
     setPaidFromPipeId(null);
     setShowPaidFrom(false);
     setSpendMode("spend");
     setIntent("repeat");
-  }, []);
+  }, [initialCurrentFedValue, isBoiler]);
 
   const editTransaction = useMutation(api.transactions.editTransaction);
 
   const handleEditSubmit = useCallback(async () => {
     const amount = parseMoney(value);
-    await editTransaction({
-      transactionId: initState?.transactionId!,
-      title,
-      value: amount,
-      date: date.getTime(),
-    });
-    await transactionCache?.invalidateAll();
+    const transaction = await editTransaction(
+      buildEditTransactionCommand({
+        transactionId: initState?.transactionId!,
+        title,
+        amount,
+        date: date.getTime(),
+      }),
+    );
+    await transactionCache?.updateTransaction(transaction);
     resetForm();
     onSuccess?.();
   }, [title, value, date, initState?.transactionId, onSuccess, resetForm, editTransaction, transactionCache]);
 
   const handleRepeatSubmit = useCallback(async () => {
     const amount = parseMoney(value);
-    if (isFeed) {
-      await createTransaction({
+    if (isBoiler) {
+      const transaction = await contributeToBoiler({
+        pipeId,
         title: title.trim(),
         value: amount,
         date: date.getTime(),
-        to: pipeId,
-      });
-    } else {
-      await createTransaction({
-        title,
-        value: amount,
-        date: date.getTime(),
-        from: pipeId,
-        ...(spendMode === "transfer" && sentToPipeId ? { to: sentToPipeId } : {}),
-        ...(spendMode === "spend" && paidFromPipeId
-          ? {
-              paidFrom: paidFromPipeId,
-            }
+        ...(currentFedChanged && parsedCurrentFed !== null
+          ? { currentFed: parsedCurrentFed }
           : {}),
       });
+      if (transaction) await transactionCache?.addTransaction(transaction);
+      resetForm();
+      onSuccess?.();
+      return;
     }
-    await transactionCache?.invalidateAll();
+    const transaction = await createTransaction(
+      buildCreateTransactionCommand({
+        title,
+        amount,
+        date: date.getTime(),
+        pipeId,
+        isFeed,
+        spendMode,
+        sentToPipeId,
+        paidFromPipeId,
+      }),
+    );
+    await transactionCache?.addTransaction(transaction);
     resetForm();
     onSuccess?.();
-  }, [isFeed, value, title, date, pipeId, spendMode, sentToPipeId, paidFromPipeId, onSuccess, resetForm, createTransaction, transactionCache]);
+  }, [isBoiler, isFeed, value, title, date, pipeId, spendMode, sentToPipeId, paidFromPipeId, currentFedChanged, parsedCurrentFed, onSuccess, resetForm, contributeToBoiler, createTransaction, transactionCache]);
 
   const handleSubmit = useCallback(async () => {
     if (!isValid || loading) return;
@@ -237,8 +295,8 @@ export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: 
           {isTransactionVariant && initState?.transactionId && (
             <SlideToggle
               options={[
-                { value: "repeat", icon: "repeat-once" },
-                { value: "edit", icon: "pencil-outline" },
+                { value: "repeat", label: "Repeat transaction", icon: "repeat-once" },
+                { value: "edit", label: "Edit transaction", icon: "pencil-outline" },
               ]}
               value={intent}
               onChange={handleIntentChange}
@@ -251,8 +309,8 @@ export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: 
         <View className="flex-row items-center justify-center pt-2">
           <SlideToggle
             options={[
-              { value: "repeat", icon: "repeat-once" },
-              { value: "edit", icon: "pencil-outline" },
+              { value: "repeat", label: "Repeat transaction", icon: "repeat-once" },
+              { value: "edit", label: "Edit transaction", icon: "pencil-outline" },
             ]}
             value={intent}
             onChange={handleIntentChange}
@@ -267,8 +325,8 @@ export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: 
           </Text>
           <SlideToggle
             options={[
-              { value: "spend", icon: "upload" },
-              { value: "transfer", icon: "repeat" },
+              { value: "spend", label: "Spend", icon: "upload" },
+              { value: "transfer", label: "Transfer", icon: "repeat" },
             ]}
             value={spendMode}
             onChange={handleModeChange}
@@ -311,6 +369,30 @@ export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: 
         </View>
       </View>
 
+      {isBoiler ? (
+        <View className="gap-1">
+          <Input
+            type="decimal"
+            label={`Current in ${boilerName ?? "boiler"}`}
+            value={currentFedValue}
+            onChange={setCurrentFedValue}
+            allowNegative
+            disabled={loading}
+          />
+          {boilerContributionAmount > 0 && !currentFedChanged ? (
+            <Text
+              testID="boiler-growth-hint"
+              className="text-xs text-muted"
+            >
+              <Text testID="boiler-growth-amount" className="font-bold">
+                +{formatAmount(boilerContributionAmount)}:
+              </Text>{" "}
+              current will also grow by {formatAmount(boilerContributionAmount)} after this operation, unless manually modified
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
+
       {!isFeed && !isTransactionVariant && spendMode === "transfer" && (
         <Input
           type="select"
@@ -350,6 +432,9 @@ export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: 
       <View className="flex-row items-center justify-between gap-3 pt-2">
         <TouchableOpacity
           testID="eraser-button"
+          accessibilityRole="button"
+          accessibilityLabel="Clear form"
+          accessibilityState={{ disabled: loading }}
           onPress={resetForm}
           disabled={loading}
           className={cn(
@@ -362,6 +447,10 @@ export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: 
 
         <Pressable
           testID="submit-button"
+          accessibilityRole="button"
+          accessibilityLabel={actionLabel}
+          accessibilityState={{ disabled: !isValid || loading, busy: loading }}
+          aria-busy={loading}
           onPress={handleSubmit}
           disabled={!isValid || loading}
           className={cn(
@@ -371,7 +460,10 @@ export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: 
           )}
         >
           {loading ? (
-            <ActivityIndicator color={buttonStyle.iconColor} />
+            <ActivityIndicator
+              accessibilityLabel={`Submitting ${actionLabel}`}
+              color={buttonStyle.iconColor}
+            />
           ) : (
             <>
               <Icon
@@ -385,7 +477,7 @@ export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: 
                   buttonStyle.textColor,
                 )}
               >
-                {intent === "edit" ? "Update transaction" : getButtonLabel(isFeed ? "feed" : "spend", isNegative, destinationPipeName)}
+                {actionLabel}
               </Text>
             </>
           )}

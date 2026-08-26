@@ -23,6 +23,19 @@ describe("SelectInput", () => {
     expect(screen.getByText("From")).toBeTruthy();
   });
 
+  it("labels the select trigger and exposes its expanded state", () => {
+    render(
+      <SelectInput
+        label="From"
+        items={items}
+        renderItem={(item) => <>{item.name}</>}
+        value={null}
+        onSelect={() => {}}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "From" }).getAttribute("aria-expanded")).toBe("false");
+  });
+
   it("shows placeholder when no value selected", () => {
     render(
       <SelectInput

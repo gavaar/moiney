@@ -3,12 +3,15 @@ import {
   createCache,
   deserializeCache,
   invalidateSnapshots,
+  insertTransaction,
   mergeHeadSnapshot,
+  reconcileTransactions,
   readSnapshot,
   replaceSnapshot,
   serializeCache,
   type TransactionCache,
   type TransactionSnapshotRead,
+  updateTransaction,
 } from "./transactionSnapshot";
 import type { TransactionModel } from "@features/transactions/data/transactions";
 
@@ -77,6 +80,39 @@ export class TransactionCacheStore {
       scope,
       transactions,
       hasMore,
+      now,
+    );
+    await this.persist();
+    return this.cacheValue;
+  }
+
+  async addTransaction(
+    transaction: TransactionModel,
+    now = Date.now(),
+  ): Promise<TransactionCache> {
+    this.cacheValue = insertTransaction(this.cache, transaction, now);
+    await this.persist();
+    return this.cacheValue;
+  }
+
+  async updateTransaction(
+    transaction: TransactionModel,
+    now = Date.now(),
+  ): Promise<TransactionCache> {
+    this.cacheValue = updateTransaction(this.cache, transaction, now);
+    await this.persist();
+    return this.cacheValue;
+  }
+
+  async reconcileTransactions(
+    knownIds: readonly string[],
+    transactions: TransactionModel[],
+    now = Date.now(),
+  ): Promise<TransactionCache> {
+    this.cacheValue = reconcileTransactions(
+      this.cache,
+      knownIds,
+      transactions,
       now,
     );
     await this.persist();

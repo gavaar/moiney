@@ -43,11 +43,21 @@ export function Button({
   disabled,
   icon,
   className,
+  accessibilityLabel,
+  accessibilityState,
   ...props
 }: Props) {
   return (
     <TouchableOpacity
       disabled={disabled || loading}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? title}
+      accessibilityState={{
+        ...accessibilityState,
+        disabled: disabled || loading,
+        busy: loading,
+      }}
+      aria-busy={loading}
       className={cn(
         "rounded-lg px-4 py-3 items-center justify-center",
         VARIANT_STYLES[variant],
@@ -57,7 +67,10 @@ export function Button({
       {...props}
     >
       {loading ? (
-        <ActivityIndicator color={colors.background} />
+        <ActivityIndicator
+          accessibilityLabel={`Loading ${title}`}
+          color={colors.background}
+        />
       ) : (
         <View className="flex-row items-center gap-2">
           {icon ? <Icon name={icon} size={16} color={ICON_COLORS[variant]} /> : null}

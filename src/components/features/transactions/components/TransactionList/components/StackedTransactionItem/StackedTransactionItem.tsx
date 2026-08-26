@@ -1,5 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Pressable, Text, View } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { Pressable, Text, View } from "react-native";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 import { Icon, safeIconName } from "@ui/Icon";
 import { cn, colors } from "@/lib/styles";
 import { ModalShell } from "@ui/Modal";
@@ -50,31 +55,16 @@ export function StackedTransactionItem({
   const isNegative = group.totalValue < 0;
   const [showForm, setShowForm] = useState(false);
   const [showDisabledInfo, setShowDisabledInfo] = useState(false);
-  const disclosureRotation = useRef(
-    new Animated.Value(expanded ? 1 : 0),
-  ).current;
+  const disclosureRotation = useSharedValue(expanded ? 1 : 0);
   const { pipesById, childrenByParent } = usePipeCatalog();
 
   useEffect(() => {
-    const animation = Animated.timing(disclosureRotation, {
-      toValue: expanded ? 1 : 0,
-      duration: 180,
-      useNativeDriver: true,
-    });
-    animation.start();
-    return () => animation.stop();
+    disclosureRotation.value = withTiming(expanded ? 1 : 0, { duration: 180 });
   }, [disclosureRotation, expanded]);
 
-  const disclosureRotationStyle = {
-    transform: [
-      {
-        rotate: disclosureRotation.interpolate({
-          inputRange: [0, 1],
-          outputRange: ["0deg", "180deg"],
-        }),
-      },
-    ],
-  };
+  const disclosureRotationStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${disclosureRotation.value * 180}deg` }],
+  }));
   const bgClass = useMemo(() => {
     if (group.totalValue === 0) return "bg-surface";
     return isNegative ? "bg-error/30" : "bg-success/30";

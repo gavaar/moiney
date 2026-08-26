@@ -5,24 +5,32 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { type Id } from "@convex/_generated/dataModel";
 import { AmountForm } from "./AmountForm";
 import {
+  buildCreateTransactionCommand,
+  buildEditTransactionCommand,
   buildPaidFromPipeItems,
   buildPipeItems,
+  getIntentDate,
   getButtonIcon,
   getButtonLabel,
   getButtonStyle,
   getDestinationPipeName,
   getTopmostPipeId,
+  transitionSpendMode,
 } from "./helpers";
 
 const PIPE_ID = "pipe-1" as Id<"pipes">;
 const mockCreateTransaction = vi.fn().mockResolvedValue(undefined);
+const mockContributeToBoiler = vi.fn().mockResolvedValue(null);
 const mockEditTransactionFn = vi.fn().mockResolvedValue(undefined);
 const mockInvalidateAll = vi.fn().mockResolvedValue(undefined);
+const mockAddTransaction = vi.fn().mockResolvedValue(undefined);
+const mockUpdateTransaction = vi.fn().mockResolvedValue(undefined);
 
 const mockRecentTitles: string[] = [];
 vi.mock("convex/react", () => ({
   useMutation: (api: any) => {
     if (api === "createTransaction") return mockCreateTransaction;
+    if (api === "contributeToBoiler") return mockContributeToBoiler;
     if (api === "editTransaction") return mockEditTransactionFn;
     return vi.fn();
   },
@@ -34,6 +42,7 @@ vi.mock("@convex/_generated/api", () => ({
     pipes: {},
     transactions: {
       createTransaction: "createTransaction",
+      contributeToBoiler: "contributeToBoiler",
       editTransaction: "editTransaction",
       listRecentTitles: "listRecentTitles",
     },
@@ -85,7 +94,11 @@ vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
 }));
 
 vi.mock("@features/transactions/cache/TransactionCacheContext", () => ({
-  useOptionalTransactionCache: () => ({ invalidateAll: mockInvalidateAll }),
+  useOptionalTransactionCache: () => ({
+    invalidateAll: mockInvalidateAll,
+    addTransaction: mockAddTransaction,
+    updateTransaction: mockUpdateTransaction,
+  }),
 }));
 
 vi.mock("@ui/Input", () => ({
@@ -210,6 +223,108 @@ describe("getButtonLabel", () => {
 
     it('returns "Take from {name}" when positive and destination set', () => {
       expect(getButtonLabel("spend", false, "Freelance")).toBe("Take from Freelance");
+    });
+  });
+});
+
+describe("buildCreateTransactionCommand", () => {
+  it("builds a pay-by-transfer expense command with signed cents", () => {
+    const date = new Date(2026, 6, 21, 15, 45).getTime();
+
+    expect(
+      buildCreateTransactionCommand({
+        title: "Coffee",
+        amount: -500,
+        date,
+        pipeId: PIPE_ID,
+        isFeed: false,
+        spendMode: "spend",
+        sentToPipeId: null,
+        paidFromPipeId: "feed-2" as Id<"pipes">,
+      }),
+    ).toEqual({
+      title: "Coffee",
+      value: -500,
+      date,
+      from: PIPE_ID,
+      paidFrom: "feed-2",
+    });
+  });
+});
+
+describe("buildEditTransactionCommand", () => {
+  it("builds an edit command with the supplied title and integer cents", () => {
+    const transactionId = "transaction-1" as Id<"transactions">;
+    const date = new Date(2026, 6, 21, 15, 45).getTime();
+
+    expect(
+      buildEditTransactionCommand({
+        transactionId,
+        title: " Lunch ",
+        amount: -1250,
+        date,
+      }),
+    ).toEqual({
+      transactionId,
+      title: " Lunch ",
+      value: -1250,
+      date,
+    });
+  });
+});
+
+describe("getIntentDate", () => {
+  const now = new Date(2026, 6, 21, 15, 45);
+  const initialDate = new Date(2026, 5, 10, 8, 30).getTime();
+
+  it.each([
+    ["edit with an initial date", "edit" as const, initialDate, new Date(initialDate)],
+    ["repeat", "repeat" as const, initialDate, now],
+  ])("returns the date for %s", (_label, intent, initial, expected) => {
+    expect(getIntentDate(intent, initial, now)).toEqual(expected);
+  });
+
+  it("leaves the date unchanged when editing without an initial date", () => {
+    expect(getIntentDate("edit", undefined, now)).toBeUndefined();
+  });
+});
+
+describe("transitionSpendMode", () => {
+  it("clears the transfer destination when entering spend mode", () => {
+    expect(
+      transitionSpendMode(
+        {
+          spendMode: "transfer",
+          sentToPipeId: "feed-1" as Id<"pipes">,
+          paidFromPipeId: "feed-2" as Id<"pipes">,
+          showPaidFrom: true,
+        },
+        "spend",
+      ),
+    ).toEqual({
+      spendMode: "spend",
+      sentToPipeId: null,
+      paidFromPipeId: "feed-2",
+      showPaidFrom: true,
+    });
+  });
+
+  it("clears the payer and hides the paid-from selector in transfer mode", () => {
+    expect(
+      transitionSpendMode(
+        {
+          spendMode: "spend",
+          sentToPipeId: null,
+          paidFromPipeId: "feed-2" as Id<"pipes">,
+          showPaidFrom: true,
+        },
+        "transfer",
+      ),
+    ).toEqual({
+      spendMode: "transfer",
+      sentToPipeId: null,
+      paidFromPipeId: null,
+      showPaidFrom: false,
     });
   });
 });
@@ -419,6 +534,11 @@ describe("AmountForm", () => {
       expect(screen.getByTestId("eraser-button")).toBeTruthy();
     });
 
+    it("gives the eraser button an accessible name", () => {
+      render(<AmountForm pipeId={PIPE_ID} variant="feed" />);
+      expect(screen.getByRole("button", { name: "Clear form" })).toBeTruthy();
+    });
+
     it("does not render mode toggle", () => {
       render(<AmountForm pipeId={PIPE_ID} variant="feed" />);
       expect(screen.queryByTestId("slide-toggle-upload")).toBeNull();
@@ -434,6 +554,11 @@ describe("AmountForm", () => {
       render(<AmountForm pipeId={PIPE_ID} variant="feed" />);
       const btn = screen.getByTestId("submit-button");
       expect(btn.getAttribute("aria-disabled")).toBe("true");
+    });
+
+    it("gives the submit button an accessible action name", () => {
+      render(<AmountForm pipeId={PIPE_ID} variant="feed" />);
+      expect(screen.getByRole("button", { name: "Feed" })).toBeTruthy();
     });
 
     it("submit button is disabled when amount is zero", () => {
@@ -506,7 +631,35 @@ describe("AmountForm", () => {
 
       await waitFor(() => {
         expect(onSuccess).toHaveBeenCalled();
-        expect(mockInvalidateAll).toHaveBeenCalled();
+        expect(mockAddTransaction).toHaveBeenCalled();
+        expect(mockInvalidateAll).not.toHaveBeenCalled();
+      });
+    });
+
+    it("adds the created transaction to the cache", async () => {
+      const created = {
+        id: "created-1",
+        createdAt: 10,
+        title: "groceries",
+        value: 5000,
+        date: 20,
+        kind: "feed",
+        to: PIPE_ID,
+      };
+      mockCreateTransaction.mockResolvedValueOnce(created);
+
+      render(<AmountForm pipeId={PIPE_ID} variant="feed" />);
+      fireEvent.change(screen.getByPlaceholderText("What was this for?"), {
+        target: { value: "groceries" },
+      });
+      fireEvent.change(screen.getByTestId("input-Amount-field"), {
+        target: { value: "50" },
+      });
+      fireEvent.click(screen.getByTestId("submit-button"));
+
+      await waitFor(() => {
+        expect(mockAddTransaction).toHaveBeenCalledWith(created);
+        expect(mockInvalidateAll).not.toHaveBeenCalled();
       });
     });
 
@@ -541,6 +694,136 @@ describe("AmountForm", () => {
       expect(titleInput.value).toBe("");
       const amountInput = screen.getByTestId("input-Amount-field") as HTMLInputElement;
       expect(amountInput.value).toBe("");
+    });
+  });
+
+  describe("variant='boiler'", () => {
+    it("starts with zero amount and the current fed value disabled", () => {
+      render(
+        <AmountForm
+          pipeId={PIPE_ID}
+          variant="boiler"
+          boilerName="Savings"
+          currentFed={12500}
+        />,
+      );
+      fireEvent.change(screen.getByPlaceholderText("What was this for?"), {
+        target: { value: "investment" },
+      });
+
+      expect(
+        (screen.getByTestId("input-Amount-field") as HTMLInputElement).value,
+      ).toBe("0");
+      expect(
+        (
+          screen.getByTestId(
+            "input-Current in Savings-field",
+          ) as HTMLInputElement
+        ).value,
+      ).toBe("125.00");
+      expect(
+        screen
+          .getByTestId("input-Current in Savings-field")
+          .getAttribute("data-allow-negative"),
+      ).toBe("true");
+      expect(
+        screen.getByTestId("submit-button").getAttribute("aria-disabled"),
+      ).toBe("true");
+    });
+
+    it("explains that an unchanged current value will grow by the amount", () => {
+      render(
+        <AmountForm
+          pipeId={PIPE_ID}
+          variant="boiler"
+          boilerName="Savings"
+          currentFed={12500}
+        />,
+      );
+
+      fireEvent.change(screen.getByTestId("input-Amount-field"), {
+        target: { value: "300" },
+      });
+
+      expect(screen.getByTestId("boiler-growth-amount").textContent).toBe(
+        "+300.00:",
+      );
+      expect(screen.getByTestId("boiler-growth-hint").textContent).toContain(
+        "current will also grow by 300.00 after this operation, unless manually modified",
+      );
+    });
+
+    it("submits a contribution without overriding unchanged current fed", async () => {
+      const date = new Date(2026, 6, 21, 15, 45);
+      vi.setSystemTime(date);
+      const created = {
+        id: "created-1",
+        createdAt: 10,
+        title: "investment",
+        value: 30000,
+        date: date.getTime(),
+        kind: "feed",
+        to: PIPE_ID,
+      };
+      mockContributeToBoiler.mockResolvedValueOnce(created);
+      render(
+        <AmountForm
+          pipeId={PIPE_ID}
+          variant="boiler"
+          boilerName="Savings"
+          currentFed={12500}
+        />,
+      );
+      fireEvent.change(screen.getByPlaceholderText("What was this for?"), {
+        target: { value: "investment" },
+      });
+      fireEvent.change(screen.getByTestId("input-Amount-field"), {
+        target: { value: "300" },
+      });
+      fireEvent.click(screen.getByTestId("submit-button"));
+
+      await waitFor(() => {
+        expect(mockContributeToBoiler).toHaveBeenCalledWith({
+          pipeId: PIPE_ID,
+          title: "investment",
+          value: 30000,
+          date: date.getTime(),
+        });
+        expect(mockAddTransaction).toHaveBeenCalledWith(created);
+      });
+      vi.useRealTimers();
+    });
+
+    it("submits a correction-only update without requiring a title", async () => {
+      render(
+        <AmountForm
+          pipeId={PIPE_ID}
+          variant="boiler"
+          boilerName="Savings"
+          currentFed={12500}
+        />,
+      );
+      fireEvent.change(
+        screen.getByTestId("input-Current in Savings-field"),
+        { target: { value: "100" } },
+      );
+
+      expect(
+        screen.getByTestId("submit-button").getAttribute("aria-disabled"),
+      ).toBeNull();
+      fireEvent.click(screen.getByTestId("submit-button"));
+
+      await waitFor(() => {
+        expect(mockContributeToBoiler).toHaveBeenCalledWith(
+          expect.objectContaining({
+            pipeId: PIPE_ID,
+            title: "",
+            value: 0,
+            currentFed: 10000,
+          }),
+        );
+        expect(mockAddTransaction).not.toHaveBeenCalled();
+      });
     });
   });
 
@@ -1112,6 +1395,46 @@ describe("AmountForm", () => {
         });
 
         vi.useRealTimers();
+      });
+
+      it("updates the edited transaction in the cache", async () => {
+        const updated = {
+          id: "tx-1",
+          createdAt: 1,
+          title: "updated lunch",
+          value: -2000,
+          date: 2,
+          kind: "expense",
+          from: PIPE_ID,
+          editedAt: 3,
+        };
+        mockEditTransactionFn.mockResolvedValueOnce(updated);
+
+        render(
+          <AmountForm
+            pipeId={PIPE_ID}
+            variant="transaction"
+            initState={{
+              pipeIcon: "cart",
+              pipeName: "Groceries",
+              title: "lunch",
+              value: "-15",
+              isFeed: false,
+              transactionId: "tx-1" as any,
+            }}
+          />,
+        );
+
+        fireEvent.change(screen.getByPlaceholderText("What was this for?"), {
+          target: { value: "updated lunch" },
+        });
+        fireEvent.click(screen.getByTestId("slide-toggle-edit"));
+        fireEvent.click(screen.getByTestId("submit-button"));
+
+        await waitFor(() => {
+          expect(mockUpdateTransaction).toHaveBeenCalledWith(updated);
+          expect(mockInvalidateAll).not.toHaveBeenCalled();
+        });
       });
 
       it("does not call createTransaction in edit mode", async () => {

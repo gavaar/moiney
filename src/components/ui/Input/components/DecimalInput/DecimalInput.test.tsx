@@ -16,6 +16,11 @@ describe("DecimalInput", () => {
     expect(screen.getByPlaceholderText("100.53")).toBeTruthy();
   });
 
+  it("labels the decimal field", () => {
+    render(<DecimalInput label="Amount" value="" onChange={() => {}} />);
+    expect(screen.getByRole("textbox", { name: "Amount" })).toBeTruthy();
+  });
+
   it("accepts digit input", () => {
     const onChange = vi.fn();
     render(<DecimalInput label="Amount" value="" onChange={onChange} />);

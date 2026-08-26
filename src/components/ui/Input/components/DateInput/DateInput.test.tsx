@@ -23,6 +23,11 @@ describe("DateInput", () => {
     expect(screen.getByText("1 Jan 2025")).toBeTruthy();
   });
 
+  it("labels the date trigger", () => {
+    render(<DateInput label="Date" value={baseDate} onChange={() => {}} />);
+    expect(screen.getByRole("button", { name: "Date" })).toBeTruthy();
+  });
+
   it("shows error message", () => {
     render(
       <DateInput label="Date" value={baseDate} onChange={() => {}} error="Required" />,

@@ -13,20 +13,6 @@ vi.mock("@convex/_generated/api", () => ({
   api: { pipes: { updatePipe: {} } },
 }));
 
-vi.mock("@features/pipes/context/PipeSelectionContext", () => ({
-  usePipeSelection: () => ({
-    pipesById: {
-      "pipe-1": {
-        id: "pipe-1",
-        name: "Groceries",
-        icon: "cart",
-        description: "Old description",
-        priority: 1,
-        capacity: 100,
-      },
-    },
-  }),
-}));
 vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
   usePipeCatalog: () => ({
     pipesById: {

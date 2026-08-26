@@ -23,6 +23,10 @@ export function InnerPipesScreen() {
   const spent = selectedPipe?.spent ?? 0;
   const pendingFedAdjustment = selectedPipe?.pendingFedAdjustment ?? 0;
   const capacity = selectedPipe?.capacity ?? 0;
+  const visualCapacity =
+    selectedPipe?.sourceType === "boiler"
+      ? (selectedPipe.contributedFed ?? 0)
+      : capacity;
   const isDeleting = Boolean(selectedPipe?.deletionJobId);
 
   const selectedId = selectedPipePath[selectedPipePath.length - 1];
@@ -66,7 +70,7 @@ export function InnerPipesScreen() {
         <PipeBars
           fed={fed}
           spent={spent}
-          capacity={capacity}
+          capacity={visualCapacity}
           expected={expected}
           pendingFedAdjustment={pendingFedAdjustment}
           rule={selectedPipe?.rule}
@@ -77,6 +81,8 @@ export function InnerPipesScreen() {
               fed={fed}
               spent={spent}
               pendingFedAdjustment={pendingFedAdjustment}
+              sourceType={selectedPipe?.sourceType}
+              contributedFed={selectedPipe?.contributedFed}
             />
           </View>
           <OptionsButton pipeId={selectedId} disabled={isDeleting} />

@@ -13,6 +13,8 @@ export type Pipe = Pick<
   | "capacity"
   | "fed"
   | "spent"
+  | "sourceType"
+  | "contributedFed"
   | "deletionJobId"
   | "rule"
   | "cronNextDate"
@@ -55,7 +57,11 @@ export const PipesList = memo(function PipesList({
               name={item.name}
               icon={item.icon}
               priority={item.priority}
-              capacity={item.capacity}
+              capacity={
+                item.sourceType === "boiler"
+                  ? (item.contributedFed ?? 0)
+                  : item.capacity
+              }
               fed={item.fed}
               spent={item.spent}
               showPriority={priority && item.priority !== pipes[idx - 1]?.priority}

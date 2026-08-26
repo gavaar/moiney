@@ -107,6 +107,10 @@ export default defineSchema({
     fed: v.number(),
     spent: v.number(),
     pendingFedAdjustment: v.optional(v.number()),
+    sourceType: v.optional(
+      v.union(v.literal("feed"), v.literal("boiler")),
+    ),
+    contributedFed: v.optional(v.number()),
     deletionJobId: v.optional(v.id("pipeDeletionJobs")),
     rule: v.optional(
       v.union(

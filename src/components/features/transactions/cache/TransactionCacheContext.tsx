@@ -36,6 +36,12 @@ type TransactionCacheContextValue = {
     transactions: TransactionModel[],
     hasMore: boolean,
   ) => Promise<void>;
+  addTransaction: (transaction: TransactionModel) => Promise<void>;
+  updateTransaction: (transaction: TransactionModel) => Promise<void>;
+  reconcileTransactions: (
+    knownIds: readonly string[],
+    transactions: TransactionModel[],
+  ) => Promise<void>;
   mergeHead: (
     scope: string,
     transactions: TransactionModel[],
@@ -129,6 +135,33 @@ export function TransactionCacheProvider({ children, storage = transactionCacheS
     [state.store],
   );
 
+  const addTransaction = useCallback(
+    async (transaction: TransactionModel) => {
+      if (!state.store) return;
+      const cache = await state.store.addTransaction(transaction);
+      setState((current) => ({ ...current, cache }));
+    },
+    [state.store],
+  );
+
+  const updateTransaction = useCallback(
+    async (transaction: TransactionModel) => {
+      if (!state.store) return;
+      const cache = await state.store.updateTransaction(transaction);
+      setState((current) => ({ ...current, cache }));
+    },
+    [state.store],
+  );
+
+  const reconcileTransactions = useCallback(
+    async (knownIds: readonly string[], transactions: TransactionModel[]) => {
+      if (!state.store) return;
+      const cache = await state.store.reconcileTransactions(knownIds, transactions);
+      setState((current) => ({ ...current, cache }));
+    },
+    [state.store],
+  );
+
   const mergeHead = useCallback(
     async (scope: string, transactions: TransactionModel[], hasMore: boolean) => {
       if (!state.store) return;
@@ -158,6 +191,9 @@ export function TransactionCacheProvider({ children, storage = transactionCacheS
       read,
       replace,
       append,
+      addTransaction,
+      updateTransaction,
+      reconcileTransactions,
       mergeHead,
       invalidateAll,
       clear,
@@ -169,6 +205,9 @@ export function TransactionCacheProvider({ children, storage = transactionCacheS
       read,
       replace,
       append,
+      addTransaction,
+      updateTransaction,
+      reconcileTransactions,
       mergeHead,
       invalidateAll,
       clear,

@@ -28,6 +28,7 @@ export type AddFeedCommand = {
   name: string;
   icon: string;
   description?: string;
+  sourceType?: "feed" | "boiler";
 };
 
 export async function addFeedOperation(
@@ -47,6 +48,8 @@ export async function addFeedOperation(
     fed: 0,
     spent: 0,
     pendingFedAdjustment: 0,
+    sourceType: command.sourceType ?? "feed",
+    contributedFed: command.sourceType === "boiler" ? 0 : undefined,
   });
 }
 

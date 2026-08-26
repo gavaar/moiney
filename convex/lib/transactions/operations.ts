@@ -6,9 +6,13 @@ import {
   deriveTransactionKind,
   transactionAccountingEffects,
 } from "../../../domain/transactions";
-import { validateTransactionAmount } from "../../../domain/money";
+import {
+  assertAmountLimit,
+  validateTransactionAmount,
+} from "../../../domain/money";
 import { shouldTriggerPipeRule } from "../../../domain/pipes";
 import {
+  collectChildSubtree,
   executePipeRule,
   reconcileAffectedPipeRoots,
   resolveTopMostAncestor,
@@ -22,6 +26,8 @@ export type CreateTransactionCommand = {
   from?: Id<"pipes">;
   to?: Id<"pipes">;
   paidFrom?: Id<"pipes">;
+  requireBoiler?: boolean;
+  currentFedOverride?: number;
 };
 
 export type EditTransactionCommand = {
@@ -30,6 +36,49 @@ export type EditTransactionCommand = {
   value: number;
   date: number;
 };
+
+export type TransactionWriteResult = {
+  id: Id<"transactions">;
+  createdAt: number;
+  title: string;
+  value: number;
+  date: number;
+  kind: "feed" | "expense" | "transfer";
+  from?: Id<"pipes">;
+  to?: Id<"pipes">;
+  paidFrom?: Id<"pipes">;
+  fromIcon?: string;
+  toIcon?: string;
+  paidFromIcon?: string;
+  editedAt?: number;
+};
+
+function buildTransactionWriteResult(
+  id: Id<"transactions">,
+  createdAt: number,
+  transaction: Omit<TransactionWriteResult, "id" | "createdAt">,
+): TransactionWriteResult {
+  const result: TransactionWriteResult = {
+    id,
+    createdAt,
+    title: transaction.title,
+    value: transaction.value,
+    date: transaction.date,
+    kind: transaction.kind,
+  };
+
+  if (transaction.from !== undefined) result.from = transaction.from;
+  if (transaction.to !== undefined) result.to = transaction.to;
+  if (transaction.paidFrom !== undefined) result.paidFrom = transaction.paidFrom;
+  if (transaction.fromIcon !== undefined) result.fromIcon = transaction.fromIcon;
+  if (transaction.toIcon !== undefined) result.toIcon = transaction.toIcon;
+  if (transaction.paidFromIcon !== undefined) {
+    result.paidFromIcon = transaction.paidFromIcon;
+  }
+  if (transaction.editedAt !== undefined) result.editedAt = transaction.editedAt;
+
+  return result;
+}
 
 function createCachedPipeReader(ctx: MutationCtx) {
   const cache = new Map<Id<"pipes">, Promise<Doc<"pipes"> | null>>();
@@ -43,12 +92,47 @@ function createCachedPipeReader(ctx: MutationCtx) {
   };
 }
 
+async function localFedForAggregate(
+  ctx: MutationCtx,
+  pipeId: Id<"pipes">,
+  aggregateFed: number,
+): Promise<number> {
+  const descendants = await collectChildSubtree(ctx, pipeId);
+  return assertAmountLimit(
+    assertAmountLimit(aggregateFed) -
+      descendants.reduce((total, pipe) => total + pipe.fed, 0),
+  );
+}
+
+export async function correctBoilerCurrentFedOperation(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  pipeId: Id<"pipes">,
+  currentFed: number,
+): Promise<void> {
+  const pipe = await ctx.db.get("pipes", pipeId);
+  if (
+    !pipe ||
+    pipe.userId !== userId ||
+    pipe.parentId !== undefined ||
+    pipe.sourceType !== "boiler"
+  ) {
+    throw new ConvexError({ code: "BOILER_NOT_FOUND" });
+  }
+  if (pipe.deletionJobId) throw new Error("Pipe is being deleted");
+
+  await ctx.db.patch("pipes", pipeId, {
+    fed: await localFedForAggregate(ctx, pipeId, currentFed),
+  });
+  await reconcileAffectedPipeRoots(ctx, [pipeId]);
+}
+
 export async function createTransactionOperation(
   ctx: MutationCtx,
   userId: Id<"users">,
   command: CreateTransactionCommand,
   now: number,
-): Promise<null> {
+): Promise<TransactionWriteResult> {
   const title = canonicalizeTransactionTitle(command.title);
   const value = command.value;
   const getPipe = createCachedPipeReader(ctx);
@@ -76,10 +160,24 @@ export async function createTransactionOperation(
     const destPipe = await getPipe(command.to);
     if (!destPipe) throw new Error("Pipe not found");
     if (destPipe.userId !== userId) throw new Error("Not authorized");
+    if (command.requireBoiler && destPipe.sourceType !== "boiler") {
+      throw new ConvexError({ code: "BOILER_NOT_FOUND" });
+    }
 
     const { to } = transactionAccountingEffects({ to: command.to }, value);
+    const fed =
+      command.currentFedOverride === undefined
+        ? destPipe.fed + to.fedDelta
+        : await localFedForAggregate(
+            ctx,
+            command.to,
+            command.currentFedOverride,
+          );
     await ctx.db.patch("pipes", command.to, {
-      fed: destPipe.fed + to.fedDelta,
+      fed,
+      ...(destPipe.sourceType === "boiler"
+        ? { contributedFed: (destPipe.contributedFed ?? 0) + value }
+        : {}),
     });
     if (
       shouldTriggerPipeRule(
@@ -92,7 +190,7 @@ export async function createTransactionOperation(
       await executePipeRule(ctx, command.to);
     }
 
-    await ctx.db.insert("transactions", {
+    const transactionId = await ctx.db.insert("transactions", {
       title,
       value,
       date: command.date,
@@ -108,7 +206,13 @@ export async function createTransactionOperation(
       now,
     });
     await reconcileAffectedPipeRoots(ctx, [command.to], getPipe);
-    return null;
+    return buildTransactionWriteResult(transactionId, now, {
+      title,
+      value,
+      date: command.date,
+      kind,
+      to: command.to,
+    });
   }
 
   const pipeId = command.from!;
@@ -186,7 +290,7 @@ export async function createTransactionOperation(
       getPipe,
     );
 
-    await ctx.db.insert("transactions", {
+    const transactionId = await ctx.db.insert("transactions", {
       title,
       value,
       date: command.date,
@@ -201,7 +305,14 @@ export async function createTransactionOperation(
       title,
       now,
     });
-    return null;
+    return buildTransactionWriteResult(transactionId, now, {
+      title,
+      value,
+      date: command.date,
+      kind,
+      from: pipeId,
+      paidFrom: command.paidFrom,
+    });
   }
 
   if (command.to) {
@@ -269,7 +380,7 @@ export async function createTransactionOperation(
     await reconcileAffectedPipeRoots(ctx, [pipeId], getPipe);
   }
 
-  await ctx.db.insert("transactions", {
+  const transactionId = await ctx.db.insert("transactions", {
     title,
     value,
     date: command.date,
@@ -284,7 +395,14 @@ export async function createTransactionOperation(
     title,
     now,
   });
-  return null;
+  return buildTransactionWriteResult(transactionId, now, {
+    title,
+    value,
+    date: command.date,
+    kind,
+    from: pipeId,
+    to: command.to,
+  });
 }
 
 export async function editTransactionOperation(
@@ -292,7 +410,7 @@ export async function editTransactionOperation(
   userId: Id<"users">,
   command: EditTransactionCommand,
   now: number,
-): Promise<null> {
+): Promise<TransactionWriteResult> {
   const transaction = await ctx.db.get("transactions", command.transactionId);
   if (!transaction) throw new Error("Transaction not found");
   if (transaction.userId !== userId) throw new Error("Not authorized");
@@ -458,6 +576,9 @@ export async function editTransactionOperation(
       );
       await ctx.db.patch("pipes", transaction.to, {
         fed: pipe.fed + to.fedDelta,
+        ...(pipe.sourceType === "boiler"
+          ? { contributedFed: (pipe.contributedFed ?? 0) + valueDiff }
+          : {}),
       });
       if (
         shouldTriggerPipeRule(
@@ -503,5 +624,17 @@ export async function editTransactionOperation(
     date: command.date,
     ...(editedAt !== undefined ? { editedAt } : {}),
   });
-  return null;
+  return buildTransactionWriteResult(command.transactionId, transaction._creationTime, {
+    title,
+    value: command.value,
+    date: command.date,
+    kind: transaction.kind,
+    from: transaction.from,
+    to: transaction.to,
+    paidFrom: transaction.paidFrom,
+    fromIcon: transaction.fromIcon,
+    toIcon: transaction.toIcon,
+    paidFromIcon: transaction.paidFromIcon,
+    editedAt: editedAt ?? transaction.editedAt,
+  });
 }

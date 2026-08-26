@@ -15,6 +15,7 @@ vi.mock("@features/pipes/components/PipeBox", () => ({
       data-testid="feed-box"
       data-name={props.name}
       data-icon={props.icon}
+      data-capacity={props.capacity}
       data-show-priority={props.showPriority ? "true" : "false"}
       onClick={() => props.onPress?.()}
     >
@@ -41,6 +42,24 @@ describe("PipesList", () => {
     expect(boxes[0].getAttribute("data-name")).toBe("Groceries");
     expect(boxes[0].getAttribute("data-icon")).toBe("cart-outline");
     expect(boxes[1].getAttribute("data-name")).toBe("Salary");
+  });
+
+  it("uses contributed fed as a boiler card's visual baseline", () => {
+    render(
+      <PipesList
+        pipes={[
+          {
+            ...mockPipes[0],
+            sourceType: "boiler",
+            contributedFed: 10000,
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByTestId("feed-box").getAttribute("data-capacity")).toBe(
+      "10000",
+    );
   });
 
   it("only shows priority markers when requested", () => {

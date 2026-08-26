@@ -27,6 +27,8 @@ export function OptionsButton({ pipeId, disabled = false }: OptionsButtonProps) 
       <Pressable
         ref={gearRef}
         disabled={disabled}
+        accessibilityRole="button"
+        accessibilityLabel="Pipe options"
         className={disabled ? "opacity-50" : undefined}
         onPress={() => setShowOptions(true)}
       >

@@ -112,6 +112,11 @@ describe("RulesIcon", () => {
     expect(lastRuleModalProps.pipeId).toBe(pId("pipe-1"));
   });
 
+  it("gives the rule trigger an accessible name", () => {
+    render(<RulesIcon pipeId={pId("pipe-1")} rule="cron" fed={0} capacity={100} />);
+    expect(screen.getByRole("button", { name: "Pipe rule settings" })).toBeTruthy();
+  });
+
   it("opens the modal on tap for cron mode too", async () => {
     const user = userEvent.setup();
     render(<RulesIcon pipeId={pId("pipe-1")} rule="cron" fed={0} capacity={100} />);

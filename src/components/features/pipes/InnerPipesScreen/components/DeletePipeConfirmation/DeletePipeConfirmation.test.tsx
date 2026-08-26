@@ -7,10 +7,21 @@ const pId = (id: string) => id as Id<"pipes">;
 
 const mockStartPipeDeletion = vi.fn();
 const mockDeletionStatus = vi.fn();
+const mockConvexQuery = vi.fn();
+const mockReconcileTransactions = vi.fn().mockResolvedValue(undefined);
 
 vi.mock("convex/react", () => ({
   useMutation: () => mockStartPipeDeletion,
   useQuery: () => mockDeletionStatus(),
+  useConvex: () => ({ query: mockConvexQuery }),
+}));
+
+vi.mock("@features/transactions/cache/TransactionCacheContext", () => ({
+  useOptionalTransactionCache: () => ({
+    cache: { entities: { "tx-1": {} } },
+    reconcileTransactions: mockReconcileTransactions,
+    invalidateAll: vi.fn(),
+  }),
 }));
 
 const mockShowAlert = { success: vi.fn(), error: vi.fn() };
@@ -18,27 +29,6 @@ vi.mock("@ui/Alert", () => ({
   useAlert: () => mockShowAlert,
 }));
 
-vi.mock("@features/pipes/context/PipeSelectionContext", () => ({
-  usePipeSelection: () => ({
-     selectedPipe: { id: pId("pipe_root"), name: "Root Pipe", icon: "home-outline", priority: 0, capacity: 0, fed: 0, spent: 0 },
-    childrenByParent: new Map([
-      [pId("pipe_root"), [
-         { id: pId("pipe_child_1"), name: "Child 1", icon: "cafe", parentId: pId("pipe_root"), priority: 0, capacity: 0, fed: 0, spent: 0 },
-         { id: pId("pipe_child_2"), name: "Child 2", icon: "car-sport-outline", parentId: pId("pipe_root"), priority: 0, capacity: 0, fed: 0, spent: 0 },
-      ]],
-      [pId("pipe_child_1"), [
-         { id: pId("pipe_gc_1"), name: "Grandchild 1", icon: "game-controller-outline", parentId: pId("pipe_child_1"), priority: 0, capacity: 0, fed: 0, spent: 0 },
-      ]],
-    ]),
-    pipesById: {
-       pipe_root: { id: pId("pipe_root"), name: "Root Pipe", icon: "home-outline", parentId: undefined, priority: 0, capacity: 0, fed: 0, spent: 0 },
-       pipe_child_1: { id: pId("pipe_child_1"), name: "Child 1", icon: "cafe", parentId: pId("pipe_root"), priority: 0, capacity: 0, fed: 0, spent: 0 },
-       pipe_child_2: { id: pId("pipe_child_2"), name: "Child 2", icon: "car-sport-outline", parentId: pId("pipe_root"), priority: 0, capacity: 0, fed: 0, spent: 0 },
-       pipe_gc_1: { id: pId("pipe_gc_1"), name: "Grandchild 1", icon: "game-controller-outline", parentId: pId("pipe_child_1"), priority: 0, capacity: 0, fed: 0, spent: 0 },
-    },
-    isLoading: false,
-  }),
-}));
 vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
   usePipeCatalog: () => ({
     pipesById: {
@@ -65,6 +55,9 @@ describe("DeletePipeConfirmation", () => {
   beforeEach(() => {
     mockStartPipeDeletion.mockResolvedValue({ jobId: pId("job-1"), phase: "processingTransactions" });
     mockDeletionStatus.mockReturnValue(undefined);
+    mockConvexQuery.mockResolvedValue([]);
+    mockReconcileTransactions.mockReset();
+    mockReconcileTransactions.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -197,5 +190,46 @@ describe("DeletePipeConfirmation", () => {
     });
     expect(onDeleted).toHaveBeenCalled();
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it("reconciles cached transactions after deletion completes", async () => {
+    const surviving = {
+      id: "tx-1",
+      createdAt: 1,
+      title: "surviving transaction",
+      value: -100,
+      date: 1,
+      kind: "expense",
+      from: pId("pipe_child_1"),
+      fromIcon: "cafe",
+    };
+    mockDeletionStatus.mockReturnValue({
+      jobId: pId("job-1"),
+      phase: "complete",
+      deleteTransactions: true,
+      totalMembers: 4,
+      completedMembers: 4,
+    });
+    mockConvexQuery.mockResolvedValue([surviving]);
+    render(
+      <DeletePipeConfirmation
+        visible={true}
+        onClose={() => {}}
+        pipeId={pId("pipe_root")}
+        onDeleted={() => {}}
+      />,
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByText("Delete 4 pipes"));
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(mockConvexQuery).toHaveBeenCalledWith(expect.anything(), {
+      transactionIds: ["tx-1"],
+    });
+    expect(mockReconcileTransactions).toHaveBeenCalledWith(["tx-1"], [surviving]);
   });
 });

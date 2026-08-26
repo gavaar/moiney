@@ -17,6 +17,13 @@ describe("CheckboxInput", () => {
     expect(screen.getByTestId("checkbox-checked-icon")).toBeTruthy();
   });
 
+  it("exposes its label and checked state to assistive technology", () => {
+    render(<CheckboxInput label="Option" checked={true} onChange={() => {}} />);
+
+    const checkbox = screen.getByRole("checkbox", { name: "Option" });
+    expect(checkbox.getAttribute("aria-checked")).toBe("true");
+  });
+
   it("toggles on press", async () => {
     const onChange = vi.fn();
     render(<CheckboxInput label="Option" checked={false} onChange={onChange} />);

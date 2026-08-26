@@ -13,20 +13,22 @@ import { pipeScope, RECENT_SCOPE } from "@features/transactions/cache/transactio
 
 type TransactionsContextValue = {
   transactions: TransactionModel[] | undefined;
+  error: string | null;
   isLoading: boolean;
   pipeIds: PipeModel["id"][] | undefined | null;
   refresh: () => void;
 };
 
-const TransactionsContext = createContext<TransactionsContextValue>({
-  transactions: undefined,
-  isLoading: true,
-  pipeIds: undefined,
-  refresh: () => undefined,
-});
+const TRANSACTION_LOAD_ERROR = "Unable to load transactions.";
 
-export function useTransactions() {
-  return useContext(TransactionsContext);
+const TransactionsContext = createContext<TransactionsContextValue | null>(null);
+
+export function useTransactions(): TransactionsContextValue {
+  const value = useContext(TransactionsContext);
+  if (!value) {
+    throw new Error("useTransactions must be used within TransactionsProvider");
+  }
+  return value;
 }
 
 export function getSubtreePipeIds(
@@ -56,6 +58,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
   const { cache, isHydrating, read, replace } = useTransactionCache();
   const requestRef = useRef(0);
   const [transactions, setTransactions] = useState<TransactionModel[] | undefined>();
+  const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const selectedPipeId =
@@ -90,6 +93,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
     if (!scope || isHydrating) return;
     const requestId = ++requestRef.current;
     setIsLoading(true);
+    setError(null);
     try {
       const rows = await convex.query(
         api.transactions.listTransactions,
@@ -99,9 +103,13 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
       const normalized = rows.map(normalizeTransaction);
       setTransactions(normalized);
       setIsLoading(false);
+      setError(null);
       await replace(scope, normalized, false);
     } catch {
-      if (requestId === requestRef.current) setIsLoading(false);
+      if (requestId === requestRef.current) {
+        setIsLoading(false);
+        setError(TRANSACTION_LOAD_ERROR);
+      }
     }
   }, [convex, isHydrating, pipeIds, replace, scope, selectedPipeId]);
 
@@ -109,6 +117,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
     if (!scope || isHydrating) {
       requestRef.current += 1;
       setTransactions(undefined);
+      setError(null);
       setIsLoading(true);
       return;
     }
@@ -123,6 +132,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
     <TransactionsContext.Provider
       value={{
         transactions,
+        error,
         isLoading,
         pipeIds,
         refresh: () => void fetchScope(),
