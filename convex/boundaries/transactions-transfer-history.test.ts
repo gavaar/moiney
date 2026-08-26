@@ -4,8 +4,271 @@ import { describe, expect, it } from "vitest";
 import { api } from "../_generated/api";
 import schema from "../schema";
 import { modules } from "../test.setup";
+import { MAX_AMOUNT } from "../../domain/money";
 
 describe("Convex boundaries: transactions, transfers, and history", () => {
+  it("adds a boiler contribution to principal and current fed", async () => {
+    const t = convexTest(schema, modules);
+    const { userId, boilerId } = await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", {
+        username: "alice",
+        email: "alice@example.com",
+        password: "hash",
+      });
+      const boilerId = await ctx.db.insert("pipes", {
+        userId,
+        name: "Savings",
+        icon: "water-boiler",
+        priority: 0,
+        capacity: 0,
+        fed: 10000,
+        spent: 0,
+        sourceType: "boiler",
+        contributedFed: 10000,
+      });
+      return { userId, boilerId };
+    });
+
+    const transaction = await t
+      .withIdentity({ subject: userId })
+      .mutation(api.transactions.contributeToBoiler, {
+        pipeId: boilerId,
+        title: "Investment",
+        value: 30000,
+        date: 3000,
+      });
+
+    const boiler = await t.run((ctx) => ctx.db.get("pipes", boilerId));
+    expect(boiler).toMatchObject({ fed: 40000, contributedFed: 40000 });
+    expect(transaction).toMatchObject({
+      title: "investment",
+      value: 30000,
+      kind: "feed",
+      to: boilerId,
+    });
+  });
+
+  it("corrects boiler current fed without changing principal or history", async () => {
+    const t = convexTest(schema, modules);
+    const { userId, boilerId } = await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", {
+        username: "alice",
+        email: "alice@example.com",
+        password: "hash",
+      });
+      const boilerId = await ctx.db.insert("pipes", {
+        userId,
+        name: "Savings",
+        icon: "water-boiler",
+        priority: 0,
+        capacity: 0,
+        fed: 10000,
+        spent: 0,
+        sourceType: "boiler",
+        contributedFed: 10000,
+      });
+      return { userId, boilerId };
+    });
+
+    const transaction = await t
+      .withIdentity({ subject: userId })
+      .mutation(api.transactions.contributeToBoiler, {
+        pipeId: boilerId,
+        title: "Correction",
+        value: 0,
+        currentFed: -5000,
+        date: 3000,
+      });
+
+    const state = await t.run(async (ctx) => ({
+      boiler: await ctx.db.get("pipes", boilerId),
+      transactions: await ctx.db.query("transactions").collect(),
+    }));
+    expect(state.boiler).toMatchObject({
+      fed: -5000,
+      contributedFed: 10000,
+    });
+    expect(state.transactions).toEqual([]);
+    expect(transaction).toBeNull();
+  });
+
+  it("sets manually modified boiler current fed while adding principal", async () => {
+    const t = convexTest(schema, modules);
+    const { userId, boilerId } = await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", {
+        username: "alice",
+        email: "alice@example.com",
+        password: "hash",
+      });
+      const boilerId = await ctx.db.insert("pipes", {
+        userId,
+        name: "Savings",
+        icon: "water-boiler",
+        priority: 0,
+        capacity: 0,
+        fed: 10000,
+        spent: 0,
+        sourceType: "boiler",
+        contributedFed: 10000,
+      });
+      return { userId, boilerId };
+    });
+
+    await t.withIdentity({ subject: userId }).mutation(
+      api.transactions.contributeToBoiler,
+      {
+        pipeId: boilerId,
+        title: "Investment",
+        value: 30000,
+        currentFed: 5000,
+        date: 3000,
+      },
+    );
+
+    const boiler = await t.run((ctx) => ctx.db.get("pipes", boilerId));
+    expect(boiler).toMatchObject({ fed: 5000, contributedFed: 40000 });
+  });
+
+  it("corrects the aggregate current fed of a boiler with children", async () => {
+    const t = convexTest(schema, modules);
+    const { userId, boilerId } = await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", {
+        username: "alice",
+        email: "alice@example.com",
+        password: "hash",
+      });
+      const boilerId = await ctx.db.insert("pipes", {
+        userId,
+        name: "Savings",
+        icon: "water-boiler",
+        priority: 0,
+        capacity: 0,
+        fed: 1000,
+        spent: 0,
+        sourceType: "boiler",
+        contributedFed: 10000,
+      });
+      await ctx.db.insert("pipes", {
+        userId,
+        parentId: boilerId,
+        name: "Reserve",
+        icon: "wallet-outline",
+        priority: 0,
+        capacity: 10000,
+        fed: 9000,
+        spent: 0,
+      });
+      return { userId, boilerId };
+    });
+
+    await t.withIdentity({ subject: userId }).mutation(
+      api.transactions.contributeToBoiler,
+      {
+        pipeId: boilerId,
+        title: "Correction",
+        value: 0,
+        currentFed: 5000,
+        date: 3000,
+      },
+    );
+
+    const pipes = await t.run((ctx) => ctx.db.query("pipes").collect());
+    expect(pipes.reduce((total, pipe) => total + pipe.fed, 0)).toBe(5000);
+  });
+
+  it("rejects an aggregate correction that would overflow root-local fed", async () => {
+    const t = convexTest(schema, modules);
+    const { userId, boilerId } = await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", {
+        username: "alice",
+        email: "alice@example.com",
+        password: "hash",
+      });
+      const boilerId = await ctx.db.insert("pipes", {
+        userId,
+        name: "Savings",
+        icon: "water-boiler",
+        priority: 0,
+        capacity: 0,
+        fed: 0,
+        spent: 0,
+        sourceType: "boiler",
+        contributedFed: 0,
+      });
+      await ctx.db.insert("pipes", {
+        userId,
+        parentId: boilerId,
+        name: "Reserve",
+        icon: "wallet-outline",
+        priority: 0,
+        capacity: MAX_AMOUNT,
+        fed: MAX_AMOUNT,
+        spent: 0,
+      });
+      return { userId, boilerId };
+    });
+
+    await expect(
+      t.withIdentity({ subject: userId }).mutation(
+        api.transactions.contributeToBoiler,
+        {
+          pipeId: boilerId,
+          title: "Correction",
+          value: 0,
+          currentFed: -MAX_AMOUNT,
+          date: 3000,
+        },
+      ),
+    ).rejects.toThrow("Amount exceeds the maximum allowed value");
+
+    const boiler = await t.run((ctx) => ctx.db.get("pipes", boilerId));
+    expect(boiler?.fed).toBe(0);
+  });
+
+  it("adjusts boiler principal when its feed transaction is edited", async () => {
+    const t = convexTest(schema, modules);
+    const { userId, boilerId } = await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", {
+        username: "alice",
+        email: "alice@example.com",
+        password: "hash",
+      });
+      const boilerId = await ctx.db.insert("pipes", {
+        userId,
+        name: "Savings",
+        icon: "water-boiler",
+        priority: 0,
+        capacity: 0,
+        fed: 0,
+        spent: 0,
+        sourceType: "boiler",
+        contributedFed: 0,
+      });
+      return { userId, boilerId };
+    });
+    const asUser = t.withIdentity({ subject: userId });
+    const created = await asUser.mutation(
+      api.transactions.contributeToBoiler,
+      {
+        pipeId: boilerId,
+        title: "Investment",
+        value: 30000,
+        date: 3000,
+      },
+    );
+    if (!created) throw new Error("Expected a contribution transaction");
+
+    await asUser.mutation(api.transactions.editTransaction, {
+      transactionId: created.id,
+      title: "Investment",
+      value: 20000,
+      date: 3000,
+    });
+
+    const boiler = await t.run((ctx) => ctx.db.get("pipes", boilerId));
+    expect(boiler).toMatchObject({ fed: 20000, contributedFed: 20000 });
+  });
+
   it("rejects a transfer to a non-root destination without changing accounting", async () => {
     const t = convexTest(schema, modules);
     const { userId, sourceId, destinationId } = await t.run(async (ctx) => {

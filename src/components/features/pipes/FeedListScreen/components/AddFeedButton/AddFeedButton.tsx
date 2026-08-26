@@ -7,6 +7,17 @@ import { ICON_REGISTRY, type IconName } from "@ui/Icon";
 import { Input } from "@ui/Input";
 import { useAlert } from "@ui/Alert";
 import { ModalShell } from "@ui/Modal";
+import { SlideToggle } from "@ui/SlideToggle";
+
+type SourceType = "feed" | "boiler";
+
+const SOURCE_OPTIONS = [
+  { value: "feed", label: "Feed", icon: "pipe" },
+  { value: "boiler", label: "Boiler", icon: "water-boiler" },
+] satisfies [
+  { value: SourceType; label: string; icon: IconName },
+  { value: SourceType; label: string; icon: IconName },
+];
 
 export function AddFeedButton() {
   const [visible, setVisible] = useState(false);
@@ -15,6 +26,7 @@ export function AddFeedButton() {
   const [name, setName] = useState("");
   const [icon, setIcon] = useState<IconName | "">("");
   const [description, setDescription] = useState("");
+  const [sourceType, setSourceType] = useState<SourceType>("feed");
   const [nameError, setNameError] = useState<string | undefined>(undefined);
 
   const showAlert = useAlert();
@@ -39,6 +51,7 @@ export function AddFeedButton() {
     setName("");
     setIcon("");
     setDescription("");
+    setSourceType("feed");
     setNameError(undefined);
   }, []);
 
@@ -58,8 +71,9 @@ export function AddFeedButton() {
         name,
         icon,
         description: description || undefined,
+        sourceType,
       });
-      showAlert.success("Feed added");
+      showAlert.success(sourceType === "boiler" ? "Boiler added" : "Feed added");
       setVisible(false);
       resetForm();
     } catch (error) {
@@ -76,6 +90,7 @@ export function AddFeedButton() {
     name,
     icon,
     description,
+    sourceType,
     showAlert,
     resetForm,
   ]);
@@ -92,6 +107,13 @@ export function AddFeedButton() {
 
       <ModalShell visible={visible} onClose={() => setVisible(false)}>
         <View className="gap-4">
+          <View className="items-center">
+            <SlideToggle
+              options={SOURCE_OPTIONS}
+              value={sourceType}
+              onChange={(value) => setSourceType(value as SourceType)}
+            />
+          </View>
           <Input
             label="Name"
             placeholder="Feed name"
@@ -112,7 +134,7 @@ export function AddFeedButton() {
           <View className="mt-2">
             <Button
               className="ml-auto min-w-40"
-              title="Add"
+              title={sourceType === "boiler" ? "Add boiler" : "Add feed"}
               onPress={handleSubmit}
               loading={loading}
               disabled={!canSubmit}

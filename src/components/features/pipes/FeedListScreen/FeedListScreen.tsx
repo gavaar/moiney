@@ -48,7 +48,14 @@ export function FeedListScreen({
         <PipesList
           pipes={pipes}
           onSelectPipe={onSelectFeed}
-           trailing={(pipe) => <FeedAmountModal pipeId={pipe.id} feedName={pipe.name} />}
+           trailing={(pipe) => (
+             <FeedAmountModal
+               pipeId={pipe.id}
+               feedName={pipe.name}
+               sourceType={pipe.sourceType}
+               fed={pipe.fed}
+             />
+           )}
           footer={<View className="self-center my-2"><AddFeedButton /></View>}
         />
       ) : (

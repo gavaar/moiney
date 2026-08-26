@@ -9,9 +9,16 @@ import { AmountForm } from "@features/components/AmountForm";
 type Props = {
   pipeId: Id<"pipes">;
   feedName: string;
+  sourceType?: "feed" | "boiler";
+  fed?: number;
 };
 
-export function FeedAmountModal({ pipeId, feedName }: Props) {
+export function FeedAmountModal({
+  pipeId,
+  feedName,
+  sourceType,
+  fed = 0,
+}: Props) {
   const [visible, setVisible] = useState(false);
   const showAlert = useAlert();
 
@@ -31,10 +38,14 @@ export function FeedAmountModal({ pipeId, feedName }: Props) {
         <View className="gap-4">
           <Text className="text-lg font-semibold text-text">Feed {feedName}</Text>
           <AmountForm
-            variant="feed"
+            variant={sourceType === "boiler" ? "boiler" : "feed"}
             pipeId={pipeId}
+            boilerName={sourceType === "boiler" ? feedName : undefined}
+            currentFed={sourceType === "boiler" ? fed : undefined}
             onSuccess={() => {
-              showAlert.success("Feed added");
+              showAlert.success(
+                sourceType === "boiler" ? "Boiler updated" : "Feed added",
+              );
               setVisible(false);
             }}
           />

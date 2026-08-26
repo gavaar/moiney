@@ -13,6 +13,7 @@ import {
   type TransactionRole,
 } from "../domain/transactions";
 import {
+  correctBoilerCurrentFedOperation,
   createTransactionOperation,
   editTransactionOperation,
 } from "./lib/transactions/operations";
@@ -169,6 +170,45 @@ export const createTransaction = mutation({
   handler: async (ctx, args) => {
     const userId = await requireAuth(ctx);
     return await createTransactionOperation(ctx, userId, args, Date.now());
+  },
+});
+
+export const contributeToBoiler = mutation({
+  args: {
+    pipeId: v.id("pipes"),
+    title: v.string(),
+    value: v.number(),
+    date: v.number(),
+    currentFed: v.optional(v.number()),
+  },
+  returns: v.union(transactionCacheItem, v.null()),
+  handler: async (ctx, args) => {
+    const userId = await requireAuth(ctx);
+    if (args.value === 0) {
+      if (args.currentFed === undefined) {
+        throw new ConvexError({ code: "BOILER_UPDATE_EMPTY" });
+      }
+      await correctBoilerCurrentFedOperation(
+        ctx,
+        userId,
+        args.pipeId,
+        args.currentFed,
+      );
+      return null;
+    }
+    return await createTransactionOperation(
+      ctx,
+      userId,
+      {
+        title: args.title,
+        value: args.value,
+        date: args.date,
+        to: args.pipeId,
+        requireBoiler: true,
+        currentFedOverride: args.currentFed,
+      },
+      Date.now(),
+    );
   },
 });
 

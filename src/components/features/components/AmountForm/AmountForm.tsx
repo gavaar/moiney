@@ -17,6 +17,7 @@ import { useAlert } from "@ui/Alert";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import { useOptionalTransactionCache } from "@features/transactions/cache/TransactionCacheContext";
 import { parseMoney } from "@domain/money";
+import { formatAmount } from "@/lib/format";
 import {
   buildCreateTransactionCommand,
   buildEditTransactionCommand,
@@ -34,7 +35,9 @@ type SpentMode = "spend" | "transfer";
 
 type Props = {
   pipeId: Id<"pipes">;
-  variant?: "feed" | "spend" | "transaction";
+  variant?: "feed" | "boiler" | "spend" | "transaction";
+  boilerName?: string;
+  currentFed?: number;
   initState?: {
     pipeIcon: string;
     pipeName: string;
@@ -49,9 +52,19 @@ type Props = {
   onSuccess?: () => void;
 };
 
-export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: Props) {
+export function AmountForm({
+  pipeId,
+  variant = "spend",
+  boilerName,
+  currentFed = 0,
+  initState,
+  onSuccess,
+}: Props) {
+  const isBoiler = variant === "boiler";
   const [title, setTitle] = useState(initState?.title ?? "");
-  const [value, setValue] = useState(initState?.value ?? "");
+  const [value, setValue] = useState(initState?.value ?? (isBoiler ? "0" : ""));
+  const initialCurrentFedValue = (currentFed / 100).toFixed(2);
+  const [currentFedValue, setCurrentFedValue] = useState(initialCurrentFedValue);
   const [date, setDate] = useState(new Date());
   const [loading, setLoading] = useState(false);
   const [sentToPipeId, setSentToPipeId] = useState<Id<"pipes"> | null>(
@@ -69,25 +82,50 @@ export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: 
   const showAlert = useAlert();
   const transactionCache = useOptionalTransactionCache();
   const createTransaction = useMutation(api.transactions.createTransaction);
+  const contributeToBoiler = useMutation(
+    api.transactions.contributeToBoiler,
+  );
   const { allPipes } = usePipeCatalog();
   const recentTitles = useQuery(api.transactions.listRecentTitles, { pipeId });
 
-  const isFeed = variant === "feed" || (variant === "transaction" && initState?.isFeed === true);
+  const isFeed =
+    variant === "feed" ||
+    isBoiler ||
+    (variant === "transaction" && initState?.isFeed === true);
   const isTransactionVariant = variant === "transaction";
 
   const isValidAmount = useMemo(() => {
     if (value === "" || value === "-") return false;
     try {
       const amount = parseMoney(value);
-      return isFeed ? amount > 0 : amount !== 0;
+      return isBoiler ? amount >= 0 : isFeed ? amount > 0 : amount !== 0;
     } catch {
       return false;
     }
-  }, [value, isFeed]);
+  }, [value, isBoiler, isFeed]);
+
+  const parsedCurrentFed = useMemo(() => {
+    if (!isBoiler || currentFedValue === "" || currentFedValue === "-") {
+      return null;
+    }
+    try {
+      return parseMoney(currentFedValue);
+    } catch {
+      return null;
+    }
+  }, [currentFedValue, isBoiler]);
+  const currentFedChanged = parsedCurrentFed !== null && parsedCurrentFed !== currentFed;
+  const boilerContributionAmount =
+    isBoiler && isValidAmount ? parseMoney(value) : 0;
 
   const isValid =
-    title.trim() !== "" &&
+    (isBoiler
+      ? boilerContributionAmount === 0 || title.trim() !== ""
+      : title.trim() !== "") &&
     isValidAmount &&
+    (!isBoiler ||
+      (parsedCurrentFed !== null &&
+        (boilerContributionAmount > 0 || currentFedChanged))) &&
     (isFeed || isTransactionVariant || spendMode !== "transfer" || sentToPipeId !== null);
 
   const isNegative = value === "" ? !isFeed : value.startsWith("-");
@@ -167,14 +205,15 @@ export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: 
 
   const resetForm = useCallback(() => {
     setTitle("");
-    setValue("");
+    setValue(isBoiler ? "0" : "");
+    setCurrentFedValue(initialCurrentFedValue);
     setDate(new Date());
     setSentToPipeId(null);
     setPaidFromPipeId(null);
     setShowPaidFrom(false);
     setSpendMode("spend");
     setIntent("repeat");
-  }, []);
+  }, [initialCurrentFedValue, isBoiler]);
 
   const editTransaction = useMutation(api.transactions.editTransaction);
 
@@ -195,6 +234,21 @@ export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: 
 
   const handleRepeatSubmit = useCallback(async () => {
     const amount = parseMoney(value);
+    if (isBoiler) {
+      const transaction = await contributeToBoiler({
+        pipeId,
+        title: title.trim(),
+        value: amount,
+        date: date.getTime(),
+        ...(currentFedChanged && parsedCurrentFed !== null
+          ? { currentFed: parsedCurrentFed }
+          : {}),
+      });
+      if (transaction) await transactionCache?.addTransaction(transaction);
+      resetForm();
+      onSuccess?.();
+      return;
+    }
     const transaction = await createTransaction(
       buildCreateTransactionCommand({
         title,
@@ -210,7 +264,7 @@ export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: 
     await transactionCache?.addTransaction(transaction);
     resetForm();
     onSuccess?.();
-  }, [isFeed, value, title, date, pipeId, spendMode, sentToPipeId, paidFromPipeId, onSuccess, resetForm, createTransaction, transactionCache]);
+  }, [isBoiler, isFeed, value, title, date, pipeId, spendMode, sentToPipeId, paidFromPipeId, currentFedChanged, parsedCurrentFed, onSuccess, resetForm, contributeToBoiler, createTransaction, transactionCache]);
 
   const handleSubmit = useCallback(async () => {
     if (!isValid || loading) return;
@@ -314,6 +368,30 @@ export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: 
           />
         </View>
       </View>
+
+      {isBoiler ? (
+        <View className="gap-1">
+          <Input
+            type="decimal"
+            label={`Current in ${boilerName ?? "boiler"}`}
+            value={currentFedValue}
+            onChange={setCurrentFedValue}
+            allowNegative
+            disabled={loading}
+          />
+          {boilerContributionAmount > 0 && !currentFedChanged ? (
+            <Text
+              testID="boiler-growth-hint"
+              className="text-xs text-muted"
+            >
+              <Text testID="boiler-growth-amount" className="font-bold">
+                +{formatAmount(boilerContributionAmount)}:
+              </Text>{" "}
+              current will also grow by {formatAmount(boilerContributionAmount)} after this operation, unless manually modified
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
 
       {!isFeed && !isTransactionVariant && spendMode === "transfer" && (
         <Input

@@ -119,6 +119,63 @@ describe("StatisticsRow", () => {
     expect(screen.getByText(/Left to spend \(L2S\):/)).toBeDefined();
   });
 
+  it("shows positive boiler growth in blue with an explanation", async () => {
+    const user = userEvent.setup();
+    render(
+      <StatisticsRow
+        fed={150000}
+        spent={0}
+        sourceType="boiler"
+        contributedFed={100000}
+      />,
+    );
+
+    const growth = screen.getByTestId("boiler-growth-chip");
+    expect(growth.textContent).toContain("+50%");
+    expect(
+      screen.getByRole("button", { name: "Boiler growth, non-negative" }),
+    ).toBeDefined();
+
+    await user.click(growth);
+    expect(
+      screen.getByText(
+        "This pipe has received 1,000.00 value, but now holds 1,500.00, meaning it has grown +50%.",
+      ),
+    ).toBeDefined();
+  });
+
+  it("shows negative boiler growth in red", () => {
+    render(
+      <StatisticsRow
+        fed={75000}
+        spent={0}
+        sourceType="boiler"
+        contributedFed={100000}
+      />,
+    );
+
+    const growth = screen.getByTestId("boiler-growth-chip");
+    expect(growth.textContent).toContain("-25%");
+    expect(
+      screen.getByRole("button", { name: "Boiler growth, negative" }),
+    ).toBeDefined();
+  });
+
+  it("shows unavailable growth when no principal has been contributed", () => {
+    render(
+      <StatisticsRow
+        fed={10000}
+        spent={0}
+        sourceType="boiler"
+        contributedFed={0}
+      />,
+    );
+
+    expect(screen.getByTestId("boiler-growth-chip").textContent).toContain(
+      "N/A",
+    );
+  });
+
   it("closes stat popover on backdrop tap", async () => {
     const user = userEvent.setup();
     render(<StatisticsRow fed={100000} spent={40000} />);

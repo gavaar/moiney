@@ -322,3 +322,43 @@ requests use one-shot reads; cached rows are replaced or reconciled with the
 server result. Cached data is never used for authorization or mutation
 decisions. Explicit logout clears the active account's transaction cache, and
 cache entries are isolated by deployment and account identity.
+
+## D015: Boiler Feed Pipes
+
+Status: Implemented
+
+A boiler is a root feed pipe whose current liquidity can grow or shrink relative
+to the cumulative value contributed to it. Boiler pipes otherwise have the same
+topology, transaction eligibility, rules, reconciliation, deletion, and
+authorization behavior as ordinary root feeds.
+
+`fed` remains current mutable liquidity and participates in normal accounting.
+`contributedFed` is cumulative externally contributed principal in integer
+cents. It is separate from `capacity`, which remains mutable allocation and rule
+state and must not be used as boiler principal. New boilers start with both
+values at zero. A positive feed transaction to a boiler increases both `fed`
+and `contributedFed`; editing that feed transaction applies its value delta to
+both fields. Transfers, refunds, expenses, rules, reconciliation, and explicit
+current corrections affect `fed` under their existing policies without changing
+`contributedFed`.
+
+The boiler contribution boundary accepts an optional exact current balance. If
+it is omitted, a positive contribution is added to the latest current balance.
+If supplied, the boiler's aggregate tree balance is set to that value while the
+positive contribution still increases principal. A zero contribution is valid
+only with a changed exact current balance and creates no transaction history.
+Current corrections are not recorded separately. Aggregate corrections account
+for descendant liquidity before reconciliation so they do not create money.
+
+Boiler growth is `(fed - contributedFed) / contributedFed * 100`. Zero and
+positive growth are presented in blue and negative growth in red. Growth is not
+available when `contributedFed` is zero. Boiler liquidity bars use
+`contributedFed` as their presentation baseline without replacing or modifying
+the pipe's operational `capacity`.
+
+`sourceType` and `contributedFed` are optional persisted fields for compatibility
+with existing data. Existing roots without `sourceType` are ordinary feeds; new
+roots always write an explicit `feed` or `boiler` type, and new boilers always
+write `contributedFed`. No backfill of principal is required because no boilers
+predated this decision, and current balances cannot safely reconstruct
+historical contributions.

@@ -20,6 +20,7 @@ import {
 
 const PIPE_ID = "pipe-1" as Id<"pipes">;
 const mockCreateTransaction = vi.fn().mockResolvedValue(undefined);
+const mockContributeToBoiler = vi.fn().mockResolvedValue(null);
 const mockEditTransactionFn = vi.fn().mockResolvedValue(undefined);
 const mockInvalidateAll = vi.fn().mockResolvedValue(undefined);
 const mockAddTransaction = vi.fn().mockResolvedValue(undefined);
@@ -29,6 +30,7 @@ const mockRecentTitles: string[] = [];
 vi.mock("convex/react", () => ({
   useMutation: (api: any) => {
     if (api === "createTransaction") return mockCreateTransaction;
+    if (api === "contributeToBoiler") return mockContributeToBoiler;
     if (api === "editTransaction") return mockEditTransactionFn;
     return vi.fn();
   },
@@ -40,6 +42,7 @@ vi.mock("@convex/_generated/api", () => ({
     pipes: {},
     transactions: {
       createTransaction: "createTransaction",
+      contributeToBoiler: "contributeToBoiler",
       editTransaction: "editTransaction",
       listRecentTitles: "listRecentTitles",
     },
@@ -691,6 +694,136 @@ describe("AmountForm", () => {
       expect(titleInput.value).toBe("");
       const amountInput = screen.getByTestId("input-Amount-field") as HTMLInputElement;
       expect(amountInput.value).toBe("");
+    });
+  });
+
+  describe("variant='boiler'", () => {
+    it("starts with zero amount and the current fed value disabled", () => {
+      render(
+        <AmountForm
+          pipeId={PIPE_ID}
+          variant="boiler"
+          boilerName="Savings"
+          currentFed={12500}
+        />,
+      );
+      fireEvent.change(screen.getByPlaceholderText("What was this for?"), {
+        target: { value: "investment" },
+      });
+
+      expect(
+        (screen.getByTestId("input-Amount-field") as HTMLInputElement).value,
+      ).toBe("0");
+      expect(
+        (
+          screen.getByTestId(
+            "input-Current in Savings-field",
+          ) as HTMLInputElement
+        ).value,
+      ).toBe("125.00");
+      expect(
+        screen
+          .getByTestId("input-Current in Savings-field")
+          .getAttribute("data-allow-negative"),
+      ).toBe("true");
+      expect(
+        screen.getByTestId("submit-button").getAttribute("aria-disabled"),
+      ).toBe("true");
+    });
+
+    it("explains that an unchanged current value will grow by the amount", () => {
+      render(
+        <AmountForm
+          pipeId={PIPE_ID}
+          variant="boiler"
+          boilerName="Savings"
+          currentFed={12500}
+        />,
+      );
+
+      fireEvent.change(screen.getByTestId("input-Amount-field"), {
+        target: { value: "300" },
+      });
+
+      expect(screen.getByTestId("boiler-growth-amount").textContent).toBe(
+        "+300.00:",
+      );
+      expect(screen.getByTestId("boiler-growth-hint").textContent).toContain(
+        "current will also grow by 300.00 after this operation, unless manually modified",
+      );
+    });
+
+    it("submits a contribution without overriding unchanged current fed", async () => {
+      const date = new Date(2026, 6, 21, 15, 45);
+      vi.setSystemTime(date);
+      const created = {
+        id: "created-1",
+        createdAt: 10,
+        title: "investment",
+        value: 30000,
+        date: date.getTime(),
+        kind: "feed",
+        to: PIPE_ID,
+      };
+      mockContributeToBoiler.mockResolvedValueOnce(created);
+      render(
+        <AmountForm
+          pipeId={PIPE_ID}
+          variant="boiler"
+          boilerName="Savings"
+          currentFed={12500}
+        />,
+      );
+      fireEvent.change(screen.getByPlaceholderText("What was this for?"), {
+        target: { value: "investment" },
+      });
+      fireEvent.change(screen.getByTestId("input-Amount-field"), {
+        target: { value: "300" },
+      });
+      fireEvent.click(screen.getByTestId("submit-button"));
+
+      await waitFor(() => {
+        expect(mockContributeToBoiler).toHaveBeenCalledWith({
+          pipeId: PIPE_ID,
+          title: "investment",
+          value: 30000,
+          date: date.getTime(),
+        });
+        expect(mockAddTransaction).toHaveBeenCalledWith(created);
+      });
+      vi.useRealTimers();
+    });
+
+    it("submits a correction-only update without requiring a title", async () => {
+      render(
+        <AmountForm
+          pipeId={PIPE_ID}
+          variant="boiler"
+          boilerName="Savings"
+          currentFed={12500}
+        />,
+      );
+      fireEvent.change(
+        screen.getByTestId("input-Current in Savings-field"),
+        { target: { value: "100" } },
+      );
+
+      expect(
+        screen.getByTestId("submit-button").getAttribute("aria-disabled"),
+      ).toBeNull();
+      fireEvent.click(screen.getByTestId("submit-button"));
+
+      await waitFor(() => {
+        expect(mockContributeToBoiler).toHaveBeenCalledWith(
+          expect.objectContaining({
+            pipeId: PIPE_ID,
+            title: "",
+            value: 0,
+            currentFed: 10000,
+          }),
+        );
+        expect(mockAddTransaction).not.toHaveBeenCalled();
+      });
     });
   });
 

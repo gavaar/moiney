@@ -6,9 +6,13 @@ import {
   deriveTransactionKind,
   transactionAccountingEffects,
 } from "../../../domain/transactions";
-import { validateTransactionAmount } from "../../../domain/money";
+import {
+  assertAmountLimit,
+  validateTransactionAmount,
+} from "../../../domain/money";
 import { shouldTriggerPipeRule } from "../../../domain/pipes";
 import {
+  collectChildSubtree,
   executePipeRule,
   reconcileAffectedPipeRoots,
   resolveTopMostAncestor,
@@ -22,6 +26,8 @@ export type CreateTransactionCommand = {
   from?: Id<"pipes">;
   to?: Id<"pipes">;
   paidFrom?: Id<"pipes">;
+  requireBoiler?: boolean;
+  currentFedOverride?: number;
 };
 
 export type EditTransactionCommand = {
@@ -86,6 +92,41 @@ function createCachedPipeReader(ctx: MutationCtx) {
   };
 }
 
+async function localFedForAggregate(
+  ctx: MutationCtx,
+  pipeId: Id<"pipes">,
+  aggregateFed: number,
+): Promise<number> {
+  const descendants = await collectChildSubtree(ctx, pipeId);
+  return assertAmountLimit(
+    assertAmountLimit(aggregateFed) -
+      descendants.reduce((total, pipe) => total + pipe.fed, 0),
+  );
+}
+
+export async function correctBoilerCurrentFedOperation(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  pipeId: Id<"pipes">,
+  currentFed: number,
+): Promise<void> {
+  const pipe = await ctx.db.get("pipes", pipeId);
+  if (
+    !pipe ||
+    pipe.userId !== userId ||
+    pipe.parentId !== undefined ||
+    pipe.sourceType !== "boiler"
+  ) {
+    throw new ConvexError({ code: "BOILER_NOT_FOUND" });
+  }
+  if (pipe.deletionJobId) throw new Error("Pipe is being deleted");
+
+  await ctx.db.patch("pipes", pipeId, {
+    fed: await localFedForAggregate(ctx, pipeId, currentFed),
+  });
+  await reconcileAffectedPipeRoots(ctx, [pipeId]);
+}
+
 export async function createTransactionOperation(
   ctx: MutationCtx,
   userId: Id<"users">,
@@ -119,10 +160,24 @@ export async function createTransactionOperation(
     const destPipe = await getPipe(command.to);
     if (!destPipe) throw new Error("Pipe not found");
     if (destPipe.userId !== userId) throw new Error("Not authorized");
+    if (command.requireBoiler && destPipe.sourceType !== "boiler") {
+      throw new ConvexError({ code: "BOILER_NOT_FOUND" });
+    }
 
     const { to } = transactionAccountingEffects({ to: command.to }, value);
+    const fed =
+      command.currentFedOverride === undefined
+        ? destPipe.fed + to.fedDelta
+        : await localFedForAggregate(
+            ctx,
+            command.to,
+            command.currentFedOverride,
+          );
     await ctx.db.patch("pipes", command.to, {
-      fed: destPipe.fed + to.fedDelta,
+      fed,
+      ...(destPipe.sourceType === "boiler"
+        ? { contributedFed: (destPipe.contributedFed ?? 0) + value }
+        : {}),
     });
     if (
       shouldTriggerPipeRule(
@@ -521,6 +576,9 @@ export async function editTransactionOperation(
       );
       await ctx.db.patch("pipes", transaction.to, {
         fed: pipe.fed + to.fedDelta,
+        ...(pipe.sourceType === "boiler"
+          ? { contributedFed: (pipe.contributedFed ?? 0) + valueDiff }
+          : {}),
       });
       if (
         shouldTriggerPipeRule(

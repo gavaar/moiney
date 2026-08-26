@@ -7,6 +7,32 @@ import schema from "../schema";
 import { modules } from "../test.setup";
 
 describe("Convex boundaries: pipes, rules, and scheduling", () => {
+  it("creates a boiler with zero contributed and current fed", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await t.run((ctx) =>
+      ctx.db.insert("users", {
+        username: "alice",
+        email: "alice@example.com",
+        password: "hash",
+      }),
+    );
+
+    const pipeId = await t
+      .withIdentity({ subject: userId })
+      .mutation(api.pipes.addFeed, {
+        name: "Savings",
+        icon: "water-boiler",
+        sourceType: "boiler",
+      });
+
+    const pipe = await t.run((ctx) => ctx.db.get("pipes", pipeId));
+    expect(pipe).toMatchObject({
+      sourceType: "boiler",
+      contributedFed: 0,
+      fed: 0,
+    });
+  });
+
   it("returns a structured pipe-limit error without creating a feed", async () => {
     const t = convexTest(schema, modules);
     const userId = await t.run(async (ctx) => {

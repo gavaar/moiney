@@ -9,10 +9,13 @@ import { FeedAmountModal } from "./FeedAmountModal";
 const PIPE_ID = "pipe-1" as Id<"pipes">;
 
 let capturedOnSuccess: (() => void) | null = null;
+let capturedFormProps: any = null;
 
 vi.mock("@features/components/AmountForm", () => ({
-  AmountForm: ({ onSuccess, variant }: any) => {
+  AmountForm: (props: any) => {
+    const { onSuccess, variant } = props;
     capturedOnSuccess = onSuccess;
+    capturedFormProps = props;
     return <div data-testid="amount-form" data-mode={variant} />;
   },
 }));
@@ -26,6 +29,7 @@ describe("FeedAmountModal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     capturedOnSuccess = null;
+    capturedFormProps = null;
   });
 
   it("renders the add icon trigger", () => {
@@ -56,6 +60,26 @@ describe("FeedAmountModal", () => {
     const form = screen.getByTestId("amount-form");
     expect(form).toBeTruthy();
     expect(form.getAttribute("data-mode")).toBe("feed");
+  });
+
+  it("renders boiler mode with its current fed and name", async () => {
+    const user = userEvent.setup();
+    render(
+      <FeedAmountModal
+        pipeId={PIPE_ID}
+        feedName="Savings"
+        sourceType="boiler"
+        fed={12500}
+      />,
+    );
+
+    await user.click(screen.getByTestId("feed-amount-trigger"));
+
+    expect(capturedFormProps).toMatchObject({
+      variant: "boiler",
+      boilerName: "Savings",
+      currentFed: 12500,
+    });
   });
 
   it("shows success alert and closes modal when AmountForm succeeds", async () => {
