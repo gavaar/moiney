@@ -1029,7 +1029,7 @@ describe("listTransactions", () => {
       "by_userId_to_date",
       "by_userId_paidFrom_date",
     ]);
-    expect(takeLimits).toEqual([20, 20, 20]);
+    expect(takeLimits).toEqual([30, 30, 30]);
     expect(result.map((transaction: any) => transaction._id)).toEqual([
       "to-row",
       "paid-row",
@@ -1037,12 +1037,12 @@ describe("listTransactions", () => {
     ]);
   });
 
-  it("limits unfiltered recent transactions to 20 rows", async () => {
+  it("limits unfiltered recent transactions to 30 rows", async () => {
     const ctx = mockCtx();
 
     await (listTransactions as any)._handler(ctx, {});
 
-    expect(ctx.db._chain.take).toHaveBeenCalledWith(20);
+    expect(ctx.db._chain.take).toHaveBeenCalledWith(30);
   });
 
   it("rejects more pipe filters than one user can own", async () => {

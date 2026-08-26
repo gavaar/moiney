@@ -2,7 +2,7 @@ import type { TransactionModel } from "@features/transactions/data/transactions"
 
 export const CACHE_VERSION = 1;
 export const MAX_CACHED_TRANSACTIONS = 300;
-export const MAX_RECENT_TRANSACTIONS = 20;
+export const MAX_RECENT_TRANSACTIONS = 30;
 export const HISTORY_SCOPE = "history";
 export const RECENT_SCOPE = "recent";
 

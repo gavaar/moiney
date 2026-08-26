@@ -132,8 +132,8 @@ describe("transaction snapshot cache", () => {
     );
   });
 
-  it("inserts a created transaction into loaded relevant scopes with a 20-row recent limit", () => {
-    const existing = Array.from({ length: 20 }, (_, index) =>
+  it("inserts a created transaction into loaded relevant scopes with a 30-row recent limit", () => {
+    const existing = Array.from({ length: 30 }, (_, index) =>
       transaction(`existing-${index}`, 100 - index, "pipe-c"),
     );
     let cache = replaceSnapshot(
@@ -156,7 +156,7 @@ describe("transaction snapshot cache", () => {
     );
     expect(readSnapshot(next, RECENT_SCOPE).transactions.map(({ id }) => id)).toEqual([
       "created",
-      ...existing.slice(0, 19).map(({ id }) => id),
+      ...existing.slice(0, 29).map(({ id }) => id),
     ]);
     expect(readSnapshot(next, pipeScope(["pipe-b", "pipe-c"])).transactions.map(({ id }) => id)).toContain(
       "created",

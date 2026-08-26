@@ -110,7 +110,7 @@ describe("useTransactionHistory", () => {
     );
   });
 
-  it("loads 15 rows after cached data reaches the end", async () => {
+  it("loads 30 rows after cached data reaches the end", async () => {
     const append = vi.fn().mockResolvedValue(undefined);
     const cacheRead = {
       transactions: [cachedTransaction],
@@ -143,7 +143,7 @@ describe("useTransactionHistory", () => {
     ));
     await waitFor(() => expect(mockQuery).toHaveBeenCalledWith(
       expect.anything(),
-      { paginationOpts: { numItems: 15, cursor: "cursor-2" } },
+      { paginationOpts: { numItems: 30, cursor: "cursor-2" } },
     ));
     expect(append).toHaveBeenCalledTimes(2);
   });

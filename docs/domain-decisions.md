@@ -303,8 +303,8 @@ read-only display source. A valid snapshot suppresses live Convex query
 subscriptions on app open. The cache stores one shared transaction entity map
 keyed by transaction ID and separate ordered ID snapshots for history, recent,
 and selected-pipe scopes. History seeds 100 rows and loads additional pages
-of 15 only after explicit demand. Recent and selected-pipe queries return at
-most 20 rows. Every loaded transaction is persisted until the cache reaches
+of 30 only after explicit demand. Recent and selected-pipe queries return at
+most 30 rows. Every loaded transaction is persisted until the cache reaches
 300 unique transaction entities, after which the least recently refreshed
 entries are evicted.
 

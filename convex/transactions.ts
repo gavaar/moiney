@@ -20,7 +20,7 @@ import { MAX_PIPES_PER_USER } from "./lib/constants";
 
 const TITLE_USAGE_RETENTION_MS = 365 * 24 * 60 * 60 * 1000;
 const TITLE_USAGE_CLEANUP_BATCH_SIZE = 100;
-const RECENT_TRANSACTION_LIMIT = 20;
+const RECENT_TRANSACTION_LIMIT = 30;
 const TRANSACTION_CACHE_RECONCILIATION_LIMIT = 300;
 const transactionCacheItem = v.object({
   id: v.id("transactions"),

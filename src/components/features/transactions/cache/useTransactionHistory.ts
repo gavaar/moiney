@@ -9,7 +9,7 @@ import { useTransactionCache } from "./TransactionCacheContext";
 import { HISTORY_SCOPE } from "./transactionSnapshot";
 
 export const HISTORY_INITIAL_PAGE_SIZE = 100;
-export const HISTORY_LOAD_MORE_PAGE_SIZE = 15;
+export const HISTORY_LOAD_MORE_PAGE_SIZE = 30;
 const HISTORY_LOAD_ERROR = "Unable to load transaction history.";
 
 export type HistoryLoadMoreStatus =
