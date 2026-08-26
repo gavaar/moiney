@@ -35,17 +35,6 @@ vi.mock("@features/pipes/context/PipeCatalogContext", () => {
     usePipeCatalog: () => ({
       feeds,
       childrenByParent,
-      selectedPipePath: [],
-      isLoading: false,
-    }),
-    toPipe: (doc: any) => ({
-      id: doc.id,
-      name: doc.name,
-      icon: doc.icon,
-      priority: doc.priority,
-      capacity: doc.capacity ?? 0,
-      fed: doc.fed ?? 0,
-      spent: doc.spent ?? 0,
     }),
   };
 });
@@ -113,7 +102,7 @@ describe("PipeTreeView", () => {
 
   it("lets the name column grow and keeps the name clamped", () => {
     const source = readFileSync(
-      "src/components/features/pipes/PipeTreeView/PipeTreeView.tsx",
+      "src/components/features/pipes/PipeTreeView/TreeRow.tsx",
       "utf8",
     );
 

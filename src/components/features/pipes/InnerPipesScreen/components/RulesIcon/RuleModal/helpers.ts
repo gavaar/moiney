@@ -6,13 +6,77 @@ import { divideMoney, formatMoneyInput, parseMoney } from "@domain/money";
 
 export type Pacing = "months" | "years";
 
+type EffectiveCron = {
+  capUpdateValue: number | undefined;
+  interval: number;
+  unit: CronUnit;
+};
+
+type RuleUpdateCommand =
+  | {
+      pipeId: PipeModel["id"];
+      rule: undefined;
+    }
+  | {
+      pipeId: PipeModel["id"];
+      rule: "cron";
+      interval: number;
+      unit: CronUnit;
+      starting: number;
+      capUpdateValue: number | undefined;
+    }
+  | {
+      pipeId: PipeModel["id"];
+      rule: Exclude<RuleId, "none" | "cron">;
+      capUpdateValue: number | undefined;
+    };
+
 const MONTHLY_PACING_OPTION = { id: "months", label: "Monthly" } as const;
 const YEARLY_PACING_OPTION = { id: "years", label: "Yearly" } as const;
+
+export function buildRuleUpdateCommand({
+  pipeId,
+  selectedRule,
+  capNumber,
+  effectiveCron,
+  starting,
+}: {
+  pipeId: PipeModel["id"];
+  selectedRule: RuleId;
+  capNumber: number | undefined;
+  effectiveCron: EffectiveCron;
+  starting: number;
+}): RuleUpdateCommand {
+  if (selectedRule === "none") return { pipeId, rule: undefined };
+  if (selectedRule === "cron") {
+    return {
+      pipeId,
+      rule: "cron",
+      interval: effectiveCron.interval,
+      unit: effectiveCron.unit,
+      starting,
+      capUpdateValue: effectiveCron.capUpdateValue,
+    };
+  }
+  return { pipeId, rule: selectedRule, capUpdateValue: capNumber };
+}
 
 export function getPacingOptions(unit: CronUnit) {
   if (unit === "months") return [MONTHLY_PACING_OPTION];
   if (unit === "years") return [MONTHLY_PACING_OPTION, YEARLY_PACING_OPTION];
   return [];
+}
+
+export function transitionCronUnit(
+  state: { unit: CronUnit; pacing: Pacing | undefined },
+  nextUnit: CronUnit,
+): { unit: CronUnit; pacing: Pacing | undefined } {
+  const pacing = getPacingOptions(nextUnit).some(
+    (option) => option.id === state.pacing,
+  )
+    ? state.pacing
+    : undefined;
+  return { unit: nextUnit, pacing };
 }
 
 export function calculateEffectiveCron({

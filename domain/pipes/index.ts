@@ -2,7 +2,6 @@ export {
   buildChildrenMap,
   calculatePipeRulePatch,
   calculatePipeAllocations,
-  collectDescendants,
   computePipeDerivedValues,
   computePipeTree,
   recalculatePipes,

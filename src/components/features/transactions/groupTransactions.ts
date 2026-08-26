@@ -21,7 +21,7 @@ export type TransactionGroup = {
   latestDate: number;
 };
 
-export type TransactionListItem = TransactionModel | TransactionGroup;
+type TransactionListItem = TransactionModel | TransactionGroup;
 
 function compareTransactions(
   first: TransactionModel,

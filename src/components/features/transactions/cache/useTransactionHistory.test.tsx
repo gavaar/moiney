@@ -30,12 +30,13 @@ const cachedTransaction: TransactionModel = {
 };
 
 function Consumer() {
-  const { transactions, isLoading, loadMore, loadMoreStatus, refresh } = useTransactionHistory();
+  const { transactions, error, isLoading, loadMore, loadMoreStatus, refresh } = useTransactionHistory();
   return (
     <div>
       <span data-testid="count">{transactions?.length ?? "undefined"}</span>
       <span data-testid="loading">{isLoading.toString()}</span>
       <span data-testid="status">{loadMoreStatus}</span>
+      <span data-testid="error">{error ?? "none"}</span>
       <button onClick={loadMore}>load more</button>
       <button onClick={refresh}>refresh</button>
     </div>
@@ -89,7 +90,27 @@ describe("useTransactionHistory", () => {
     ));
   });
 
-  it("loads 15 rows after cached data reaches the end", async () => {
+  it("exposes a stable error when the initial page fails", async () => {
+    mockCache.mockReturnValue({
+      cache: null,
+      isHydrating: false,
+      read: () => ({ transactions: [], complete: false, hasMore: false, updatedAt: 0 }),
+      replace: vi.fn(),
+      append: vi.fn(),
+      mergeHead: vi.fn(),
+    });
+    mockQuery.mockRejectedValue(new Error("network failure"));
+
+    render(<Consumer />);
+
+    await waitFor(() =>
+      expect(screen.getByTestId("error").textContent).toBe(
+        "Unable to load transaction history.",
+      ),
+    );
+  });
+
+  it("loads 30 rows after cached data reaches the end", async () => {
     const append = vi.fn().mockResolvedValue(undefined);
     const cacheRead = {
       transactions: [cachedTransaction],
@@ -122,7 +143,7 @@ describe("useTransactionHistory", () => {
     ));
     await waitFor(() => expect(mockQuery).toHaveBeenCalledWith(
       expect.anything(),
-      { paginationOpts: { numItems: 15, cursor: "cursor-2" } },
+      { paginationOpts: { numItems: 30, cursor: "cursor-2" } },
     ));
     expect(append).toHaveBeenCalledTimes(2);
   });

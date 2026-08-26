@@ -1,10 +1,10 @@
 import { Pressable, View } from "react-native";
 import { cn, colors } from "@/lib/styles";
 import { Icon, type IconName } from "@ui/Icon";
-import { useCallback } from 'react';
 
 type ToggleOption = {
   value: string;
+  label: string;
   icon: IconName;
 };
 
@@ -15,21 +15,19 @@ type Props = {
 };
 
 export function SlideToggle({ options, value, onChange }: Props) {
-  const activeIndex = options.findIndex((o) => o.value === value);
-
-  const toggle = useCallback(() => {
-    const nextIndex = (activeIndex + 1) % options.length;
-    onChange(options[nextIndex].value);
-  }, [activeIndex, options]);
-
   return (
-    <Pressable onPress={toggle} className="flex-row rounded-lg border border-border bg-surface">
+    <View className="flex-row rounded-lg border border-border bg-surface">
       {options.map((option, index) => {
         const isActive = option.value === value;
         return (
-          <View
+          <Pressable
             key={option.value}
             testID={"slide-toggle-" + option.value}
+            accessibilityRole="radio"
+            accessibilityLabel={option.label}
+            accessibilityState={{ selected: isActive }}
+            aria-selected={isActive}
+            onPress={() => onChange(option.value)}
             className={cn(
               "flex-row items-center justify-center py-1 px-2",
               index === 0 && "rounded-l-[7px]",
@@ -38,9 +36,9 @@ export function SlideToggle({ options, value, onChange }: Props) {
             )}
           >
             <Icon name={option.icon} size={16} color={isActive ? colors.text : colors.muted} />
-          </View>
+          </Pressable>
         );
       })}
-    </Pressable>
+    </View>
   );
 }

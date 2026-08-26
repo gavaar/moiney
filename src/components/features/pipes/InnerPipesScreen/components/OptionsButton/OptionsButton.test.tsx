@@ -60,6 +60,11 @@ describe("OptionsButton", () => {
     expect(gear).toBeDefined();
   });
 
+  it("gives the gear trigger an accessible name", () => {
+    render(<OptionsButton pipeId={pipeId} />);
+    expect(screen.getByRole("button", { name: "Pipe options" })).toBeDefined();
+  });
+
   it("does not open options for a frozen pipe", async () => {
     const user = userEvent.setup();
     render(<OptionsButton pipeId={pipeId} disabled />);

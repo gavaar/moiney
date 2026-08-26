@@ -30,6 +30,7 @@ export function PipesScreen() {
   const { feeds, isLoading } = usePipeCatalog();
   const {
     transactions,
+    error: transactionError,
     isLoading: transactionLoading,
     pipeIds,
     refresh: refreshTransactions,
@@ -71,8 +72,8 @@ export function PipesScreen() {
         right={
           <SlideToggle
             options={[
-              { value: "bar", icon: "align-horizontal-left" },
-              { value: "tree", icon: "file-tree" },
+              { value: "bar", label: "Bar view", icon: "align-horizontal-left" },
+              { value: "tree", label: "Tree view", icon: "file-tree" },
             ]}
             value={treeMode ? "tree" : "bar"}
             onChange={(v) => {
@@ -137,6 +138,7 @@ export function PipesScreen() {
             >
               <TransactionListWithHistory
                 transactions={transactions}
+                error={transactionError}
                 isLoading={transactionLoading}
                 onRefresh={refreshTransactions}
                 refreshing={transactionLoading && transactions !== undefined}

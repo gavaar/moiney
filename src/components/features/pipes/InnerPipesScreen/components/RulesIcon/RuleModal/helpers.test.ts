@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { Id } from "@convex/_generated/dataModel";
 import {
+  buildRuleUpdateCommand,
   calculateEffectiveCron,
   formatCapCredit,
   getActionConfig,
@@ -9,8 +11,38 @@ import {
   parseCapValue,
   shouldShowCapWarning,
   todayMidday,
+  transitionCronUnit,
   unitPlural,
 } from "./helpers";
+
+const PIPE_ID = "pipe-1" as Id<"pipes">;
+
+describe("buildRuleUpdateCommand", () => {
+  it("uses the effective normalized cron schedule", () => {
+    const starting = Date.UTC(2026, 6, 21, 12);
+
+    expect(
+      buildRuleUpdateCommand({
+        pipeId: PIPE_ID,
+        selectedRule: "cron",
+        capNumber: 120000,
+        effectiveCron: {
+          capUpdateValue: 10000,
+          interval: 1,
+          unit: "months",
+        },
+        starting,
+      }),
+    ).toEqual({
+      pipeId: PIPE_ID,
+      rule: "cron",
+      interval: 1,
+      unit: "months",
+      starting,
+      capUpdateValue: 10000,
+    });
+  });
+});
 
 describe("calculateEffectiveCron", () => {
   it("paces a yearly cap update monthly", () => {
@@ -90,6 +122,20 @@ describe("getPacingOptions", () => {
     expect(getPacingOptions("days")).toEqual([]);
     expect(getPacingOptions("months").map(({ id }) => id)).toEqual(["months"]);
     expect(getPacingOptions("years").map(({ id }) => id)).toEqual(["months", "years"]);
+  });
+});
+
+describe("transitionCronUnit", () => {
+  it("keeps pacing when the new unit supports it", () => {
+    expect(
+      transitionCronUnit({ unit: "years", pacing: "months" }, "months"),
+    ).toEqual({ unit: "months", pacing: "months" });
+  });
+
+  it("clears pacing when the new unit does not support it", () => {
+    expect(
+      transitionCronUnit({ unit: "months", pacing: "months" }, "days"),
+    ).toEqual({ unit: "days", pacing: undefined });
   });
 });
 

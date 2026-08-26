@@ -17,7 +17,7 @@
     },
     "project-docs": {
       "path": "docs",
-      "description": "Use for Moiney engineering rules, domain decisions, and refactor status"
+      "description": "Use for Moiney engineering rules and domain decisions"
     }
   }
 }

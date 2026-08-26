@@ -40,6 +40,9 @@ export function DateInput({ label, error, disabled, value, onChange }: Props) {
       <Text className="text-sm font-medium text-text">{label}</Text>
       <Pressable
         testID="date-trigger"
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        accessibilityState={{ disabled }}
         onPress={handleTrigger}
         className={cn(
           "rounded-lg border bg-surface px-3 py-2.5 flex-row items-center justify-between",
@@ -53,7 +56,9 @@ export function DateInput({ label, error, disabled, value, onChange }: Props) {
         <Icon name="calendar-outline" size={16} color={disabled ? "#9CA3AF" : "#F8F8F8"} />
       </Pressable>
       {error ? (
-        <Text className="text-sm text-error">{error}</Text>
+        <Text accessibilityRole="alert" accessibilityLabel={error} className="text-sm text-error">
+          {error}
+        </Text>
       ) : null}
 
       {showPicker ? (

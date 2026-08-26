@@ -37,6 +37,10 @@ export function IconInput({ label, value, onSelect, error, disabled }: Props) {
       <Text className="text-sm font-medium text-text">{label}</Text>
       <Pressable
         testID="icon-picker-trigger"
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        accessibilityState={{ disabled, expanded: open }}
+        aria-expanded={open}
         onPress={() => !disabled && setOpen(true)}
         className={cn(
           "rounded-lg border bg-surface px-3 py-2.5 flex-row items-center gap-2",
@@ -53,7 +57,9 @@ export function IconInput({ label, value, onSelect, error, disabled }: Props) {
         )}
       </Pressable>
       {error ? (
-        <Text className="text-sm text-error">{error}</Text>
+        <Text accessibilityRole="alert" accessibilityLabel={error} className="text-sm text-error">
+          {error}
+        </Text>
       ) : null}
 
       <ModalShell

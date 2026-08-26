@@ -7,6 +7,7 @@ import { useTransactionHistory } from "@features/transactions/cache/useTransacti
 export function HistoryScreen() {
   const {
     transactions,
+    error,
     isLoading,
     isRefreshing,
     loadMore,
@@ -21,6 +22,7 @@ export function HistoryScreen() {
 
         <TransactionListWithHistory
           transactions={transactions}
+          error={error}
           isLoading={isLoading}
           onLoadMore={loadMore}
           onRefresh={refresh}

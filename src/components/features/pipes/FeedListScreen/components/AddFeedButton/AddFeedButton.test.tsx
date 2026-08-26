@@ -45,13 +45,33 @@ describe("AddFeedButton", () => {
     await user.click(screen.getByTestId("icon-picker-trigger"));
     await user.click(screen.getByText("wallet-outline"));
 
-    await user.click(screen.getByText("Add"));
+    await user.click(screen.getByText("Add feed"));
 
     await waitFor(() => {
       expect(mockAddFeed).toHaveBeenCalledWith({
         name: "Food",
         icon: "wallet-outline",
         description: undefined,
+        sourceType: "feed",
+      });
+    });
+  });
+
+  it("submits a boiler when the boiler type is selected", async () => {
+    const user = await openModal();
+
+    await user.click(screen.getByTestId("slide-toggle-boiler"));
+    await user.type(screen.getByPlaceholderText("Feed name"), "Savings");
+    await user.click(screen.getByTestId("icon-picker-trigger"));
+    await user.click(screen.getByText("wallet-outline"));
+    await user.click(screen.getByText("Add boiler"));
+
+    await waitFor(() => {
+      expect(mockAddFeed).toHaveBeenCalledWith({
+        name: "Savings",
+        icon: "wallet-outline",
+        description: undefined,
+        sourceType: "boiler",
       });
     });
   });
@@ -65,7 +85,7 @@ describe("AddFeedButton", () => {
     await user.click(screen.getByTestId("icon-picker-trigger"));
     await user.click(screen.getByText("wallet-outline"));
 
-    await user.click(screen.getByText("Add"));
+    await user.click(screen.getByText("Add feed"));
 
     await waitFor(() => {
       expect(mockAddFeed).toHaveBeenCalled();
@@ -85,7 +105,7 @@ describe("AddFeedButton", () => {
     await user.click(screen.getByTestId("icon-picker-trigger"));
     await user.click(screen.getByText("wallet-outline"));
 
-    await user.click(screen.getByText("Add"));
+    await user.click(screen.getByText("Add feed"));
 
     await waitFor(() => {
       expect(mockShowAlert.error).toHaveBeenCalledWith("Server error");

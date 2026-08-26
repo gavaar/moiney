@@ -54,7 +54,9 @@ export function DecimalInput({ label, error, disabled, value, onChange, placehol
           disabled && "opacity-60",
           borderStyle,
         )}
-        keyboardType="decimal-pad"
+         keyboardType="decimal-pad"
+         accessibilityLabel={label}
+         accessibilityState={{ disabled }}
         value={value}
         onChangeText={handleChangeText}
         placeholder={placeholder}
@@ -64,7 +66,9 @@ export function DecimalInput({ label, error, disabled, value, onChange, placehol
         onBlur={() => setFocused(false)}
       />
       {error ? (
-        <Text className="text-sm text-error">{error}</Text>
+        <Text accessibilityRole="alert" accessibilityLabel={error} className="text-sm text-error">
+          {error}
+        </Text>
       ) : null}
     </View>
   );

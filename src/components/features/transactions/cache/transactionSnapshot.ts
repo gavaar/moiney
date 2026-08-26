@@ -2,6 +2,7 @@ import type { TransactionModel } from "@features/transactions/data/transactions"
 
 export const CACHE_VERSION = 1;
 export const MAX_CACHED_TRANSACTIONS = 300;
+export const MAX_RECENT_TRANSACTIONS = 30;
 export const HISTORY_SCOPE = "history";
 export const RECENT_SCOPE = "recent";
 
@@ -91,6 +92,121 @@ export function appendSnapshot(
   now: number,
 ): TransactionCache {
   return writeSnapshot(cache, scope, transactions, hasMore, now, true);
+}
+
+export function insertTransaction(
+  cache: TransactionCache,
+  transaction: TransactionModel,
+  now: number,
+): TransactionCache {
+  const transactionId = String(transaction.id);
+  const entities = {
+    ...cache.entities,
+    [transactionId]: { transaction, lastAccessedAt: now },
+  };
+  const pipeIds = new Set(
+    [transaction.from, transaction.to, transaction.paidFrom]
+      .filter((pipeId) => pipeId !== undefined)
+      .map(String),
+  );
+  const snapshots = Object.fromEntries(
+    Object.entries(cache.snapshots).map(([scope, snapshot]) => {
+      if (!scopeContainsTransaction(scope, pipeIds)) return [scope, snapshot];
+
+      const ids = sortSnapshotIds(
+        [...new Set([...snapshot.ids, transactionId])],
+        entities,
+      );
+      return [scope, {
+        ...snapshot,
+        ids: scope === HISTORY_SCOPE
+          ? ids
+          : ids.slice(0, MAX_RECENT_TRANSACTIONS),
+        updatedAt: now,
+      }];
+    }),
+  );
+
+  return evictIfNeeded({
+    ...cache,
+    updatedAt: now,
+    entities,
+    snapshots,
+  });
+}
+
+export function updateTransaction(
+  cache: TransactionCache,
+  transaction: TransactionModel,
+  now: number,
+): TransactionCache {
+  const transactionId = String(transaction.id);
+  const entities = {
+    ...cache.entities,
+    [transactionId]: { transaction, lastAccessedAt: now },
+  };
+  const snapshots = Object.fromEntries(
+    Object.entries(cache.snapshots).map(([scope, snapshot]) => {
+      if (!snapshot.ids.includes(transactionId)) return [scope, snapshot];
+
+      const ids = sortSnapshotIds(snapshot.ids, entities);
+      return [scope, {
+        ...snapshot,
+        ids: scope === HISTORY_SCOPE
+          ? ids
+          : ids.slice(0, MAX_RECENT_TRANSACTIONS),
+        updatedAt: now,
+      }];
+    }),
+  );
+
+  return evictIfNeeded({
+    ...cache,
+    updatedAt: now,
+    entities,
+    snapshots,
+  });
+}
+
+export function reconcileTransactions(
+  cache: TransactionCache,
+  knownIds: readonly string[],
+  transactions: TransactionModel[],
+  now: number,
+): TransactionCache {
+  const entities = { ...cache.entities };
+  const returnedIds = new Set<string>();
+  for (const transaction of transactions) {
+    const transactionId = String(transaction.id);
+    returnedIds.add(transactionId);
+    entities[transactionId] = { transaction, lastAccessedAt: now };
+  }
+  for (const transactionId of knownIds) {
+    if (!returnedIds.has(transactionId)) delete entities[transactionId];
+  }
+
+  const snapshots = Object.fromEntries(
+    Object.entries(cache.snapshots).map(([scope, snapshot]) => {
+      const ids = sortSnapshotIds(
+        snapshot.ids.filter((id) => entities[id] !== undefined),
+        entities,
+      );
+      return [scope, {
+        ...snapshot,
+        ids: scope === HISTORY_SCOPE
+          ? ids
+          : ids.slice(0, MAX_RECENT_TRANSACTIONS),
+        updatedAt: now,
+      }];
+    }),
+  );
+
+  return evictIfNeeded({
+    ...cache,
+    updatedAt: now,
+    entities,
+    snapshots,
+  });
 }
 
 export function mergeHeadSnapshot(
@@ -199,6 +315,31 @@ function evictIfNeeded(cache: TransactionCache): TransactionCache {
   );
 
   return { ...cache, entities, snapshots };
+}
+
+function scopeContainsTransaction(scope: string, pipeIds: Set<string>): boolean {
+  if (scope === HISTORY_SCOPE || scope === RECENT_SCOPE) return true;
+  if (!scope.startsWith("pipes:") || pipeIds.size === 0) return false;
+
+  const scopePipeIds = new Set(scope.slice("pipes:".length).split(","));
+  return [...pipeIds].some((pipeId) => scopePipeIds.has(pipeId));
+}
+
+function sortSnapshotIds(
+  ids: string[],
+  entities: Record<string, CachedEntity>,
+): string[] {
+  return ids.sort((leftId, rightId) => {
+    const left = entities[leftId]?.transaction;
+    const right = entities[rightId]?.transaction;
+    if (!left || !right) return 0;
+
+    return (
+      right.date - left.date ||
+      right.createdAt - left.createdAt ||
+      String(right.id).localeCompare(String(left.id))
+    );
+  });
 }
 
 function isCache(value: unknown): value is TransactionCache {

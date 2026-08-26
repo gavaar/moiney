@@ -59,6 +59,11 @@ export function AlertProvider({ children }: { children: ReactNode }) {
           <View
             className="mx-4 mb-12 px-4 py-5 rounded-xl opacity-90"
             style={{ backgroundColor: BG_COLORS[alert.type] }}
+            accessible
+            accessibilityRole="alert"
+            accessibilityLabel={alert.message}
+            accessibilityLiveRegion="polite"
+            aria-live="polite"
             onTouchEnd={handlePress}
           >
             <Text className="text-white text-sm font-medium text-center">

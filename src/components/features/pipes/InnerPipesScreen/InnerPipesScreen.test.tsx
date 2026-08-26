@@ -17,10 +17,12 @@ vi.mock("react-native", async (importOriginal) => ({
 }));
 
 const mockAddPipe = vi.fn();
+const mockConvexQuery = vi.fn();
 
 vi.mock("convex/react", () => ({
   useMutation: () => mockAddPipe,
   useQuery: () => undefined,
+  useConvex: () => ({ query: mockConvexQuery }),
 }));
 
 vi.mock("@convex/_generated/api", () => ({
@@ -124,6 +126,32 @@ describe("InnerPipesScreen", () => {
     expect(screen.getByTestId("bar-fed-fill")).toBeDefined();
     expect(screen.getByTestId("bar-spent-fill")).toBeDefined();
     expect(screen.getByTestId("bar-capacity-fill")).toBeDefined();
+  });
+
+  it("uses boiler contributions for detail bars and growth", () => {
+    mockUsePipeSelection.mockReturnValue({
+      ...baseMock,
+      selectedPipePath: ["boiler-1"],
+      selectedPipe: {
+        id: "boiler-1",
+        name: "Savings",
+        icon: "water-boiler",
+        capacity: 0,
+        fed: 15000,
+        spent: 0,
+        sourceType: "boiler",
+        contributedFed: 10000,
+      },
+      selectedName: "Savings",
+    });
+
+    render(<InnerPipesScreen />);
+
+    expect(screen.getByTestId("bar-capacity-fill")).toBeDefined();
+    expect(screen.getByText("100.00")).toBeDefined();
+    expect(screen.getByTestId("boiler-growth-chip").textContent).toContain(
+      "+50%",
+    );
   });
 
   it("uses a child's cap update for the selected parent's expected value", () => {

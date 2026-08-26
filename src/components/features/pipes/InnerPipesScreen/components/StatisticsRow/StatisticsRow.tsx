@@ -24,6 +24,8 @@ type Props = {
   fed: number;
   spent: number;
   pendingFedAdjustment?: number;
+  sourceType?: "feed" | "boiler";
+  contributedFed?: number;
 };
 
 function formatSignedAmount(value: number): string {
@@ -31,7 +33,19 @@ function formatSignedAmount(value: number): string {
   return value > 0 ? `+${formatted}` : formatted;
 }
 
-export function StatisticsRow({ fed, spent, pendingFedAdjustment = 0 }: Props) {
+function formatGrowthPercentage(value: number): string {
+  const rounded = Number(value.toFixed(2));
+  if (rounded === 0) return "0%";
+  return `${rounded > 0 ? "+" : ""}${rounded}%`;
+}
+
+export function StatisticsRow({
+  fed,
+  spent,
+  pendingFedAdjustment = 0,
+  sourceType,
+  contributedFed = 0,
+}: Props) {
   const daysInMonth = getDaysInMonth();
   const [selectedStatLabel, setSelectedStatLabel] = useState<string | null>(
     null,
@@ -41,6 +55,7 @@ export function StatisticsRow({ fed, spent, pendingFedAdjustment = 0 }: Props) {
   const stmpdRef = useRef<View>(null);
   const cronRef = useRef<View>(null);
   const externalRef = useRef<View>(null);
+  const growthRef = useRef<View>(null);
   const { selectedPipePath } = usePipeSelection();
   const { pipesById } = usePipeCatalog();
 
@@ -116,6 +131,11 @@ export function StatisticsRow({ fed, spent, pendingFedAdjustment = 0 }: Props) {
 
   const primaryStats = stats.filter((stat) => !stat.external);
   const externalStat = stats.find((stat) => stat.external);
+  const growth =
+    sourceType === "boiler" && contributedFed !== 0
+      ? ((fed - contributedFed) / contributedFed) * 100
+      : null;
+  const growthLabel = growth === null ? "N/A" : formatGrowthPercentage(growth);
 
   return (
     <View className="items-center gap-1">
@@ -159,6 +179,42 @@ export function StatisticsRow({ fed, spent, pendingFedAdjustment = 0 }: Props) {
           </Fragment>
         ))}
       </View>
+
+      {sourceType === "boiler" ? (
+        <View className="flex-row items-center">
+          <Pressable
+            ref={growthRef}
+            accessibilityRole="button"
+            accessibilityLabel={`Boiler growth, ${
+              growth !== null && growth < 0 ? "negative" : "non-negative"
+            }`}
+            onPress={() => setSelectedStatLabel("Growth")}
+          >
+            <Text
+              testID="boiler-growth-chip"
+              className={`text-sm border px-2 rounded-md ${
+                growth !== null && growth < 0
+                  ? "border-error/70 bg-error/10 text-error"
+                  : "border-secondary/70 bg-secondary/10 text-secondary"
+              }`}
+            >
+              Growth: {growthLabel}
+            </Text>
+          </Pressable>
+
+          <Popover
+            visible={selectedStatLabel === "Growth"}
+            onClose={() => setSelectedStatLabel(null)}
+            anchorRef={growthRef as RefObject<View>}
+            anchorPosition="bottom"
+          >
+            <Text className="text-text font-bold text-md">Growth:</Text>
+            <Text className="text-text text-sm">
+              This pipe has received {formatAmount(contributedFed)} value, but now holds {formatAmount(fed)}, meaning it has grown {growthLabel}.
+            </Text>
+          </Popover>
+        </View>
+      ) : null}
 
       {externalStat ? (
         <View className="flex-row items-center">

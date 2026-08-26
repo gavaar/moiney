@@ -9,10 +9,8 @@ import {
 import type { Id } from "@convex/_generated/dataModel";
 import type { PipeModel } from "@features/pipes/data/pipes";
 
-const mockUseQuery = vi.fn();
 const mockConvexQuery = vi.fn();
 vi.mock("convex/react", () => ({
-  useQuery: (...args: unknown[]) => mockUseQuery(...args),
   useConvex: () => ({ query: mockConvexQuery }),
 }));
 
@@ -34,7 +32,7 @@ vi.mock("@features/transactions/cache/TransactionCacheContext", () => ({
 }));
 
 function TestConsumer() {
-  const { transactions, isLoading, pipeIds, refresh } = useTransactions();
+  const { transactions, error, isLoading, pipeIds, refresh } = useTransactions();
   return (
     <div>
       <span data-testid="is-loading">
@@ -43,6 +41,7 @@ function TestConsumer() {
       <span data-testid="transactions-count">
         {transactions === undefined ? "undefined" : String(transactions.length)}
       </span>
+      <span data-testid="transactions-error">{error ?? "none"}</span>
       <span data-testid="pipe-ids">
         {pipeIds === undefined
           ? "undefined"
@@ -172,7 +171,6 @@ describe("getSubtreePipeIds", () => {
 
 describe("TransactionsProvider", () => {
   beforeEach(() => {
-    mockUseQuery.mockReset();
     mockConvexQuery.mockReset();
     mockUsePipeSelection.mockReset();
     mockUseTransactionCache.mockReset();
@@ -188,6 +186,12 @@ describe("TransactionsProvider", () => {
       replace: vi.fn(),
     });
     mockConvexQuery.mockResolvedValue([]);
+  });
+
+  it("fails loudly when used outside TransactionsProvider", () => {
+    expect(() => render(<TestConsumer />)).toThrowError(
+      "useTransactions must be used within TransactionsProvider",
+    );
   });
 
   it("uses a complete selected-scope snapshot without opening a Convex query", async () => {
@@ -223,7 +227,6 @@ describe("TransactionsProvider", () => {
     );
 
     expect(screen.getByTestId("transactions-count").textContent).toBe("1");
-    expect(mockUseQuery).not.toHaveBeenCalled();
     expect(mockConvexQuery).not.toHaveBeenCalled();
   });
 
@@ -339,7 +342,7 @@ describe("TransactionsProvider", () => {
     ));
   });
 
-  it("exposes transactions from useQuery", async () => {
+  it("exposes transactions from an explicit query", async () => {
     mockUsePipeSelection.mockReturnValue({
       allPipes: [pipe("a")],
       childrenByParent: new Map(),
@@ -361,5 +364,26 @@ describe("TransactionsProvider", () => {
       expect(screen.getByTestId("transactions-count").textContent).toBe("1");
       expect(screen.getByTestId("is-loading").textContent).toBe("false");
     });
+  });
+
+  it("exposes a stable error when the explicit query fails", async () => {
+    mockUsePipeSelection.mockReturnValue({
+      allPipes: [pipe("a")],
+      childrenByParent: new Map(),
+      selectedPipePath: [],
+    });
+    mockConvexQuery.mockRejectedValue(new Error("network failure"));
+
+    render(
+      <TransactionsProvider>
+        <TestConsumer />
+      </TransactionsProvider>,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByTestId("transactions-error").textContent).toBe(
+        "Unable to load transactions.",
+      ),
+    );
   });
 });

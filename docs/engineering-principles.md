@@ -133,4 +133,3 @@ dismissal.
 - Separate security containment, data migration, architecture movement, and visual changes when they carry different risks.
 - Do not mix speculative cleanup into a correctness fix.
 - Record meaningful architecture and domain decisions in `docs/domain-decisions.md`.
-- Keep `docs/refactor-roadmap.md` current so a later session can resume without relying on chat history.

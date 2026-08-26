@@ -4,19 +4,27 @@ import type { TransactionModel } from "@features/transactions/data/transactions"
 import {
   CACHE_VERSION,
   HISTORY_SCOPE,
+  RECENT_SCOPE,
   MAX_CACHED_TRANSACTIONS,
   appendSnapshot,
   createCache,
   deserializeCache,
+  insertTransaction,
   invalidateSnapshots,
   pipeScope,
   readSnapshot,
+  reconcileTransactions,
   replaceSnapshot,
+  updateTransaction,
   mergeHeadSnapshot,
   serializeCache,
 } from "./transactionSnapshot";
 
-function transaction(id: string, date: number): TransactionModel {
+function transaction(
+  id: string,
+  date: number,
+  from: string = "pipe-1",
+): TransactionModel {
   return {
     id: id as Id<"transactions">,
     createdAt: date,
@@ -24,7 +32,7 @@ function transaction(id: string, date: number): TransactionModel {
     value: -100,
     date,
     kind: "expense",
-    from: "pipe-1" as Id<"pipes">,
+    from: from as Id<"pipes">,
   };
 }
 
@@ -122,6 +130,108 @@ describe("transaction snapshot cache", () => {
     expect(readSnapshot(cache, HISTORY_SCOPE).transactions).toHaveLength(
       MAX_CACHED_TRANSACTIONS,
     );
+  });
+
+  it("inserts a created transaction into loaded relevant scopes with a 30-row recent limit", () => {
+    const existing = Array.from({ length: 30 }, (_, index) =>
+      transaction(`existing-${index}`, 100 - index, "pipe-c"),
+    );
+    let cache = replaceSnapshot(
+      createCache("account-1"),
+      HISTORY_SCOPE,
+      [transaction("history", 1, "pipe-c")],
+      false,
+      1,
+    );
+    cache = replaceSnapshot(cache, RECENT_SCOPE, existing, false, 1);
+    cache = replaceSnapshot(cache, pipeScope(["pipe-c"]), existing, false, 1);
+    cache = replaceSnapshot(cache, pipeScope(["pipe-b", "pipe-c"]), existing, false, 1);
+    cache = replaceSnapshot(cache, pipeScope(["unrelated"]), existing, false, 1);
+
+    const next = insertTransaction(cache, transaction("created", 200, "pipe-c"), 2);
+
+    expect(next.entities.created.transaction).toMatchObject({ id: "created" });
+    expect(readSnapshot(next, HISTORY_SCOPE).transactions.map(({ id }) => id)).toContain(
+      "created",
+    );
+    expect(readSnapshot(next, RECENT_SCOPE).transactions.map(({ id }) => id)).toEqual([
+      "created",
+      ...existing.slice(0, 29).map(({ id }) => id),
+    ]);
+    expect(readSnapshot(next, pipeScope(["pipe-b", "pipe-c"])).transactions.map(({ id }) => id)).toContain(
+      "created",
+    );
+    expect(readSnapshot(next, pipeScope(["unrelated"])).transactions.map(({ id }) => id)).not.toContain(
+      "created",
+    );
+    expect(next.snapshots[pipeScope(["pipe-a", "pipe-c"])]).toBeUndefined();
+  });
+
+  it("updates a cached transaction and reorders loaded views", () => {
+    let cache = replaceSnapshot(
+      createCache("account-1"),
+      HISTORY_SCOPE,
+      [transaction("older", 100), transaction("edited", 200)],
+      false,
+      1,
+    );
+    cache = replaceSnapshot(cache, RECENT_SCOPE, [transaction("older", 100), transaction("edited", 200)], false, 1);
+
+    const next = updateTransaction(
+      cache,
+      { ...transaction("edited", 300), title: "updated" },
+      2,
+    );
+
+    expect(next.entities.edited.transaction).toMatchObject({
+      id: "edited",
+      title: "updated",
+      date: 300,
+    });
+    expect(readSnapshot(next, HISTORY_SCOPE).transactions.map(({ id }) => id)).toEqual([
+      "edited",
+      "older",
+    ]);
+    expect(readSnapshot(next, RECENT_SCOPE).transactions.map(({ id }) => id)).toEqual([
+      "edited",
+      "older",
+    ]);
+  });
+
+  it("reconciles cached IDs by updating survivors and removing absent transactions", () => {
+    let cache = replaceSnapshot(
+      createCache("account-1"),
+      HISTORY_SCOPE,
+      [transaction("deleted", 200), transaction("survives", 100)],
+      false,
+      1,
+    );
+    cache = replaceSnapshot(
+      cache,
+      pipeScope(["pipe-1"]),
+      [transaction("deleted", 200), transaction("survives", 100)],
+      false,
+      1,
+    );
+
+    const survivor = {
+      ...transaction("survives", 300),
+      fromIcon: "deleted-icon",
+    };
+    const next = reconcileTransactions(cache, ["deleted", "survives"], [survivor], 2);
+
+    expect(next.entities.deleted).toBeUndefined();
+    expect(next.entities.survives.transaction).toMatchObject({
+      id: "survives",
+      date: 300,
+      fromIcon: "deleted-icon",
+    });
+    expect(readSnapshot(next, HISTORY_SCOPE).transactions.map(({ id }) => id)).toEqual([
+      "survives",
+    ]);
+    expect(readSnapshot(next, pipeScope(["pipe-1"])).transactions.map(({ id }) => id)).toEqual([
+      "survives",
+    ]);
   });
 
   it("rejects snapshots from another account or cache version", () => {

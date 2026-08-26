@@ -20,6 +20,7 @@ import {
   type RuleId,
 } from "./config";
 import {
+  buildRuleUpdateCommand,
   calculateEffectiveCron,
   formatCapCredit,
   getActionConfig,
@@ -28,6 +29,7 @@ import {
   parseCapValue,
   shouldShowCapWarning,
   todayMidday,
+  transitionCronUnit,
   unitPlural,
   type Pacing,
 } from "./helpers";
@@ -104,24 +106,15 @@ export function RuleModal({ visible, onClose, pipeId }: Props) {
   const handleSave = useCallback(async () => {
     setIsBusy(true);
     try {
-      if (selectedRule === "none") {
-        await updatePipeRule({ pipeId, rule: undefined });
-      } else if (isCron) {
-        await updatePipeRule({
+      await updatePipeRule(
+        buildRuleUpdateCommand({
           pipeId,
-          rule: "cron",
-          interval: effectiveCron.interval,
-          unit: effectiveCron.unit,
+          selectedRule,
+          capNumber,
+          effectiveCron,
           starting: starting.getTime(),
-          capUpdateValue: effectiveCron.capUpdateValue,
-        });
-      } else {
-        await updatePipeRule({
-          pipeId,
-          rule: selectedRule,
-          capUpdateValue: capNumber,
-        });
-      }
+        }),
+      );
       if (isCron) onClose();
       else setIsBusy(false);
     } catch (error) {
@@ -235,10 +228,12 @@ export function RuleModal({ visible, onClose, pipeId }: Props) {
                     value={unit}
                     onSelect={(value) => {
                       const nextUnit = value as CronUnit;
-                      setUnit(nextUnit);
-                      if (!getPacingOptions(nextUnit).some((option) => option.id === pacing)) {
-                        setPacing(undefined);
-                      }
+                      const nextSchedule = transitionCronUnit(
+                        { unit, pacing },
+                        nextUnit,
+                      );
+                      setUnit(nextSchedule.unit);
+                      setPacing(nextSchedule.pacing);
                     }}
                   />
                 </View>

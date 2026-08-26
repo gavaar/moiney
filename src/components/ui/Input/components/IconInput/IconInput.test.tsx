@@ -15,6 +15,11 @@ describe("IconInput", () => {
     expect(screen.getByText("wallet-outline")).toBeTruthy();
   });
 
+  it("labels the icon picker trigger", () => {
+    render(<IconInput label="Icon" value="" onSelect={() => {}} />);
+    expect(screen.getByRole("button", { name: "Icon" })).toBeTruthy();
+  });
+
   it("opens modal on trigger press", async () => {
     render(<IconInput label="Icon" value="" onSelect={() => {}} />);
     await userEvent.click(screen.getByTestId("icon-picker-trigger"));

@@ -5,7 +5,6 @@
 - Verify dependency versions in `package.json`; documentation is descriptive and must be updated after upgrades.
 - Read `docs/engineering-principles.md` before changing production code.
 - Read `docs/domain-decisions.md` before changing money, transactions, pipes, deletion, scheduling, or authentication.
-- Read and update `docs/refactor-roadmap.md` when working on the design-improvement backlog.
 - Load the relevant project skill for Convex, Expo, routing, migrations, auth, or performance work.
 
 ## Current Stack
@@ -33,12 +32,12 @@ moiney/
 |   |-- lib/                 # Existing backend helpers and pure algorithms
 |   |-- schema.ts
 |   `-- *.ts                 # Registered Convex functions
-|-- docs/                    # Engineering rules, decisions, and roadmap
+|-- docs/                    # Engineering rules and domain decisions
 |-- assets/
 `-- .agents/skills/          # Project agent skills
 ```
 
-The current structure contains known boundary violations and oversized modules. Do not treat every existing dependency as an approved pattern. Consult `docs/refactor-roadmap.md` before copying one.
+The current structure contains known boundary violations and oversized modules. Do not treat every existing dependency or boundary as an approved pattern.
 
 ## Commands
 
@@ -60,7 +59,7 @@ The current structure contains known boundary violations and oversized modules. 
 - Prefer behavioral tests over source-text assertions or tests of implementation shape.
 - Do not install packages without explicit user approval.
 - Keep unrelated changes out of the current update.
-- Update domain decisions and roadmap status when behavior or architecture changes.
+- Update domain decisions when behavior or architecture changes.
 - Do not add backward-compatibility paths unless persisted data, shipped behavior, or an external consumer requires them.
 
 ## Architecture Boundaries
@@ -75,7 +74,7 @@ The current structure contains known boundary violations and oversized modules. 
 - Split components by responsibility and state ownership, not by a line-count rule alone.
 - Keep contexts narrow, fail loudly outside providers, and scope providers to actual consumers.
 - Avoid generic `components` or `utils` dumping grounds; ownership must be clear from the path.
-- Existing exceptions are tracked in `docs/refactor-roadmap.md`; new code must not deepen them.
+- Do not deepen known boundary exceptions or create parallel compatibility layers.
 
 ## Convex Safety Rules
 
@@ -95,7 +94,7 @@ For every new or modified registered Convex function:
 - Use the migration skill and widen-migrate-narrow for persisted breaking schema changes.
 - Do not add persisted fields, indexes, status values, background phases, or API result fields without an identified current consumer or enforced invariant. Future observability or recovery possibilities are not sufficient justification.
 
-Known violations remain in the backlog. Fix them in the agreed order rather than creating parallel compatibility layers.
+Known violations remain in the codebase. Do not deepen them or create parallel compatibility layers.
 
 ## Financial Domain Rules
 

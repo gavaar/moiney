@@ -9,7 +9,8 @@ import { useTransactionCache } from "./TransactionCacheContext";
 import { HISTORY_SCOPE } from "./transactionSnapshot";
 
 export const HISTORY_INITIAL_PAGE_SIZE = 100;
-export const HISTORY_LOAD_MORE_PAGE_SIZE = 15;
+export const HISTORY_LOAD_MORE_PAGE_SIZE = 30;
+const HISTORY_LOAD_ERROR = "Unable to load transaction history.";
 
 export type HistoryLoadMoreStatus =
   | "LoadingFirstPage"
@@ -25,6 +26,7 @@ type Page = {
 
 export type TransactionHistoryState = {
   transactions: TransactionModel[] | undefined;
+  error: string | null;
   isLoading: boolean;
   isRefreshing: boolean;
   loadMoreStatus: HistoryLoadMoreStatus;
@@ -40,6 +42,7 @@ export function useTransactionHistory(): TransactionHistoryState {
     [cache, read],
   );
   const [transactions, setTransactions] = useState<TransactionModel[] | undefined>();
+  const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [loadMoreStatus, setLoadMoreStatus] =
@@ -82,11 +85,13 @@ export function useTransactionHistory(): TransactionHistoryState {
 
   useEffect(() => {
     if (isHydrating) {
+      setError(null);
       setIsLoading(true);
       return;
     }
 
     if (cached.complete) {
+      setError(null);
       setTransactions(cached.transactions);
       setHasMore(cached.hasMore);
       setLoadMoreStatus(cached.hasMore ? "CanLoadMore" : "Exhausted");
@@ -95,6 +100,7 @@ export function useTransactionHistory(): TransactionHistoryState {
     }
 
     let active = true;
+    setError(null);
     setIsLoading(cached.transactions.length === 0);
     setLoadMoreStatus("LoadingFirstPage");
     void fetchPage(HISTORY_INITIAL_PAGE_SIZE, null)
@@ -105,6 +111,7 @@ export function useTransactionHistory(): TransactionHistoryState {
         if (!active) return;
         setIsLoading(false);
         setLoadMoreStatus(cached.transactions.length > 0 ? "CanLoadMore" : "Exhausted");
+        setError(HISTORY_LOAD_ERROR);
       });
 
     return () => {
@@ -115,6 +122,7 @@ export function useTransactionHistory(): TransactionHistoryState {
   const loadMore = useCallback(() => {
     if (requestInFlight.current || !hasMore) return;
     requestInFlight.current = true;
+    setError(null);
     setLoadMoreStatus("LoadingMore");
 
     const load = async () => {
@@ -141,7 +149,10 @@ export function useTransactionHistory(): TransactionHistoryState {
     };
 
     void load()
-      .catch(() => setLoadMoreStatus("CanLoadMore"))
+      .catch(() => {
+        setLoadMoreStatus("CanLoadMore");
+        setError(HISTORY_LOAD_ERROR);
+      })
       .finally(() => {
         requestInFlight.current = false;
       });
@@ -150,10 +161,14 @@ export function useTransactionHistory(): TransactionHistoryState {
   const refresh = useCallback(() => {
     if (requestInFlight.current) return;
     requestInFlight.current = true;
+    setError(null);
     setIsRefreshing(true);
     void fetchPage(HISTORY_INITIAL_PAGE_SIZE, null)
       .then(applyPage)
-      .catch(() => setIsRefreshing(false))
+      .catch(() => {
+        setIsRefreshing(false);
+        setError(HISTORY_LOAD_ERROR);
+      })
       .finally(() => {
         requestInFlight.current = false;
       });
@@ -161,6 +176,7 @@ export function useTransactionHistory(): TransactionHistoryState {
 
   return {
     transactions,
+    error,
     isLoading,
     isRefreshing,
     loadMoreStatus,

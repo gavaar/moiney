@@ -17,6 +17,8 @@ export type PipeModel = {
   fed: number;
   spent: number;
   pendingFedAdjustment?: number;
+  sourceType?: "feed" | "boiler";
+  contributedFed?: number;
   deletionJobId?: Id<"pipeDeletionJobs">;
   rule?: PipeRule;
   capUpdateValue?: number;
@@ -39,6 +41,10 @@ export function normalizePipe(pipe: Doc<"pipes">): PipeModel {
   if (pipe.description !== undefined) normalized.description = pipe.description;
   if (pipe.pendingFedAdjustment !== undefined) {
     normalized.pendingFedAdjustment = pipe.pendingFedAdjustment;
+  }
+  if (pipe.sourceType !== undefined) normalized.sourceType = pipe.sourceType;
+  if (pipe.contributedFed !== undefined) {
+    normalized.contributedFed = pipe.contributedFed;
   }
   if (pipe.deletionJobId !== undefined) normalized.deletionJobId = pipe.deletionJobId;
   if (pipe.rule !== undefined) normalized.rule = pipe.rule;
