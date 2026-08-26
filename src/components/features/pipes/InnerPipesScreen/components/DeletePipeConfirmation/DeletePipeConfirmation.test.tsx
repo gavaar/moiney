@@ -7,10 +7,21 @@ const pId = (id: string) => id as Id<"pipes">;
 
 const mockStartPipeDeletion = vi.fn();
 const mockDeletionStatus = vi.fn();
+const mockConvexQuery = vi.fn();
+const mockReconcileTransactions = vi.fn().mockResolvedValue(undefined);
 
 vi.mock("convex/react", () => ({
   useMutation: () => mockStartPipeDeletion,
   useQuery: () => mockDeletionStatus(),
+  useConvex: () => ({ query: mockConvexQuery }),
+}));
+
+vi.mock("@features/transactions/cache/TransactionCacheContext", () => ({
+  useOptionalTransactionCache: () => ({
+    cache: { entities: { "tx-1": {} } },
+    reconcileTransactions: mockReconcileTransactions,
+    invalidateAll: vi.fn(),
+  }),
 }));
 
 const mockShowAlert = { success: vi.fn(), error: vi.fn() };
@@ -44,6 +55,9 @@ describe("DeletePipeConfirmation", () => {
   beforeEach(() => {
     mockStartPipeDeletion.mockResolvedValue({ jobId: pId("job-1"), phase: "processingTransactions" });
     mockDeletionStatus.mockReturnValue(undefined);
+    mockConvexQuery.mockResolvedValue([]);
+    mockReconcileTransactions.mockReset();
+    mockReconcileTransactions.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -176,5 +190,46 @@ describe("DeletePipeConfirmation", () => {
     });
     expect(onDeleted).toHaveBeenCalled();
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it("reconciles cached transactions after deletion completes", async () => {
+    const surviving = {
+      id: "tx-1",
+      createdAt: 1,
+      title: "surviving transaction",
+      value: -100,
+      date: 1,
+      kind: "expense",
+      from: pId("pipe_child_1"),
+      fromIcon: "cafe",
+    };
+    mockDeletionStatus.mockReturnValue({
+      jobId: pId("job-1"),
+      phase: "complete",
+      deleteTransactions: true,
+      totalMembers: 4,
+      completedMembers: 4,
+    });
+    mockConvexQuery.mockResolvedValue([surviving]);
+    render(
+      <DeletePipeConfirmation
+        visible={true}
+        onClose={() => {}}
+        pipeId={pId("pipe_root")}
+        onDeleted={() => {}}
+      />,
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByText("Delete 4 pipes"));
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(mockConvexQuery).toHaveBeenCalledWith(expect.anything(), {
+      transactionIds: ["tx-1"],
+    });
+    expect(mockReconcileTransactions).toHaveBeenCalledWith(["tx-1"], [surviving]);
   });
 });

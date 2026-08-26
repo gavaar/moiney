@@ -300,11 +300,22 @@ Status: Implemented
 
 Transaction lists use an account-scoped persistent snapshot as a stale,
 read-only display source. A valid snapshot suppresses live Convex query
-subscriptions on app open. History seeds 100 rows and loads additional pages
-of 15 only after explicit demand. Every loaded transaction is persisted until
-the cache reaches 300 unique transaction entities, after which the least
-recently refreshed entries are evicted. History and selected-pipe scopes maintain
-separate ordered snapshots over the shared entity cache.
+subscriptions on app open. The cache stores one shared transaction entity map
+keyed by transaction ID and separate ordered ID snapshots for history, recent,
+and selected-pipe scopes. History seeds 100 rows and loads additional pages
+of 15 only after explicit demand. Recent and selected-pipe queries return at
+most 20 rows. Every loaded transaction is persisted until the cache reaches
+300 unique transaction entities, after which the least recently refreshed
+entries are evicted.
+
+Successful transaction creation and editing return purpose-built transaction
+rows and update the shared entity map in place. Creation updates only already
+loaded history, recent, and selected-pipe snapshots relevant to any `from`,
+`to`, or `paidFrom` role; it does not create unseen partial snapshots. Editing
+updates and reorders every loaded snapshot that already contains the ID.
+Asynchronous pipe deletion reconciles the currently cached IDs in one bounded
+request after completion, updating surviving rows and removing absent IDs from
+the entity map and all snapshots.
 
 The server remains authoritative. Explicit refresh, cache misses, and load-more
 requests use one-shot reads; cached rows are replaced or reconciled with the

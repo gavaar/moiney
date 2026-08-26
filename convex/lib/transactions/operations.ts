@@ -31,6 +31,49 @@ export type EditTransactionCommand = {
   date: number;
 };
 
+export type TransactionWriteResult = {
+  id: Id<"transactions">;
+  createdAt: number;
+  title: string;
+  value: number;
+  date: number;
+  kind: "feed" | "expense" | "transfer";
+  from?: Id<"pipes">;
+  to?: Id<"pipes">;
+  paidFrom?: Id<"pipes">;
+  fromIcon?: string;
+  toIcon?: string;
+  paidFromIcon?: string;
+  editedAt?: number;
+};
+
+function buildTransactionWriteResult(
+  id: Id<"transactions">,
+  createdAt: number,
+  transaction: Omit<TransactionWriteResult, "id" | "createdAt">,
+): TransactionWriteResult {
+  const result: TransactionWriteResult = {
+    id,
+    createdAt,
+    title: transaction.title,
+    value: transaction.value,
+    date: transaction.date,
+    kind: transaction.kind,
+  };
+
+  if (transaction.from !== undefined) result.from = transaction.from;
+  if (transaction.to !== undefined) result.to = transaction.to;
+  if (transaction.paidFrom !== undefined) result.paidFrom = transaction.paidFrom;
+  if (transaction.fromIcon !== undefined) result.fromIcon = transaction.fromIcon;
+  if (transaction.toIcon !== undefined) result.toIcon = transaction.toIcon;
+  if (transaction.paidFromIcon !== undefined) {
+    result.paidFromIcon = transaction.paidFromIcon;
+  }
+  if (transaction.editedAt !== undefined) result.editedAt = transaction.editedAt;
+
+  return result;
+}
+
 function createCachedPipeReader(ctx: MutationCtx) {
   const cache = new Map<Id<"pipes">, Promise<Doc<"pipes"> | null>>();
   return async (pipeId: Id<"pipes">) => {
@@ -48,7 +91,7 @@ export async function createTransactionOperation(
   userId: Id<"users">,
   command: CreateTransactionCommand,
   now: number,
-): Promise<null> {
+): Promise<TransactionWriteResult> {
   const title = canonicalizeTransactionTitle(command.title);
   const value = command.value;
   const getPipe = createCachedPipeReader(ctx);
@@ -92,7 +135,7 @@ export async function createTransactionOperation(
       await executePipeRule(ctx, command.to);
     }
 
-    await ctx.db.insert("transactions", {
+    const transactionId = await ctx.db.insert("transactions", {
       title,
       value,
       date: command.date,
@@ -108,7 +151,13 @@ export async function createTransactionOperation(
       now,
     });
     await reconcileAffectedPipeRoots(ctx, [command.to], getPipe);
-    return null;
+    return buildTransactionWriteResult(transactionId, now, {
+      title,
+      value,
+      date: command.date,
+      kind,
+      to: command.to,
+    });
   }
 
   const pipeId = command.from!;
@@ -186,7 +235,7 @@ export async function createTransactionOperation(
       getPipe,
     );
 
-    await ctx.db.insert("transactions", {
+    const transactionId = await ctx.db.insert("transactions", {
       title,
       value,
       date: command.date,
@@ -201,7 +250,14 @@ export async function createTransactionOperation(
       title,
       now,
     });
-    return null;
+    return buildTransactionWriteResult(transactionId, now, {
+      title,
+      value,
+      date: command.date,
+      kind,
+      from: pipeId,
+      paidFrom: command.paidFrom,
+    });
   }
 
   if (command.to) {
@@ -269,7 +325,7 @@ export async function createTransactionOperation(
     await reconcileAffectedPipeRoots(ctx, [pipeId], getPipe);
   }
 
-  await ctx.db.insert("transactions", {
+  const transactionId = await ctx.db.insert("transactions", {
     title,
     value,
     date: command.date,
@@ -284,7 +340,14 @@ export async function createTransactionOperation(
     title,
     now,
   });
-  return null;
+  return buildTransactionWriteResult(transactionId, now, {
+    title,
+    value,
+    date: command.date,
+    kind,
+    from: pipeId,
+    to: command.to,
+  });
 }
 
 export async function editTransactionOperation(
@@ -292,7 +355,7 @@ export async function editTransactionOperation(
   userId: Id<"users">,
   command: EditTransactionCommand,
   now: number,
-): Promise<null> {
+): Promise<TransactionWriteResult> {
   const transaction = await ctx.db.get("transactions", command.transactionId);
   if (!transaction) throw new Error("Transaction not found");
   if (transaction.userId !== userId) throw new Error("Not authorized");
@@ -503,5 +566,17 @@ export async function editTransactionOperation(
     date: command.date,
     ...(editedAt !== undefined ? { editedAt } : {}),
   });
-  return null;
+  return buildTransactionWriteResult(command.transactionId, transaction._creationTime, {
+    title,
+    value: command.value,
+    date: command.date,
+    kind: transaction.kind,
+    from: transaction.from,
+    to: transaction.to,
+    paidFrom: transaction.paidFrom,
+    fromIcon: transaction.fromIcon,
+    toIcon: transaction.toIcon,
+    paidFromIcon: transaction.paidFromIcon,
+    editedAt: editedAt ?? transaction.editedAt,
+  });
 }

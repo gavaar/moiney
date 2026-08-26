@@ -17,10 +17,12 @@ vi.mock("react-native", async (importOriginal) => ({
 }));
 
 const mockAddPipe = vi.fn();
+const mockConvexQuery = vi.fn();
 
 vi.mock("convex/react", () => ({
   useMutation: () => mockAddPipe,
   useQuery: () => undefined,
+  useConvex: () => ({ query: mockConvexQuery }),
 }));
 
 vi.mock("@convex/_generated/api", () => ({

@@ -22,6 +22,8 @@ const PIPE_ID = "pipe-1" as Id<"pipes">;
 const mockCreateTransaction = vi.fn().mockResolvedValue(undefined);
 const mockEditTransactionFn = vi.fn().mockResolvedValue(undefined);
 const mockInvalidateAll = vi.fn().mockResolvedValue(undefined);
+const mockAddTransaction = vi.fn().mockResolvedValue(undefined);
+const mockUpdateTransaction = vi.fn().mockResolvedValue(undefined);
 
 const mockRecentTitles: string[] = [];
 vi.mock("convex/react", () => ({
@@ -89,7 +91,11 @@ vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
 }));
 
 vi.mock("@features/transactions/cache/TransactionCacheContext", () => ({
-  useOptionalTransactionCache: () => ({ invalidateAll: mockInvalidateAll }),
+  useOptionalTransactionCache: () => ({
+    invalidateAll: mockInvalidateAll,
+    addTransaction: mockAddTransaction,
+    updateTransaction: mockUpdateTransaction,
+  }),
 }));
 
 vi.mock("@ui/Input", () => ({
@@ -622,7 +628,35 @@ describe("AmountForm", () => {
 
       await waitFor(() => {
         expect(onSuccess).toHaveBeenCalled();
-        expect(mockInvalidateAll).toHaveBeenCalled();
+        expect(mockAddTransaction).toHaveBeenCalled();
+        expect(mockInvalidateAll).not.toHaveBeenCalled();
+      });
+    });
+
+    it("adds the created transaction to the cache", async () => {
+      const created = {
+        id: "created-1",
+        createdAt: 10,
+        title: "groceries",
+        value: 5000,
+        date: 20,
+        kind: "feed",
+        to: PIPE_ID,
+      };
+      mockCreateTransaction.mockResolvedValueOnce(created);
+
+      render(<AmountForm pipeId={PIPE_ID} variant="feed" />);
+      fireEvent.change(screen.getByPlaceholderText("What was this for?"), {
+        target: { value: "groceries" },
+      });
+      fireEvent.change(screen.getByTestId("input-Amount-field"), {
+        target: { value: "50" },
+      });
+      fireEvent.click(screen.getByTestId("submit-button"));
+
+      await waitFor(() => {
+        expect(mockAddTransaction).toHaveBeenCalledWith(created);
+        expect(mockInvalidateAll).not.toHaveBeenCalled();
       });
     });
 
@@ -1228,6 +1262,46 @@ describe("AmountForm", () => {
         });
 
         vi.useRealTimers();
+      });
+
+      it("updates the edited transaction in the cache", async () => {
+        const updated = {
+          id: "tx-1",
+          createdAt: 1,
+          title: "updated lunch",
+          value: -2000,
+          date: 2,
+          kind: "expense",
+          from: PIPE_ID,
+          editedAt: 3,
+        };
+        mockEditTransactionFn.mockResolvedValueOnce(updated);
+
+        render(
+          <AmountForm
+            pipeId={PIPE_ID}
+            variant="transaction"
+            initState={{
+              pipeIcon: "cart",
+              pipeName: "Groceries",
+              title: "lunch",
+              value: "-15",
+              isFeed: false,
+              transactionId: "tx-1" as any,
+            }}
+          />,
+        );
+
+        fireEvent.change(screen.getByPlaceholderText("What was this for?"), {
+          target: { value: "updated lunch" },
+        });
+        fireEvent.click(screen.getByTestId("slide-toggle-edit"));
+        fireEvent.click(screen.getByTestId("submit-button"));
+
+        await waitFor(() => {
+          expect(mockUpdateTransaction).toHaveBeenCalledWith(updated);
+          expect(mockInvalidateAll).not.toHaveBeenCalled();
+        });
       });
 
       it("does not call createTransaction in edit mode", async () => {

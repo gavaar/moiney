@@ -5,6 +5,7 @@ import {
   editTransaction,
   listTransactionCorrectionsPaginated,
   listTransactions,
+  listTransactionsByIds,
 } from "./transactions";
 import { MAX_PIPES_PER_USER } from "./lib/constants";
 
@@ -29,7 +30,7 @@ function mockDb() {
   return {
     get: vi.fn(),
     patch: vi.fn(),
-    insert: vi.fn(),
+    insert: vi.fn().mockResolvedValue("transaction-1"),
     query: vi.fn(() => chain),
     _chain: chain,
   };
@@ -51,6 +52,41 @@ describe("createTransaction", () => {
   });
 
   describe("spend (from only)", () => {
+    it("returns the created transaction in cache-friendly form", async () => {
+      const ctx = mockCtx();
+      const created = {
+        _id: "tx-1",
+        _creationTime: 42,
+        title: "groceries",
+        value: -3000,
+        date: 1000,
+        kind: "expense",
+        from: "pipe-1",
+        userId: "user-1",
+      };
+      ctx.db.get.mockImplementation((table: string) =>
+        table === "transactions" ? created : A_PIPE,
+      );
+      ctx.db.insert.mockResolvedValue("tx-1");
+
+      const result = await (createTransaction as any)._handler(ctx, {
+        title: "groceries",
+        value: -3000,
+        date: 1000,
+        from: "pipe-1",
+      });
+
+      expect(result).toEqual({
+        id: "tx-1",
+        createdAt: expect.any(Number),
+        title: "groceries",
+        value: -3000,
+        date: 1000,
+        kind: "expense",
+        from: "pipe-1",
+      });
+    });
+
     it("accepts integer cents and persists the cents value", async () => {
       const ctx = mockCtx();
       ctx.db.get.mockResolvedValue({ ...A_PIPE, fed: 500, spent: 100 });
@@ -279,7 +315,12 @@ describe("createTransaction", () => {
           from: "pipe-1",
           paidFrom: "pipe-2",
         }),
-      ).resolves.toBeNull();
+      ).resolves.toMatchObject({
+        id: "transaction-1",
+        kind: "expense",
+        from: "pipe-1",
+        paidFrom: "pipe-2",
+      });
     });
 
     it("rejects a negative payer in the transaction pipe's root tree", async () => {
@@ -473,6 +514,7 @@ describe("editTransaction", () => {
     title: "old title",
     value: -50,
     date: 2000,
+    kind: "expense",
     from: "pipe-1" as string | undefined,
     to: undefined as string | undefined,
     userId: "user-1",
@@ -483,6 +525,35 @@ describe("editTransaction", () => {
   });
 
   describe("spend transaction", () => {
+    it("returns the edited transaction in cache-friendly form", async () => {
+      const ctx = mockCtx();
+      const tx = { ...BASE_TX, from: "pipe-1", to: undefined };
+      ctx.db.get.mockImplementation((tableOrId: string, maybeId?: string) => {
+        const id = maybeId ?? tableOrId;
+        if (id === "tx-1") return tx;
+        if (id === "pipe-1") return { ...A_PIPE, spent: 100 };
+        return null;
+      });
+
+      const result = await (editTransaction as any)._handler(ctx, {
+        transactionId: "tx-1",
+        title: "new title",
+        value: -80,
+        date: 3000,
+      });
+
+      expect(result).toMatchObject({
+        id: "tx-1",
+        createdAt: 1000,
+        title: "new title",
+        value: -80,
+        date: 3000,
+        kind: "expense",
+        from: "pipe-1",
+        editedAt: expect.any(Number),
+      });
+    });
+
     it("records one correction when the transaction is edited", async () => {
       const ctx = mockCtx();
       const tx = { ...BASE_TX, from: "pipe-1", to: undefined };
@@ -927,6 +998,7 @@ describe("listTransactions", () => {
       by_userId_paidFrom_date: [{ _id: "paid-row", date: 200 }],
     };
     const queriedIndexes: string[] = [];
+    const takeLimits: number[] = [];
     const query = vi.fn(() => ({
       withIndex: vi.fn((name: string, predicate: (q: any) => void) => {
         queriedIndexes.push(name);
@@ -937,9 +1009,10 @@ describe("listTransactions", () => {
         }
         return {
           order: vi.fn(() => ({
-            take: vi.fn().mockResolvedValue(
-              rowsByIndex[name as keyof typeof rowsByIndex],
-            ),
+            take: vi.fn((limit: number) => {
+              takeLimits.push(limit);
+              return Promise.resolve(rowsByIndex[name as keyof typeof rowsByIndex]);
+            }),
           })),
         };
       }),
@@ -956,11 +1029,20 @@ describe("listTransactions", () => {
       "by_userId_to_date",
       "by_userId_paidFrom_date",
     ]);
+    expect(takeLimits).toEqual([20, 20, 20]);
     expect(result.map((transaction: any) => transaction._id)).toEqual([
       "to-row",
       "paid-row",
       "from-row",
     ]);
+  });
+
+  it("limits unfiltered recent transactions to 20 rows", async () => {
+    const ctx = mockCtx();
+
+    await (listTransactions as any)._handler(ctx, {});
+
+    expect(ctx.db._chain.take).toHaveBeenCalledWith(20);
   });
 
   it("rejects more pipe filters than one user can own", async () => {
@@ -974,6 +1056,54 @@ describe("listTransactions", () => {
       (listTransactions as any)._handler(ctx, { pipeIds }),
     ).rejects.toMatchObject({ data: { code: "TOO_MANY_PIPE_FILTERS" } });
     expect(ctx.db.query).not.toHaveBeenCalled();
+  });
+});
+
+describe("listTransactionsByIds", () => {
+  it("returns only owned requested rows in cache-friendly form", async () => {
+    const owned = {
+      _id: "owned",
+      _creationTime: 10,
+      title: "owned",
+      value: -100,
+      date: 20,
+      kind: "expense",
+      from: "pipe-1",
+      userId: "user-1",
+    };
+    const foreign = { ...owned, _id: "foreign", userId: "user-2" };
+    const ctx = mockCtx();
+    ctx.db.get.mockImplementation((_table: string, id: string) => {
+      if (id === "owned") return owned;
+      if (id === "foreign") return foreign;
+      return null;
+    });
+
+    const result = await (listTransactionsByIds as any)._handler(ctx, {
+      transactionIds: ["owned", "missing", "foreign"],
+    });
+
+    expect(result).toEqual([
+      {
+        id: "owned",
+        createdAt: 10,
+        title: "owned",
+        value: -100,
+        date: 20,
+        kind: "expense",
+        from: "pipe-1",
+      },
+    ]);
+  });
+
+  it("rejects more than 300 requested IDs before reading the database", async () => {
+    const ctx = mockCtx();
+    const transactionIds = Array.from({ length: 301 }, () => "duplicate-id");
+
+    await expect(
+      (listTransactionsByIds as any)._handler(ctx, { transactionIds }),
+    ).rejects.toMatchObject({ data: { code: "TOO_MANY_TRANSACTION_IDS" } });
+    expect(ctx.db.get).not.toHaveBeenCalled();
   });
 });
 

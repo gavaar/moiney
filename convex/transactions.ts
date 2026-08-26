@@ -20,7 +20,23 @@ import { MAX_PIPES_PER_USER } from "./lib/constants";
 
 const TITLE_USAGE_RETENTION_MS = 365 * 24 * 60 * 60 * 1000;
 const TITLE_USAGE_CLEANUP_BATCH_SIZE = 100;
-const RECENT_TRANSACTION_LIMIT = 12;
+const RECENT_TRANSACTION_LIMIT = 20;
+const TRANSACTION_CACHE_RECONCILIATION_LIMIT = 300;
+const transactionCacheItem = v.object({
+  id: v.id("transactions"),
+  createdAt: v.number(),
+  title: v.string(),
+  value: v.number(),
+  date: v.number(),
+  kind: v.union(v.literal("feed"), v.literal("expense"), v.literal("transfer")),
+  from: v.optional(v.id("pipes")),
+  to: v.optional(v.id("pipes")),
+  paidFrom: v.optional(v.id("pipes")),
+  fromIcon: v.optional(v.string()),
+  toIcon: v.optional(v.string()),
+  paidFromIcon: v.optional(v.string()),
+  editedAt: v.optional(v.number()),
+});
 const correctionSnapshot = v.object({
   title: v.string(),
   value: v.number(),
@@ -38,6 +54,41 @@ function transactionsQuery(ctx: QueryCtx, userId: Id<"users">) {
     .query("transactions")
     .withIndex("by_userId_date", (q) => q.eq("userId", userId))
     .order("desc");
+}
+
+function toTransactionCacheItem(transaction: Doc<"transactions">) {
+  const item = {
+    id: transaction._id,
+    createdAt: transaction._creationTime,
+    title: transaction.title,
+    value: transaction.value,
+    date: transaction.date,
+    kind: transaction.kind,
+  } as {
+    id: Id<"transactions">;
+    createdAt: number;
+    title: string;
+    value: number;
+    date: number;
+    kind: Doc<"transactions">["kind"];
+    from?: Id<"pipes">;
+    to?: Id<"pipes">;
+    paidFrom?: Id<"pipes">;
+    fromIcon?: string;
+    toIcon?: string;
+    paidFromIcon?: string;
+    editedAt?: number;
+  };
+
+  if (transaction.from !== undefined) item.from = transaction.from;
+  if (transaction.to !== undefined) item.to = transaction.to;
+  if (transaction.paidFrom !== undefined) item.paidFrom = transaction.paidFrom;
+  if (transaction.fromIcon !== undefined) item.fromIcon = transaction.fromIcon;
+  if (transaction.toIcon !== undefined) item.toIcon = transaction.toIcon;
+  if (transaction.paidFromIcon !== undefined) item.paidFromIcon = transaction.paidFromIcon;
+  if (transaction.editedAt !== undefined) item.editedAt = transaction.editedAt;
+
+  return item;
 }
 
 async function loadRecentTransactionsForRole(
@@ -114,7 +165,7 @@ export const createTransaction = mutation({
     to: v.optional(v.id("pipes")),
     paidFrom: v.optional(v.id("pipes")),
   },
-  returns: v.null(),
+  returns: transactionCacheItem,
   handler: async (ctx, args) => {
     const userId = await requireAuth(ctx);
     return await createTransactionOperation(ctx, userId, args, Date.now());
@@ -128,7 +179,7 @@ export const editTransaction = mutation({
     value: v.number(),
     date: v.number(),
   },
-  returns: v.null(),
+  returns: transactionCacheItem,
   handler: async (ctx, args) => {
     const userId = await requireAuth(ctx);
     return await editTransactionOperation(ctx, userId, args, Date.now());
@@ -177,6 +228,29 @@ export const listTransactions = query({
       return await loadRecentTransactionsForPipes(ctx, userId, args.pipeIds);
     }
     return await transactionsQuery(ctx, userId).take(RECENT_TRANSACTION_LIMIT);
+  },
+});
+
+export const listTransactionsByIds = query({
+  args: {
+    transactionIds: v.array(v.id("transactions")),
+  },
+  returns: v.array(transactionCacheItem),
+  handler: async (ctx, args) => {
+    const userId = await requireAuth(ctx);
+    if (args.transactionIds.length > TRANSACTION_CACHE_RECONCILIATION_LIMIT) {
+      throw new ConvexError({ code: "TOO_MANY_TRANSACTION_IDS" });
+    }
+    const transactionIds = [...new Set(args.transactionIds)];
+
+    const rows = await Promise.all(
+      transactionIds.map((transactionId) => ctx.db.get("transactions", transactionId)),
+    );
+    return rows
+      .filter((transaction): transaction is Doc<"transactions"> =>
+        transaction?.userId === userId,
+      )
+      .map(toTransactionCacheItem);
   },
 });
 

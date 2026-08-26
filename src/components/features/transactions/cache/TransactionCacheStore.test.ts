@@ -34,6 +34,51 @@ function memoryStorage(): TransactionCacheStorage & { value: string | null } {
 }
 
 describe("TransactionCacheStore", () => {
+  it("persists a created transaction in the cache", async () => {
+    const storage = memoryStorage();
+    const store = new TransactionCacheStore("account-1", storage);
+
+    await store.hydrate();
+    await store.addTransaction(transaction("tx-1"), 1);
+
+    expect(store.cache.entities["tx-1"].transaction.title).toBe("tx-1");
+    expect(JSON.parse(storage.value!).entities["tx-1"].transaction.title).toBe("tx-1");
+  });
+
+  it("persists an edited transaction in the cache", async () => {
+    const storage = memoryStorage();
+    const store = new TransactionCacheStore("account-1", storage);
+
+    await store.hydrate();
+    await store.addTransaction(transaction("tx-1"), 1);
+    await store.updateTransaction({ ...transaction("tx-1"), title: "updated" }, 2);
+
+    expect(store.cache.entities["tx-1"].transaction.title).toBe("updated");
+    expect(JSON.parse(storage.value!).entities["tx-1"].transaction.title).toBe("updated");
+  });
+
+  it("persists deletion reconciliation", async () => {
+    const storage = memoryStorage();
+    const store = new TransactionCacheStore("account-1", storage);
+
+    await store.hydrate();
+    await store.replace(
+      HISTORY_SCOPE,
+      [transaction("deleted"), transaction("survives")],
+      false,
+      1,
+    );
+    await store.reconcileTransactions(
+      ["deleted", "survives"],
+      [{ ...transaction("survives"), title: "updated" }],
+      2,
+    );
+
+    expect(store.cache.entities.deleted).toBeUndefined();
+    expect(store.cache.entities.survives.transaction.title).toBe("updated");
+    expect(JSON.parse(storage.value!).entities.deleted).toBeUndefined();
+  });
+
   it("hydrates and persists snapshots through its storage adapter", async () => {
     const storage = memoryStorage();
     const first = new TransactionCacheStore("account-1", storage);

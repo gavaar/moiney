@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
-import { useMutation, useQuery } from "convex/react";
+import { useConvex, useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
+import type { Id } from "@convex/_generated/dataModel";
 import type {
   PipeModel,
 } from "@features/pipes/data/pipes";
@@ -49,6 +50,7 @@ export function DeletePipeConfirmation({ visible, onClose, pipeId, onDeleted }: 
   const [jobId, setJobId] = useState<NonNullable<PipeModel["deletionJobId"]> | null>(null);
   const showAlert = useAlert();
   const transactionCache = useOptionalTransactionCache();
+  const convex = useConvex();
   const startPipeDeletion = useMutation(api.pipes.startPipeDeletion);
   const deletionStatus = useQuery(
     api.pipes.getPipeDeletionStatus,
@@ -78,13 +80,23 @@ export function DeletePipeConfirmation({ visible, onClose, pipeId, onDeleted }: 
       );
       setJobId(null);
       setIsDeleting(false);
-      void transactionCache?.invalidateAll();
+      const transactionIds = transactionCache?.cache
+        ? Object.keys(transactionCache.cache.entities) as Id<"transactions">[]
+        : [];
+      if (transactionCache && transactionIds.length > 0) {
+        void convex.query(api.transactions.listTransactionsByIds, { transactionIds })
+          .then((transactions) =>
+            transactionCache.reconcileTransactions(transactionIds, transactions),
+          )
+          .catch(() => transactionCache.invalidateAll());
+      }
       onDeleted();
       onClose();
     }
   }, [
     deletionStatus,
     descendants.length,
+    convex,
     jobId,
     onClose,
     onDeleted,
@@ -96,7 +108,6 @@ export function DeletePipeConfirmation({ visible, onClose, pipeId, onDeleted }: 
     setIsDeleting(true);
     try {
       const result = await startPipeDeletion({ pipeId, deleteTransactions });
-      await transactionCache?.invalidateAll();
       setJobId(result.jobId);
     } catch (error) {
       showAlert.error(`${error}`);

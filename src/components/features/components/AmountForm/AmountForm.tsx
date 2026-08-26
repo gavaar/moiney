@@ -180,7 +180,7 @@ export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: 
 
   const handleEditSubmit = useCallback(async () => {
     const amount = parseMoney(value);
-    await editTransaction(
+    const transaction = await editTransaction(
       buildEditTransactionCommand({
         transactionId: initState?.transactionId!,
         title,
@@ -188,14 +188,14 @@ export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: 
         date: date.getTime(),
       }),
     );
-    await transactionCache?.invalidateAll();
+    await transactionCache?.updateTransaction(transaction);
     resetForm();
     onSuccess?.();
   }, [title, value, date, initState?.transactionId, onSuccess, resetForm, editTransaction, transactionCache]);
 
   const handleRepeatSubmit = useCallback(async () => {
     const amount = parseMoney(value);
-    await createTransaction(
+    const transaction = await createTransaction(
       buildCreateTransactionCommand({
         title,
         amount,
@@ -207,7 +207,7 @@ export function AmountForm({ pipeId, variant = "spend", initState, onSuccess }: 
         paidFromPipeId,
       }),
     );
-    await transactionCache?.invalidateAll();
+    await transactionCache?.addTransaction(transaction);
     resetForm();
     onSuccess?.();
   }, [isFeed, value, title, date, pipeId, spendMode, sentToPipeId, paidFromPipeId, onSuccess, resetForm, createTransaction, transactionCache]);
