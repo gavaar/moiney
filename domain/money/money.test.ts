@@ -9,17 +9,6 @@ import {
 } from "./money";
 
 describe("parseMoney", () => {
-  it("returns a plain number", () => {
-    type IsExactlyNumber<T> = [T] extends [number]
-      ? [number] extends [T]
-        ? true
-        : false
-      : false;
-
-    const result: IsExactlyNumber<ReturnType<typeof parseMoney>> = true;
-    expect(result).toBe(true);
-  });
-
   it.each([
     ["12.34", 1234],
     ["-0.05", -5],

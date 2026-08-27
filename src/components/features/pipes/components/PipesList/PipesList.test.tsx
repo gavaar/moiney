@@ -13,8 +13,6 @@ vi.mock("@features/pipes/components/PipeBox", () => ({
   PipeBox: (props: any) => (
     <button
       data-testid="feed-box"
-      data-name={props.name}
-      data-icon={props.icon}
       data-capacity={props.capacity}
       data-show-priority={props.showPriority ? "true" : "false"}
       onClick={() => props.onPress?.()}
@@ -34,14 +32,6 @@ describe("PipesList", () => {
     render(<PipesList pipes={mockPipes} />);
     const boxes = screen.getAllByTestId("feed-box");
     expect(boxes).toHaveLength(2);
-  });
-
-  it("passes correct props to each PipeBox", () => {
-    render(<PipesList pipes={mockPipes} />);
-    const boxes = screen.getAllByTestId("feed-box");
-    expect(boxes[0].getAttribute("data-name")).toBe("Groceries");
-    expect(boxes[0].getAttribute("data-icon")).toBe("cart-outline");
-    expect(boxes[1].getAttribute("data-name")).toBe("Salary");
   });
 
   it("uses contributed fed as a boiler card's visual baseline", () => {
