@@ -148,6 +148,7 @@ describe("InnerPipesScreen", () => {
     render(<InnerPipesScreen />);
 
     expect(screen.getByTestId("bar-capacity-fill")).toBeDefined();
+    expect(screen.queryByTestId("bar-spent-fill")).toBeNull();
     expect(screen.getByText("100.00")).toBeDefined();
     expect(screen.getByTestId("boiler-growth-chip").textContent).toContain(
       "+50%",
@@ -218,7 +219,9 @@ describe("InnerPipesScreen", () => {
       selectedName: "Groceries",
     });
     render(<InnerPipesScreen />);
-    expect(screen.getByText(/L2S: 0\.00/)).toBeDefined();
+    expect(
+      screen.getByRole("button", { name: "Left to spend, 0.00" }),
+    ).toBeDefined();
   });
 
   it("renders children of selected pipe in PipesList", () => {

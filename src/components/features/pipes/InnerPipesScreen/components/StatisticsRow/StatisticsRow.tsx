@@ -1,8 +1,8 @@
-import { Fragment, RefObject, useMemo, useRef, useState } from "react";
+import { RefObject, useMemo, useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { Popover } from "@ui/Popover";
 import { Icon, type IconName } from "@ui/Icon";
-import { colors } from "@/lib/styles";
+import { cn, colors } from "@/lib/styles";
 import { formatAmount } from "@/lib/format";
 import { getDaysInMonth } from "@/lib/dates";
 import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
@@ -11,18 +11,21 @@ import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 type StatItem = {
-  label: string;
-  value: number;
+  displayValue: string;
   title: string;
   description: string;
+  guidance?: string;
   ref: RefObject<View | null>;
-  icon?: IconName;
-  external?: boolean;
+  icon: IconName;
+  testID?: string;
+  tone?: "external" | "growth-negative" | "growth-non-negative";
 };
 
 type Props = {
   fed: number;
   spent: number;
+  capacity: number;
+  expected: number;
   pendingFedAdjustment?: number;
   sourceType?: "feed" | "boiler";
   contributedFed?: number;
@@ -42,17 +45,31 @@ function formatGrowthPercentage(value: number): string {
 export function StatisticsRow({
   fed,
   spent,
+  capacity,
+  expected,
   pendingFedAdjustment = 0,
   sourceType,
   contributedFed = 0,
 }: Props) {
   const daysInMonth = getDaysInMonth();
-  const [selectedStatLabel, setSelectedStatLabel] = useState<string | null>(
+  const currentDay = new Date().getDate();
+  const dailyExpected = daysInMonth > 0 ? expected / daysInMonth : 0;
+  const accumulatedSpend = dailyExpected * currentDay - spent;
+  const daysUntilPositive =
+    accumulatedSpend < 0 && dailyExpected > 0
+      ? Math.floor(-accumulatedSpend / dailyExpected) + 1
+      : null;
+  const growth =
+    sourceType === "boiler" && contributedFed !== 0
+      ? ((fed - contributedFed) / contributedFed) * 100
+      : null;
+  const growthLabel = growth === null ? "N/A" : formatGrowthPercentage(growth);
+  const [selectedStatTitle, setSelectedStatTitle] = useState<string | null>(
     null,
   );
   const l2sRef = useRef<View>(null);
-  const stmRef = useRef<View>(null);
   const stmpdRef = useRef<View>(null);
+  const astmRef = useRef<View>(null);
   const cronRef = useRef<View>(null);
   const externalRef = useRef<View>(null);
   const growthRef = useRef<View>(null);
@@ -72,34 +89,58 @@ export function StatisticsRow({
 
   const stats = useMemo<StatItem[]>(
     () => [
+      ...(sourceType !== "boiler"
+        ? [
+            {
+              displayValue: formatAmount(capacity - spent),
+              title: "Left to spend",
+              description: `You have ${formatAmount(capacity - spent)} left to spend from this pipe at the moment.`,
+              icon: "circle-half-full" as IconName,
+              ref: l2sRef,
+            },
+          ]
+        : []),
       {
-        label: "L2S",
-        value: fed - spent,
-        title: "Left to spend (L2S)",
-        description: "How much left can be spent from this pipe at the moment",
-        ref: l2sRef,
-      },
-      {
-        label: "StM",
-        value: spent,
-        title: "Spent this month (StM)",
-        description: "How much have been spent this month",
-        ref: stmRef,
-      },
-      {
-        label: "StMpD",
-        value: daysInMonth > 0 ? spent / daysInMonth : 0,
-        title: "Spent this month per day (StMpD)",
-        description:
-          "An average of how much was spent per day in this pipe, this month",
+        displayValue: formatAmount(Math.round(spent / currentDay)),
+        title: "Spent this month per day",
+        description: `An average of ${formatAmount(Math.round(spent / currentDay))} was spent per day over ${currentDay} days in this pipe this month.`,
+        icon: "calculate",
         ref: stmpdRef,
       },
+      {
+        displayValue: formatAmount(Math.round(accumulatedSpend)),
+        title: "Accumulated spend this month",
+        description: `You can spend ${formatAmount(Math.round(accumulatedSpend))}. This month expects ${formatAmount(expected)} to be spent, which adds up to ${formatAmount(Math.round(dailyExpected))} spendable per day. Given you have already spent ${formatAmount(spent)}, you can spend up to today ${formatAmount(Math.round(accumulatedSpend))}.`,
+        guidance: accumulatedSpend < 0
+          ? daysUntilPositive !== null &&
+            daysUntilPositive <= daysInMonth - currentDay
+            ? `This value will be positive again in ${daysUntilPositive} ${daysUntilPositive === 1 ? "day" : "days"}.`
+            : "You should not spend anymore from this pipe this month."
+            : undefined,
+        icon: "playlist-add",
+        ref: astmRef,
+      },
+      ...(sourceType === "boiler"
+        ? [
+            {
+              displayValue: growthLabel,
+              title: "Growth",
+              description: `This pipe has received ${formatAmount(contributedFed)} value, but now holds ${formatAmount(fed)}, meaning it has grown ${growthLabel}.`,
+              icon: "trending-up" as IconName,
+              ref: growthRef,
+              testID: "boiler-growth-chip",
+              tone:
+                growth !== null && growth < 0
+                  ? ("growth-negative" as const)
+                  : ("growth-non-negative" as const),
+            },
+          ]
+        : []),
       ...(daysLeft != null
         ? [
             {
-              label: "DL",
-              value: daysLeft,
-              title: "Days left (DL)",
+              displayValue: String(daysLeft),
+              title: "Days left",
               description: "Days left until this pipe resets",
               icon: "timer-outline" as IconName,
               ref: cronRef,
@@ -109,8 +150,7 @@ export function StatisticsRow({
       ...(pendingFedAdjustment !== 0
         ? [
             {
-              label: "Ext",
-              value: pendingFedAdjustment,
+              displayValue: formatSignedAmount(pendingFedAdjustment),
               title:
                 pendingFedAdjustment > 0
                   ? "Paid elsewhere"
@@ -121,131 +161,91 @@ export function StatisticsRow({
                   : `This refund reduces this pipe's spending, but another pipe received it. The next rule run will subtract ${formatAmount(Math.abs(pendingFedAdjustment))} from this pipe's fed balance.`,
               icon: "swap-horizontal-outline" as IconName,
               ref: externalRef,
-              external: true,
+              testID: "external-adjustment-chip",
+              tone: "external" as const,
             },
           ]
         : []),
     ],
-    [fed, spent, daysInMonth, daysLeft, pendingFedAdjustment],
+    [
+      accumulatedSpend,
+      capacity,
+      currentDay,
+      dailyExpected,
+      daysLeft,
+      expected,
+      fed,
+      contributedFed,
+      growth,
+      growthLabel,
+      pendingFedAdjustment,
+      sourceType,
+      spent,
+    ],
   );
 
-  const primaryStats = stats.filter((stat) => !stat.external);
-  const externalStat = stats.find((stat) => stat.external);
-  const growth =
-    sourceType === "boiler" && contributedFed !== 0
-      ? ((fed - contributedFed) / contributedFed) * 100
-      : null;
-  const growthLabel = growth === null ? "N/A" : formatGrowthPercentage(growth);
-
   return (
-    <View className="items-center gap-1">
-      <View className="flex-row justify-center gap-1">
-        {primaryStats.map((stat, index) => (
-          <Fragment key={stat.label}>
-            {index > 0 && <Text className="text-muted/50 text-xs">|</Text>}
-
-            <View className="flex-row items-center">
-              <Pressable
-                ref={stat.ref}
-                accessibilityRole="button"
-                onPress={() => setSelectedStatLabel(stat.label)}
-              >
-                <Text className="text-sm border px-2 rounded-md border-muted/50 text-text">
-                  {stat.icon ? (
-                    <>
-                      <Icon name={stat.icon} size={14} color={colors.text} />
-                      <Text> {stat.value}</Text>
-                    </>
-                  ) : (
-                    <>
-                      {stat.label}: {formatAmount(Math.round(stat.value))}
-                    </>
-                  )}
-                </Text>
-              </Pressable>
-
-              <Popover
-                visible={selectedStatLabel === stat.label}
-                onClose={() => setSelectedStatLabel(null)}
-                anchorRef={stat.ref as RefObject<View>}
-                anchorPosition="bottom"
-              >
-                <Text className="text-text font-bold text-md">
-                  {stat.title}:
-                </Text>
-                <Text className="text-text text-sm">{stat.description}</Text>
-              </Popover>
-            </View>
-          </Fragment>
-        ))}
-      </View>
-
-      {sourceType === "boiler" ? (
-        <View className="flex-row items-center">
+    <View className="flex-row flex-wrap items-center justify-center gap-1">
+      {stats.map((stat) => (
+        <View key={stat.title} className="items-center justify-center">
           <Pressable
-            ref={growthRef}
+            ref={stat.ref}
+            testID={stat.testID}
+            className={cn(
+              "flex-row items-center justify-center gap-1 border p-2 rounded-md",
+              stat.tone === "growth-negative"
+                ? "border-error/70 bg-error/10"
+                : stat.tone === "growth-non-negative"
+                  ? "border-secondary/70 bg-secondary/10"
+                  : stat.tone === "external"
+                    ? "border-accent/70 bg-accent/10"
+                    : "border-muted/50",
+            )}
             accessibilityRole="button"
-            accessibilityLabel={`Boiler growth, ${
-              growth !== null && growth < 0 ? "negative" : "non-negative"
-            }`}
-            onPress={() => setSelectedStatLabel("Growth")}
+            accessibilityLabel={`${stat.title}, ${stat.displayValue}`}
+            onPress={() => setSelectedStatTitle(stat.title)}
           >
+            <Icon
+              name={stat.icon}
+              size={14}
+              color={
+                stat.tone === "growth-negative"
+                  ? colors.error
+                  : stat.tone === "growth-non-negative"
+                    ? colors.secondary
+                    : stat.tone === "external"
+                      ? colors.accent
+                      : colors.text
+              }
+            />
             <Text
-              testID="boiler-growth-chip"
-              className={`text-sm border px-2 rounded-md ${
-                growth !== null && growth < 0
-                  ? "border-error/70 bg-error/10 text-error"
-                  : "border-secondary/70 bg-secondary/10 text-secondary"
-              }`}
+              className={cn(
+                "text-sm",
+                stat.tone === "growth-negative"
+                  ? "text-error"
+                  : stat.tone === "growth-non-negative"
+                    ? "text-secondary"
+                    : stat.tone === "external"
+                      ? "text-accent"
+                      : "text-text",
+              )}
             >
-              Growth: {growthLabel}
+              {stat.displayValue}
             </Text>
           </Pressable>
 
           <Popover
-            visible={selectedStatLabel === "Growth"}
-            onClose={() => setSelectedStatLabel(null)}
-            anchorRef={growthRef as RefObject<View>}
+            visible={selectedStatTitle === stat.title}
+            onClose={() => setSelectedStatTitle(null)}
+            anchorRef={stat.ref as RefObject<View>}
             anchorPosition="bottom"
           >
-            <Text className="text-text font-bold text-md">Growth:</Text>
-            <Text className="text-text text-sm">
-              This pipe has received {formatAmount(contributedFed)} value, but now holds {formatAmount(fed)}, meaning it has grown {growthLabel}.
-            </Text>
+            <Text className="text-text font-bold text-md">{stat.title}:</Text>
+            <Text className="text-text text-sm">{stat.description}</Text>
+            {stat.guidance ? <Text className="text-text text-sm mt-1">{stat.guidance}</Text> : null}
           </Popover>
         </View>
-      ) : null}
-
-      {externalStat ? (
-        <View className="flex-row items-center">
-          <Pressable
-            ref={externalStat.ref}
-            testID="external-adjustment-chip"
-            accessibilityRole="button"
-            accessibilityLabel={externalStat.title}
-            onPress={() => setSelectedStatLabel(externalStat.label)}
-          >
-            <Text className="text-sm border px-2 rounded-md border-accent/70 bg-accent/10 text-accent">
-              <Icon name={externalStat.icon!} size={14} color={colors.accent} />
-              <Text> {formatSignedAmount(externalStat.value)}</Text>
-            </Text>
-          </Pressable>
-
-          <Popover
-            visible={selectedStatLabel === externalStat.label}
-            onClose={() => setSelectedStatLabel(null)}
-            anchorRef={externalStat.ref as RefObject<View>}
-            anchorPosition="bottom"
-          >
-            <Text className="text-text font-bold text-md">
-              {externalStat.title}:
-            </Text>
-            <Text className="text-text text-sm">
-              {externalStat.description}
-            </Text>
-          </Popover>
-        </View>
-      ) : null}
+      ))}
     </View>
   );
 }

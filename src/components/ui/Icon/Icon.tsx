@@ -1,4 +1,4 @@
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import { type ComponentType } from "react";
 import { type ColorValue, type TextStyle } from "react-native";
 import { colors } from "@/lib/styles";
@@ -7,6 +7,7 @@ import { ICON_REGISTRY, type IconFamily, type IconName } from "./icons";
 const FAMILY_COMPONENTS: Record<IconFamily, ComponentType<any>> = {
   Ionicons,
   MaterialCommunityIcons,
+  MaterialIcons,
 };
 
 type Props = {

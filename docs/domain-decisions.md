@@ -168,6 +168,16 @@ of each immediate child's normalized `capUpdateValue` or fallback capacity.
 This presentation intentionally does not calculate post-rule capacity or
 include leftover fed from the previous cycle.
 
+Pipe detail statistics present left to spend as `capacity - spent`. Average
+daily spending divides current-month spending by the current day-of-month.
+Accumulated spendable value through today is
+`expected / daysInMonth * currentDay - spent`; its presentation rounds only at
+the integer-cent formatting boundary. When this value is negative and the
+daily expected amount is positive, its detail states how many whole days are
+needed for the precise value to become positive. If that requires more days
+than remain in the month, or the daily expected amount cannot increase it, the
+detail advises against further spending from the pipe that month.
+
 ## D009: (reserved)
 
 Status: Implemented
@@ -354,7 +364,9 @@ Boiler growth is `(fed - contributedFed) / contributedFed * 100`. Zero and
 positive growth are presented in blue and negative growth in red. Growth is not
 available when `contributedFed` is zero. Boiler liquidity bars use
 `contributedFed` as their presentation baseline without replacing or modifying
-the pipe's operational `capacity`.
+the pipe's operational `capacity`. Boiler detail statistics omit left to spend,
+and boiler liquidity bars omit spent because those spending presentations are
+not relevant to boiler pipes.
 
 `sourceType` and `contributedFed` are optional persisted fields for compatibility
 with existing data. Existing roots without `sourceType` are ordinary feeds; new

@@ -10,6 +10,7 @@ vi.mock("@expo/vector-icons", () => {
   return {
     Ionicons: MockIcon,
     MaterialCommunityIcons: MockIcon,
+    MaterialIcons: MockIcon,
   };
 });
 

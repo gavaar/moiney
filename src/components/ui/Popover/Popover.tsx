@@ -80,8 +80,9 @@ export function Popover({
     <RNModal transparent visible={visible} onRequestClose={onClose} animationType="fade">
       <Pressable testID="popover-backdrop" className="flex-1" onPress={onClose}>
         <View
+          testID="popover-content"
           className="bg-surface border border-border rounded-xl p-2"
-          style={{ position: "absolute", top, left }}
+          style={{ position: "absolute", top, left, maxWidth: windowWidth * 0.85 }}
           onLayout={(e) => {
             const { width, height } = e.nativeEvent.layout;
             setContentSize({ width, height });
