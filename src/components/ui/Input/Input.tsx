@@ -1,7 +1,7 @@
-import type { ReactNode } from "react";
 import type { IconName } from "@ui/Icon";
 import type { TextInputProps } from "react-native";
 import { DateInput, DecimalInput, TextInput, NumberInput, IconInput, CheckboxInput, SelectInput, TextSelectInput } from "./components";
+import type { SelectInputProps } from "./components";
 
 type CheckboxProps = {
   type: "checkbox";
@@ -14,6 +14,7 @@ type CheckboxProps = {
 type TextProps = TextInputProps & {
   type?: "text";
   label: string;
+  hideLabel?: boolean;
   error?: string;
   disabled?: boolean;
   endIcon?: "eye" | "eye-off";
@@ -48,9 +49,11 @@ type DecimalProps = {
 type DateProps = {
   type: "date";
   label: string;
+  hideLabel?: boolean;
   error?: string;
   disabled?: boolean;
-  value: Date;
+  value: Date | null;
+  placeholder?: string;
   onChange: (date: Date) => void;
 };
 
@@ -63,17 +66,7 @@ type IconProps = {
   onSelect: (name: IconName) => void;
 };
 
-type SelectProps = {
-  type: "select";
-  label: string;
-  error?: string;
-  disabled?: boolean;
-  items: readonly { id: string }[];
-  renderItem: (item: Record<string, any>) => ReactNode;
-  value: string | null;
-  onSelect: (id: string) => void;
-  placeholder?: string;
-};
+type SelectProps = SelectInputProps & { type: "select" };
 
 type TextSelectProps = {
   type: "text-select";

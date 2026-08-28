@@ -54,6 +54,15 @@ The current structure contains known boundary violations and oversized modules. 
 ## Mandatory Workflow
 
 - Follow `.agents/skills/tdd/SKILL.md` for production behavior changes.
+- Require tests for observable contracts, domain calculations, interactions,
+  accessibility, API contracts, authorization, and persistence behavior. Do
+  not require dedicated tests for supporting implementation details such as
+  icon registry entries, imports, types, or prop plumbing when they support an
+  already-tested behavior.
+- Documentation, comments, formatting, and visual-only adjustments do not
+  require a Red-Green cycle. Do not add tests that only assert source
+  structure, exact utility classes, or registry membership. Exempt changes
+  must still pass relevant existing tests and type checking.
 - Work on one observable behavior at a time: plan, failing test, minimum implementation, refactor.
 - Run the focused test first, then the full suite and type check before completion.
 - Prefer behavioral tests over source-text assertions or tests of implementation shape.

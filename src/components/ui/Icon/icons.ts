@@ -1,4 +1,4 @@
-type IconFamily = "Ionicons" | "MaterialCommunityIcons";
+type IconFamily = "Ionicons" | "MaterialCommunityIcons" | "MaterialIcons";
 
 type CuratedIcon = {
   name: string;
@@ -14,6 +14,7 @@ const CURATED_ICONS = [
   { name: "bar-chart-outline", family: "Ionicons" as const },
   { name: "cafe", family: "Ionicons" as const },
   { name: "calendar-outline", family: "Ionicons" as const },
+  { name: "calculate", family: "MaterialIcons" as const },
   { name: "camera-outline", family: "Ionicons" as const },
   { name: "car-sport-outline", family: "Ionicons" as const },
   { name: "card-multiple", family: "MaterialCommunityIcons" as const },
@@ -30,6 +31,7 @@ const CURATED_ICONS = [
   { name: "chevron-up", family: "Ionicons" as const },
   { name: "close", family: "Ionicons" as const },
   { name: "close-circle", family: "Ionicons" as const },
+  { name: "circle-half-full", family: "MaterialCommunityIcons" as const },
   { name: "document-text-outline", family: "Ionicons" as const },
   { name: "download-outline", family: "Ionicons" as const },
   { name: "eraser", family: "MaterialCommunityIcons" as const },
@@ -65,6 +67,7 @@ const CURATED_ICONS = [
   { name: "pipe-leak", family: "MaterialCommunityIcons" as const },
   { name: "pipe-valve", family: "MaterialCommunityIcons" as const },
   { name: "pipe-wrench", family: "MaterialCommunityIcons" as const },
+  { name: "playlist-add", family: "MaterialIcons" as const },
   { name: "ray-end-arrow", family: "MaterialCommunityIcons" as const },
   { name: "ray-start-arrow", family: "MaterialCommunityIcons" as const },
   { name: "reload-outline", family: "Ionicons" as const },
@@ -80,6 +83,7 @@ const CURATED_ICONS = [
   { name: "trash-bin-outline", family: "Ionicons" as const },
   { name: "trash-outline", family: "Ionicons" as const },
   { name: "trending-down-outline", family: "Ionicons" as const },
+  { name: "trending-up", family: "Ionicons" as const },
   { name: "trending-up-outline", family: "Ionicons" as const },
   { name: "timer-outline", family: "Ionicons" as const },
   { name: "tv-outline", family: "Ionicons" as const },

@@ -13,6 +13,7 @@ import { getBorderStyle } from "../../input.config";
 
 type Props = TextInputProps & {
   label: string;
+  hideLabel?: boolean;
   error?: string;
   disabled?: boolean;
   endIcon?: "eye" | "eye-off";
@@ -23,6 +24,7 @@ type Props = TextInputProps & {
 
 export function TextInput({
   label,
+  hideLabel,
   error,
   className,
   disabled,
@@ -44,7 +46,7 @@ export function TextInput({
 
   return (
     <View className="gap-1">
-      <Text className="text-sm font-medium text-text">{label}</Text>
+      {!hideLabel ? <Text className="text-sm font-medium text-text">{label}</Text> : null}
       <View className="relative">
         <RNTextInput
           {...props}

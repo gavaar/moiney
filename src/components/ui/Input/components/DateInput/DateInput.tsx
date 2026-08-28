@@ -8,9 +8,11 @@ import { Calendar } from "./components";
 
 type Props = {
   label: string;
+  hideLabel?: boolean;
   error?: string;
   disabled?: boolean;
-  value: Date;
+  value: Date | null;
+  placeholder?: string;
   onChange: (date: Date) => void;
 };
 
@@ -18,7 +20,20 @@ function formatDate(date: Date): string {
   return `${date.getUTCDate()} ${MONTH_LABELS[date.getUTCMonth()]} ${date.getUTCFullYear()}`;
 }
 
-export function DateInput({ label, error, disabled, value, onChange }: Props) {
+function currentUtcDate(): Date {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 12));
+}
+
+export function DateInput({
+  label,
+  hideLabel,
+  error,
+  disabled,
+  value,
+  placeholder,
+  onChange,
+}: Props) {
   const [focused, setFocused] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
 
@@ -37,7 +52,7 @@ export function DateInput({ label, error, disabled, value, onChange }: Props) {
 
   return (
     <View className="gap-1">
-      <Text className="text-sm font-medium text-text">{label}</Text>
+      {!hideLabel ? <Text className="text-sm font-medium text-text">{label}</Text> : null}
       <Pressable
         testID="date-trigger"
         accessibilityRole="button"
@@ -51,7 +66,7 @@ export function DateInput({ label, error, disabled, value, onChange }: Props) {
         )}
       >
         <Text className={cn("text-base", disabled ? "text-muted" : "text-text")}>
-          {formatDate(value)}
+          {value ? formatDate(value) : placeholder ?? "Any date"}
         </Text>
         <Icon name="calendar-outline" size={16} color={disabled ? "#9CA3AF" : "#F8F8F8"} />
       </Pressable>
@@ -62,7 +77,7 @@ export function DateInput({ label, error, disabled, value, onChange }: Props) {
       ) : null}
 
       {showPicker ? (
-        <Calendar visible value={value} onChange={onChange} onClose={handleClose} />
+        <Calendar visible value={value ?? currentUtcDate()} onChange={onChange} onClose={handleClose} />
       ) : null}
     </View>
   );

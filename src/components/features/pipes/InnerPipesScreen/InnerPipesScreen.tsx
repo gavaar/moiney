@@ -74,12 +74,15 @@ export function InnerPipesScreen() {
           expected={expected}
           pendingFedAdjustment={pendingFedAdjustment}
           rule={selectedPipe?.rule}
+          sourceType={selectedPipe?.sourceType}
         />
         <View className="flex-row items-center gap-2 px-5 pb-2">
           <View className="flex-1">
             <StatisticsRow
               fed={fed}
               spent={spent}
+              capacity={capacity}
+              expected={expected}
               pendingFedAdjustment={pendingFedAdjustment}
               sourceType={selectedPipe?.sourceType}
               contributedFed={selectedPipe?.contributedFed}

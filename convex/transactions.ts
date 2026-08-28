@@ -50,10 +50,22 @@ const correctionHistoryItem = v.object({
   current: correctionSnapshot,
 });
 
-function transactionsQuery(ctx: QueryCtx, userId: Id<"users">) {
+function transactionsQuery(
+  ctx: QueryCtx,
+  userId: Id<"users">,
+  dates?: { fromDate?: number; toDate?: number },
+) {
   return ctx.db
     .query("transactions")
-    .withIndex("by_userId_date", (q) => q.eq("userId", userId))
+    .withIndex("by_userId_date", (q) => {
+      const userRange = q.eq("userId", userId);
+      if (dates?.fromDate !== undefined && dates.toDate !== undefined) {
+        return userRange.gte("date", dates.fromDate).lte("date", dates.toDate);
+      }
+      if (dates?.fromDate !== undefined) return userRange.gte("date", dates.fromDate);
+      if (dates?.toDate !== undefined) return userRange.lte("date", dates.toDate);
+      return userRange;
+    })
     .order("desc");
 }
 
@@ -316,11 +328,57 @@ export const listRecentTitles = query({
 export const listTransactionsPaginated = query({
   args: {
     paginationOpts: paginationOptsValidator,
+    filters: v.optional(
+      v.object({
+        fromDate: v.optional(v.number()),
+        toDate: v.optional(v.number()),
+        pipeIds: v.optional(v.array(v.id("pipes"))),
+        title: v.optional(v.string()),
+      }),
+    ),
   },
+  returns: paginationResultValidator(transactionCacheItem),
   handler: async (ctx, args) => {
     const userId = await requireAuth(ctx);
-    const q = transactionsQuery(ctx, userId);
-    return await q.paginate(args.paginationOpts);
+    const filters = args.filters;
+    if (
+      filters?.fromDate !== undefined &&
+      filters.toDate !== undefined &&
+      filters.fromDate > filters.toDate
+    ) {
+      throw new ConvexError({ code: "INVALID_TRANSACTION_DATE_RANGE" });
+    }
+
+    const pipeIds = [...new Set(filters?.pipeIds ?? [])];
+    if (pipeIds.length > MAX_PIPES_PER_USER) {
+      throw new ConvexError({ code: "TOO_MANY_PIPE_FILTERS" });
+    }
+
+    const page = await transactionsQuery(ctx, userId, filters).paginate(
+      args.paginationOpts,
+    );
+    const selectedPipeIds = new Set(pipeIds);
+    const title = filters?.title?.trim().toLowerCase() ?? "";
+    const filteredPage = page.page.filter((transaction) => {
+      const matchesDate =
+        (filters?.fromDate === undefined || transaction.date >= filters.fromDate) &&
+        (filters?.toDate === undefined || transaction.date <= filters.toDate);
+      const matchesPipe =
+        selectedPipeIds.size === 0 ||
+        (transaction.from !== undefined && selectedPipeIds.has(transaction.from)) ||
+        (transaction.to !== undefined && selectedPipeIds.has(transaction.to)) ||
+        (transaction.paidFrom !== undefined && selectedPipeIds.has(transaction.paidFrom));
+      return (
+        matchesDate &&
+        matchesPipe &&
+        (title === "" || transaction.title.toLowerCase().includes(title))
+      );
+    });
+
+    return {
+      ...page,
+      page: filteredPage.map(toTransactionCacheItem),
+    };
   },
 });
 

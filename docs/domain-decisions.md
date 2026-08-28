@@ -168,6 +168,16 @@ of each immediate child's normalized `capUpdateValue` or fallback capacity.
 This presentation intentionally does not calculate post-rule capacity or
 include leftover fed from the previous cycle.
 
+Pipe detail statistics present left to spend as `capacity - spent`. Average
+daily spending divides current-month spending by the current day-of-month.
+Accumulated spendable value through today is
+`expected / daysInMonth * currentDay - spent`; its presentation rounds only at
+the integer-cent formatting boundary. When this value is negative and the
+daily expected amount is positive, its detail states how many whole days are
+needed for the precise value to become positive. If that requires more days
+than remain in the month, or the daily expected amount cannot increase it, the
+detail advises against further spending from the pipe that month.
+
 ## D009: (reserved)
 
 Status: Implemented
@@ -323,6 +333,13 @@ server result. Cached data is never used for authorization or mutation
 decisions. Explicit logout clears the active account's transaction cache, and
 cache entries are isolated by deployment and account identity.
 
+History filters apply to the complete server history rather than only the
+persisted snapshot. An active filter can combine an inclusive date range, a
+case-insensitive title substring, and exact pipe involvement across `from`,
+`to`, and `paidFrom`. Filtered pages use bounded server reads and Convex query
+caching but are not persisted as transaction snapshot scopes. Clearing all
+filters restores the unfiltered persisted History snapshot.
+
 ## D015: Boiler Feed Pipes
 
 Status: Implemented
@@ -354,7 +371,9 @@ Boiler growth is `(fed - contributedFed) / contributedFed * 100`. Zero and
 positive growth are presented in blue and negative growth in red. Growth is not
 available when `contributedFed` is zero. Boiler liquidity bars use
 `contributedFed` as their presentation baseline without replacing or modifying
-the pipe's operational `capacity`.
+the pipe's operational `capacity`. Boiler detail statistics omit left to spend,
+and boiler liquidity bars omit spent because those spending presentations are
+not relevant to boiler pipes.
 
 `sourceType` and `contributedFed` are optional persisted fields for compatibility
 with existing data. Existing roots without `sourceType` are ordinary feeds; new
@@ -362,3 +381,42 @@ roots always write an explicit `feed` or `boiler` type, and new boilers always
 write `contributedFed`. No backfill of principal is required because no boilers
 predated this decision, and current balances cannot safely reconstruct
 historical contributions.
+
+## D016: Monthly Spending Statistics
+
+Status: Implemented
+
+At 05:00 UTC on the first day of each month, a bounded scheduled job captures
+one frozen spending summary per user for the previous UTC calendar month. A
+month uses an inclusive start and exclusive end. Users without qualifying
+activity receive a zero-valued row so retries cannot later change an originally
+empty snapshot.
+
+Negative expense values contribute their absolute value to gross spending.
+Positive expense values contribute to refunds. Pay-by-transfer expenses count
+once through their logical expense identity, while feeds and transfers do not
+contribute to expenditure. Feed transactions, which have only a `to` role,
+contribute their value to total income; transfers do not. The summary stores
+total income, gross spending, refunds, spending and refund transaction counts,
+and the largest spending transaction in integer cents. Total outcome is derived
+as gross spending minus refunds. Averages and comparisons are also derived when
+read rather than persisted.
+
+Each new summary also freezes two account-wide root-pipe values at capture
+time. Volume is the sum of `fed - spent` across the user's root feeds and
+boilers. Produced is the sum of `(contributedFed ?? fed) - spent` across those
+same roots. Descendants are excluded to avoid double-counting allocated
+liquidity. These values are optional on persisted rows because historical
+snapshots cannot be reconstructed accurately and are not backfilled. Total
+income is optional for the same reason on rows captured before it was added.
+
+The summary is immutable after its first successful capture. Transactions
+created, edited, moved, or deleted afterward do not restate a captured month.
+User and transaction traversal is paginated, and `(userId, periodStart)` is the
+logical identity used to make retries idempotent.
+
+Authenticated users can read their newest 24 summaries and open an exact
+owned month. The report derives net spending as gross spending minus refunds.
+Average spending divides gross spending by the spending transaction count,
+rounds to the nearest integer cent, and is zero when there are no spending
+transactions.

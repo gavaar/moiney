@@ -154,29 +154,6 @@ describe("StackedTransactionItem", () => {
     expect(multiPipeIcon?.getAttribute("data-color")).toBe(colors.surface);
   });
 
-  it.each([
-    ["negative", -100, "bg-error/30"],
-    ["positive", 100, "bg-success/30"],
-  ])("uses the aggregate value for %s group color", (_label, totalValue, expectedClass) => {
-    const group = {
-      ...baseGroup,
-      kind: "transfer" as const,
-      totalValue,
-    };
-
-    render(
-      <StackedTransactionItem
-        group={group}
-        expanded={false}
-        onToggle={vi.fn()}
-      />,
-    );
-
-    const main = screen.getByTestId("transaction-group-main");
-    expect(main.className).toContain(expectedClass);
-    expect(main.className).not.toContain("bg-accent/30");
-  });
-
   it("renders the title capitalized", () => {
     render(
       <StackedTransactionItem

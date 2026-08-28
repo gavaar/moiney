@@ -357,6 +357,21 @@ function isCache(value: unknown): value is TransactionCache {
     return false;
   }
 
+  const hasValidEntities = Object.entries(candidate.entities).every(
+    ([id, entity]) => {
+      if (!entity || typeof entity !== "object") return false;
+      const cachedEntity = entity as Partial<CachedEntity>;
+      const transaction = cachedEntity.transaction as Partial<TransactionModel> | undefined;
+      return (
+        typeof cachedEntity.lastAccessedAt === "number" &&
+        !!transaction &&
+        typeof transaction.id === "string" &&
+        transaction.id === id
+      );
+    },
+  );
+  if (!hasValidEntities) return false;
+
   return Object.values(candidate.snapshots).every(
     (snapshot) =>
       !!snapshot &&

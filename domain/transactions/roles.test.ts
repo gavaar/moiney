@@ -1,15 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   involvedPipeIds,
-  transactionRoleNames,
   transactionRoleEntries,
 } from "./roles";
-
-describe("transactionRoleNames", () => {
-  it("lists every persisted involvement role", () => {
-    expect(transactionRoleNames).toEqual(["from", "to", "paidFrom"]);
-  });
-});
 
 describe("involvedPipeIds", () => {
   it("includes from, to, and paidFrom roles", () => {

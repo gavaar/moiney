@@ -9,6 +9,7 @@ type PipeBarsProps = {
   expected: number;
   pendingFedAdjustment?: number;
   rule?: "spend_overflow" | "instant_settlement" | "cron";
+  sourceType?: "feed" | "boiler";
 };
 
 function BarRow({
@@ -120,12 +121,14 @@ export function PipeBars({
   expected,
   pendingFedAdjustment = 0,
   rule,
+  sourceType,
 }: PipeBarsProps) {
+  const showSpent = rule !== "instant_settlement" && sourceType !== "boiler";
   const maxAbs = Math.max(
     1,
     Math.abs(fed),
     Math.abs(capacity),
-    Math.abs(spent),
+    showSpent ? Math.abs(spent) : 0,
     Math.abs(expected),
   );
   return (
@@ -153,7 +156,7 @@ export function PipeBars({
         pendingFedAdjustment={pendingFedAdjustment}
         maxAbs={maxAbs}
       />
-      {rule !== "instant_settlement" ? (
+      {showSpent ? (
         <BarRow
           label="spent"
           value={spent}

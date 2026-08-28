@@ -176,4 +176,20 @@ describe("PipeBars", () => {
     );
     expect(screen.getByTestId("bar-spent-fill")).toBeDefined();
   });
+
+  it("hides boiler spending without using it for scale", () => {
+    render(
+      <PipeBars
+        fed={10000}
+        spent={100000}
+        capacity={10000}
+        expected={10000}
+        sourceType="boiler"
+      />,
+    );
+
+    expect(screen.queryByText("spent")).toBeNull();
+    expect(screen.queryByTestId("bar-spent-fill")).toBeNull();
+    expect(screen.getByTestId("bar-fed-fill").style.width).toBe("100%");
+  });
 });

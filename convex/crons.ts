@@ -9,6 +9,12 @@ crons.monthly(
   internal.sessions.cleanupExpired,
   {},
 );
+crons.monthly(
+  "capture monthly spending statistics",
+  { day: 1, hourUTC: 5, minuteUTC: 0 },
+  internal.monthlySpendingStats.capturePreviousMonth,
+  {},
+);
 crons.daily(
   "run due cron rules",
   { hourUTC: 6, minuteUTC: 0 },

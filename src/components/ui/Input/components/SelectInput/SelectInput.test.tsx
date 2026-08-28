@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -10,6 +11,40 @@ const items = [
 ] as const;
 
 describe("SelectInput", () => {
+  it("selects multiple options without closing the option list", async () => {
+    const user = userEvent.setup();
+
+    function MultiSelectHarness() {
+      const [value, setValue] = useState<string[]>([]);
+      return (
+        <SelectInput
+          multiple
+          label="Pipes"
+          items={items}
+          renderItem={(item) => <>{item.name}</>}
+          value={value}
+          onChange={setValue}
+        />
+      );
+    }
+
+    render(<MultiSelectHarness />);
+    await user.click(screen.getByRole("button", { name: "Pipes" }));
+    await user.click(screen.getByRole("checkbox", { name: "Groceries" }));
+    await user.click(screen.getByRole("checkbox", { name: "Salary" }));
+
+    expect(screen.getByRole("checkbox", { name: "Groceries" }).getAttribute("aria-checked")).toBe(
+      "true",
+    );
+    expect(screen.getByRole("checkbox", { name: "Salary" }).getAttribute("aria-checked")).toBe(
+      "true",
+    );
+    expect(screen.getByText("2 selected")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Pipes" }).getAttribute("aria-expanded")).toBe(
+      "true",
+    );
+  });
+
   it("shows label", () => {
     render(
       <SelectInput

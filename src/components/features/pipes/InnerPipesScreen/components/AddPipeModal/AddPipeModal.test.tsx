@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { readFileSync } from "node:fs";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { type Id } from "@convex/_generated/dataModel";
@@ -49,25 +48,6 @@ describe("AddPipeModal", () => {
     expect(screen.getByPlaceholderText("Pipe name")).toBeDefined();
     expect(screen.getByText("Submit")).toBeDefined();
     expect(screen.queryByText("Cancel")).toBeNull();
-  });
-
-  it("renders capacity and priority inputs at equal widths", () => {
-    const source = readFileSync(
-      "src/components/features/pipes/InnerPipesScreen/components/AddPipeModal/AddPipeModal.tsx",
-      "utf8",
-    );
-    const fieldRow = source.match(/<View className="flex-row gap-4">([\s\S]*?)<\/View>\s*<\/View>/)?.[1];
-
-    expect(fieldRow?.match(/className="flex-1"/g)).toHaveLength(2);
-  });
-
-  it("keeps the form scroll area sized to its content", () => {
-    const source = readFileSync(
-      "src/components/features/pipes/InnerPipesScreen/components/AddPipeModal/AddPipeModal.tsx",
-      "utf8",
-    );
-
-    expect(source).toContain('<ScrollView className="flex-grow-0">');
   });
 
   it("resets form fields when reopened", async () => {
