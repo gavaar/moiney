@@ -51,6 +51,9 @@ export default defineSchema({
     spendingTransactionCount: v.number(),
     refundTransactionCount: v.number(),
     largestSpendingTransactionCents: v.number(),
+    totalIncomeCents: v.optional(v.number()),
+    volumeCents: v.optional(v.number()),
+    producedCents: v.optional(v.number()),
   }).index("by_userId_periodStart", ["userId", "periodStart"]),
   users: defineTable({
     username: v.string(),

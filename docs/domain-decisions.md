@@ -395,12 +395,28 @@ empty snapshot.
 Negative expense values contribute their absolute value to gross spending.
 Positive expense values contribute to refunds. Pay-by-transfer expenses count
 once through their logical expense identity, while feeds and transfers do not
-contribute to expenditure. The summary stores gross spending, refunds, spending
-and refund transaction counts, and the largest spending transaction in integer
-cents. Net spending, averages, and comparisons are derived when read rather
-than persisted.
+contribute to expenditure. Feed transactions, which have only a `to` role,
+contribute their value to total income; transfers do not. The summary stores
+total income, gross spending, refunds, spending and refund transaction counts,
+and the largest spending transaction in integer cents. Total outcome is derived
+as gross spending minus refunds. Averages and comparisons are also derived when
+read rather than persisted.
+
+Each new summary also freezes two account-wide root-pipe values at capture
+time. Volume is the sum of `fed - spent` across the user's root feeds and
+boilers. Produced is the sum of `(contributedFed ?? fed) - spent` across those
+same roots. Descendants are excluded to avoid double-counting allocated
+liquidity. These values are optional on persisted rows because historical
+snapshots cannot be reconstructed accurately and are not backfilled. Total
+income is optional for the same reason on rows captured before it was added.
 
 The summary is immutable after its first successful capture. Transactions
 created, edited, moved, or deleted afterward do not restate a captured month.
 User and transaction traversal is paginated, and `(userId, periodStart)` is the
 logical identity used to make retries idempotent.
+
+Authenticated users can read their newest 24 summaries and open an exact
+owned month. The report derives net spending as gross spending minus refunds.
+Average spending divides gross spending by the spending transaction count,
+rounds to the nearest integer cent, and is zero when there are no spending
+transactions.

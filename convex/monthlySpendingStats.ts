@@ -1,21 +1,98 @@
 import { v } from "convex/values";
 import {
   summarizeMonthlySpending,
+  summarizeRootFeedSnapshot,
   type MonthlySpendingSummary,
 } from "../domain/statistics/monthlySpending";
 import { internal } from "./_generated/api";
-import type { Id } from "./_generated/dataModel";
-import { internalMutation, type MutationCtx } from "./_generated/server";
+import type { Doc, Id } from "./_generated/dataModel";
+import { internalMutation, query, type MutationCtx } from "./_generated/server";
+import { requireAuth } from "./lib/auth";
+import { MAX_PIPES_PER_USER } from "./lib/constants";
 
 const USER_PAGE_SIZE = 50;
 const TRANSACTION_PAGE_SIZE = 100;
+const MAX_MONTHLY_REPORTS = 24;
 
 const summaryValidator = v.object({
+  totalIncomeCents: v.optional(v.number()),
   grossSpendingCents: v.number(),
   refundCents: v.number(),
   spendingTransactionCount: v.number(),
   refundTransactionCount: v.number(),
   largestSpendingTransactionCents: v.number(),
+});
+
+const monthlySpendingStatValidator = v.object({
+  periodStart: v.number(),
+  totalIncomeCents: v.optional(v.number()),
+  grossSpendingCents: v.number(),
+  refundCents: v.number(),
+  spendingTransactionCount: v.number(),
+  refundTransactionCount: v.number(),
+  largestSpendingTransactionCents: v.number(),
+  volumeCents: v.optional(v.number()),
+  producedCents: v.optional(v.number()),
+});
+
+function toPublicStat(stat: Doc<"monthlySpendingStats">) {
+  return {
+    periodStart: stat.periodStart,
+    ...(stat.totalIncomeCents !== undefined
+      ? { totalIncomeCents: stat.totalIncomeCents }
+      : {}),
+    grossSpendingCents: stat.grossSpendingCents,
+    refundCents: stat.refundCents,
+    spendingTransactionCount: stat.spendingTransactionCount,
+    refundTransactionCount: stat.refundTransactionCount,
+    largestSpendingTransactionCents: stat.largestSpendingTransactionCents,
+    ...(stat.volumeCents !== undefined ? { volumeCents: stat.volumeCents } : {}),
+    ...(stat.producedCents !== undefined
+      ? { producedCents: stat.producedCents }
+      : {}),
+  };
+}
+
+export const listMine = query({
+  args: {},
+  returns: v.array(monthlySpendingStatValidator),
+  handler: async (ctx) => {
+    const userId = await requireAuth(ctx);
+    const stats = await ctx.db
+      .query("monthlySpendingStats")
+      .withIndex("by_userId_periodStart", (q) => q.eq("userId", userId))
+      .order("desc")
+      .take(MAX_MONTHLY_REPORTS);
+    return stats.map(toPublicStat);
+  },
+});
+
+export const getMine = query({
+  args: { periodStart: v.number() },
+  returns: v.union(v.null(), monthlySpendingStatValidator),
+  handler: async (ctx, args) => {
+    const userId = await requireAuth(ctx);
+    const period = new Date(args.periodStart);
+    if (
+      !Number.isSafeInteger(args.periodStart) ||
+      period.getTime() !== args.periodStart ||
+      period.getUTCDate() !== 1 ||
+      period.getUTCHours() !== 0 ||
+      period.getUTCMinutes() !== 0 ||
+      period.getUTCSeconds() !== 0 ||
+      period.getUTCMilliseconds() !== 0
+    ) {
+      throw new Error("Invalid period start");
+    }
+
+    const stat = await ctx.db
+      .query("monthlySpendingStats")
+      .withIndex("by_userId_periodStart", (q) =>
+        q.eq("userId", userId).eq("periodStart", args.periodStart),
+      )
+      .unique();
+    return stat ? toPublicStat(stat) : null;
+  },
 });
 
 function previousUtcMonth(now: number) {
@@ -110,6 +187,7 @@ export const captureUserMonth = internalMutation({
       });
     const pageSummary = summarizeMonthlySpending(transactions.page);
     const previous = args.summary ?? {
+      totalIncomeCents: 0,
       grossSpendingCents: 0,
       refundCents: 0,
       spendingTransactionCount: 0,
@@ -117,6 +195,8 @@ export const captureUserMonth = internalMutation({
       largestSpendingTransactionCents: 0,
     };
     const summary = {
+      totalIncomeCents:
+        (previous.totalIncomeCents ?? 0) + pageSummary.totalIncomeCents,
       grossSpendingCents:
         previous.grossSpendingCents + pageSummary.grossSpendingCents,
       refundCents: previous.refundCents + pageSummary.refundCents,
@@ -141,10 +221,20 @@ export const captureUserMonth = internalMutation({
       return null;
     }
 
+    const pipes = await ctx.db
+      .query("pipes")
+      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .take(MAX_PIPES_PER_USER + 1);
+    if (pipes.length > MAX_PIPES_PER_USER) {
+      throw new Error("Pipe limit exceeded");
+    }
+    const feedSnapshot = summarizeRootFeedSnapshot(pipes);
+
     await ctx.db.insert("monthlySpendingStats", {
       userId: args.userId,
       periodStart: args.periodStart,
       ...summary,
+      ...feedSnapshot,
     });
     return null;
   },
