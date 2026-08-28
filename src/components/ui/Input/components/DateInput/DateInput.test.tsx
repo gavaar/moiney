@@ -17,6 +17,27 @@ describe("DateInput", () => {
     expect(screen.getByText("21 Jul 2026")).toBeTruthy();
   });
 
+  it("shows a placeholder and opens the calendar when the date is unset", async () => {
+    const user = userEvent.setup();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date(Date.UTC(2026, 7, 28, 12)));
+
+    render(
+      <DateInput
+        label="From date"
+        value={null}
+        placeholder="Any date"
+        onChange={() => {}}
+      />,
+    );
+
+    expect(screen.getByText("Any date")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "From date" }));
+    expect(screen.getByText("Aug 2026")).toBeTruthy();
+
+    vi.useRealTimers();
+  });
+
   it("shows different date formatting", () => {
     const date = new Date(Date.UTC(2025, 0, 1, 12));
     render(<DateInput label="Date" value={date} onChange={() => {}} />);

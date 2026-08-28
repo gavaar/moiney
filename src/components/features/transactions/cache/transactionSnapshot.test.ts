@@ -246,6 +246,29 @@ describe("transaction snapshot cache", () => {
     expect(deserializeCache("not-json", "account-1")).toBeNull();
   });
 
+  it("rejects a persisted transaction entity without an id", () => {
+    const malformed = {
+      ...createCache("account-1"),
+      entities: {
+        undefined: {
+          transaction: {
+            createdAt: 1,
+            title: "coffee",
+            value: -100,
+            date: 1,
+            kind: "expense",
+          },
+          lastAccessedAt: 1,
+        },
+      },
+      snapshots: {
+        [HISTORY_SCOPE]: { ids: ["undefined"], updatedAt: 1, hasMore: false },
+      },
+    };
+
+    expect(deserializeCache(JSON.stringify(malformed), "account-1")).toBeNull();
+  });
+
   it("invalidates scope snapshots without discarding transaction entities", () => {
     const cache = replaceSnapshot(
       createCache("account-1"),

@@ -333,6 +333,13 @@ server result. Cached data is never used for authorization or mutation
 decisions. Explicit logout clears the active account's transaction cache, and
 cache entries are isolated by deployment and account identity.
 
+History filters apply to the complete server history rather than only the
+persisted snapshot. An active filter can combine an inclusive date range, a
+case-insensitive title substring, and exact pipe involvement across `from`,
+`to`, and `paidFrom`. Filtered pages use bounded server reads and Convex query
+caching but are not persisted as transaction snapshot scopes. Clearing all
+filters restores the unfiltered persisted History snapshot.
+
 ## D015: Boiler Feed Pipes
 
 Status: Implemented

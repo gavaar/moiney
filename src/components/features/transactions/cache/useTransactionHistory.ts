@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useConvex } from "convex/react";
 import { api } from "@convex/_generated/api";
+import type { Doc, Id } from "@convex/_generated/dataModel";
 import {
   normalizeTransaction,
   type TransactionModel,
@@ -34,7 +35,18 @@ export type TransactionHistoryState = {
   refresh: () => void;
 };
 
-export function useTransactionHistory(): TransactionHistoryState {
+export type TransactionHistoryFilters = {
+  fromDate?: number;
+  toDate?: number;
+  pipeIds?: readonly Id<"pipes">[];
+  title?: string;
+};
+
+const EMPTY_FILTERS: TransactionHistoryFilters = {};
+
+export function useTransactionHistory(
+  filters: TransactionHistoryFilters = EMPTY_FILTERS,
+): TransactionHistoryState {
   const convex = useConvex();
   const { cache, isHydrating, read, append, mergeHead } = useTransactionCache();
   const cached = useMemo(
@@ -50,22 +62,46 @@ export function useTransactionHistory(): TransactionHistoryState {
   const [cursor, setCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const requestInFlight = useRef(false);
+  const queryFilters = useMemo(() => {
+    const title = filters.title?.trim().toLowerCase();
+    const pipeIds = filters.pipeIds?.length ? [...filters.pipeIds] : undefined;
+    const normalized = {
+      ...(filters.fromDate === undefined ? {} : { fromDate: filters.fromDate }),
+      ...(filters.toDate === undefined ? {} : { toDate: filters.toDate }),
+      ...(pipeIds ? { pipeIds } : {}),
+      ...(title ? { title } : {}),
+    };
+    return Object.keys(normalized).length > 0 ? normalized : undefined;
+  }, [filters.fromDate, filters.pipeIds, filters.title, filters.toDate]);
+  const hasActiveFilters = queryFilters !== undefined;
 
   const fetchPage = useCallback(
     async (numItems: number, pageCursor: string | null): Promise<Page> => {
       const result = await convex.query(api.transactions.listTransactionsPaginated, {
-        paginationOpts: {
-          numItems,
-          cursor: pageCursor,
-        },
+        paginationOpts: { numItems, cursor: pageCursor },
+        ...(queryFilters ? { filters: queryFilters } : {}),
       });
       return {
-        rows: result.page.map(normalizeTransaction),
+        rows: (result.page as unknown as Array<TransactionModel | Doc<"transactions">>).map(
+          (transaction) =>
+            "id" in transaction ? transaction : normalizeTransaction(transaction),
+        ),
         continueCursor: result.continueCursor,
         isDone: result.isDone,
       };
     },
-    [convex],
+    [convex, queryFilters],
+  );
+
+  const fetchVisiblePage = useCallback(
+    async (numItems: number, pageCursor: string | null): Promise<Page> => {
+      let page = await fetchPage(numItems, pageCursor);
+      while (hasActiveFilters && page.rows.length === 0 && !page.isDone) {
+        page = await fetchPage(numItems, page.continueCursor);
+      }
+      return page;
+    },
+    [fetchPage, hasActiveFilters],
   );
 
   const applyPage = useCallback(
@@ -76,11 +112,13 @@ export function useTransactionHistory(): TransactionHistoryState {
       setLoadMoreStatus(page.isDone ? "Exhausted" : "CanLoadMore");
       setIsLoading(false);
       setIsRefreshing(false);
-      void Promise.resolve(
-        mergeHead(HISTORY_SCOPE, page.rows, !page.isDone),
-      ).catch(() => undefined);
+      if (!hasActiveFilters) {
+        void Promise.resolve(
+          mergeHead(HISTORY_SCOPE, page.rows, !page.isDone),
+        ).catch(() => undefined);
+      }
     },
-    [mergeHead],
+    [hasActiveFilters, mergeHead],
   );
 
   useEffect(() => {
@@ -90,7 +128,7 @@ export function useTransactionHistory(): TransactionHistoryState {
       return;
     }
 
-    if (cached.complete) {
+    if (!hasActiveFilters && cached.complete) {
       setError(null);
       setTransactions(cached.transactions);
       setHasMore(cached.hasMore);
@@ -101,9 +139,14 @@ export function useTransactionHistory(): TransactionHistoryState {
 
     let active = true;
     setError(null);
-    setIsLoading(cached.transactions.length === 0);
+    setIsLoading(hasActiveFilters || cached.transactions.length === 0);
     setLoadMoreStatus("LoadingFirstPage");
-    void fetchPage(HISTORY_INITIAL_PAGE_SIZE, null)
+    if (hasActiveFilters) {
+      setTransactions(undefined);
+      setCursor(null);
+      setHasMore(false);
+    }
+    void fetchVisiblePage(HISTORY_INITIAL_PAGE_SIZE, null)
       .then((page) => {
         if (active) applyPage(page);
       })
@@ -117,7 +160,7 @@ export function useTransactionHistory(): TransactionHistoryState {
     return () => {
       active = false;
     };
-  }, [applyPage, cached, fetchPage, isHydrating]);
+  }, [applyPage, cached, fetchVisiblePage, hasActiveFilters, isHydrating]);
 
   const loadMore = useCallback(() => {
     if (requestInFlight.current || !hasMore) return;
@@ -128,24 +171,28 @@ export function useTransactionHistory(): TransactionHistoryState {
     const load = async () => {
       let nextCursor = cursor;
       if (!nextCursor) {
-        const seed = await fetchPage(HISTORY_INITIAL_PAGE_SIZE, null);
+        const seed = await fetchVisiblePage(HISTORY_INITIAL_PAGE_SIZE, null);
         nextCursor = seed.continueCursor;
         setCursor(nextCursor);
         setHasMore(!seed.isDone);
         setTransactions((current) => mergeTransactions(current ?? [], seed.rows));
-        await append(HISTORY_SCOPE, seed.rows, !seed.isDone);
+        if (!hasActiveFilters) {
+          await append(HISTORY_SCOPE, seed.rows, !seed.isDone);
+        }
         if (seed.isDone) {
           setLoadMoreStatus("Exhausted");
           return;
         }
       }
 
-      const page = await fetchPage(HISTORY_LOAD_MORE_PAGE_SIZE, nextCursor);
+      const page = await fetchVisiblePage(HISTORY_LOAD_MORE_PAGE_SIZE, nextCursor);
       setTransactions((current) => mergeTransactions(current ?? [], page.rows));
       setCursor(page.continueCursor);
       setHasMore(!page.isDone);
       setLoadMoreStatus(page.isDone ? "Exhausted" : "CanLoadMore");
-      await append(HISTORY_SCOPE, page.rows, !page.isDone);
+      if (!hasActiveFilters) {
+        await append(HISTORY_SCOPE, page.rows, !page.isDone);
+      }
     };
 
     void load()
@@ -156,14 +203,14 @@ export function useTransactionHistory(): TransactionHistoryState {
       .finally(() => {
         requestInFlight.current = false;
       });
-  }, [append, cursor, fetchPage, hasMore]);
+  }, [append, cursor, fetchVisiblePage, hasActiveFilters, hasMore]);
 
   const refresh = useCallback(() => {
     if (requestInFlight.current) return;
     requestInFlight.current = true;
     setError(null);
     setIsRefreshing(true);
-    void fetchPage(HISTORY_INITIAL_PAGE_SIZE, null)
+    void fetchVisiblePage(HISTORY_INITIAL_PAGE_SIZE, null)
       .then(applyPage)
       .catch(() => {
         setIsRefreshing(false);
@@ -172,7 +219,7 @@ export function useTransactionHistory(): TransactionHistoryState {
       .finally(() => {
         requestInFlight.current = false;
       });
-  }, [applyPage, fetchPage]);
+  }, [applyPage, fetchVisiblePage]);
 
   return {
     transactions,
