@@ -381,3 +381,26 @@ roots always write an explicit `feed` or `boiler` type, and new boilers always
 write `contributedFed`. No backfill of principal is required because no boilers
 predated this decision, and current balances cannot safely reconstruct
 historical contributions.
+
+## D016: Monthly Spending Statistics
+
+Status: Implemented
+
+At 05:00 UTC on the first day of each month, a bounded scheduled job captures
+one frozen spending summary per user for the previous UTC calendar month. A
+month uses an inclusive start and exclusive end. Users without qualifying
+activity receive a zero-valued row so retries cannot later change an originally
+empty snapshot.
+
+Negative expense values contribute their absolute value to gross spending.
+Positive expense values contribute to refunds. Pay-by-transfer expenses count
+once through their logical expense identity, while feeds and transfers do not
+contribute to expenditure. The summary stores gross spending, refunds, spending
+and refund transaction counts, and the largest spending transaction in integer
+cents. Net spending, averages, and comparisons are derived when read rather
+than persisted.
+
+The summary is immutable after its first successful capture. Transactions
+created, edited, moved, or deleted afterward do not restate a captured month.
+User and transaction traversal is paginated, and `(userId, periodStart)` is the
+logical identity used to make retries idempotent.

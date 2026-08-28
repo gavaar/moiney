@@ -31,6 +31,7 @@ import type * as lib_transactions from "../lib/transactions.js";
 import type * as lib_transactions_operations from "../lib/transactions/operations.js";
 import type * as lib_usernames from "../lib/usernames.js";
 import type * as migrations from "../migrations.js";
+import type * as monthlySpendingStats from "../monthlySpendingStats.js";
 import type * as pipes from "../pipes.js";
 import type * as profile from "../profile.js";
 import type * as sessions from "../sessions.js";
@@ -66,6 +67,7 @@ declare const fullApi: ApiFromModules<{
   "lib/transactions/operations": typeof lib_transactions_operations;
   "lib/usernames": typeof lib_usernames;
   migrations: typeof migrations;
+  monthlySpendingStats: typeof monthlySpendingStats;
   pipes: typeof pipes;
   profile: typeof profile;
   sessions: typeof sessions;
