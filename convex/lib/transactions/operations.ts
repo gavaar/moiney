@@ -351,6 +351,12 @@ export async function createTransactionOperation(
     });
     await ctx.db.patch("pipes", command.to, {
       fed: destPipe.fed + to.fedDelta,
+      ...(destPipe.sourceType === "boiler"
+        ? {
+            contributedFed:
+              (destPipe.contributedFed ?? 0) + to.fedDelta,
+          }
+        : {}),
     });
     if (
       shouldTriggerPipeRule(
@@ -529,6 +535,12 @@ export async function editTransactionOperation(
       });
       await ctx.db.patch("pipes", transaction.to, {
         fed: destination.fed + to.fedDelta,
+        ...(destination.sourceType === "boiler"
+          ? {
+              contributedFed:
+                (destination.contributedFed ?? 0) + to.fedDelta,
+            }
+          : {}),
       });
       if (
         shouldTriggerPipeRule(

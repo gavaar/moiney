@@ -355,9 +355,12 @@ cents. It is separate from `capacity`, which remains mutable allocation and rule
 state and must not be used as boiler principal. New boilers start with both
 values at zero. A positive feed transaction to a boiler increases both `fed`
 and `contributedFed`; editing that feed transaction applies its value delta to
-both fields. Transfers, refunds, expenses, rules, reconciliation, and explicit
-current corrections affect `fed` under their existing policies without changing
-`contributedFed`.
+both fields. A transfer whose `to` pipe is a boiler applies the same signed
+destination delta to both `fed` and `contributedFed`; editing the transfer
+applies only its signed value difference, including reversals. Refunds,
+expenses, rules, reconciliation, explicit current corrections, and transfers
+where the boiler is not the destination affect `fed` under their existing
+policies without changing `contributedFed`.
 
 The boiler contribution boundary accepts an optional exact current balance. If
 it is omitted, a positive contribution is added to the latest current balance.
