@@ -62,7 +62,7 @@ export function AmountForm({
 }: Props) {
   const isBoiler = variant === "boiler";
   const [title, setTitle] = useState(initState?.title ?? "");
-  const [value, setValue] = useState(initState?.value ?? (isBoiler ? "0" : ""));
+  const [value, setValue] = useState(initState?.value ?? (isBoiler ? "0" : variant === "feed" ? "" : "-"));
   const initialCurrentFedValue = (currentFed / 100).toFixed(2);
   const [currentFedValue, setCurrentFedValue] = useState(initialCurrentFedValue);
   const [date, setDate] = useState(new Date());
@@ -128,7 +128,7 @@ export function AmountForm({
         (boilerContributionAmount > 0 || currentFedChanged))) &&
     (isFeed || isTransactionVariant || spendMode !== "transfer" || sentToPipeId !== null);
 
-  const isNegative = value === "" ? !isFeed : value.startsWith("-");
+  const isNegative = value.startsWith("-");
 
   const buttonStyle = useMemo(() => getButtonStyle(intent, isNegative), [intent, isNegative]);
   const buttonIcon = useMemo(() => getButtonIcon(intent, isFeed, spendMode), [intent, isFeed, spendMode]);
@@ -166,15 +166,6 @@ export function AmountForm({
     if (nextDate) setDate(nextDate);
   }, [initState?.date]);
 
-  const handleValueChange = useCallback((text: string) => {
-    setValue((prev) => {
-      if (!isFeed && prev === "" && text !== "" && !text.startsWith("-")) {
-        return "-" + text;
-      }
-      return text;
-    });
-  }, [isFeed]);
-
   const pipeItems = useMemo(
     () => buildPipeItems(allPipes, pipeId),
     [allPipes, pipeId],
@@ -205,7 +196,7 @@ export function AmountForm({
 
   const resetForm = useCallback(() => {
     setTitle("");
-    setValue(isBoiler ? "0" : "");
+    setValue(isBoiler ? "0" : isFeed ? "" : "-");
     setCurrentFedValue(initialCurrentFedValue);
     setDate(new Date());
     setSentToPipeId(null);
@@ -213,7 +204,7 @@ export function AmountForm({
     setShowPaidFrom(false);
     setSpendMode("spend");
     setIntent("repeat");
-  }, [initialCurrentFedValue, isBoiler]);
+  }, [initialCurrentFedValue, isBoiler, isFeed]);
 
   const editTransaction = useMutation(api.transactions.editTransaction);
 
@@ -352,7 +343,7 @@ export function AmountForm({
             type="decimal"
             label={isFeed ? "Amount" : "Value"}
             value={value}
-            onChange={handleValueChange}
+            onChange={setValue}
             placeholder="0.00"
             allowNegative={!isFeed}
             disabled={loading}
@@ -376,7 +367,7 @@ export function AmountForm({
             label={`Current in ${boilerName ?? "boiler"}`}
             value={currentFedValue}
             onChange={setCurrentFedValue}
-            allowNegative
+            allowNegative={false}
             disabled={loading}
           />
           {boilerContributionAmount > 0 && !currentFedChanged ? (

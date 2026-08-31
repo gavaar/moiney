@@ -60,7 +60,7 @@ export function DateInput({
         accessibilityState={{ disabled }}
         onPress={handleTrigger}
         className={cn(
-          "rounded-lg border bg-surface px-3 py-2.5 flex-row items-center justify-between",
+          "rounded-lg border bg-surface px-3 py-2 flex-row items-center justify-between",
           disabled && "opacity-50",
           borderStyle,
         )}

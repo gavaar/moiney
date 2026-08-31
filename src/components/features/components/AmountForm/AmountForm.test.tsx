@@ -725,7 +725,7 @@ describe("AmountForm", () => {
         screen
           .getByTestId("input-Current in Savings-field")
           .getAttribute("data-allow-negative"),
-      ).toBe("true");
+      ).toBe("false");
       expect(
         screen.getByTestId("submit-button").getAttribute("aria-disabled"),
       ).toBe("true");
@@ -855,14 +855,25 @@ describe("AmountForm", () => {
       expect(screen.queryByText("Transfer")).toBeNull();
     });
 
-    it("auto-prepends minus on first keystroke", () => {
+    it("preserves the sign emitted by the value input", () => {
       render(<AmountForm pipeId={PIPE_ID} variant="spend" />);
       const valueInput = screen.getByTestId("input-Value-field") as HTMLInputElement;
+      expect(valueInput.value).toBe("-");
       fireEvent.change(valueInput, { target: { value: "5" } });
-      expect(valueInput.value).toBe("-5");
+      expect(valueInput.value).toBe("5");
     });
 
-    it("does not auto-prepend minus on subsequent keystrokes", () => {
+    it("treats a positive empty value as a return", () => {
+      render(<AmountForm pipeId={PIPE_ID} variant="spend" />);
+
+      fireEvent.change(screen.getByTestId("input-Value-field"), {
+        target: { value: "" },
+      });
+
+      expect(screen.getByText("Add return")).toBeTruthy();
+    });
+
+    it("preserves negative values on subsequent changes", () => {
       render(<AmountForm pipeId={PIPE_ID} variant="spend" />);
       const valueInput = screen.getByTestId("input-Value-field") as HTMLInputElement;
       fireEvent.change(valueInput, { target: { value: "-5" } });
@@ -870,7 +881,7 @@ describe("AmountForm", () => {
       expect(valueInput.value).toBe("-50");
     });
 
-    it("does not auto-prepend minus when user types minus explicitly", () => {
+    it("preserves an incomplete negative value", () => {
       render(<AmountForm pipeId={PIPE_ID} variant="spend" />);
       const valueInput = screen.getByTestId("input-Value-field") as HTMLInputElement;
       fireEvent.change(valueInput, { target: { value: "-" } });
@@ -931,7 +942,7 @@ describe("AmountForm", () => {
         target: { value: "Lunch" },
       });
       fireEvent.change(screen.getByTestId("input-Value-field"), {
-        target: { value: "12.50" },
+        target: { value: "-12.50" },
       });
       expect(screen.getByText("Add expense")).toBeTruthy();
     });
@@ -958,7 +969,7 @@ describe("AmountForm", () => {
         target: { value: "Lunch" },
       });
       fireEvent.change(screen.getByTestId("input-Value-field"), {
-        target: { value: "12.50" },
+        target: { value: "-12.50" },
       });
       fireEvent.click(screen.getByTestId("submit-button"));
 
@@ -983,7 +994,7 @@ describe("AmountForm", () => {
         target: { value: "Lunch" },
       });
       fireEvent.change(screen.getByTestId("input-Value-field"), {
-        target: { value: "12.50" },
+        target: { value: "-12.50" },
       });
       fireEvent.click(screen.getByTestId("slide-toggle-transfer"));
       fireEvent.click(screen.getByTestId("select-item-feed-1"));
@@ -1019,7 +1030,7 @@ describe("AmountForm", () => {
       });
 
       expect((titleInput as HTMLInputElement).value).toBe("");
-      expect((screen.getByTestId("input-Value-field") as HTMLInputElement).value).toBe("");
+      expect((screen.getByTestId("input-Value-field") as HTMLInputElement).value).toBe("-");
 
       vi.useRealTimers();
     });
@@ -1069,7 +1080,7 @@ describe("AmountForm", () => {
         target: { value: "Coffee" },
       });
       fireEvent.change(screen.getByTestId("input-Value-field"), {
-        target: { value: "5" },
+        target: { value: "-5" },
       });
       fireEvent.click(screen.getByText("Paid from another pipe?"));
       fireEvent.click(screen.getByTestId("select-item-feed-2"));
@@ -1124,7 +1135,7 @@ describe("AmountForm", () => {
         target: { value: "Lunch" },
       });
       fireEvent.change(screen.getByTestId("input-Value-field"), {
-        target: { value: "12.50" },
+        target: { value: "-12.50" },
       });
       fireEvent.click(screen.getByTestId("slide-toggle-transfer"));
       fireEvent.click(screen.getByTestId("select-item-feed-1"));
@@ -1190,13 +1201,14 @@ describe("AmountForm", () => {
         target: { value: "Lunch" },
       });
       fireEvent.change(screen.getByTestId("input-Value-field"), {
-        target: { value: "12.50" },
+        target: { value: "-12.50" },
       });
       fireEvent.click(screen.getByTestId("slide-toggle-transfer"));
       fireEvent.click(screen.getByTestId("select-item-feed-1"));
       expect(screen.getByText("Send to Salary")).toBeTruthy();
       fireEvent.click(screen.getByTestId("eraser-button"));
       expect(screen.queryByText("Send to Salary")).toBeNull();
+      expect((screen.getByTestId("input-Value-field") as HTMLInputElement).value).toBe("-");
     });
 
     it("eraser resets mode back to spend", () => {

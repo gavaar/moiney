@@ -64,7 +64,7 @@ export function SelectInput(props: SelectInputProps) {
         aria-expanded={open}
         onPress={handleTriggerPress}
         className={cn(
-          "rounded-lg border bg-surface px-3 py-2.5 flex-row items-center gap-2",
+          "rounded-lg border bg-surface px-3 py-2 flex-row items-center gap-2",
           error ? "border-error" : "border-border",
         )}
       >
