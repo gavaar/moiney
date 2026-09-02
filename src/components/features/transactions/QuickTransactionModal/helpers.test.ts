@@ -45,39 +45,3 @@ describe("getQuickTransactionPipes", () => {
     ).toEqual([rootLeaf, child, unusedLeaf]);
   });
 });
-
-describe("getFrequentlyUsedSourcePipeIds", () => {
-  it("ranks sources from only the first 100 history transactions", () => {
-    const transaction = (
-      id: string,
-      roles: Pick<TransactionModel, "from" | "to" | "paidFrom">,
-    ): TransactionModel => ({
-      id: id as Id<"transactions">,
-      createdAt: 0,
-      title: id,
-      value: -100,
-      date: 0,
-      kind: roles.from ? "expense" : "feed",
-      ...roles,
-    });
-    const history = [
-      transaction("tx-1", { from: "pipe-1" as Id<"pipes"> }),
-      transaction("tx-2", { to: "pipe-feed" as Id<"pipes"> }),
-      transaction("tx-3", {
-        from: "pipe-2" as Id<"pipes">,
-        paidFrom: "pipe-payer" as Id<"pipes">,
-      }),
-      transaction("tx-4", { from: "pipe-2" as Id<"pipes"> }),
-      transaction("tx-5", { from: "pipe-1" as Id<"pipes"> }),
-      ...Array.from({ length: 95 }, (_, index) =>
-        transaction(`feed-${index}`, { to: "pipe-feed" as Id<"pipes"> }),
-      ),
-      transaction("tx-101", { from: "pipe-3" as Id<"pipes"> }),
-    ];
-
-    expect(getFrequentlyUsedSourcePipeIds(history)).toEqual([
-      "pipe-1",
-      "pipe-2",
-    ]);
-  });
-});

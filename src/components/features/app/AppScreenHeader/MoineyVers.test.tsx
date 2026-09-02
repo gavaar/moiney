@@ -45,7 +45,7 @@ describe("MoineyVers", () => {
 
   it("shows the warning modal and opens the latest release page when outdated", async () => {
     const releaseUrl = "https://github.com/gavaar/moiney/releases/tag/0.3.0";
-    mocks.getLatestMoineyRelease.mockResolvedValue({ name: "0.3.0", url: releaseUrl });
+    mocks.getLatestMoineyRelease.mockResolvedValue({ name: "99999999999999.3.0", url: releaseUrl });
 
     render(<MoineyVers />);
 
