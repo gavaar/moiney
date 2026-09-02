@@ -49,7 +49,7 @@ export function TextSelectInput({
         <RNTextInput
           ref={inputRef}
           className={cn(
-            "rounded-lg border bg-surface px-3 py-2.5 text-base text-text",
+            "rounded-lg border bg-surface px-3 py-2 text-base text-text",
             disabled && "opacity-60",
             borderStyle,
           )}

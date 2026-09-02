@@ -1,13 +1,15 @@
-import { Pressable, Text, View } from "react-native";
+import { Animated, PanResponder, Pressable, Text, View } from "react-native";
 import { Icon, safeIconName } from "@ui/Icon";
 import { cn, colors } from "@/lib/styles";
 import { ModalShell } from "@ui/Modal";
 import { AmountForm } from '@features/components/AmountForm';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { usePipeCatalog } from '@features/pipes/context/PipeCatalogContext';
 import { resolveTransactionKind } from "@domain/transactions";
+import { transactionStructureFromRoles } from "@domain/transactions";
 import { formatAmount } from "@/lib/format";
 import type { TransactionModel } from "@features/transactions/data/transactions";
+import { isPaidFromPipeEligible } from "@features/pipes/data/paidFromEligibility";
 
 type TransactionItemProps = {
   transaction: TransactionModel;
@@ -19,6 +21,8 @@ const DATE_FORMAT: Intl.DateTimeFormatOptions = {
   day: "numeric",
   year: "numeric",
 };
+const EDIT_ACTION_WIDTH = 72;
+const EDIT_SWIPE_THRESHOLD = 40;
 
 export function TransactionItem({ transaction, onShowEditHistory }: TransactionItemProps) {
   const kind = resolveTransactionKind(transaction);
@@ -26,9 +30,10 @@ export function TransactionItem({ transaction, onShowEditHistory }: TransactionI
   const isTransfer = kind === "transfer";
   const isPayByTransfer = kind === "expense" && !!transaction.paidFrom;
   const isNegative = transaction.value < 0;
-  const [showForm, setShowForm] = useState(false);
+  const [formIntent, setFormIntent] = useState<"repeat" | "edit" | null>(null);
   const [showDisabledInfo, setShowDisabledInfo] = useState(false);
-  const { pipesById, childrenByParent } = usePipeCatalog();
+  const translateX = useRef(new Animated.Value(0)).current;
+  const { allPipes, pipesById, childrenByParent } = usePipeCatalog();
 
   const sourcePipe = transaction.from ? pipesById?.[transaction.from] : undefined;
   const destPipe = transaction.to ? pipesById?.[transaction.to] : undefined;
@@ -39,9 +44,14 @@ export function TransactionItem({ transaction, onShowEditHistory }: TransactionI
     (childrenByParent.get(sourcePipe.id)?.length ?? 0) === 0;
   const toValid = !!destPipe && !destPipe.deletionJobId && destPipe.parentId === undefined;
   const paidFromValid =
-    !!paidFromPipe &&
-    !paidFromPipe.deletionJobId &&
-    (childrenByParent.get(paidFromPipe.id)?.length ?? 0) === 0;
+    !!transaction.from &&
+    !!transaction.paidFrom &&
+    isPaidFromPipeEligible(
+      allPipes ?? Object.values(pipesById ?? {}),
+      transaction.from,
+      transaction.paidFrom,
+      transaction.value,
+    );
   const viewOnly = !!transaction.fromIcon || !!transaction.toIcon || !!transaction.paidFromIcon;
   const icons = {
     from: {
@@ -75,70 +85,115 @@ export function TransactionItem({ transaction, onShowEditHistory }: TransactionI
   const amountFormInitState = primaryPipe && !viewOnly ? {
     pipeIcon: primaryPipe.icon,
     pipeName: primaryPipe.name,
+    spent: primaryPipe.spent,
+    capacity: primaryPipe.capacity,
     title: transaction.title,
     value: formatAmount(transaction.value),
-    ...(isTransfer && destPipe ? { to: destPipe.id } : {}),
-    ...(isPayByTransfer && paidFromPipe ? { paidFrom: paidFromPipe.id } : {}),
-    isFeed,
+    structure: transactionStructureFromRoles(transaction),
     transactionId: transaction.id,
     date: transaction.date,
   } : undefined;
 
-  function handlePress() {
+  function openForm(intent: "repeat" | "edit") {
     if (disabled) {
       setShowDisabledInfo(true);
     } else {
-      setShowForm(true);
+      setFormIntent(intent);
     }
   }
 
+  function resetSwipe() {
+    Animated.spring(translateX, {
+      toValue: 0,
+      useNativeDriver: true,
+    }).start();
+  }
+
+  const panResponder = PanResponder.create({
+    onMoveShouldSetPanResponder: (_event, gesture) =>
+      !disabled &&
+      gesture.dx < -8 &&
+      Math.abs(gesture.dx) > Math.abs(gesture.dy),
+    onPanResponderMove: (_event, gesture) => {
+      translateX.setValue(Math.max(-EDIT_ACTION_WIDTH, Math.min(0, gesture.dx)));
+    },
+    onPanResponderRelease: (_event, gesture) => {
+      if (gesture.dx <= -EDIT_SWIPE_THRESHOLD) openForm("edit");
+      resetSwipe();
+    },
+    onPanResponderTerminate: resetSwipe,
+  });
+
   return (
     <View className="flex-row gap-1 items-center">
-      <Pressable
-        className={cn(
-          "flex-1 flex-row gap-1 items-center rounded-2xl border border-border px-2 py-2",
-          bgClass,
-        )}
-        onPress={handlePress}
-      >
-        <Icon
-          name={safeIconName(isFeed ? icons.to.name : isPayByTransfer ? icons.paidFrom.name : icons.from.name)}
-          size={16}
-          color={isFeed ? icons.to.color : isPayByTransfer ? icons.paidFrom.color : icons.from.color}
-        />
-
-        {isTransfer || isPayByTransfer ? (
-          <>
-            <Icon name={isNegative ? "ray-start-arrow" : "ray-end-arrow"} size={14} color={colors.muted} />
-            <Icon
-              name={safeIconName(isPayByTransfer ? icons.from.name : icons.to.name)}
-              size={16}
-              color={isPayByTransfer ? icons.from.color : icons.to.color}
-            />
-          </>
+      <View className="relative flex-1 rounded-2xl">
+        {!disabled ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Edit ${transaction.title}`}
+            onPress={() => openForm("edit")}
+            className="absolute inset-y-0 right-0 w-[92px] rounded-tr-2xl rounded-br-2xl items-center justify-center bg-secondary"
+          >
+            <Icon name="pencil-outline" size={20} color={colors.text} />
+          </Pressable>
         ) : null}
+        <Animated.View
+          style={{
+            width: "100%",
+            zIndex: 1,
+            backgroundColor: colors.background,
+            transform: [{ translateX }],
+            borderRadius: 12,
+          }}
+          {...panResponder.panHandlers}
+        >
+          <Pressable
+            className={cn(
+              "w-full flex-row gap-1 items-center rounded-2xl border border-border px-2 py-2",
+              bgClass,
+            )}
+            onPress={() => openForm("repeat")}
+          >
+            <Icon
+              name={safeIconName(isFeed ? icons.to.name : isPayByTransfer ? icons.paidFrom.name : icons.from.name)}
+              size={16}
+              color={isFeed ? icons.to.color : isPayByTransfer ? icons.paidFrom.color : icons.from.color}
+            />
 
-        <Text
-          className={cn(
-            "font-bold text-sm flex-1 ml-0.5",
-            disabled ? "text-muted" : "text-text",
-          )}
-          numberOfLines={1}
-        >
-          {transaction.title.charAt(0).toUpperCase() + transaction.title.slice(1)}
-        </Text>
-        <Text className={cn("text-xs mr-4", disabled ? "text-muted" : "text-white")}>
-          {new Date(transaction.date).toLocaleDateString("en-US", DATE_FORMAT)}
-        </Text>
-        <Text
-          className={cn(
-            "text-sm font-bold w-16 mr-2 text-right",
-            disabled ? "text-muted" : "text-white",
-          )}
-        >
-          {formatAmount(transaction.value)}
-        </Text>
-      </Pressable>
+            {isTransfer || isPayByTransfer ? (
+              <>
+                <Icon name={isNegative ? "ray-start-arrow" : "ray-end-arrow"} size={14} color={colors.muted} />
+                <Icon
+                  name={safeIconName(isPayByTransfer ? icons.from.name : icons.to.name)}
+                  size={16}
+                  color={isPayByTransfer ? icons.from.color : icons.to.color}
+                />
+              </>
+            ) : null}
+
+            <Text
+              className={cn(
+                "font-bold text-sm flex-1 ml-0.5",
+                disabled ? "text-muted" : "text-text",
+              )}
+              numberOfLines={1}
+            >
+              {transaction.title.charAt(0).toUpperCase() + transaction.title.slice(1)}
+            </Text>
+            <Text className={cn("text-xs mr-4", disabled ? "text-muted" : "text-white")}>
+              {new Date(transaction.date).toLocaleDateString("en-US", DATE_FORMAT)}
+            </Text>
+            <Text
+              className={cn(
+                "text-sm font-bold w-16 mr-2 text-right",
+                disabled ? "text-muted" : "text-white",
+              )}
+            >
+              {formatAmount(transaction.value)}
+            </Text>
+          </Pressable>
+        </Animated.View>
+      </View>
 
       {transaction.editedAt && onShowEditHistory ? (
         <Pressable
@@ -153,8 +208,15 @@ export function TransactionItem({ transaction, onShowEditHistory }: TransactionI
         </Pressable>
       ) : null}
 
-      <ModalShell visible={showForm} onClose={() => setShowForm(false)}>
-        {primaryPipe && <AmountForm variant="transaction" pipeId={primaryPipe.id} initState={amountFormInitState} />}
+      <ModalShell visible={formIntent !== null} onClose={() => setFormIntent(null)}>
+        {formIntent && primaryPipe && amountFormInitState ? (
+          <AmountForm
+            variant="transaction"
+            pipeId={primaryPipe.id}
+            initState={{ ...amountFormInitState, intent: formIntent }}
+            onSuccess={() => setFormIntent(null)}
+          />
+        ) : null}
       </ModalShell>
 
       <ModalShell visible={showDisabledInfo} onClose={() => setShowDisabledInfo(false)}>

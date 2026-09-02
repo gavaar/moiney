@@ -43,7 +43,7 @@ export function IconInput({ label, value, onSelect, error, disabled }: Props) {
         aria-expanded={open}
         onPress={() => !disabled && setOpen(true)}
         className={cn(
-          "rounded-lg border bg-surface px-3 py-2.5 flex-row items-center gap-2",
+          "rounded-lg border bg-surface px-3 py-2 flex-row items-center gap-2",
           error ? "border-error" : "border-border",
         )}
       >

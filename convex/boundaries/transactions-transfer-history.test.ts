@@ -452,6 +452,58 @@ describe("Convex boundaries: transactions, transfers, and history", () => {
     expect(state.titleUsage).toEqual([]);
   });
 
+  it("rejects an ordinary expense from a pipe with children", async () => {
+    const t = convexTest(schema, modules);
+    const { userId, sourceId } = await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", {
+        username: "alice",
+        email: "alice@example.com",
+        password: "hash",
+      });
+      const sourceId = await ctx.db.insert("pipes", {
+        userId,
+        name: "Source parent",
+        icon: "wallet-outline",
+        priority: 0,
+        capacity: 1000,
+        fed: 1000,
+        spent: 0,
+      });
+      await ctx.db.insert("pipes", {
+        userId,
+        parentId: sourceId,
+        name: "Source child",
+        icon: "cash-outline",
+        priority: 0,
+        capacity: 500,
+        fed: 500,
+        spent: 0,
+      });
+      return { userId, sourceId };
+    });
+
+    await expect(
+      t.withIdentity({ subject: userId }).mutation(
+        api.transactions.createTransaction,
+        {
+          title: "expense",
+          value: -100,
+          date: 3000,
+          from: sourceId,
+        },
+      ),
+    ).rejects.toMatchObject({ data: { code: "SOURCE_HAS_CHILDREN" } });
+
+    const state = await t.run(async (ctx) => ({
+      source: await ctx.db.get("pipes", sourceId),
+      transactions: await ctx.db.query("transactions").collect(),
+      titleUsage: await ctx.db.query("transactionTitleUsage").collect(),
+    }));
+    expect(state.source).toMatchObject({ fed: 1000, spent: 0 });
+    expect(state.transactions).toEqual([]);
+    expect(state.titleUsage).toEqual([]);
+  });
+
   it("rejects a transfer to another user's root without revealing it", async () => {
     const t = convexTest(schema, modules);
     const { userId, sourceId, destinationId } = await t.run(async (ctx) => {
@@ -642,6 +694,85 @@ describe("Convex boundaries: transactions, transfers, and history", () => {
       title: "savings",
       count: 1,
     });
+  });
+
+  it("tracks boiler principal through a transfer and signed edit", async () => {
+    const t = convexTest(schema, modules);
+    const { userId, sourceId, boilerId } = await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", {
+        username: "alice",
+        email: "alice@example.com",
+        password: "hash",
+      });
+      const sourceId = await ctx.db.insert("pipes", {
+        userId,
+        name: "Source",
+        icon: "cash-outline",
+        priority: 0,
+        capacity: 700,
+        fed: 700,
+        spent: 0,
+      });
+      const boilerId = await ctx.db.insert("pipes", {
+        userId,
+        name: "Boiler",
+        icon: "water-boiler",
+        priority: 0,
+        capacity: 500,
+        fed: 500,
+        spent: 0,
+        sourceType: "boiler",
+        contributedFed: 500,
+      });
+      return { userId, sourceId, boilerId };
+    });
+
+    const transaction = await t.withIdentity({ subject: userId }).mutation(
+      api.transactions.createTransaction,
+      {
+        title: "Investment transfer",
+        value: -100,
+        date: 3000,
+        from: sourceId,
+        to: boilerId,
+      },
+    );
+
+    const afterCreation = await t.run(async (ctx) => ({
+      source: await ctx.db.get("pipes", sourceId),
+      boiler: await ctx.db.get("pipes", boilerId),
+    }));
+    expect(afterCreation.source).toMatchObject({ fed: 600 });
+    expect(afterCreation.boiler).toMatchObject({
+      fed: 600,
+      contributedFed: 600,
+    });
+    expect(
+      (afterCreation.source?.fed ?? 0) + (afterCreation.boiler?.fed ?? 0),
+    ).toBe(1200);
+
+    await t.withIdentity({ subject: userId }).mutation(
+      api.transactions.editTransaction,
+      {
+        transactionId: transaction.id,
+        title: "Investment transfer",
+        value: 40,
+        date: 3000,
+      },
+    );
+
+    const afterEdit = await t.run(async (ctx) => ({
+      source: await ctx.db.get("pipes", sourceId),
+      boiler: await ctx.db.get("pipes", boilerId),
+    }));
+    expect(afterEdit.source).toMatchObject({ fed: 740 });
+    expect(afterEdit.boiler).toMatchObject({
+      fed: 460,
+      contributedFed: 460,
+    });
+    expect((afterEdit.source?.fed ?? 0) + (afterEdit.boiler?.fed ?? 0)).toBe(
+      1200,
+    );
   });
 
   it("filters transactions through from, to, and paidFrom involvement", async () => {

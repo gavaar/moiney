@@ -1,4 +1,3 @@
-import { useCallback, useEffect, useState, useMemo } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -6,413 +5,199 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useMutation, useQuery } from "convex/react";
-import { api } from "@convex/_generated/api";
-import { type Id } from "@convex/_generated/dataModel";
+import type { Id } from "@convex/_generated/dataModel";
+import { formatAmount } from "@/lib/format";
 import { cn, colors } from "@/lib/styles";
 import { Icon, type IconName } from "@ui/Icon";
 import { Input } from "@ui/Input";
 import { SlideToggle } from "@ui/SlideToggle";
-import { useAlert } from "@ui/Alert";
-import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
-import { useOptionalTransactionCache } from "@features/transactions/cache/TransactionCacheContext";
-import { parseMoney } from "@domain/money";
-import { formatAmount } from "@/lib/format";
-import {
-  buildCreateTransactionCommand,
-  buildEditTransactionCommand,
-  buildPipeItems,
-  buildPaidFromPipeItems,
-  getButtonIcon,
-  getButtonLabel,
-  getButtonStyle,
-  getDestinationPipeName,
-  getIntentDate,
-  transitionSpendMode,
-} from "./helpers";
+import type { AmountFormProps } from "./types";
+import { useAmountFormController } from "./useAmountFormController";
 
-type SpentMode = "spend" | "transfer";
-
-type Props = {
-  pipeId: Id<"pipes">;
-  variant?: "feed" | "boiler" | "spend" | "transaction";
-  boilerName?: string;
-  currentFed?: number;
-  initState?: {
-    pipeIcon: string;
-    pipeName: string;
-    title: string;
-    value: string;
-    to?: Id<"pipes">;
-    paidFrom?: Id<"pipes">;
-    isFeed?: boolean;
-    transactionId?: Id<"transactions">;
-    date?: number;
-  };
-  onSuccess?: () => void;
-};
-
-export function AmountForm({
-  pipeId,
-  variant = "spend",
-  boilerName,
-  currentFed = 0,
-  initState,
-  onSuccess,
-}: Props) {
-  const isBoiler = variant === "boiler";
-  const [title, setTitle] = useState(initState?.title ?? "");
-  const [value, setValue] = useState(initState?.value ?? (isBoiler ? "0" : ""));
-  const initialCurrentFedValue = (currentFed / 100).toFixed(2);
-  const [currentFedValue, setCurrentFedValue] = useState(initialCurrentFedValue);
-  const [date, setDate] = useState(new Date());
-  const [loading, setLoading] = useState(false);
-  const [sentToPipeId, setSentToPipeId] = useState<Id<"pipes"> | null>(
-    initState?.to ?? null,
+function renderPipeItem(item: { id: string } & Record<string, any>) {
+  return (
+    <View className="flex-row items-center gap-2">
+      <Icon name={item.icon as IconName} size={16} color={colors.text} />
+      <Text className="text-text">{item.name}</Text>
+    </View>
   );
-  const [paidFromPipeId, setPaidFromPipeId] = useState<Id<"pipes"> | null>(
-    initState?.paidFrom ?? null,
-  );
-  const [showPaidFrom, setShowPaidFrom] = useState(Boolean(initState?.paidFrom));
-  const [spendMode, setSpendMode] = useState<SpentMode>(
-    initState?.to ? "transfer" : "spend",
-  );
-  const [intent, setIntent] = useState<"repeat" | "edit">("repeat");
+}
 
-  const showAlert = useAlert();
-  const transactionCache = useOptionalTransactionCache();
-  const createTransaction = useMutation(api.transactions.createTransaction);
-  const contributeToBoiler = useMutation(
-    api.transactions.contributeToBoiler,
-  );
-  const { allPipes } = usePipeCatalog();
-  const recentTitles = useQuery(api.transactions.listRecentTitles, { pipeId });
-
-  const isFeed =
-    variant === "feed" ||
-    isBoiler ||
-    (variant === "transaction" && initState?.isFeed === true);
-  const isTransactionVariant = variant === "transaction";
-
-  const isValidAmount = useMemo(() => {
-    if (value === "" || value === "-") return false;
-    try {
-      const amount = parseMoney(value);
-      return isBoiler ? amount >= 0 : isFeed ? amount > 0 : amount !== 0;
-    } catch {
-      return false;
-    }
-  }, [value, isBoiler, isFeed]);
-
-  const parsedCurrentFed = useMemo(() => {
-    if (!isBoiler || currentFedValue === "" || currentFedValue === "-") {
-      return null;
-    }
-    try {
-      return parseMoney(currentFedValue);
-    } catch {
-      return null;
-    }
-  }, [currentFedValue, isBoiler]);
-  const currentFedChanged = parsedCurrentFed !== null && parsedCurrentFed !== currentFed;
-  const boilerContributionAmount =
-    isBoiler && isValidAmount ? parseMoney(value) : 0;
-
-  const isValid =
-    (isBoiler
-      ? boilerContributionAmount === 0 || title.trim() !== ""
-      : title.trim() !== "") &&
-    isValidAmount &&
-    (!isBoiler ||
-      (parsedCurrentFed !== null &&
-        (boilerContributionAmount > 0 || currentFedChanged))) &&
-    (isFeed || isTransactionVariant || spendMode !== "transfer" || sentToPipeId !== null);
-
-  const isNegative = value === "" ? !isFeed : value.startsWith("-");
-
-  const buttonStyle = useMemo(() => getButtonStyle(intent, isNegative), [intent, isNegative]);
-  const buttonIcon = useMemo(() => getButtonIcon(intent, isFeed, spendMode), [intent, isFeed, spendMode]);
-
-  const renderPipeItem = useCallback(
-    (item: any) => (
-      <View className="flex-row items-center gap-2">
-        <Icon name={item.icon as IconName} size={16} color={colors.text} />
-        <Text className="text-text">{item.name}</Text>
-      </View>
-    ),
-    [],
-  );
-
-  const handleModeChange = useCallback((newMode: string) => {
-    const nextState = transitionSpendMode(
-      {
-        spendMode,
-        sentToPipeId,
-        paidFromPipeId,
-        showPaidFrom,
-      },
-      newMode as SpentMode,
-    );
-    setSpendMode(nextState.spendMode);
-    setSentToPipeId(nextState.sentToPipeId);
-    setPaidFromPipeId(nextState.paidFromPipeId);
-    setShowPaidFrom(nextState.showPaidFrom);
-  }, [paidFromPipeId, sentToPipeId, showPaidFrom, spendMode]);
-
-  const handleIntentChange = useCallback((newIntent: string) => {
-    const intentValue = newIntent as "repeat" | "edit";
-    setIntent(intentValue);
-    const nextDate = getIntentDate(intentValue, initState?.date, new Date());
-    if (nextDate) setDate(nextDate);
-  }, [initState?.date]);
-
-  const handleValueChange = useCallback((text: string) => {
-    setValue((prev) => {
-      if (!isFeed && prev === "" && text !== "" && !text.startsWith("-")) {
-        return "-" + text;
-      }
-      return text;
-    });
-  }, [isFeed]);
-
-  const pipeItems = useMemo(
-    () => buildPipeItems(allPipes, pipeId),
-    [allPipes, pipeId],
-  );
-
-  const paidFromPipeItems = useMemo(
-    () => buildPaidFromPipeItems(allPipes, pipeId, isNegative),
-    [allPipes, pipeId, isNegative],
-  );
-
-  useEffect(() => {
-    if (
-      allPipes &&
-      paidFromPipeId &&
-      !paidFromPipeItems.some((item) => item.id === paidFromPipeId)
-    ) {
-      setPaidFromPipeId(null);
-    }
-  }, [allPipes, paidFromPipeId, paidFromPipeItems]);
-
-  const destinationPipeName = useMemo(
-    () => getDestinationPipeName(allPipes, sentToPipeId),
-    [allPipes, sentToPipeId],
-  );
-  const actionLabel = intent === "edit"
-    ? "Update transaction"
-    : getButtonLabel(isFeed ? "feed" : "spend", isNegative, destinationPipeName);
-
-  const resetForm = useCallback(() => {
-    setTitle("");
-    setValue(isBoiler ? "0" : "");
-    setCurrentFedValue(initialCurrentFedValue);
-    setDate(new Date());
-    setSentToPipeId(null);
-    setPaidFromPipeId(null);
-    setShowPaidFrom(false);
-    setSpendMode("spend");
-    setIntent("repeat");
-  }, [initialCurrentFedValue, isBoiler]);
-
-  const editTransaction = useMutation(api.transactions.editTransaction);
-
-  const handleEditSubmit = useCallback(async () => {
-    const amount = parseMoney(value);
-    const transaction = await editTransaction(
-      buildEditTransactionCommand({
-        transactionId: initState?.transactionId!,
-        title,
-        amount,
-        date: date.getTime(),
-      }),
-    );
-    await transactionCache?.updateTransaction(transaction);
-    resetForm();
-    onSuccess?.();
-  }, [title, value, date, initState?.transactionId, onSuccess, resetForm, editTransaction, transactionCache]);
-
-  const handleRepeatSubmit = useCallback(async () => {
-    const amount = parseMoney(value);
-    if (isBoiler) {
-      const transaction = await contributeToBoiler({
-        pipeId,
-        title: title.trim(),
-        value: amount,
-        date: date.getTime(),
-        ...(currentFedChanged && parsedCurrentFed !== null
-          ? { currentFed: parsedCurrentFed }
-          : {}),
-      });
-      if (transaction) await transactionCache?.addTransaction(transaction);
-      resetForm();
-      onSuccess?.();
-      return;
-    }
-    const transaction = await createTransaction(
-      buildCreateTransactionCommand({
-        title,
-        amount,
-        date: date.getTime(),
-        pipeId,
-        isFeed,
-        spendMode,
-        sentToPipeId,
-        paidFromPipeId,
-      }),
-    );
-    await transactionCache?.addTransaction(transaction);
-    resetForm();
-    onSuccess?.();
-  }, [isBoiler, isFeed, value, title, date, pipeId, spendMode, sentToPipeId, paidFromPipeId, currentFedChanged, parsedCurrentFed, onSuccess, resetForm, contributeToBoiler, createTransaction, transactionCache]);
-
-  const handleSubmit = useCallback(async () => {
-    if (!isValid || loading) return;
-    setLoading(true);
-    try {
-      if (intent === "edit") {
-        await handleEditSubmit();
-      } else {
-        await handleRepeatSubmit();
-      }
-    } catch (error) {
-      showAlert.error(
-        error instanceof Error ? error.message : "Something went wrong",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [isValid, loading, intent, handleEditSubmit, handleRepeatSubmit, showAlert]);
+export function AmountForm(props: AmountFormProps) {
+  const form = useAmountFormController(props);
+  const { action, boiler, common, spend, transaction } = form;
+  const transactionSummary =
+    transaction &&
+    transaction.intent !== "edit" &&
+    transaction.initial.spent !== undefined &&
+    transaction.initial.capacity !== undefined
+      ? ` (${formatAmount(transaction.initial.spent)} / ${formatAmount(transaction.initial.capacity)})`
+      : "";
+  const transactionIntentLabel =
+    transaction?.intent === "edit"
+      ? "edit"
+      : transaction?.intent === "create"
+        ? "create"
+        : "repeat";
 
   return (
     <View className="px-4 py-4 gap-2">
-      {initState && (
-        <View className="flex-row items-center border-b border-muted/20 p-2">
-          <View className="flex-row gap-4 items-center flex-1">
-            <Icon name={initState.pipeIcon} size={24} color={colors.muted} />
-            <Text className="text-md font-medium text-muted">{initState.pipeName}</Text>
-          </View>
-          {isTransactionVariant && initState?.transactionId && (
-            <SlideToggle
-              options={[
-                { value: "repeat", label: "Repeat transaction", icon: "repeat-once" },
-                { value: "edit", label: "Edit transaction", icon: "pencil-outline" },
-              ]}
-              value={intent}
-              onChange={handleIntentChange}
+      {transaction ? (
+        <View
+          accessibilityRole="header"
+          accessibilityLabel={
+            transaction.intent === "edit"
+              ? `Edit: ${transaction.initial.pipeName} ${transaction.initial.title}`
+              : `${transaction.intent === "create" ? "Create: " : ""}${transaction.initial.pipeName}${transactionSummary}`
+          }
+          className="flex-row items-center justify-between gap-2 border-b border-muted/20 p-2"
+        >
+          <View className="flex-1 flex-row items-center gap-2">
+            <Icon
+              name={transaction.initial.pipeIcon}
+              size={24}
+              color={colors.muted}
             />
-          )}
-        </View>
-      )}
-
-      {isTransactionVariant && !initState ? (
-        <View className="flex-row items-center justify-center pt-2">
-          <SlideToggle
-            options={[
-              { value: "repeat", label: "Repeat transaction", icon: "repeat-once" },
-              { value: "edit", label: "Edit transaction", icon: "pencil-outline" },
-            ]}
-            value={intent}
-            onChange={handleIntentChange}
-          />
+            <Text className="flex-1 text-md font-medium text-muted" numberOfLines={1}>
+              {transaction.initial.pipeName}
+              {transactionSummary}
+              {transaction.intent === "edit"
+                ? `: ${transaction.initial.title}`
+                : ""}
+            </Text>
+          </View>
+          <View className="flex-row items-center gap-1">
+            <Text className="text-sm text-muted">
+              {transactionIntentLabel}
+            </Text>
+            <Icon
+              name={
+                transaction.intent === "edit"
+                  ? "pencil-outline"
+                  : transaction.intent === "create"
+                    ? "add-circle-outline"
+                    : "repeat-once"
+              }
+              size={18}
+              color={colors.muted}
+            />
+          </View>
         </View>
       ) : null}
 
-      {!isTransactionVariant && !isFeed ? (
+      {spend ? (
         <View className="flex-row items-center justify-between">
           <Text className="text-sm text-text">
-            {spendMode === "spend" ? "Add transaction" : "Transfer"}
+            {spend.mode === "spend" ? "Add transaction" : "Transfer"}
           </Text>
           <SlideToggle
             options={[
               { value: "spend", label: "Spend", icon: "upload" },
               { value: "transfer", label: "Transfer", icon: "repeat" },
             ]}
-            value={spendMode}
-            onChange={handleModeChange}
+            value={spend.mode}
+            onChange={spend.updateMode}
           />
         </View>
       ) : null}
 
       <Input
         type="text-select"
-        value={title}
-        onChangeText={setTitle}
-        onOptionSelect={setTitle}
-        options={recentTitles ?? []}
+        value={common.title}
+        onChangeText={common.setTitle}
+        onOptionSelect={common.setTitle}
+        options={common.recentTitles}
         maxLength={140}
         multiline
         placeholder="What was this for?"
-        disabled={loading}
+        disabled={common.loading}
       />
 
       <View className="flex-row gap-4">
         <View className="flex-1">
           <Input
             type="decimal"
-            label={isFeed ? "Amount" : "Value"}
-            value={value}
-            onChange={handleValueChange}
+            label={form.isFeed ? "Amount" : "Value"}
+            value={common.value}
+            onChange={common.setValue}
             placeholder="0.00"
-            allowNegative={!isFeed}
-            disabled={loading}
+            allowNegative={!form.isFeed}
+            disabled={common.loading}
           />
         </View>
         <View className="flex-1">
           <Input
             type="date"
             label="Date"
-            value={date}
-            onChange={setDate}
-            disabled={loading}
+            value={common.date}
+            onChange={common.setDate}
+            disabled={common.loading}
           />
         </View>
       </View>
 
-      {isBoiler ? (
+      {transaction?.paidFrom ? (
+        <Input
+          type="select"
+          label={transaction.paidFrom.label}
+          value={transaction.paidFrom.value}
+          onSelect={(id) =>
+            transaction.paidFrom?.setValue(
+              id ? (id as Id<"pipes">) : null,
+            )
+          }
+          items={transaction.paidFrom.items}
+          renderItem={renderPipeItem}
+          placeholder="None"
+          disabled={common.loading || transaction.intent === "edit"}
+        />
+      ) : null}
+
+      {boiler ? (
         <View className="gap-1">
           <Input
             type="decimal"
-            label={`Current in ${boilerName ?? "boiler"}`}
-            value={currentFedValue}
-            onChange={setCurrentFedValue}
-            allowNegative
-            disabled={loading}
+            label={`Current in ${boiler.name}`}
+            value={boiler.value}
+            onChange={boiler.setValue}
+            allowNegative={false}
+            disabled={common.loading}
           />
-          {boilerContributionAmount > 0 && !currentFedChanged ? (
-            <Text
-              testID="boiler-growth-hint"
-              className="text-xs text-muted"
-            >
+          {boiler.contributionAmount > 0 && !boiler.currentFedChanged ? (
+            <Text testID="boiler-growth-hint" className="text-xs text-muted">
               <Text testID="boiler-growth-amount" className="font-bold">
-                +{formatAmount(boilerContributionAmount)}:
+                +{formatAmount(boiler.contributionAmount)}:
               </Text>{" "}
-              current will also grow by {formatAmount(boilerContributionAmount)} after this operation, unless manually modified
+              current will also grow by {formatAmount(boiler.contributionAmount)} after this operation, unless manually modified
             </Text>
           ) : null}
         </View>
       ) : null}
 
-      {!isFeed && !isTransactionVariant && spendMode === "transfer" && (
+      {spend?.mode === "transfer" ? (
         <Input
           type="select"
           label="Transfer to"
-          value={sentToPipeId}
-          onSelect={(id) => setSentToPipeId(id ? (id as Id<"pipes">) : null)}
-          items={pipeItems}
+          value={spend.sentToPipeId}
+          onSelect={(id) =>
+            spend.setSentToPipeId(id ? (id as Id<"pipes">) : null)
+          }
+          items={spend.pipeItems}
           renderItem={renderPipeItem}
           placeholder="None"
         />
-      )}
+      ) : null}
 
-      {!isFeed && !isTransactionVariant && spendMode === "spend" && (
-        showPaidFrom ? (
+      {spend?.mode === "spend" ? (
+        spend.showPaidFrom ? (
           <Input
             type="select"
-            label={isNegative ? "Paid from" : "Refunded to"}
-            value={paidFromPipeId}
-            onSelect={(id) => setPaidFromPipeId(id ? (id as Id<"pipes">) : null)}
-            items={paidFromPipeItems}
+            label={spend.isNegative ? "Paid from" : "Refunded to"}
+            value={spend.paidFromPipeId}
+            onSelect={(id) =>
+              spend.setPaidFromPipeId(id ? (id as Id<"pipes">) : null)
+            }
+            items={spend.paidFromPipeItems}
             renderItem={renderPipeItem}
             placeholder="None"
           />
@@ -420,26 +205,26 @@ export function AmountForm({
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Paid from another pipe?"
-            onPress={() => setShowPaidFrom(true)}
+            onPress={() => spend.setShowPaidFrom(true)}
             className="self-start flex-row items-center gap-1 py-1 opacity-50"
           >
             <Icon name="wallet-outline" size={14} color={colors.muted} />
             <Text className="text-xs text-muted">Paid from another pipe?</Text>
           </Pressable>
         )
-      )}
+      ) : null}
 
       <View className="flex-row items-center justify-between gap-3 pt-2">
         <TouchableOpacity
           testID="eraser-button"
           accessibilityRole="button"
           accessibilityLabel="Clear form"
-          accessibilityState={{ disabled: loading }}
-          onPress={resetForm}
-          disabled={loading}
+          accessibilityState={{ disabled: common.loading }}
+          onPress={common.reset}
+          disabled={common.loading}
           className={cn(
             "p-3 border border-muted rounded-full",
-            loading && "opacity-50",
+            common.loading && "opacity-50",
           )}
         >
           <Icon name="eraser" size={20} color={colors.muted} />
@@ -448,36 +233,39 @@ export function AmountForm({
         <Pressable
           testID="submit-button"
           accessibilityRole="button"
-          accessibilityLabel={actionLabel}
-          accessibilityState={{ disabled: !isValid || loading, busy: loading }}
-          aria-busy={loading}
-          onPress={handleSubmit}
-          disabled={!isValid || loading}
+          accessibilityLabel={action.label}
+          accessibilityState={{
+            disabled: !action.isValid || action.loading,
+            busy: action.loading,
+          }}
+          aria-busy={action.loading}
+          onPress={action.submit}
+          disabled={!action.isValid || action.loading}
           className={cn(
             "rounded-lg border px-5 py-3 flex-row items-center gap-2",
-            isValid && !loading ? "" : "opacity-50",
-            buttonStyle.border,
+            action.isValid && !action.loading ? "" : "opacity-50",
+            action.style.border,
           )}
         >
-          {loading ? (
+          {action.loading ? (
             <ActivityIndicator
-              accessibilityLabel={`Submitting ${actionLabel}`}
-              color={buttonStyle.iconColor}
+              accessibilityLabel={`Submitting ${action.label}`}
+              color={action.style.iconColor}
             />
           ) : (
             <>
               <Icon
-                name={buttonIcon as IconName}
+                name={action.icon as IconName}
                 size={20}
-                color={buttonStyle.iconColor}
+                color={action.style.iconColor}
               />
               <Text
                 className={cn(
                   "font-semibold text-base",
-                  buttonStyle.textColor,
+                  action.style.textColor,
                 )}
               >
-                {actionLabel}
+                {action.label}
               </Text>
             </>
           )}

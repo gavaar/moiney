@@ -141,22 +141,49 @@ export function updateTransaction(
   now: number,
 ): TransactionCache {
   const transactionId = String(transaction.id);
+  const previous = cache.entities[transactionId]?.transaction;
+  const rolesChanged =
+    previous !== undefined &&
+    (previous.from !== transaction.from ||
+      previous.to !== transaction.to ||
+      previous.paidFrom !== transaction.paidFrom);
+  const affectedPipeIds = new Set(
+    [
+      previous?.from,
+      previous?.to,
+      previous?.paidFrom,
+      transaction.from,
+      transaction.to,
+      transaction.paidFrom,
+    ]
+      .filter((pipeId) => pipeId !== undefined)
+      .map(String),
+  );
   const entities = {
     ...cache.entities,
     [transactionId]: { transaction, lastAccessedAt: now },
   };
   const snapshots = Object.fromEntries(
-    Object.entries(cache.snapshots).map(([scope, snapshot]) => {
-      if (!snapshot.ids.includes(transactionId)) return [scope, snapshot];
+    Object.entries(cache.snapshots).flatMap(([scope, snapshot]) => {
+      if (
+        rolesChanged &&
+        scope.startsWith("pipes:") &&
+        scopeContainsTransaction(scope, affectedPipeIds)
+      ) {
+        return [];
+      }
+      if (!snapshot.ids.includes(transactionId)) {
+        return [[scope, snapshot] as const];
+      }
 
       const ids = sortSnapshotIds(snapshot.ids, entities);
-      return [scope, {
+      return [[scope, {
         ...snapshot,
         ids: scope === HISTORY_SCOPE
           ? ids
           : ids.slice(0, MAX_RECENT_TRANSACTIONS),
         updatedAt: now,
-      }];
+      }] as const];
     }),
   );
 

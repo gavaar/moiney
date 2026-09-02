@@ -22,6 +22,13 @@ export function FeedAmountModal({
   const [visible, setVisible] = useState(false);
   const showAlert = useAlert();
 
+  function handleSuccess() {
+    showAlert.success(
+      sourceType === "boiler" ? "Boiler updated" : "Feed added",
+    );
+    setVisible(false);
+  }
+
   return (
     <>
       <Pressable
@@ -35,21 +42,26 @@ export function FeedAmountModal({
       </Pressable>
 
       <ModalShell visible={visible} onClose={() => setVisible(false)}>
-        <View className="gap-4">
-          <Text className="text-lg font-semibold text-text">Feed {feedName}</Text>
-          <AmountForm
-            variant={sourceType === "boiler" ? "boiler" : "feed"}
-            pipeId={pipeId}
-            boilerName={sourceType === "boiler" ? feedName : undefined}
-            currentFed={sourceType === "boiler" ? fed : undefined}
-            onSuccess={() => {
-              showAlert.success(
-                sourceType === "boiler" ? "Boiler updated" : "Feed added",
-              );
-              setVisible(false);
-            }}
-          />
-        </View>
+        {visible ? (
+          <View className="gap-4">
+            <Text className="text-lg font-semibold text-text">Feed {feedName}</Text>
+            {sourceType === "boiler" ? (
+              <AmountForm
+                variant="boiler"
+                pipeId={pipeId}
+                boilerName={feedName}
+                currentFed={fed}
+                onSuccess={handleSuccess}
+              />
+            ) : (
+              <AmountForm
+                variant="feed"
+                pipeId={pipeId}
+                onSuccess={handleSuccess}
+              />
+            )}
+          </View>
+        ) : null}
       </ModalShell>
     </>
   );

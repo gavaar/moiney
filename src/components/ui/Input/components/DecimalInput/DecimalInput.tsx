@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
+  Pressable,
   Text,
   TextInput as RNTextInput,
   View,
@@ -17,54 +18,71 @@ type Props = {
   allowNegative?: boolean;
 };
 
-function sanitizeDecimal(input: string, allowNegative: boolean, currentValue: string): string {
+const sanitizeDecimal = (input: string): string => {
   const cleaned = input.replace(/-/g, "").replace(/[^0-9.]/g, "");
   const parts = cleaned.split(".");
-  const sanitized = parts[0] + (parts.length > 1 ? "." + parts.slice(1).join("") : "");
-
-  if (!allowNegative) return sanitized;
-
-  const prevMinusCount = (currentValue.match(/-/g) || []).length;
-  const nextMinusCount = (input.match(/-/g) || []).length;
-  const wasNegative = prevMinusCount > 0;
-
-  if (nextMinusCount !== prevMinusCount) {
-    return wasNegative ? sanitized : "-" + sanitized;
-  }
-
-  return wasNegative ? "-" + sanitized : sanitized;
-}
+  return parts[0] + (parts.length > 1 ? "." + parts.slice(1).join("") : "");
+};
 
 export function DecimalInput({ label, error, disabled, value, onChange, placeholder, allowNegative = true }: Props) {
   const [focused, setFocused] = useState(false);
+  const borderStyle = useMemo(() => getBorderStyle(disabled, focused, error), [disabled, focused, error]);
 
-  const borderStyle = getBorderStyle(disabled, focused, error);
+  const displayValue = useMemo(() => sanitizeDecimal(value), [value]);
+  const isNegative = useMemo(() => allowNegative && (value.startsWith("-")), [allowNegative, value]);
 
-  const handleChangeText = (text: string) => {
-    const sanitized = sanitizeDecimal(text, allowNegative, value);
-    onChange(sanitized);
-  };
+  const handleChangeText = useCallback((text: string) => {
+    const newSign = allowNegative
+      ? text.includes("-") ? (isNegative ? "" : "-") : (isNegative ? "-" : "")
+      : "";
+    onChange(`${newSign}${sanitizeDecimal(text)}`);
+  }, [allowNegative, isNegative, onChange]);
+
+  const handleSignPress = useCallback(() => {
+    if (disabled) return;
+    const newSign = isNegative ? "" : "-";
+    onChange(`${newSign}${sanitizeDecimal(value)}`);
+  }, [isNegative, value, disabled, onChange]);
 
   return (
     <View className="gap-1">
       <Text className="text-sm font-medium text-text">{label}</Text>
-      <RNTextInput
-        className={cn(
-          "rounded-lg border bg-surface px-3 py-2.5 text-base text-text",
-          disabled && "opacity-60",
-          borderStyle,
-        )}
-         keyboardType="decimal-pad"
-         accessibilityLabel={label}
-         accessibilityState={{ disabled }}
-        value={value}
-        onChangeText={handleChangeText}
-        placeholder={placeholder}
-        placeholderTextColor="#9CA3AF"
-        editable={!disabled}
-        onFocus={() => !disabled && setFocused(true)}
-        onBlur={() => setFocused(false)}
-      />
+      <View className="flex-row">
+        {allowNegative ? (
+          <Pressable
+            onPress={handleSignPress}
+            disabled={disabled}
+            accessibilityRole="button"
+            accessibilityLabel={`Change ${label} sign, currently ${isNegative ? "negative" : "positive"}`}
+            accessibilityState={{ disabled }}
+            className={cn(
+              "justify-center rounded-tl-lg rounded-bl-lg border border-r-0 bg-surface px-2",
+              disabled && "opacity-60",
+              borderStyle
+            )}
+          >
+            <Text className="text-base font-bold text-muted w-2 text-center">{isNegative ? "-" : "+"}</Text>
+          </Pressable>
+        ) : null}
+        <RNTextInput
+          className={cn(
+            "flex-1 rounded-tr-lg rounded-br-lg border bg-surface px-3 py-2 text-base text-text",
+            disabled && "opacity-60",
+            allowNegative ? "" : "rounded-tl-lg rounded-bl-lg",
+            borderStyle,
+          )}
+          keyboardType="decimal-pad"
+          accessibilityLabel={label}
+          accessibilityState={{ disabled }}
+          value={displayValue}
+          onChangeText={handleChangeText}
+          placeholder={placeholder}
+          placeholderTextColor="#9CA3AF"
+          editable={!disabled}
+          onFocus={() => !disabled && setFocused(true)}
+          onBlur={() => setFocused(false)}
+        />
+      </View>
       {error ? (
         <Text accessibilityRole="alert" accessibilityLabel={error} className="text-sm text-error">
           {error}

@@ -2,6 +2,29 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { DecimalInput } from "./DecimalInput";
+import { useState } from "react";
+
+function renderControlledDecimalInput() {
+  const onChange = vi.fn();
+
+  function ControlledDecimalInput() {
+    const [value, setValue] = useState("-");
+
+    return (
+      <DecimalInput
+        label="Amount"
+        value={value}
+        onChange={(nextValue) => {
+          onChange(nextValue);
+          setValue(nextValue);
+        }}
+      />
+    );
+  }
+
+  render(<ControlledDecimalInput />);
+  return onChange;
+}
 
 describe("DecimalInput", () => {
   it("renders label", () => {
@@ -23,7 +46,7 @@ describe("DecimalInput", () => {
 
   it("accepts digit input", () => {
     const onChange = vi.fn();
-    render(<DecimalInput label="Amount" value="" onChange={onChange} />);
+    render(<DecimalInput label="Amount" value="" onChange={onChange} allowNegative={false} />);
     const input = screen.getByDisplayValue("");
     fireEvent.change(input, { target: { value: "42" } });
     expect(onChange).toHaveBeenCalledWith("42");
@@ -31,7 +54,7 @@ describe("DecimalInput", () => {
 
   it("accepts decimal input", () => {
     const onChange = vi.fn();
-    render(<DecimalInput label="Amount" value="" onChange={onChange} />);
+    render(<DecimalInput label="Amount" value="" onChange={onChange} allowNegative={false} />);
     const input = screen.getByDisplayValue("");
     fireEvent.change(input, { target: { value: "100.53" } });
     expect(onChange).toHaveBeenCalledWith("100.53");
@@ -39,7 +62,7 @@ describe("DecimalInput", () => {
 
   it("allows trailing decimal point", () => {
     const onChange = vi.fn();
-    render(<DecimalInput label="Amount" value="" onChange={onChange} />);
+    render(<DecimalInput label="Amount" value="" onChange={onChange} allowNegative={false} />);
     const input = screen.getByDisplayValue("");
     fireEvent.change(input, { target: { value: "100." } });
     expect(onChange).toHaveBeenCalledWith("100.");
@@ -47,7 +70,7 @@ describe("DecimalInput", () => {
 
   it("strips non-numeric characters except decimal point", () => {
     const onChange = vi.fn();
-    render(<DecimalInput label="Amount" value="" onChange={onChange} />);
+    render(<DecimalInput label="Amount" value="" onChange={onChange} allowNegative={false} />);
     const input = screen.getByDisplayValue("");
     fireEvent.change(input, { target: { value: "abc12.34xyz" } });
     expect(onChange).toHaveBeenCalledWith("12.34");
@@ -55,7 +78,7 @@ describe("DecimalInput", () => {
 
   it("prevents multiple decimal points", () => {
     const onChange = vi.fn();
-    render(<DecimalInput label="Amount" value="" onChange={onChange} />);
+    render(<DecimalInput label="Amount" value="" onChange={onChange} allowNegative={false} />);
     const input = screen.getByDisplayValue("");
     fireEvent.change(input, { target: { value: "1.2.3" } });
     expect(onChange).toHaveBeenCalledWith("1.23");
@@ -69,36 +92,86 @@ describe("DecimalInput", () => {
   });
 
   describe("allowNegative", () => {
-    it("defaults to true and preserves minus sign", () => {
+    it("treats an empty parent value as positive without changing it", () => {
       const onChange = vi.fn();
+
       render(<DecimalInput label="Amount" value="" onChange={onChange} />);
-      const input = screen.getByDisplayValue("");
-      fireEvent.change(input, { target: { value: "-42" } });
-      expect(onChange).toHaveBeenCalledWith("-42");
+
+      expect(screen.getByRole("button", {
+        name: "Change Amount sign, currently positive",
+      })).toBeTruthy();
+      expect(onChange).not.toHaveBeenCalled();
     });
 
-    it("preserves negative decimal", () => {
+    it("applies a negative empty value when digits are entered", () => {
+      const onChange = renderControlledDecimalInput();
+
+      expect(screen.getByRole("button", { name: "Change Amount sign, currently negative" })).toBeTruthy();
+
+      fireEvent.change(screen.getByRole("textbox", { name: "Amount" }), {
+        target: { value: "42" },
+      });
+
+      expect(onChange).toHaveBeenLastCalledWith("-42");
+    });
+
+    it("displays the sign separately and toggles it when pressed", () => {
       const onChange = vi.fn();
-      render(<DecimalInput label="Amount" value="" onChange={onChange} />);
+      render(<DecimalInput label="Amount" value="-42" onChange={onChange} />);
+
+      fireEvent.click(screen.getByRole("button", {
+        name: "Change Amount sign, currently negative",
+      }));
+
+      expect(screen.getByDisplayValue("42")).toBeTruthy();
+      expect(onChange).toHaveBeenCalledWith("42");
+    });
+
+    it("toggles the sign badge before a number is entered", () => {
+      const onChange = renderControlledDecimalInput();
+
+      fireEvent.click(screen.getByRole("button", {
+        name: "Change Amount sign, currently negative",
+      }));
+
+      expect(screen.getByRole("button", {
+        name: "Change Amount sign, currently positive",
+      })).toBeTruthy();
+
+      fireEvent.change(screen.getByRole("textbox", { name: "Amount" }), {
+        target: { value: "42" },
+      });
+      expect(onChange).toHaveBeenCalledWith("42");
+    });
+
+    it("toggles the default negative sign when minus is typed", () => {
+      const onChange = renderControlledDecimalInput();
+      const input = screen.getByDisplayValue("");
+      fireEvent.change(input, { target: { value: "-42" } });
+      expect(onChange).toHaveBeenLastCalledWith("42");
+    });
+
+    it("toggles the default sign while preserving a decimal", () => {
+      const onChange = renderControlledDecimalInput();
       const input = screen.getByDisplayValue("");
       fireEvent.change(input, { target: { value: "-10.50" } });
-      expect(onChange).toHaveBeenCalledWith("-10.50");
+      expect(onChange).toHaveBeenLastCalledWith("10.50");
     });
 
     it("strips minus sign when allowNegative is false", () => {
       const onChange = vi.fn();
       render(<DecimalInput label="Amount" value="" onChange={onChange} allowNegative={false} />);
       const input = screen.getByDisplayValue("");
+      expect(screen.queryByRole("button", { name: /Change Amount sign/ })).toBeNull();
       fireEvent.change(input, { target: { value: "-42" } });
       expect(onChange).toHaveBeenCalledWith("42");
     });
 
-    it("strips non-numeric characters while keeping minus", () => {
-      const onChange = vi.fn();
-      render(<DecimalInput label="Amount" value="" onChange={onChange} />);
+    it("strips non-numeric characters while using minus to toggle", () => {
+      const onChange = renderControlledDecimalInput();
       const input = screen.getByDisplayValue("");
       fireEvent.change(input, { target: { value: "abc-12.34xyz" } });
-      expect(onChange).toHaveBeenCalledWith("-12.34");
+      expect(onChange).toHaveBeenLastCalledWith("12.34");
     });
 
     it("toggles from positive to negative when '-' is typed", () => {
@@ -112,7 +185,7 @@ describe("DecimalInput", () => {
     it("toggles from negative to positive when '-' is typed on negative value", () => {
       const onChange = vi.fn();
       render(<DecimalInput label="Amount" value="-1234" onChange={onChange} />);
-      const input = screen.getByDisplayValue("-1234");
+      const input = screen.getByRole("textbox", { name: "Amount" });
       fireEvent.change(input, { target: { value: "--1234" } });
       expect(onChange).toHaveBeenCalledWith("1234");
     });
@@ -128,7 +201,7 @@ describe("DecimalInput", () => {
     it("toggles sign when '-' appears in the middle of a negative string", () => {
       const onChange = vi.fn();
       render(<DecimalInput label="Amount" value="-1234" onChange={onChange} />);
-      const input = screen.getByDisplayValue("-1234");
+      const input = screen.getByRole("textbox", { name: "Amount" });
       fireEvent.change(input, { target: { value: "-12-34" } });
       expect(onChange).toHaveBeenCalledWith("1234");
     });

@@ -16,6 +16,7 @@ export type TransactionGroup = {
   latestValue: number;
   from: TransactionModel["from"];
   to: TransactionModel["to"];
+  paidFrom: TransactionModel["paidFrom"];
   visiblePipeIds: NonNullable<TransactionModel["from"]>[];
   oldestDate: number;
   latestDate: number;
@@ -128,6 +129,7 @@ export function groupTransactions(
         latestValue: latestTransaction.value,
         from: latestTransaction.from,
         to: latestTransaction.to,
+        paidFrom: latestTransaction.paidFrom,
         visiblePipeIds: [...visibleGroupPipeIds].sort(),
         oldestDate,
         latestDate,

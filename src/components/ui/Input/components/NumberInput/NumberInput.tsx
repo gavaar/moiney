@@ -94,7 +94,7 @@ export function NumberInput({
 
         <TextInput
           className={cn(
-            "flex-1 rounded-lg border bg-surface px-3 py-2.5 text-center text-base text-text",
+            "flex-1 rounded-lg border bg-surface px-3 py-2 text-center text-base text-text",
             borderStyle,
           )}
           keyboardType="numeric"

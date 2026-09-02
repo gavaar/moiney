@@ -355,9 +355,12 @@ cents. It is separate from `capacity`, which remains mutable allocation and rule
 state and must not be used as boiler principal. New boilers start with both
 values at zero. A positive feed transaction to a boiler increases both `fed`
 and `contributedFed`; editing that feed transaction applies its value delta to
-both fields. Transfers, refunds, expenses, rules, reconciliation, and explicit
-current corrections affect `fed` under their existing policies without changing
-`contributedFed`.
+both fields. A transfer whose `to` pipe is a boiler applies the same signed
+destination delta to both `fed` and `contributedFed`; editing the transfer
+applies only its signed value difference, including reversals. Refunds,
+expenses, rules, reconciliation, explicit current corrections, and transfers
+where the boiler is not the destination affect `fed` under their existing
+policies without changing `contributedFed`.
 
 The boiler contribution boundary accepts an optional exact current balance. If
 it is omitted, a positive contribution is added to the latest current balance.
@@ -420,3 +423,60 @@ owned month. The report derives net spending as gross spending minus refunds.
 Average spending divides gross spending by the spending transaction count,
 rounds to the nearest integer cent, and is zero when there are no spending
 transactions.
+
+## D017: Transaction Structural Editing
+
+Status: In progress
+
+Transaction repeat forms use the same role controls as new transactions. A
+repeat may choose ordinary expense, transfer, or pay-by-transfer structure and
+must show every selected destination or payer before submission. Group repeats
+start from the newest transaction's structure.
+
+Tapping an individual transaction opens its repeat form. Swiping the row left
+reveals a blue pencil action and opens the edit form after the swipe threshold;
+the action is also exposed as an accessible button. Repeat forms identify the
+pipe by icon and name, while edit forms use a centered `Edit:` title containing
+the pipe icon, pipe name, and transaction title. Group rows remain repeat-only.
+
+Structural editing keeps the original logical source pipe fixed. Feed
+transactions remain structurally fixed. Existing pay-by-transfer transactions
+may still edit title, value, and date, but their logical source and payer remain
+fixed because legacy accounting cannot be reversed reliably across the D012
+cutover and rule-execution boundaries.
+
+Ordinary expenses and transfers may be converted among ordinary expense,
+transfer, and pay-by-transfer structures. A structural edit applies the complete
+old-to-new accounting transition to the current accounting period; historical
+periods and captured monthly summaries are not restated. The transition is
+calculated as one net plan, applies at most one accounting patch per pipe,
+triggers rules from net logical spending once, and reconciles the union of old
+and new affected roots once.
+
+Correction history records both previous and current transaction structure.
+Loaded transaction caches update history and recent entities immediately and
+invalidate selected-pipe snapshots affected by either the old or new roles.
+
+## D018: Quick Transaction Creation
+
+Status: Implemented
+
+The middle tab-bar action opens transaction creation without navigating away
+from the active tab. It offers only owned, non-deleting leaf pipes, including a
+root that has no children. Feeds are not created through this entry point, and
+ordinary expense creation is rejected by the backend when the source pipe has
+children.
+
+Eligible pipes are ordered by source frequency across the first 100 rows of the
+unfiltered History list. The shared transaction snapshot supplies those rows
+without a request when its cached History scope is valid; otherwise the normal
+History loader seeds that scope. Only the logical `from` role contributes to
+this ranking; feed destinations, transfer destinations, and pay-by-transfer
+payer roles do not. Equal counts retain most-recent source order, followed by
+unused pipes in catalog order.
+
+After pipe selection, the normal expense, transfer, and pay-by-transfer form is
+shown with empty transaction values. Create and repeat headings display the
+current primary pipe as `name (spent / capacity)` using integer-cent
+presentation formatting. Create uses a plus marker while repeat retains its
+repeat marker.

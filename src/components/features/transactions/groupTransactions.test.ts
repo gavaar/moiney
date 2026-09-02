@@ -117,6 +117,7 @@ describe("groupTransactions", () => {
       count: 2,
       kind: "expense",
       id: JSON.stringify(["expense", "coffee"]),
+      paidFrom: "salary",
     });
   });
 

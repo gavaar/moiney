@@ -187,8 +187,8 @@ describe("InnerPipesScreen", () => {
 
     render(<InnerPipesScreen />);
 
-    expect(screen.getByText("expected")).toBeDefined();
-    expect(screen.getByText("120.00")).toBeDefined();
+    const expectedRow = screen.getByText("expected").parentElement!;
+    expect(within(expectedRow).getByText("120.00")).toBeDefined();
   });
 
   it("hides the spent bar when the selected pipe rule is instant_settlement", () => {

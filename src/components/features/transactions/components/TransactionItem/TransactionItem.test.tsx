@@ -19,6 +19,8 @@ const pipeInfo = {
   id: "id" as Id<"pipes">,
   icon: "cart-outline",
   name: "Groceries",
+  spent: 12345,
+  capacity: 50000,
 };
 
 const salaryPipe = {
@@ -72,11 +74,22 @@ vi.mock("@ui/Icon", () => ({
   safeIconName: (name: string | undefined | null): string => name ?? "pipe",
 }));
 
+vi.mock("@ui/Modal", () => ({
+  ModalShell: ({ children }: any) => <div data-testid="modal-shell">{children}</div>,
+}));
+
 vi.mock("@features/components/AmountForm", () => ({
   AmountForm: ({ initState }: any) => (
     <div
       data-testid="amount-form"
-      data-paid-from={initState?.paidFrom}
+      data-intent={initState?.intent ?? "repeat"}
+      data-spent={initState?.spent}
+      data-capacity={initState?.capacity}
+      data-paid-from={
+        initState?.structure?.type === "payByTransfer"
+          ? initState.structure.paidFrom
+          : undefined
+      }
     />
   ),
 }));
@@ -108,6 +121,46 @@ describe("TransactionItem", () => {
   it("renders the value with two decimals", () => {
     render(<TransactionItem transaction={baseTx} />);
     expect(screen.getByText("-50.00")).toBeDefined();
+  });
+
+  it("does not mount AmountForm before the transaction row is opened", () => {
+    render(
+      <TransactionItem
+        transaction={{ ...baseTx, from: pipeInfo.id }}
+      />,
+    );
+
+    expect(screen.queryByTestId("amount-form")).toBeNull();
+  });
+
+  it("passes the current pipe spending summary to the repeat form", () => {
+    render(
+      <TransactionItem
+        transaction={{ ...baseTx, from: pipeInfo.id }}
+      />,
+    );
+
+    fireEvent.click(screen.getByText("Shopping mall"));
+
+    expect(screen.getByTestId("amount-form").getAttribute("data-spent")).toBe(
+      "12345",
+    );
+    expect(
+      screen.getByTestId("amount-form").getAttribute("data-capacity"),
+    ).toBe("50000");
+  });
+
+  it("opens the transaction directly for editing from the swipe action", () => {
+    render(
+      <TransactionItem
+        transaction={{ ...baseTx, from: pipeInfo.id }}
+      />,
+    );
+
+    fireEvent.click(screen.getByLabelText("Edit shopping mall"));
+
+    expect(screen.getByTestId("amount-form").getAttribute("data-intent"))
+      .toBe("edit");
   });
 
   it("opens edit history from the Edited control", () => {
@@ -326,7 +379,7 @@ describe("TransactionItem pay-by-transfer variant", () => {
     render(<TransactionItem transaction={tx} />);
 
     expect(screen.getAllByTestId("mock-icon").map((icon) => icon.getAttribute("data-name")))
-      .toEqual(["cash-outline", "ray-start-arrow", "home-outline"]);
+      .toEqual(["pencil-outline", "cash-outline", "ray-start-arrow", "home-outline"]);
   });
 
   it("opens repeat with the individual paidFrom provenance", () => {
@@ -339,6 +392,31 @@ describe("TransactionItem pay-by-transfer variant", () => {
     });
     const tx = {
       ...baseTx,
+      from: "rent-pipe" as Id<"pipes">,
+      paidFrom: "salary-pipe" as Id<"pipes">,
+    };
+
+    render(<TransactionItem transaction={tx} />);
+    fireEvent.click(screen.getByText("Shopping mall"));
+
+    expect(screen.getByTestId("amount-form").getAttribute("data-paid-from"))
+      .toBe("salary-pipe");
+  });
+
+  it("repeats a positive refund to an external root with children", () => {
+    mockUsePipeSelection.mockReturnValue({
+      allPipes: [salaryPipe, rentPipe],
+      pipesById: {
+        "salary-pipe": salaryPipe,
+        "rent-pipe": rentPipe,
+      },
+      childrenByParent: new Map([
+        [salaryPipe.id, [{ id: "salary-child" as Id<"pipes"> }]],
+      ]),
+    });
+    const tx = {
+      ...baseTx,
+      value: 5000,
       from: "rent-pipe" as Id<"pipes">,
       paidFrom: "salary-pipe" as Id<"pipes">,
     };

@@ -42,6 +42,12 @@ const correctionSnapshot = v.object({
   title: v.string(),
   value: v.number(),
   date: v.number(),
+  kind: v.optional(
+    v.union(v.literal("feed"), v.literal("expense"), v.literal("transfer")),
+  ),
+  from: v.optional(v.id("pipes")),
+  to: v.optional(v.id("pipes")),
+  paidFrom: v.optional(v.id("pipes")),
 });
 const correctionHistoryItem = v.object({
   correctionId: v.id("transactionCorrections"),
@@ -230,6 +236,16 @@ export const editTransaction = mutation({
     title: v.string(),
     value: v.number(),
     date: v.number(),
+    target: v.optional(
+      v.union(
+        v.object({ type: v.literal("expense") }),
+        v.object({ type: v.literal("transfer"), to: v.id("pipes") }),
+        v.object({
+          type: v.literal("payByTransfer"),
+          paidFrom: v.id("pipes"),
+        }),
+      ),
+    ),
   },
   returns: transactionCacheItem,
   handler: async (ctx, args) => {

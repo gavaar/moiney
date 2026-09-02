@@ -223,6 +223,9 @@ describe("RuleModal", () => {
 
   it("saves a cap update value for instant_settlement", async () => {
     renderModal(basePipe({ rule: "instant_settlement", capacity: 10000 }));
+    expect(screen.getByRole("button", {
+      name: "Change Cap update sign, currently positive",
+    })).toBeTruthy();
     fireEvent.change(screen.getByPlaceholderText("reset cap to 100.00"), {
       target: { value: "50" },
     });

@@ -1,6 +1,8 @@
 import { colors } from "@/lib/styles";
 import type { Id } from "@convex/_generated/dataModel";
 import type { PipeModel } from "@features/pipes/data/pipes";
+import { isPaidFromPipeEligible } from "@features/pipes/data/paidFromEligibility";
+import type { TransactionStructure } from "@domain/transactions";
 
 type PipeReference = Pick<
   PipeModel,
@@ -32,6 +34,10 @@ type EditTransactionCommand = {
   title: string;
   value: number;
   date: number;
+  target?:
+    | { type: "expense" }
+    | { type: "transfer"; to: PipeModel["id"] }
+    | { type: "payByTransfer"; paidFrom: PipeModel["id"] };
 };
 
 type EditTransactionInput = {
@@ -39,6 +45,10 @@ type EditTransactionInput = {
   title: string;
   amount: number;
   date: number;
+  initialStructure?: TransactionStructure<PipeModel["id"]>;
+  spendMode?: SpendMode;
+  sentToPipeId?: PipeModel["id"] | null;
+  paidFromPipeId?: PipeModel["id"] | null;
 };
 
 type SpendMode = "spend" | "transfer";
@@ -88,24 +98,49 @@ export function buildEditTransactionCommand({
   title,
   amount,
   date,
+  initialStructure,
+  spendMode,
+  sentToPipeId,
+  paidFromPipeId,
 }: EditTransactionInput): EditTransactionCommand {
+  let target: EditTransactionCommand["target"];
+  if (initialStructure && initialStructure.type !== "feed") {
+    if (spendMode === "transfer" && sentToPipeId) {
+      if (
+        initialStructure.type !== "transfer" ||
+        initialStructure.to !== sentToPipeId
+      ) {
+        target = { type: "transfer", to: sentToPipeId };
+      }
+    } else if (paidFromPipeId) {
+      if (
+        initialStructure.type !== "payByTransfer" ||
+        initialStructure.paidFrom !== paidFromPipeId
+      ) {
+        target = { type: "payByTransfer", paidFrom: paidFromPipeId };
+      }
+    } else if (initialStructure.type !== "expense") {
+      target = { type: "expense" };
+    }
+  }
   return {
     transactionId,
     title,
     value: amount,
     date,
+    ...(target ? { target } : {}),
   };
 }
 
 export function getIntentDate(
-  intent: "repeat" | "edit",
+  intent: "create" | "repeat" | "edit",
   initialDate: number | undefined,
   now: Date,
 ): Date | undefined {
   if (intent === "edit" && initialDate !== undefined) {
     return new Date(initialDate);
   }
-  if (intent === "repeat") return new Date(now);
+  if (intent === "create" || intent === "repeat") return new Date(now);
   return undefined;
 }
 
@@ -142,7 +177,10 @@ export function getTopmostPipeId(
   return topmostPipeId;
 }
 
-export function getButtonStyle(intent: "repeat" | "edit", isNegative: boolean) {
+export function getButtonStyle(
+  intent: "create" | "repeat" | "edit",
+  isNegative: boolean,
+) {
   if (intent === "edit") {
     return {
       border: "border-primary",
@@ -157,7 +195,11 @@ export function getButtonStyle(intent: "repeat" | "edit", isNegative: boolean) {
   } as const;
 }
 
-export function getButtonIcon(intent: "repeat" | "edit", isFeed: boolean, spendMode: string) {
+export function getButtonIcon(
+  intent: "create" | "repeat" | "edit",
+  isFeed: boolean,
+  spendMode: string,
+) {
   if (intent === "edit") return "checkmark";
   if (isFeed) return "add-circle-outline";
   return spendMode === "spend" ? "upload" : "repeat";
@@ -207,24 +249,10 @@ export function buildPaidFromPipeItems(
   isNegative: boolean,
 ): Array<{ id: string; name: string; icon: string }> {
   const pipes = allPipes ?? [];
-  const topmostPipeId = getTopmostPipeId(pipes, pipeId);
-
-  const parentIds = new Set(
-    pipes.flatMap((pipe) => pipe.parentId ? [pipe.parentId] : []),
+  const value = isNegative ? -1 : 1;
+  const eligiblePipes = pipes.filter((pipe) =>
+    isPaidFromPipeEligible(pipes, pipeId, pipe.id, value),
   );
-  const eligiblePipes = isNegative
-    ? pipes.filter(
-        (pipe) =>
-          !parentIds.has(pipe.id) &&
-          !pipe.deletionJobId &&
-          getTopmostPipeId(pipes, pipe.id) !== topmostPipeId,
-      )
-    : pipes.filter(
-        (pipe) =>
-          !pipe.parentId &&
-          !pipe.deletionJobId &&
-          pipe.id !== topmostPipeId,
-      );
 
   return [
     { id: "", name: "None", icon: "close-circle" },
