@@ -88,6 +88,8 @@ export const addFeed = mutation({
     sourceType: v.optional(
       v.union(v.literal("feed"), v.literal("boiler")),
     ),
+    initialFed: v.optional(v.number()),
+    contributedFed: v.optional(v.number()),
   },
   returns: v.id("pipes"),
   handler: async (ctx, args) => {

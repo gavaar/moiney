@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { Text, TouchableOpacity, View } from "react-native";
+import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { Button } from "@ui/Button";
@@ -8,6 +8,7 @@ import { Input } from "@ui/Input";
 import { useAlert } from "@ui/Alert";
 import { ModalShell } from "@ui/Modal";
 import { SlideToggle } from "@ui/SlideToggle";
+import { parseMoney } from "@domain/money";
 
 type SourceType = "feed" | "boiler";
 
@@ -19,6 +20,15 @@ const SOURCE_OPTIONS = [
   { value: SourceType; label: string; icon: IconName },
 ];
 
+function parseOptionalMoney(value: string): number | null | undefined {
+  if (!value) return undefined;
+  try {
+    return parseMoney(value);
+  } catch {
+    return null;
+  }
+}
+
 export function AddFeedButton() {
   const [visible, setVisible] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -27,6 +37,8 @@ export function AddFeedButton() {
   const [icon, setIcon] = useState<IconName | "">("");
   const [description, setDescription] = useState("");
   const [sourceType, setSourceType] = useState<SourceType>("feed");
+  const [amount, setAmount] = useState("");
+  const [contributed, setContributed] = useState("");
   const [nameError, setNameError] = useState<string | undefined>(undefined);
 
   const showAlert = useAlert();
@@ -52,19 +64,33 @@ export function AddFeedButton() {
     setIcon("");
     setDescription("");
     setSourceType("feed");
+    setAmount("");
+    setContributed("");
     setNameError(undefined);
   }, []);
+
+  const initialFed = parseOptionalMoney(amount);
+  const contributedFed = parseOptionalMoney(contributed);
 
   const canSubmit = useMemo(
     () =>
       validateName(name) === undefined &&
       icon !== "" &&
-      icon in ICON_REGISTRY,
-    [name, icon, validateName],
+      icon in ICON_REGISTRY &&
+      initialFed !== null &&
+      (sourceType !== "boiler" || contributedFed !== null),
+    [name, icon, initialFed, sourceType, contributedFed, validateName],
   );
 
   const handleSubmit = useCallback(async () => {
-    if (!canSubmit || loading) return;
+    if (
+      !canSubmit ||
+      loading ||
+      initialFed === null ||
+      contributedFed === null
+    ) {
+      return;
+    }
     setLoading(true);
     try {
       await addFeed({
@@ -72,6 +98,10 @@ export function AddFeedButton() {
         icon,
         description: description || undefined,
         sourceType,
+        ...(initialFed === undefined ? {} : { initialFed }),
+        ...(sourceType !== "boiler" || contributedFed === undefined
+          ? {}
+          : { contributedFed }),
       });
       showAlert.success(sourceType === "boiler" ? "Boiler added" : "Feed added");
       setVisible(false);
@@ -91,6 +121,8 @@ export function AddFeedButton() {
     icon,
     description,
     sourceType,
+    initialFed,
+    contributedFed,
     showAlert,
     resetForm,
   ]);
@@ -106,14 +138,28 @@ export function AddFeedButton() {
       </TouchableOpacity>
 
       <ModalShell visible={visible} onClose={() => setVisible(false)}>
-        <View className="gap-4">
-          <View className="items-center">
+        <View className="gap-3 border-b border-muted/20 pb-3">
+          <View className="flex-row items-center justify-between gap-3">
+            <Text accessibilityRole="header" className="text-lg font-semibold text-text">
+              {sourceType === "boiler" ? "Create Boiler" : "Create Feed"}
+            </Text>
             <SlideToggle
               options={SOURCE_OPTIONS}
               value={sourceType}
               onChange={(value) => setSourceType(value as SourceType)}
             />
           </View>
+          <Text className="text-sm text-muted">
+            {sourceType === "boiler"
+              ? "A boiler tracks an asset's current value and contributed principal separately. Amount is its current value; Contributed is how much you put into it."
+              : "A feed is a source for money entering your budget. Amount is the money currently available in it."}
+          </Text>
+        </View>
+        <ScrollView
+          className="flex-grow-0"
+          contentContainerClassName="gap-4 pt-4"
+          keyboardShouldPersistTaps="handled"
+        >
           <Input
             label="Name"
             placeholder="Feed name"
@@ -122,6 +168,28 @@ export function AddFeedButton() {
             onBlur={handleNameBlur}
             error={nameError}
           />
+          <Input
+            type="decimal"
+            label="Amount"
+            placeholder="Current value?"
+            value={amount}
+            onChange={setAmount}
+            allowNegative={false}
+            error={initialFed === null ? "Enter a valid amount" : undefined}
+          />
+          {sourceType === "boiler" ? (
+            <Input
+              type="decimal"
+              label="Contributed"
+              placeholder="How much was put in it?"
+              value={contributed}
+              onChange={setContributed}
+              allowNegative={false}
+              error={
+                contributedFed === null ? "Enter a valid contribution" : undefined
+              }
+            />
+          ) : null}
           <Input type="icon" label="Icon" value={icon} onSelect={setIcon} />
           <Input
             label="Description"
@@ -141,7 +209,7 @@ export function AddFeedButton() {
               testID="add-feed-submit"
             />
           </View>
-        </View>
+        </ScrollView>
       </ModalShell>
     </>
   );

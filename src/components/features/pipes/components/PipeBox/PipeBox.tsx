@@ -49,7 +49,7 @@ export function PipeBox({ name, icon, priority, capacity, fed, spent, showPriori
 
         <View className="absolute flex right-1 top-1 p-1 items-end justify-center rounded-md">
           <Text className={`font-semibold text-sm ${fed < 0 ? "text-errorDark" : "text-text"}`}>
-            {formatAmount(spent)} / {formatAmount(fed)}
+            {spent ? `${formatAmount(spent)} / ` : ''}{formatAmount(fed)}
           </Text>
           <Text className={`text-xs ${capacity < 0 ? "text-errorDark" : "text-text"}`}>
             ({capacity < 0 ? "debt cap" : "goal"}: {formatAmount(capacity)})

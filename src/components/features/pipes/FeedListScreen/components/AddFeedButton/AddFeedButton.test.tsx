@@ -36,11 +36,32 @@ describe("AddFeedButton", () => {
     vi.clearAllMocks();
   });
 
+  it("explains the selected feed type and its initial values", async () => {
+    const user = await openModal();
+
+    expect(screen.getByRole("heading", { name: "Create Feed" })).toBeDefined();
+    expect(
+      screen.getByText(
+        "A feed is a source for money entering your budget. Amount is the money currently available in it.",
+      ),
+    ).toBeDefined();
+
+    await user.click(screen.getByTestId("slide-toggle-boiler"));
+
+    expect(screen.getByRole("heading", { name: "Create Boiler" })).toBeDefined();
+    expect(
+      screen.getByText(
+        "A boiler tracks an asset's current value and contributed principal separately. Amount is its current value; Contributed is how much you put into it.",
+      ),
+    ).toBeDefined();
+  });
+
   it("calls addFeed mutation with form data on submit", async () => {
     const user = await openModal();
 
     const nameInput = screen.getByPlaceholderText("Feed name");
     await user.type(nameInput, "Food");
+    await user.type(screen.getByPlaceholderText("Current value?"), "123.45");
 
     await user.click(screen.getByTestId("icon-picker-trigger"));
     await user.click(screen.getByText("wallet-outline"));
@@ -53,6 +74,7 @@ describe("AddFeedButton", () => {
         icon: "wallet-outline",
         description: undefined,
         sourceType: "feed",
+        initialFed: 12_345,
       });
     });
   });
@@ -62,6 +84,11 @@ describe("AddFeedButton", () => {
 
     await user.click(screen.getByTestId("slide-toggle-boiler"));
     await user.type(screen.getByPlaceholderText("Feed name"), "Savings");
+    await user.type(screen.getByPlaceholderText("Current value?"), "150.00");
+    await user.type(
+      screen.getByPlaceholderText("How much was put in it?"),
+      "100.00",
+    );
     await user.click(screen.getByTestId("icon-picker-trigger"));
     await user.click(screen.getByText("wallet-outline"));
     await user.click(screen.getByText("Add boiler"));
@@ -72,6 +99,8 @@ describe("AddFeedButton", () => {
         icon: "wallet-outline",
         description: undefined,
         sourceType: "boiler",
+        initialFed: 15_000,
+        contributedFed: 10_000,
       });
     });
   });

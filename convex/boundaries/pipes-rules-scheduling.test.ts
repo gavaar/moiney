@@ -7,7 +7,59 @@ import schema from "../schema";
 import { modules } from "../test.setup";
 
 describe("Convex boundaries: pipes, rules, and scheduling", () => {
-  it("creates a boiler with zero contributed and current fed", async () => {
+  it("creates a feed with its initial current value", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await t.run((ctx) =>
+      ctx.db.insert("users", {
+        username: "alice",
+        email: "alice@example.com",
+        password: "hash",
+      }),
+    );
+
+    const pipeId = await t
+      .withIdentity({ subject: userId })
+      .mutation(api.pipes.addFeed, {
+        name: "Income",
+        icon: "wallet-outline",
+        sourceType: "feed",
+        initialFed: 12_550,
+      });
+
+    const pipe = await t.run((ctx) => ctx.db.get("pipes", pipeId));
+    expect(pipe).toMatchObject({
+      sourceType: "feed",
+      capacity: 0,
+      fed: 12_550,
+      spent: 0,
+    });
+    expect(pipe?.contributedFed).toBeUndefined();
+  });
+
+  it("rejects a negative initial feed value", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await t.run((ctx) =>
+      ctx.db.insert("users", {
+        username: "alice",
+        email: "alice@example.com",
+        password: "hash",
+      }),
+    );
+
+    await expect(
+      t.withIdentity({ subject: userId }).mutation(api.pipes.addFeed, {
+        name: "Income",
+        icon: "wallet-outline",
+        sourceType: "feed",
+        initialFed: -1,
+      }),
+    ).rejects.toMatchObject({ data: { code: "INVALID_INITIAL_PIPE_VALUE" } });
+
+    const pipes = await t.run((ctx) => ctx.db.query("pipes").collect());
+    expect(pipes).toHaveLength(0);
+  });
+
+  it("creates a boiler with independent current and contributed values", async () => {
     const t = convexTest(schema, modules);
     const userId = await t.run((ctx) =>
       ctx.db.insert("users", {
@@ -23,14 +75,41 @@ describe("Convex boundaries: pipes, rules, and scheduling", () => {
         name: "Savings",
         icon: "water-boiler",
         sourceType: "boiler",
+        initialFed: 15_000,
+        contributedFed: 10_000,
       });
 
     const pipe = await t.run((ctx) => ctx.db.get("pipes", pipeId));
     expect(pipe).toMatchObject({
       sourceType: "boiler",
-      contributedFed: 0,
-      fed: 0,
+      contributedFed: 10_000,
+      fed: 15_000,
+      capacity: 0,
+      spent: 0,
     });
+  });
+
+  it("rejects a negative initial boiler contribution", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await t.run((ctx) =>
+      ctx.db.insert("users", {
+        username: "alice",
+        email: "alice@example.com",
+        password: "hash",
+      }),
+    );
+
+    await expect(
+      t.withIdentity({ subject: userId }).mutation(api.pipes.addFeed, {
+        name: "Savings",
+        icon: "water-boiler",
+        sourceType: "boiler",
+        contributedFed: -1,
+      }),
+    ).rejects.toMatchObject({ data: { code: "INVALID_INITIAL_PIPE_VALUE" } });
+
+    const pipes = await t.run((ctx) => ctx.db.query("pipes").collect());
+    expect(pipes).toHaveLength(0);
   });
 
   it("returns a structured pipe-limit error without creating a feed", async () => {

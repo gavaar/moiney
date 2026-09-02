@@ -381,9 +381,12 @@ not relevant to boiler pipes.
 `sourceType` and `contributedFed` are optional persisted fields for compatibility
 with existing data. Existing roots without `sourceType` are ordinary feeds; new
 roots always write an explicit `feed` or `boiler` type, and new boilers always
-write `contributedFed`. No backfill of principal is required because no boilers
-predated this decision, and current balances cannot safely reconstruct
-historical contributions.
+write `contributedFed`. Root creation may establish a nonnegative opening
+current balance without transaction history. Boiler creation may also establish
+an independent nonnegative contributed principal; omitted opening values default
+to zero. No backfill of principal is required because no boilers predated this
+decision, and current balances cannot safely reconstruct historical
+contributions.
 
 ## D016: Monthly Spending Statistics
 
@@ -480,3 +483,24 @@ shown with empty transaction values. Create and repeat headings display the
 current primary pipe as `name (spent / capacity)` using integer-cent
 presentation formatting. Create uses a plus marker while repeat retains its
 repeat marker.
+
+## D019: Feed List Tree-Usage Ordering
+
+Status: Implemented
+
+The feed bar list orders root pipes by transaction activity across every row
+currently available in the unfiltered History snapshot. A transaction involves
+a feed tree when any of its `from`, `to`, or `paidFrom` roles resolves to that
+root. Each transaction counts at most once per involved tree, while a
+cross-tree transfer or pay-by-transfer expense counts once for each involved
+root.
+
+Feeds are ordered by descending transaction count. Equal counts retain the
+most-recent tree involvement order, and unused feeds retain the catalog's
+existing current-liquidity order. This presentation ordering does not change
+the root order in the pipe tree view.
+
+A missing History snapshot causes no request and leaves the current feed order
+unchanged. When an existing snapshot is incomplete, or contains fewer than 100
+rows while more history is available, the normal History loader refreshes its
+100-row head. Ranking then uses all History rows available in the shared cache.
