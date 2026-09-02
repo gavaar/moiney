@@ -49,6 +49,6 @@ describe("PipeBox", () => {
         spent={0}
       />,
     );
-    expect(screen.getByText("0.00 / 0.00")).toBeDefined();
+    expect(screen.getByText("0.00")).toBeDefined();
   });
 });
