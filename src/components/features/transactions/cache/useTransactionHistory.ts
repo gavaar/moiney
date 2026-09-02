@@ -42,10 +42,17 @@ export type TransactionHistoryFilters = {
   title?: string;
 };
 
+export type TransactionHistoryOptions = {
+  enabled?: boolean;
+  minimumCachedRows?: number;
+};
+
 const EMPTY_FILTERS: TransactionHistoryFilters = {};
+const DEFAULT_OPTIONS: TransactionHistoryOptions = {};
 
 export function useTransactionHistory(
   filters: TransactionHistoryFilters = EMPTY_FILTERS,
+  options: TransactionHistoryOptions = DEFAULT_OPTIONS,
 ): TransactionHistoryState {
   const convex = useConvex();
   const { cache, isHydrating, read, append, mergeHead } = useTransactionCache();
@@ -74,6 +81,11 @@ export function useTransactionHistory(
     return Object.keys(normalized).length > 0 ? normalized : undefined;
   }, [filters.fromDate, filters.pipeIds, filters.title, filters.toDate]);
   const hasActiveFilters = queryFilters !== undefined;
+  const enabled = options.enabled ?? true;
+  const hasEnoughCachedRows =
+    cached.complete &&
+    (!cached.hasMore ||
+      cached.transactions.length >= (options.minimumCachedRows ?? 0));
 
   const fetchPage = useCallback(
     async (numItems: number, pageCursor: string | null): Promise<Page> => {
@@ -128,7 +140,16 @@ export function useTransactionHistory(
       return;
     }
 
-    if (!hasActiveFilters && cached.complete) {
+    if (!enabled) {
+      setError(null);
+      setTransactions(cached.transactions);
+      setHasMore(cached.hasMore);
+      setLoadMoreStatus(cached.hasMore ? "CanLoadMore" : "Exhausted");
+      setIsLoading(false);
+      return;
+    }
+
+    if (!hasActiveFilters && hasEnoughCachedRows) {
       setError(null);
       setTransactions(cached.transactions);
       setHasMore(cached.hasMore);
@@ -160,7 +181,15 @@ export function useTransactionHistory(
     return () => {
       active = false;
     };
-  }, [applyPage, cached, fetchVisiblePage, hasActiveFilters, isHydrating]);
+  }, [
+    applyPage,
+    cached,
+    enabled,
+    fetchVisiblePage,
+    hasActiveFilters,
+    hasEnoughCachedRows,
+    isHydrating,
+  ]);
 
   const loadMore = useCallback(() => {
     if (requestInFlight.current || !hasMore) return;

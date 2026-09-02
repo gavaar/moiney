@@ -6,6 +6,7 @@ import type { TransactionModel } from "@features/transactions/data/transactions"
 import {
   useTransactionHistory,
   type TransactionHistoryFilters,
+  type TransactionHistoryOptions,
 } from "./useTransactionHistory";
 
 const mockQuery = vi.fn();
@@ -33,9 +34,15 @@ const cachedTransaction: TransactionModel = {
   from: "pipe-1" as Id<"pipes">,
 };
 
-function Consumer({ filters }: { filters?: TransactionHistoryFilters }) {
+function Consumer({
+  filters,
+  options,
+}: {
+  filters?: TransactionHistoryFilters;
+  options?: TransactionHistoryOptions;
+}) {
   const { transactions, error, isLoading, loadMore, loadMoreStatus, refresh } =
-    useTransactionHistory(filters);
+    useTransactionHistory(filters, options);
   return (
     <div>
       <span data-testid="count">{transactions?.length ?? "undefined"}</span>
@@ -74,6 +81,39 @@ describe("useTransactionHistory", () => {
     expect(screen.getByTestId("count").textContent).toBe("1");
     expect(screen.getByTestId("loading").textContent).toBe("false");
     expect(screen.getByTestId("status").textContent).toBe("CanLoadMore");
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  it("refreshes an existing short History snapshot to the requested minimum", async () => {
+    mockQuery.mockResolvedValue({
+      page: [cachedTransaction],
+      continueCursor: "cursor-1",
+      isDone: false,
+    });
+
+    render(<Consumer options={{ minimumCachedRows: 100 }} />);
+
+    await waitFor(() =>
+      expect(mockQuery).toHaveBeenCalledWith(expect.anything(), {
+        paginationOpts: { numItems: 100, cursor: null },
+      }),
+    );
+  });
+
+  it("does not query a missing snapshot when loading is disabled", () => {
+    mockCache.mockReturnValue({
+      cache: null,
+      isHydrating: false,
+      read: () => ({ transactions: [], complete: false, hasMore: false, updatedAt: 0 }),
+      replace: vi.fn(),
+      append: vi.fn(),
+      mergeHead: vi.fn(),
+    });
+
+    render(<Consumer options={{ enabled: false, minimumCachedRows: 100 }} />);
+
+    expect(screen.getByTestId("count").textContent).toBe("0");
+    expect(screen.getByTestId("loading").textContent).toBe("false");
     expect(mockQuery).not.toHaveBeenCalled();
   });
 

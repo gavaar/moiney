@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { BackHandler, Pressable, Text } from "react-native";
 import { useFocusEffect } from "expo-router/react-navigation";
 import Animated, {
@@ -20,14 +20,36 @@ import { useTransactions } from "@features/transactions/context/TransactionsCont
 import { InnerPipesScreen } from "@features/pipes/InnerPipesScreen";
 import { PipeTreeView } from "@features/pipes/PipeTreeView";
 import { FeedListScreen } from "@features/pipes/FeedListScreen";
+import { orderFeedsByTreeUsage } from "@features/pipes/FeedListScreen/feedOrdering";
 import { TransactionListWithHistory } from "@features/transactions/TransactionListWithHistory";
+import { useTransactionCache } from "@features/transactions/cache/TransactionCacheContext";
+import { HISTORY_SCOPE } from "@features/transactions/cache/transactionSnapshot";
+import { useTransactionHistory } from "@features/transactions/cache/useTransactionHistory";
 
 export function PipesScreen() {
   const [treeMode, setTreeMode] = useState(false);
   const [latestExpanded, setLatestExpanded] = useState(true);
   const open = useSharedValue(1);
   const { selectedName, selectedPipePath, selectPipe, deselectPipe } = usePipeSelection();
-  const { feeds, isLoading } = usePipeCatalog();
+  const { allPipes, feeds, isLoading } = usePipeCatalog();
+  const { cache, read } = useTransactionCache();
+  const historySnapshot = useMemo(() => read(HISTORY_SCOPE), [cache, read]);
+  const { transactions: historyTransactions } = useTransactionHistory(
+    undefined,
+    {
+      enabled: historySnapshot.updatedAt > 0 && !treeMode && !selectedName,
+      minimumCachedRows: 100,
+    },
+  );
+  const orderedFeeds = useMemo(
+    () =>
+      orderFeedsByTreeUsage(
+        feeds,
+        allPipes ?? [],
+        historyTransactions ?? historySnapshot.transactions,
+      ),
+    [allPipes, feeds, historySnapshot.transactions, historyTransactions],
+  );
   const {
     transactions,
     error: transactionError,
@@ -86,7 +108,7 @@ export function PipesScreen() {
 
       <Animated.View
         className="px-4"
-        style={{ flex: 2 }}
+        style={{ flex: 3 }}
         layout={LinearTransition.duration(220)}
       >
         {treeMode ? (
@@ -101,7 +123,7 @@ export function PipesScreen() {
         ) : (
           <FeedListScreen
             isLoading={isLoading}
-            pipes={feeds}
+            pipes={orderedFeeds}
             onSelectFeed={(id) => selectPipe([id])}
           />
         )}
@@ -110,7 +132,7 @@ export function PipesScreen() {
       <Animated.View
         className="px-4"
         layout={LinearTransition.duration(220)}
-        style={{ flex: latestExpanded ? 1 : 0, overflow: "hidden" }}
+        style={{ flex: latestExpanded ? 2 : 0, overflow: "hidden" }}
       >
           <Pressable
             accessibilityRole="button"
