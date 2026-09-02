@@ -29,6 +29,8 @@ export type AddFeedCommand = {
   icon: string;
   description?: string;
   sourceType?: "feed" | "boiler";
+  initialFed?: number;
+  contributedFed?: number;
 };
 
 export async function addFeedOperation(
@@ -36,6 +38,14 @@ export async function addFeedOperation(
   userId: Id<"users">,
   command: AddFeedCommand,
 ): Promise<Id<"pipes">> {
+  const initialFed = assertAmountLimit(command.initialFed ?? 0);
+  const contributedFed =
+    command.sourceType === "boiler"
+      ? assertAmountLimit(command.contributedFed ?? 0)
+      : undefined;
+  if (initialFed < 0 || (contributedFed ?? 0) < 0) {
+    throw new ConvexError({ code: "INVALID_INITIAL_PIPE_VALUE" });
+  }
   await checkPipeLimit(ctx, userId);
   return await ctx.db.insert("pipes", {
     userId,
@@ -45,11 +55,11 @@ export async function addFeedOperation(
     description: command.description,
     priority: 0,
     capacity: 0,
-    fed: 0,
+    fed: initialFed,
     spent: 0,
     pendingFedAdjustment: 0,
     sourceType: command.sourceType ?? "feed",
-    contributedFed: command.sourceType === "boiler" ? 0 : undefined,
+    contributedFed,
   });
 }
 

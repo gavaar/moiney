@@ -381,9 +381,12 @@ not relevant to boiler pipes.
 `sourceType` and `contributedFed` are optional persisted fields for compatibility
 with existing data. Existing roots without `sourceType` are ordinary feeds; new
 roots always write an explicit `feed` or `boiler` type, and new boilers always
-write `contributedFed`. No backfill of principal is required because no boilers
-predated this decision, and current balances cannot safely reconstruct
-historical contributions.
+write `contributedFed`. Root creation may establish a nonnegative opening
+current balance without transaction history. Boiler creation may also establish
+an independent nonnegative contributed principal; omitted opening values default
+to zero. No backfill of principal is required because no boilers predated this
+decision, and current balances cannot safely reconstruct historical
+contributions.
 
 ## D016: Monthly Spending Statistics
 
