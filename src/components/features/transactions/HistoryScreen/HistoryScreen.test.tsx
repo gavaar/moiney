@@ -104,8 +104,8 @@ describe("HistoryScreen filters", () => {
     expect(mocks.useTransactionHistory.mock.calls.at(-1)?.[0]).toEqual({});
     await user.click(screen.getByRole("button", { name: "Apply filters" }));
     expect(mocks.useTransactionHistory.mock.calls.at(-1)?.[0]).toEqual({
-      fromDate: Date.UTC(2026, 0, 1, 12),
-      toDate: Date.UTC(2026, 1, 1, 12),
+      fromDate: Date.UTC(2026, 0, 1),
+      toDate: Date.UTC(2026, 1, 1, 23, 59, 59, 999),
       pipeIds: ["groceries"],
       title: "coffee",
     });

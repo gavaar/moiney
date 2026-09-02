@@ -46,8 +46,28 @@ function HistoryFilterControls({
     setError(null);
     const title = draft.title.trim().toLowerCase();
     onApply({
-      ...(draft.fromDate ? { fromDate: draft.fromDate.getTime() } : {}),
-      ...(draft.toDate ? { toDate: draft.toDate.getTime() } : {}),
+      ...(draft.fromDate
+        ? {
+            fromDate: Date.UTC(
+              draft.fromDate.getUTCFullYear(),
+              draft.fromDate.getUTCMonth(),
+              draft.fromDate.getUTCDate(),
+            ),
+          }
+        : {}),
+      ...(draft.toDate
+        ? {
+            toDate: Date.UTC(
+              draft.toDate.getUTCFullYear(),
+              draft.toDate.getUTCMonth(),
+              draft.toDate.getUTCDate(),
+              23,
+              59,
+              59,
+              999,
+            ),
+          }
+        : {}),
       ...(draft.pipeIds.length > 0 ? { pipeIds: draft.pipeIds } : {}),
       ...(title ? { title } : {}),
     });
