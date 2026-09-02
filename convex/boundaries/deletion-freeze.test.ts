@@ -1118,8 +1118,20 @@ describe("Convex boundaries: deletion and freeze", () => {
     expect(state.corrections).toEqual([
       expect.objectContaining({
         transactionId,
-        previous: { title: "groceries", value: -20, date: 100 },
-        current: { title: "groceries", value: -40, date: 100 },
+        previous: {
+          title: "groceries",
+          value: -20,
+          date: 100,
+          kind: "expense",
+          from: spendingId,
+        },
+        current: {
+          title: "groceries",
+          value: -40,
+          date: 100,
+          kind: "expense",
+          from: spendingId,
+        },
       }),
     ]);
   });
@@ -1202,8 +1214,20 @@ describe("Convex boundaries: deletion and freeze", () => {
     expect(state.corrections).toEqual([
       expect.objectContaining({
         transactionId,
-        previous: { title: "salary", value: 100, date: 100 },
-        current: { title: "salary", value: 140, date: 100 },
+        previous: {
+          title: "salary",
+          value: 100,
+          date: 100,
+          kind: "feed",
+          to: destinationId,
+        },
+        current: {
+          title: "salary",
+          value: 140,
+          date: 100,
+          kind: "feed",
+          to: destinationId,
+        },
       }),
     ]);
   });
@@ -1309,8 +1333,22 @@ describe("Convex boundaries: deletion and freeze", () => {
     expect(state.corrections).toEqual([
       expect.objectContaining({
         transactionId,
-        previous: { title: "move money", value: -40, date: 100 },
-        current: { title: "move money", value: -80, date: 100 },
+        previous: {
+          title: "move money",
+          value: -40,
+          date: 100,
+          kind: "transfer",
+          from: sourceId,
+          to: destinationId,
+        },
+        current: {
+          title: "move money",
+          value: -80,
+          date: 100,
+          kind: "transfer",
+          from: sourceId,
+          to: destinationId,
+        },
       }),
     ]);
   });
@@ -1420,8 +1458,22 @@ describe("Convex boundaries: deletion and freeze", () => {
     expect(state.corrections).toEqual([
       expect.objectContaining({
         transactionId,
-        previous: { title: "coffee", value: -40, date: 100 },
-        current: { title: "coffee", value: -80, date: 100 },
+        previous: {
+          title: "coffee",
+          value: -40,
+          date: 100,
+          kind: "expense",
+          from: logicalId,
+          paidFrom: payerId,
+        },
+        current: {
+          title: "coffee",
+          value: -80,
+          date: 100,
+          kind: "expense",
+          from: logicalId,
+          paidFrom: payerId,
+        },
       }),
     ]);
   });

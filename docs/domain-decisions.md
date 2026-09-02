@@ -423,3 +423,36 @@ owned month. The report derives net spending as gross spending minus refunds.
 Average spending divides gross spending by the spending transaction count,
 rounds to the nearest integer cent, and is zero when there are no spending
 transactions.
+
+## D017: Transaction Structural Editing
+
+Status: In progress
+
+Transaction repeat forms use the same role controls as new transactions. A
+repeat may choose ordinary expense, transfer, or pay-by-transfer structure and
+must show every selected destination or payer before submission. Group repeats
+start from the newest transaction's structure.
+
+Tapping an individual transaction opens its repeat form. Swiping the row left
+reveals a blue pencil action and opens the edit form after the swipe threshold;
+the action is also exposed as an accessible button. Repeat forms identify the
+pipe by icon and name, while edit forms use a centered `Edit:` title containing
+the pipe icon, pipe name, and transaction title. Group rows remain repeat-only.
+
+Structural editing keeps the original logical source pipe fixed. Feed
+transactions remain structurally fixed. Existing pay-by-transfer transactions
+may still edit title, value, and date, but their logical source and payer remain
+fixed because legacy accounting cannot be reversed reliably across the D012
+cutover and rule-execution boundaries.
+
+Ordinary expenses and transfers may be converted among ordinary expense,
+transfer, and pay-by-transfer structures. A structural edit applies the complete
+old-to-new accounting transition to the current accounting period; historical
+periods and captured monthly summaries are not restated. The transition is
+calculated as one net plan, applies at most one accounting patch per pipe,
+triggers rules from net logical spending once, and reconciles the union of old
+and new affected roots once.
+
+Correction history records both previous and current transaction structure.
+Loaded transaction caches update history and recent entities immediately and
+invalidate selected-pipe snapshots affected by either the old or new roles.

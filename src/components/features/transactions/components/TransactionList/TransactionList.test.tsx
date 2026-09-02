@@ -61,8 +61,8 @@ vi.mock("@ui/Modal", () => ({
 }));
 
 vi.mock("@features/components/AmountForm", () => ({
-  AmountForm: ({ mode, pipeId }: any) => (
-    <div data-testid="amount-form" data-mode={mode} data-pipe-id={pipeId} />
+  AmountForm: ({ variant, pipeId }: any) => (
+    <div data-testid="amount-form" data-variant={variant} data-pipe-id={pipeId} />
   ),
 }));
 

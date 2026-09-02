@@ -18,6 +18,10 @@ vi.mock("@features/components/AmountForm", () => ({
   },
 }));
 
+vi.mock("@ui/Modal", () => ({
+  ModalShell: ({ children }: any) => <div data-testid="modal-shell">{children}</div>,
+}));
+
 const mockShowAlert = { success: vi.fn(), error: vi.fn() };
 vi.mock("@ui/Alert", () => ({
   useAlert: () => mockShowAlert,
@@ -37,6 +41,13 @@ describe("FeedAmountModal", () => {
   it("gives the add icon trigger an accessible name", () => {
     render(<FeedAmountModal pipeId={PIPE_ID} feedName="Groceries" />);
     expect(screen.getByRole("button", { name: "Add money to Groceries" })).toBeTruthy();
+  });
+
+  it("does not mount AmountForm while the modal is closed", () => {
+    render(<FeedAmountModal pipeId={PIPE_ID} feedName="Groceries" />);
+
+    expect(screen.queryByTestId("amount-form")).toBeNull();
+    expect(capturedOnSuccess).toBeNull();
   });
 
   it("opens modal on trigger press", async () => {

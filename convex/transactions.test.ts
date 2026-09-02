@@ -525,6 +525,103 @@ describe("editTransaction", () => {
     vi.clearAllMocks();
   });
 
+  describe("structural editing", () => {
+    it("converts an ordinary expense to a transfer", async () => {
+      const ctx = mockCtx();
+      const transaction = { ...BASE_TX, from: "pipe-1", to: undefined };
+      ctx.db.get.mockImplementation((tableOrId: string, maybeId?: string) => {
+        const id = maybeId ?? tableOrId;
+        if (id === "tx-1") return transaction;
+        if (id === "pipe-1") return { ...A_PIPE };
+        if (id === "pipe-2") return { ...B_PIPE };
+        return null;
+      });
+
+      const result = await (editTransaction as any)._handler(ctx, {
+        transactionId: "tx-1",
+        title: "move money",
+        value: -50,
+        date: 3000,
+        target: { type: "transfer", to: "pipe-2" },
+      });
+
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
+        fed: 450,
+        spent: 50,
+      });
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-2", {
+        fed: 250,
+      });
+      expect(ctx.db.insert).toHaveBeenCalledWith("transactionCorrections", {
+        transactionId: "tx-1",
+        userId: "user-1",
+        editedAt: expect.any(Number),
+        previous: {
+          title: "old title",
+          value: -50,
+          date: 2000,
+          kind: "expense",
+          from: "pipe-1",
+        },
+        current: {
+          title: "move money",
+          value: -50,
+          date: 3000,
+          kind: "transfer",
+          from: "pipe-1",
+          to: "pipe-2",
+        },
+      });
+      expect(ctx.db.patch).toHaveBeenCalledWith("transactions", "tx-1", {
+        title: "move money",
+        value: -50,
+        date: 3000,
+        kind: "transfer",
+        from: "pipe-1",
+        to: "pipe-2",
+        paidFrom: undefined,
+        editedAt: expect.any(Number),
+      });
+      expect(result).toMatchObject({
+        kind: "transfer",
+        from: "pipe-1",
+        to: "pipe-2",
+      });
+    });
+
+    it("converts an ordinary expense to pay-by-transfer", async () => {
+      const ctx = mockCtx();
+      const transaction = { ...BASE_TX, from: "pipe-1", to: undefined };
+      ctx.db.get.mockImplementation((tableOrId: string, maybeId?: string) => {
+        const id = maybeId ?? tableOrId;
+        if (id === "tx-1") return transaction;
+        if (id === "pipe-1") return { ...A_PIPE };
+        if (id === "pipe-2") return { ...B_PIPE };
+        return null;
+      });
+
+      const result = await (editTransaction as any)._handler(ctx, {
+        transactionId: "tx-1",
+        title: "coffee",
+        value: -50,
+        date: 3000,
+        target: { type: "payByTransfer", paidFrom: "pipe-2" },
+      });
+
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
+        pendingFedAdjustment: 50,
+      });
+      expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-2", {
+        fed: 150,
+      });
+      expect(result).toMatchObject({
+        kind: "expense",
+        from: "pipe-1",
+        paidFrom: "pipe-2",
+      });
+    });
+  });
+
   describe("spend transaction", () => {
     it("returns the edited transaction in cache-friendly form", async () => {
       const ctx = mockCtx();
@@ -576,8 +673,20 @@ describe("editTransaction", () => {
         transactionId: "tx-1",
         userId: "user-1",
         editedAt: expect.any(Number),
-        previous: { title: "old title", value: -50, date: 2000 },
-        current: { title: "new title", value: -80, date: 3000 },
+        previous: {
+          title: "old title",
+          value: -50,
+          date: 2000,
+          kind: "expense",
+          from: "pipe-1",
+        },
+        current: {
+          title: "new title",
+          value: -80,
+          date: 3000,
+          kind: "expense",
+          from: "pipe-1",
+        },
       });
     });
 
@@ -707,6 +816,7 @@ describe("editTransaction", () => {
         ...BASE_TX,
         title: "salary",
         value: 1000,
+        kind: "feed",
         from: undefined,
         to: "pipe-1",
       };
@@ -743,7 +853,13 @@ describe("editTransaction", () => {
   describe("transfer transaction", () => {
     it("patches transaction and adjusts both pipes' fed when value changes", async () => {
       const ctx = mockCtx();
-      const tx = { ...BASE_TX, value: -50, from: "pipe-1", to: "pipe-2" };
+      const tx = {
+        ...BASE_TX,
+        kind: "transfer",
+        value: -50,
+        from: "pipe-1",
+        to: "pipe-2",
+      };
       ctx.db.get.mockImplementation((tableOrId: string, maybeId?: string) => {
         const id = maybeId ?? tableOrId;
         if (id === "tx-1") return tx;

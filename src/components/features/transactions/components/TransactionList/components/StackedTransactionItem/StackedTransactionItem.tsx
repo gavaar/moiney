@@ -9,7 +9,9 @@ import { Icon, safeIconName } from "@ui/Icon";
 import { cn, colors } from "@/lib/styles";
 import { ModalShell } from "@ui/Modal";
 import { AmountForm } from "@features/components/AmountForm";
+import { transactionStructureFromRoles } from "@domain/transactions";
 import type { TransactionGroup } from "@features/transactions/groupTransactions";
+import { isPaidFromPipeEligible } from "@features/pipes/data/paidFromEligibility";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import { formatAmount } from "@/lib/format";
 
@@ -56,7 +58,7 @@ export function StackedTransactionItem({
   const [showForm, setShowForm] = useState(false);
   const [showDisabledInfo, setShowDisabledInfo] = useState(false);
   const disclosureRotation = useSharedValue(expanded ? 1 : 0);
-  const { pipesById, childrenByParent } = usePipeCatalog();
+  const { allPipes, pipesById, childrenByParent } = usePipeCatalog();
 
   useEffect(() => {
     disclosureRotation.value = withTiming(expanded ? 1 : 0, { duration: 180 });
@@ -73,6 +75,7 @@ export function StackedTransactionItem({
   const latestTransaction = group.transactions[0];
   const sourcePipe = group.from ? pipesById?.[group.from] : undefined;
   const destPipe = group.to ? pipesById?.[group.to] : undefined;
+  const paidFromPipe = group.paidFrom ? pipesById?.[group.paidFrom] : undefined;
   const deletedIcons = {
     from: group.transactions.find((transaction) => transaction.fromIcon)?.fromIcon,
     to: group.transactions.find((transaction) => transaction.toIcon)?.toIcon,
@@ -104,9 +107,21 @@ export function StackedTransactionItem({
     !sourcePipe.deletionJobId &&
     (childrenByParent.get(sourcePipe.id)?.length ?? 0) === 0;
   const toValid = !!destPipe && !destPipe.deletionJobId && destPipe.parentId === undefined;
+  const paidFromValid =
+    !!group.from &&
+    !!group.paidFrom &&
+    isPaidFromPipeEligible(
+      allPipes ?? Object.values(pipesById ?? {}),
+      group.from,
+      group.paidFrom,
+      group.latestValue,
+    );
   const viewOnly = !!deletedIcons.from || !!deletedIcons.to || !!deletedIcons.paidFrom;
   const disabled =
-    viewOnly || (!!group.from && !fromValid) || (!!group.to && !toValid);
+    viewOnly ||
+    (!!group.from && !fromValid) ||
+    (!!group.to && !toValid) ||
+    (!!group.paidFrom && !paidFromValid);
   const primaryPipe = sourcePipe || destPipe;
   const amountFormInitState = primaryPipe && !viewOnly
     ? {
@@ -114,8 +129,7 @@ export function StackedTransactionItem({
         pipeName: primaryPipe.name,
         title: latestTransaction.title,
         value: formatAmount(group.latestValue),
-         ...(group.kind === "transfer" && destPipe ? { to: destPipe.id } : {}),
-        isFeed: group.kind === "feed",
+        structure: transactionStructureFromRoles(group),
       }
     : undefined;
 
@@ -195,12 +209,12 @@ export function StackedTransactionItem({
       </View>
 
       <ModalShell visible={showForm} onClose={() => setShowForm(false)}>
-        {viewOnly ? (
+        {showForm && viewOnly ? (
           <View className="p-4">
             <Text className="text-text font-bold text-lg mb-2">Preserved history</Text>
             <Text className="text-muted text-sm">Preserved history is view-only.</Text>
           </View>
-        ) : primaryPipe ? (
+        ) : showForm && primaryPipe && amountFormInitState ? (
           <AmountForm variant="transaction" pipeId={primaryPipe.id} initState={amountFormInitState} />
         ) : null}
       </ModalShell>

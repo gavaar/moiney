@@ -70,6 +70,7 @@ const baseGroup: TransactionGroup = {
   latestValue: -300,
   from: "pipe-1" as Id<"pipes">,
   to: undefined,
+  paidFrom: undefined,
   visiblePipeIds: ["pipe-1" as Id<"pipes">],
   oldestDate: new Date("2024-03-15").getTime(),
   latestDate: new Date("2024-03-20").getTime(),
@@ -94,8 +95,9 @@ vi.mock("@ui/Icon", () => ({
 }));
 
 vi.mock("@ui/Modal", () => ({
-  ModalShell: ({ visible, children }: any) =>
-    visible ? <div data-testid="modal">{children}</div> : null,
+  ModalShell: ({ visible, children }: any) => (
+    <div {...(visible ? { "data-testid": "modal" } : {})}>{children}</div>
+  ),
 }));
 
 vi.mock("@features/components/AmountForm", () => ({
@@ -107,6 +109,11 @@ vi.mock("@features/components/AmountForm", () => ({
       data-transaction-id={initState?.transactionId}
       data-date={initState?.date}
       data-value={initState?.value}
+      data-paid-from={
+        initState?.structure?.type === "payByTransfer"
+          ? initState.structure.paidFrom
+          : undefined
+      }
     />
   ),
 }));
@@ -131,6 +138,76 @@ describe("StackedTransactionItem", () => {
     expect(screen.getAllByTestId("mock-icon")[0]).toMatchObject({
       dataset: { name: "cart-outline", color: colors.muted },
     });
+  });
+
+  it("does not mount AmountForm before the transaction group is opened", () => {
+    render(
+      <StackedTransactionItem
+        group={baseGroup}
+        expanded={false}
+        onToggle={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByTestId("amount-form")).toBeNull();
+  });
+
+  it("opens a pay-by-transfer repeat with the newest payer provenance", () => {
+    const payerId = "payer-1" as Id<"pipes">;
+    mockUsePipeSelection.mockReturnValue({
+      pipesById: {
+        [pipeInfo.id]: pipeInfo,
+        [payerId]: { id: payerId, icon: "cash", name: "Salary" },
+      },
+      childrenByParent: new Map(),
+    });
+
+    render(
+      <StackedTransactionItem
+        group={{ ...baseGroup, paidFrom: payerId }}
+        expanded={false}
+        onToggle={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("transaction-group-main"));
+
+    expect(screen.getByTestId("amount-form").getAttribute("data-paid-from"))
+      .toBe(payerId);
+  });
+
+  it("blocks a pay-by-transfer repeat when its negative payer is no longer a leaf", () => {
+    const payerId = "payer-1" as Id<"pipes">;
+    const payerChildId = "payer-child" as Id<"pipes">;
+    const payer = { id: payerId, icon: "cash", name: "Salary" };
+    const payerChild = {
+      id: payerChildId,
+      parentId: payerId,
+      icon: "wallet",
+      name: "Checking",
+    };
+    mockUsePipeSelection.mockReturnValue({
+      allPipes: [pipeInfo, payer, payerChild],
+      pipesById: {
+        [pipeInfo.id]: pipeInfo,
+        [payerId]: payer,
+        [payerChildId]: payerChild,
+      },
+      childrenByParent: new Map([[payerId, [payerChild]]]),
+    });
+
+    render(
+      <StackedTransactionItem
+        group={{ ...baseGroup, paidFrom: payerId }}
+        expanded={false}
+        onToggle={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("transaction-group-main"));
+
+    expect(screen.getByText("Cannot repeat transaction")).toBeDefined();
+    expect(screen.queryByTestId("amount-form")).toBeNull();
   });
 
   it("uses the multi-pipe icon when multiple visible pipes participate", () => {

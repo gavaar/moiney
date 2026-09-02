@@ -4,7 +4,10 @@ import type { MutationCtx } from "../../_generated/server";
 import {
   canonicalizeTransactionTitle,
   deriveTransactionKind,
+  planTransactionEdit,
   transactionAccountingEffects,
+  transactionStructureFromRoles,
+  type TransactionStructure,
 } from "../../../domain/transactions";
 import {
   assertAmountLimit,
@@ -35,6 +38,10 @@ export type EditTransactionCommand = {
   title: string;
   value: number;
   date: number;
+  target?:
+    | { type: "expense" }
+    | { type: "transfer"; to: Id<"pipes"> }
+    | { type: "payByTransfer"; paidFrom: Id<"pipes"> };
 };
 
 export type TransactionWriteResult = {
@@ -431,10 +438,59 @@ export async function editTransactionOperation(
     throw new Error("Transaction is view-only");
   }
 
+  const previousStructure = transactionStructureFromRoles(transaction);
+  let currentStructure: TransactionStructure<Id<"pipes">> = previousStructure;
+  if (command.target) {
+    if (previousStructure.type === "feed") {
+      throw new Error("Feed transaction structure cannot be changed");
+    }
+    if (previousStructure.type === "payByTransfer") {
+      throw new Error("Pay-by-transfer structure cannot be changed");
+    }
+    currentStructure =
+      command.target.type === "expense"
+        ? { type: "expense", from: previousStructure.from }
+        : command.target.type === "transfer"
+          ? {
+              type: "transfer",
+              from: previousStructure.from,
+              to: command.target.to,
+            }
+          : {
+              type: "payByTransfer",
+              from: previousStructure.from,
+              paidFrom: command.target.paidFrom,
+            };
+  }
+  const currentKind =
+    currentStructure.type === "feed"
+      ? "feed"
+      : currentStructure.type === "transfer"
+        ? "transfer"
+        : "expense";
+  const currentFrom =
+    currentStructure.type === "feed" ? undefined : currentStructure.from;
+  const currentTo =
+    currentStructure.type === "feed" || currentStructure.type === "transfer"
+      ? currentStructure.to
+      : undefined;
+  const currentPaidFrom =
+    currentStructure.type === "payByTransfer"
+      ? currentStructure.paidFrom
+      : undefined;
+  const structureChanged =
+    currentKind !== transaction.kind ||
+    currentFrom !== transaction.from ||
+    currentTo !== transaction.to ||
+    currentPaidFrom !== transaction.paidFrom;
+
   for (const pipeId of new Set([
     transaction.from,
     transaction.to,
     transaction.paidFrom,
+    currentFrom,
+    currentTo,
+    currentPaidFrom,
   ])) {
     if (!pipeId) continue;
     const pipe = await getPipe(pipeId);
@@ -447,10 +503,117 @@ export async function editTransactionOperation(
   const valueDiff = command.value - transaction.value;
   validateTransactionAmount(
     command.value,
-    transaction.kind === "feed" ? "feed" : "transaction",
+    currentKind === "feed" ? "feed" : "transaction",
   );
 
-  if (valueDiff !== 0) {
+  if (structureChanged) {
+    if (currentStructure.type === "transfer") {
+      const destination = await getPipe(currentStructure.to);
+      if (!destination) throw new Error("Pipe not found");
+      if (destination.parentId) {
+        throw new ConvexError({ code: "TRANSFER_DESTINATION_NOT_ROOT" });
+      }
+      const sourceRoot = await resolveTopMostAncestor(
+        ctx,
+        currentStructure.from,
+        undefined,
+        getPipe,
+      );
+      if (sourceRoot === currentStructure.to) {
+        throw new ConvexError({ code: "TRANSFER_SAME_TREE" });
+      }
+      const sourceChildren = await ctx.db
+        .query("pipes")
+        .withIndex("by_parentId", (q) => q.eq("parentId", currentStructure.from))
+        .take(1);
+      if (sourceChildren.length > 0) {
+        throw new ConvexError({ code: "TRANSFER_SOURCE_NOT_LEAF" });
+      }
+    } else if (currentStructure.type === "payByTransfer") {
+      const paidFromPipe = await getPipe(currentStructure.paidFrom);
+      if (!paidFromPipe) throw new Error("Pipe not found");
+      const [sourceRoot, paidFromRoot] = await Promise.all([
+        resolveTopMostAncestor(ctx, currentStructure.from, undefined, getPipe),
+        resolveTopMostAncestor(
+          ctx,
+          currentStructure.paidFrom,
+          undefined,
+          getPipe,
+        ),
+      ]);
+      if (sourceRoot === paidFromRoot) {
+        throw new Error("Paid from pipe must be outside the transaction tree");
+      }
+      const sourceChildren = await ctx.db
+        .query("pipes")
+        .withIndex("by_parentId", (q) => q.eq("parentId", currentStructure.from))
+        .take(1);
+      if (sourceChildren.length > 0) {
+        throw new Error("Transaction pipe must not have children");
+      }
+      if (command.value > 0) {
+        if (paidFromPipe.parentId) {
+          throw new Error(
+            "Refund destination must be a root outside the transaction tree",
+          );
+        }
+      } else {
+        const paidFromChildren = await ctx.db
+          .query("pipes")
+          .withIndex("by_parentId", (q) =>
+            q.eq("parentId", currentStructure.paidFrom),
+          )
+          .take(1);
+        if (paidFromChildren.length > 0) {
+          throw new Error("Paid from pipe must not have children");
+        }
+      }
+    }
+
+    const editPlan = planTransactionEdit(
+      previousStructure,
+      transaction.value,
+      currentStructure,
+      command.value,
+    );
+    for (const delta of editPlan) {
+      const pipe = await getPipe(delta.pipeId);
+      if (!pipe) throw new Error("Pipe not found");
+      const patch: {
+        fed?: number;
+        spent?: number;
+        pendingFedAdjustment?: number;
+        contributedFed?: number;
+      } = {};
+      if (delta.fedDelta !== 0) patch.fed = pipe.fed + delta.fedDelta;
+      if (delta.spentDelta !== 0) patch.spent = pipe.spent + delta.spentDelta;
+      if (delta.pendingFedAdjustmentDelta !== 0) {
+        patch.pendingFedAdjustment =
+          (pipe.pendingFedAdjustment ?? 0) + delta.pendingFedAdjustmentDelta;
+      }
+      if (delta.contributedFedDelta !== 0 && pipe.sourceType === "boiler") {
+        patch.contributedFed =
+          (pipe.contributedFed ?? 0) + delta.contributedFedDelta;
+      }
+      await ctx.db.patch("pipes", delta.pipeId, patch);
+      const newSpent = patch.spent ?? pipe.spent;
+      if (
+        shouldTriggerPipeRule(
+          pipe.rule,
+          delta.spentDelta,
+          newSpent,
+          pipe.capacity,
+        )
+      ) {
+        await executePipeRule(ctx, delta.pipeId);
+      }
+    }
+    await reconcileAffectedPipeRoots(
+      ctx,
+      editPlan.map((delta) => delta.pipeId),
+      getPipe,
+    );
+  } else if (valueDiff !== 0) {
     if (transaction.from && transaction.paidFrom) {
       const fromPipe = await getPipe(transaction.from);
       const paidFromPipe = await getPipe(transaction.paidFrom);
@@ -609,7 +772,8 @@ export async function editTransactionOperation(
   const hasCorrection =
     title !== transaction.title ||
     command.value !== transaction.value ||
-    command.date !== transaction.date;
+    command.date !== transaction.date ||
+    structureChanged;
   const editedAt = hasCorrection ? now : undefined;
 
   if (editedAt !== undefined) {
@@ -621,11 +785,21 @@ export async function editTransactionOperation(
         title: transaction.title,
         value: transaction.value,
         date: transaction.date,
+        kind: transaction.kind,
+        ...(transaction.from !== undefined ? { from: transaction.from } : {}),
+        ...(transaction.to !== undefined ? { to: transaction.to } : {}),
+        ...(transaction.paidFrom !== undefined
+          ? { paidFrom: transaction.paidFrom }
+          : {}),
       },
       current: {
         title,
         value: command.value,
         date: command.date,
+        kind: currentKind,
+        ...(currentFrom !== undefined ? { from: currentFrom } : {}),
+        ...(currentTo !== undefined ? { to: currentTo } : {}),
+        ...(currentPaidFrom !== undefined ? { paidFrom: currentPaidFrom } : {}),
       },
     });
   }
@@ -634,16 +808,20 @@ export async function editTransactionOperation(
     title,
     value: command.value,
     date: command.date,
+    kind: currentKind,
+    from: currentFrom,
+    to: currentTo,
+    paidFrom: currentPaidFrom,
     ...(editedAt !== undefined ? { editedAt } : {}),
   });
   return buildTransactionWriteResult(command.transactionId, transaction._creationTime, {
     title,
     value: command.value,
     date: command.date,
-    kind: transaction.kind,
-    from: transaction.from,
-    to: transaction.to,
-    paidFrom: transaction.paidFrom,
+    kind: currentKind,
+    from: currentFrom,
+    to: currentTo,
+    paidFrom: currentPaidFrom,
     fromIcon: transaction.fromIcon,
     toIcon: transaction.toIcon,
     paidFromIcon: transaction.paidFromIcon,

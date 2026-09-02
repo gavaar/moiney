@@ -198,6 +198,42 @@ describe("transaction snapshot cache", () => {
     ]);
   });
 
+  it("invalidates selected-pipe snapshots affected by a structural edit", () => {
+    const edited = transaction("edited", 200, "pipe-1");
+    let cache = replaceSnapshot(
+      createCache("account-1"),
+      HISTORY_SCOPE,
+      [edited],
+      false,
+      1,
+    );
+    cache = replaceSnapshot(cache, RECENT_SCOPE, [edited], false, 1);
+    cache = replaceSnapshot(cache, pipeScope(["pipe-1"]), [edited], false, 1);
+    cache = replaceSnapshot(cache, pipeScope(["pipe-2"]), [], false, 1);
+    cache = replaceSnapshot(cache, pipeScope(["unrelated"]), [], false, 1);
+
+    const next = updateTransaction(
+      cache,
+      {
+        ...edited,
+        kind: "transfer",
+        to: "pipe-2" as Id<"pipes">,
+      },
+      2,
+    );
+
+    expect(next.snapshots[pipeScope(["pipe-1"])]).toBeUndefined();
+    expect(next.snapshots[pipeScope(["pipe-2"])]).toBeUndefined();
+    expect(next.snapshots[pipeScope(["unrelated"])]).toBeDefined();
+    expect(next.snapshots[HISTORY_SCOPE]).toBeDefined();
+    expect(next.snapshots[RECENT_SCOPE]).toBeDefined();
+    expect(next.entities.edited.transaction).toMatchObject({
+      kind: "transfer",
+      from: "pipe-1",
+      to: "pipe-2",
+    });
+  });
+
   it("reconciles cached IDs by updating survivors and removing absent transactions", () => {
     let cache = replaceSnapshot(
       createCache("account-1"),

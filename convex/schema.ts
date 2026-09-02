@@ -36,11 +36,23 @@ export default defineSchema({
       title: v.string(),
       value: v.number(),
       date: v.number(),
+      kind: v.optional(
+        v.union(v.literal("feed"), v.literal("expense"), v.literal("transfer")),
+      ),
+      from: v.optional(v.id("pipes")),
+      to: v.optional(v.id("pipes")),
+      paidFrom: v.optional(v.id("pipes")),
     }),
     current: v.object({
       title: v.string(),
       value: v.number(),
       date: v.number(),
+      kind: v.optional(
+        v.union(v.literal("feed"), v.literal("expense"), v.literal("transfer")),
+      ),
+      from: v.optional(v.id("pipes")),
+      to: v.optional(v.id("pipes")),
+      paidFrom: v.optional(v.id("pipes")),
     }),
   }).index("by_transactionId", ["transactionId", "editedAt"]),
   monthlySpendingStats: defineTable({

@@ -53,6 +53,17 @@ vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
   usePipeCatalog: () => ({
     allPipes: [
       {
+        id: PIPE_ID,
+        _creationTime: 0,
+        userId: "user-1" as Id<"users">,
+        parentId: undefined,
+        name: "Main",
+        icon: "wallet-outline",
+        priority: 0,
+        fed: 0,
+        spent: 0,
+      },
+      {
         id: "feed-1" as Id<"pipes">,
         _creationTime: 0,
         userId: "user-1" as Id<"users">,
@@ -117,7 +128,10 @@ vi.mock("@ui/Input", () => ({
     }
     if (type === "select") {
       return (
-        <div data-testid={`input-${label}`}>
+        <div
+          data-testid={`input-${label}`}
+          data-disabled={disabled ? "true" : undefined}
+        >
           <span>{label}</span>
           <span data-testid={`select-value-${label}`}>
             {value
@@ -130,6 +144,7 @@ vi.mock("@ui/Input", () => ({
                 key={item.id}
                 data-testid={`select-item-${item.id}`}
                 onClick={() => onSelect?.(item.id)}
+                disabled={disabled}
               >
                 {item.name}
               </button>
@@ -1176,23 +1191,27 @@ describe("AmountForm", () => {
       expect(titleInput.value).toBe("groceries");
     });
 
-    it("pre-fills sentToPipeId from initState", () => {
+    it("pre-fills repeat transaction fields from initial transaction data", () => {
       render(
         <AmountForm
           pipeId={PIPE_ID}
-          variant="spend"
+          variant="transaction"
           initState={{
             pipeIcon: "cash",
             pipeName: "Salary",
             title: "prev title",
             value: "30",
-            to: "feed-1" as Id<"pipes">,
+            structure: {
+              type: "transfer",
+              from: PIPE_ID,
+              to: "feed-1" as Id<"pipes">,
+            },
           }}
         />,
       );
-      expect(screen.getByTestId("select-value-Transfer to").textContent).toBe("Salary");
       const titleInput = screen.getByPlaceholderText("What was this for?") as HTMLInputElement;
       expect(titleInput.value).toBe("prev title");
+      expect((screen.getByTestId("input-Value-field") as HTMLInputElement).value).toBe("30");
     });
 
     it("eraser resets fields", () => {
@@ -1221,12 +1240,24 @@ describe("AmountForm", () => {
   });
 
   describe("variant='transaction'", () => {
-    it("renders repeat/edit toggle instead of spend/transfer toggle", () => {
-      render(<AmountForm pipeId={PIPE_ID} variant="transaction" />);
-      expect(screen.getByTestId("slide-toggle-repeat")).toBeTruthy();
-      expect(screen.getByTestId("slide-toggle-edit")).toBeTruthy();
-      expect(screen.queryByTestId("slide-toggle-spend")).toBeNull();
-      expect(screen.queryByTestId("slide-toggle-transfer")).toBeNull();
+    it("exposes role controls but no edit intent without an editable identity", () => {
+      render(
+        <AmountForm
+          pipeId={PIPE_ID}
+          variant="transaction"
+          initState={{
+            pipeIcon: "cart",
+            pipeName: "Groceries",
+            title: "coffee",
+            value: "-5",
+            structure: { type: "expense", from: PIPE_ID },
+          }}
+        />,
+      );
+      expect(screen.queryByTestId("slide-toggle-repeat")).toBeNull();
+      expect(screen.queryByTestId("slide-toggle-edit")).toBeNull();
+      expect(screen.getByTestId("slide-toggle-spend")).toBeTruthy();
+      expect(screen.getByTestId("slide-toggle-transfer")).toBeTruthy();
     });
 
     it("does not expose edit mode for feed-type repeats without an id", () => {
@@ -1234,7 +1265,13 @@ describe("AmountForm", () => {
         <AmountForm
           pipeId={PIPE_ID}
           variant="transaction"
-          initState={{ pipeIcon: "cash", pipeName: "Salary", title: "pay", value: "1000", isFeed: true }}
+          initState={{
+            pipeIcon: "cash",
+            pipeName: "Salary",
+            title: "pay",
+            value: "1000",
+            structure: { type: "feed", to: PIPE_ID },
+          }}
         />,
       );
       expect(screen.queryByTestId("slide-toggle-repeat")).toBeNull();
@@ -1247,7 +1284,13 @@ describe("AmountForm", () => {
         <AmountForm
           pipeId={PIPE_ID}
           variant="transaction"
-          initState={{ pipeIcon: "cart", pipeName: "Groceries", title: "coffee", value: "-5" }}
+          initState={{
+            pipeIcon: "cart",
+            pipeName: "Groceries",
+            title: "coffee",
+            value: "-5",
+            structure: { type: "expense", from: PIPE_ID },
+          }}
         />,
       );
 
@@ -1255,10 +1298,48 @@ describe("AmountForm", () => {
       expect(screen.getByText("Add expense")).toBeTruthy();
     });
 
-    it("defaults to repeat intent", () => {
-      render(<AmountForm pipeId={PIPE_ID} variant="transaction" />);
-      const activeToggle = screen.getByTestId("slide-toggle-repeat");
-      expect(activeToggle).toBeTruthy();
+    it("defaults to a repeat title without an intent toggle", () => {
+      render(
+        <AmountForm
+          pipeId={PIPE_ID}
+          variant="transaction"
+          initState={{
+            pipeIcon: "cart",
+            pipeName: "Groceries",
+            title: "coffee",
+            value: "-5",
+            structure: { type: "expense", from: PIPE_ID },
+            transactionId: "transaction-1" as Id<"transactions">,
+            date: new Date(2026, 6, 20).getTime(),
+          }}
+        />,
+      );
+      expect(screen.getByLabelText("Groceries")).toBeTruthy();
+      expect(screen.queryByTestId("slide-toggle-repeat")).toBeNull();
+      expect(screen.queryByTestId("slide-toggle-edit")).toBeNull();
+    });
+
+    it("renders the edit modal title without an intent toggle", () => {
+      render(
+        <AmountForm
+          pipeId={PIPE_ID}
+          variant="transaction"
+          initState={{
+            pipeIcon: "cart",
+            pipeName: "Groceries",
+            title: "coffee",
+            value: "-5",
+            structure: { type: "expense", from: PIPE_ID },
+            transactionId: "transaction-1" as Id<"transactions">,
+            date: new Date(2026, 6, 20).getTime(),
+            intent: "edit",
+          }}
+        />,
+      );
+
+      expect(screen.getByLabelText("Edit: Groceries coffee")).toBeTruthy();
+      expect(screen.queryByTestId("slide-toggle-repeat")).toBeNull();
+      expect(screen.queryByTestId("slide-toggle-edit")).toBeNull();
     });
 
     describe("repeat mode", () => {
@@ -1270,7 +1351,13 @@ describe("AmountForm", () => {
           <AmountForm
             pipeId={PIPE_ID}
             variant="transaction"
-            initState={{ pipeIcon: "cash", pipeName: "Salary", title: "salary", value: "1000", isFeed: true }}
+            initState={{
+              pipeIcon: "cash",
+              pipeName: "Salary",
+              title: "salary",
+              value: "1000",
+              structure: { type: "feed", to: PIPE_ID },
+            }}
           />,
         );
 
@@ -1299,7 +1386,13 @@ describe("AmountForm", () => {
           <AmountForm
             pipeId={PIPE_ID}
             variant="transaction"
-            initState={{ pipeIcon: "cart", pipeName: "Groceries", title: "lunch", value: "-15", isFeed: false }}
+            initState={{
+              pipeIcon: "cart",
+              pipeName: "Groceries",
+              title: "lunch",
+              value: "-15",
+              structure: { type: "expense", from: PIPE_ID },
+            }}
           />,
         );
 
@@ -1323,7 +1416,7 @@ describe("AmountForm", () => {
         vi.useRealTimers();
       });
 
-      it("includes to field in createTransaction call when initState.to is set", async () => {
+      it("shows and preserves the destination when repeating a transfer", async () => {
         const date = new Date(2026, 6, 21, 15, 45);
         vi.setSystemTime(date);
 
@@ -1336,12 +1429,18 @@ describe("AmountForm", () => {
               pipeName: "Salary",
               title: "transfer",
               value: "-50",
-              to: "feed-1" as Id<"pipes">,
-              isFeed: false,
+              structure: {
+                type: "transfer",
+                from: PIPE_ID,
+                to: "feed-1" as Id<"pipes">,
+              },
             }}
           />,
         );
 
+        expect(screen.getByTestId("slide-toggle-transfer")).toBeTruthy();
+        expect(screen.getByTestId("select-value-Transfer to").textContent)
+          .toBe("Salary");
         fireEvent.change(screen.getByPlaceholderText("What was this for?"), {
           target: { value: "transfer" },
         });
@@ -1362,13 +1461,75 @@ describe("AmountForm", () => {
     });
 
     describe("edit mode", () => {
+      it("keeps structural role controls visible for an ordinary expense", () => {
+        render(
+          <AmountForm
+            pipeId={PIPE_ID}
+            variant="transaction"
+            initState={{
+              pipeIcon: "cart",
+              pipeName: "Groceries",
+              title: "coffee",
+              value: "-5",
+              structure: { type: "expense", from: PIPE_ID },
+              transactionId: "transaction-1" as Id<"transactions">,
+              date: new Date(2026, 6, 20).getTime(),
+              intent: "edit",
+            }}
+          />,
+        );
+
+        expect(screen.getByTestId("slide-toggle-spend")).toBeTruthy();
+        expect(screen.getByTestId("slide-toggle-transfer")).toBeTruthy();
+      });
+
       it("shows checkmark icon and Update transaction text on submit button", () => {
-        render(<AmountForm pipeId={PIPE_ID} variant="transaction" />);
-        fireEvent.click(screen.getByTestId("slide-toggle-edit"));
+        render(
+          <AmountForm
+            pipeId={PIPE_ID}
+            variant="transaction"
+            initState={{
+              pipeIcon: "cart",
+              pipeName: "Groceries",
+              title: "coffee",
+              value: "-5",
+              structure: { type: "expense", from: PIPE_ID },
+              transactionId: "transaction-1" as Id<"transactions">,
+              date: new Date(2026, 6, 20).getTime(),
+              intent: "edit",
+            }}
+          />,
+        );
         const submitBtn = screen.getByTestId("submit-button");
 
         expect(screen.getByText("Update transaction")).toBeTruthy();
         expect(submitBtn).toBeTruthy();
+      });
+
+      it("disables the paid-from selector while updating a transaction", () => {
+        render(
+          <AmountForm
+            pipeId={"child-1" as Id<"pipes">}
+            variant="transaction"
+            initState={{
+              pipeIcon: "home-outline",
+              pipeName: "Rent",
+              title: "rent",
+              value: "-50",
+              structure: {
+                type: "payByTransfer",
+                from: "child-1" as Id<"pipes">,
+                paidFrom: "feed-2" as Id<"pipes">,
+              },
+              transactionId: "tx-1" as Id<"transactions">,
+              date: new Date(2026, 6, 20).getTime(),
+              intent: "edit",
+            }}
+          />,
+        );
+
+        expect(screen.getByTestId("input-Paid from").getAttribute("data-disabled"))
+          .toBe("true");
       });
 
       it("calls editTransaction with form values when submitted", async () => {
@@ -1379,7 +1540,16 @@ describe("AmountForm", () => {
           <AmountForm
             pipeId={PIPE_ID}
             variant="transaction"
-            initState={{ pipeIcon: "cart", pipeName: "Groceries", title: "lunch", value: "-15", isFeed: false, transactionId: "tx-1" as any }}
+            initState={{
+              pipeIcon: "cart",
+              pipeName: "Groceries",
+              title: "lunch",
+              value: "-15",
+              structure: { type: "expense", from: PIPE_ID },
+              transactionId: "tx-1" as Id<"transactions">,
+              date: date.getTime(),
+              intent: "edit",
+            }}
           />,
         );
 
@@ -1389,8 +1559,6 @@ describe("AmountForm", () => {
         fireEvent.change(screen.getByTestId("input-Value-field"), {
           target: { value: "20" },
         });
-        fireEvent.click(screen.getByTestId("slide-toggle-edit"));
-
         await waitFor(() => {
           expect(mockCreateTransaction).not.toHaveBeenCalled();
         });
@@ -1403,6 +1571,44 @@ describe("AmountForm", () => {
             title: "new lunch",
             value: 2000,
             date: date.getTime(),
+          });
+        });
+
+        vi.useRealTimers();
+      });
+
+      it("submits a selected transfer structure when updating", async () => {
+        const date = new Date(2026, 6, 21, 15, 45);
+        vi.setSystemTime(date);
+
+        render(
+          <AmountForm
+            pipeId={PIPE_ID}
+            variant="transaction"
+            initState={{
+              pipeIcon: "cart",
+              pipeName: "Groceries",
+              title: "move money",
+              value: "-15",
+              structure: { type: "expense", from: PIPE_ID },
+              transactionId: "tx-1" as Id<"transactions">,
+              date: date.getTime(),
+              intent: "edit",
+            }}
+          />,
+        );
+
+        fireEvent.click(screen.getByTestId("slide-toggle-transfer"));
+        fireEvent.click(screen.getByTestId("select-item-feed-1"));
+        fireEvent.click(screen.getByTestId("submit-button"));
+
+        await waitFor(() => {
+          expect(mockEditTransactionFn).toHaveBeenCalledWith({
+            transactionId: "tx-1",
+            title: "move money",
+            value: -1500,
+            date: date.getTime(),
+            target: { type: "transfer", to: "feed-1" },
           });
         });
 
@@ -1431,8 +1637,10 @@ describe("AmountForm", () => {
               pipeName: "Groceries",
               title: "lunch",
               value: "-15",
-              isFeed: false,
-              transactionId: "tx-1" as any,
+              structure: { type: "expense", from: PIPE_ID },
+              transactionId: "tx-1" as Id<"transactions">,
+              date: 1,
+              intent: "edit",
             }}
           />,
         );
@@ -1440,7 +1648,6 @@ describe("AmountForm", () => {
         fireEvent.change(screen.getByPlaceholderText("What was this for?"), {
           target: { value: "updated lunch" },
         });
-        fireEvent.click(screen.getByTestId("slide-toggle-edit"));
         fireEvent.click(screen.getByTestId("submit-button"));
 
         await waitFor(() => {
@@ -1454,14 +1661,22 @@ describe("AmountForm", () => {
           <AmountForm
             pipeId={PIPE_ID}
             variant="transaction"
-            initState={{ pipeIcon: "cart", pipeName: "Groceries", title: "lunch", value: "-15", transactionId: "tx-1" as any }}
+            initState={{
+              pipeIcon: "cart",
+              pipeName: "Groceries",
+              title: "lunch",
+              value: "-15",
+              structure: { type: "expense", from: PIPE_ID },
+              transactionId: "tx-1" as Id<"transactions">,
+              date: 1,
+              intent: "edit",
+            }}
           />,
         );
 
         fireEvent.change(screen.getByPlaceholderText("What was this for?"), {
           target: { value: "lunch" },
         });
-        fireEvent.click(screen.getByTestId("slide-toggle-edit"));
         fireEvent.click(screen.getByTestId("submit-button"));
 
         await waitFor(() => {
@@ -1483,11 +1698,18 @@ describe("AmountForm", () => {
               pipeName: "Rent",
               title: "rent",
               value: "-50",
-              paidFrom: "feed-2" as Id<"pipes">,
+              structure: {
+                type: "payByTransfer",
+                from: "child-1" as Id<"pipes">,
+                paidFrom: "feed-2" as Id<"pipes">,
+              },
             }}
           />,
         );
 
+        expect(screen.getByTestId("input-Paid from")).toBeTruthy();
+        expect(screen.getByTestId("select-value-Paid from").textContent)
+          .toBe("Freelance");
         fireEvent.click(screen.getByTestId("submit-button"));
 
         await waitFor(() => {
@@ -1510,14 +1732,22 @@ describe("AmountForm", () => {
           <AmountForm
             pipeId={PIPE_ID}
             variant="transaction"
-            initState={{ pipeIcon: "cart", pipeName: "Groceries", title: "lunch", value: "-15", isFeed: false, transactionId: "tx-1" as any }}
+            initState={{
+              pipeIcon: "cart",
+              pipeName: "Groceries",
+              title: "lunch",
+              value: "-15",
+              structure: { type: "expense", from: PIPE_ID },
+              transactionId: "tx-1" as Id<"transactions">,
+              date: 1,
+              intent: "edit",
+            }}
           />,
         );
 
         fireEvent.change(screen.getByPlaceholderText("What was this for?"), {
           target: { value: "updated title" },
         });
-        fireEvent.click(screen.getByTestId("slide-toggle-edit"));
         fireEvent.click(screen.getByTestId("submit-button"));
 
         await waitFor(() => {
