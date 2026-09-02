@@ -127,6 +127,8 @@ export function StackedTransactionItem({
     ? {
         pipeIcon: primaryPipe.icon,
         pipeName: primaryPipe.name,
+        spent: primaryPipe.spent,
+        capacity: primaryPipe.capacity,
         title: latestTransaction.title,
         value: formatAmount(group.latestValue),
         structure: transactionStructureFromRoles(group),

@@ -377,6 +377,14 @@ export async function createTransactionOperation(
     }
     await reconcileAffectedPipeRoots(ctx, [pipeId, command.to], getPipe);
   } else {
+    const sourceChildren = await ctx.db
+      .query("pipes")
+      .withIndex("by_parentId", (q) => q.eq("parentId", pipeId))
+      .take(1);
+    if (sourceChildren.length > 0) {
+      throw new ConvexError({ code: "SOURCE_HAS_CHILDREN" });
+    }
+
     const { from } = transactionAccountingEffects({ from: pipeId }, value);
     const newSpent = pipe.spent + from.spentDelta;
     await ctx.db.patch("pipes", pipeId, { spent: newSpent });

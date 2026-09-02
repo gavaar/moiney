@@ -1,6 +1,7 @@
 import { Icon } from "@ui/Icon";
 import { Tabs } from "expo-router";
 import { colors } from "@/lib/styles";
+import { QuickTransactionTabAction } from "@features/transactions/QuickTransactionModal/QuickTransactionTabAction";
 
 export default function TabLayout() {
   return (
@@ -32,6 +33,13 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => (
             <Icon name="history" size={size} color={color} />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="create"
+        options={{
+          title: "Create transaction",
+          tabBarButton: () => <QuickTransactionTabAction />,
         }}
       />
       <Tabs.Screen

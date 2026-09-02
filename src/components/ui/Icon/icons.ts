@@ -6,6 +6,7 @@ type CuratedIcon = {
 };
 
 const CURATED_ICONS = [
+  { name: "add", family: "Ionicons" as const },
   { name: "add-circle-outline", family: "Ionicons" as const },
   { name: "airplane-outline", family: "Ionicons" as const },
   { name: "align-horizontal-left", family: "MaterialCommunityIcons" as const },

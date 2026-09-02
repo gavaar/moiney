@@ -1240,6 +1240,36 @@ describe("AmountForm", () => {
   });
 
   describe("variant='transaction'", () => {
+    it("renders create intent with the selected pipe's spending summary", () => {
+      render(
+        <AmountForm
+          pipeId={PIPE_ID}
+          variant="transaction"
+          initState={{
+            pipeIcon: "cart",
+            pipeName: "Groceries",
+            spent: 12345,
+            capacity: 50000,
+            title: "",
+            value: "-",
+            structure: { type: "expense", from: PIPE_ID },
+            intent: "create",
+          }}
+        />,
+      );
+
+      expect(
+        screen.getByLabelText("Create: Groceries (123.45 / 500.00)"),
+      ).toBeTruthy();
+      expect(screen.getByText("Groceries (123.45 / 500.00)")).toBeTruthy();
+      expect(screen.getByText("create")).toBeTruthy();
+      expect(
+        screen
+          .getAllByTestId("icon")
+          .some((icon) => icon.getAttribute("data-name") === "add-circle-outline"),
+      ).toBe(true);
+    });
+
     it("exposes role controls but no edit intent without an editable identity", () => {
       render(
         <AmountForm

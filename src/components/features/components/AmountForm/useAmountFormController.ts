@@ -261,7 +261,7 @@ export function useAmountFormController(props: AmountFormProps) {
       value,
     },
     isFeed,
-    spend: !isFeed && (!isTransaction || intent === "repeat" || canEditStructure)
+    spend: !isFeed && (!isTransaction || intent !== "edit" || canEditStructure)
       ? {
           isNegative,
           mode: spendMode,

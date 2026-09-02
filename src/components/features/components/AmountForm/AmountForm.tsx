@@ -26,6 +26,19 @@ function renderPipeItem(item: { id: string } & Record<string, any>) {
 export function AmountForm(props: AmountFormProps) {
   const form = useAmountFormController(props);
   const { action, boiler, common, spend, transaction } = form;
+  const transactionSummary =
+    transaction &&
+    transaction.intent !== "edit" &&
+    transaction.initial.spent !== undefined &&
+    transaction.initial.capacity !== undefined
+      ? ` (${formatAmount(transaction.initial.spent)} / ${formatAmount(transaction.initial.capacity)})`
+      : "";
+  const transactionIntentLabel =
+    transaction?.intent === "edit"
+      ? "edit"
+      : transaction?.intent === "create"
+        ? "create"
+        : "repeat";
 
   return (
     <View className="px-4 py-4 gap-2">
@@ -35,7 +48,7 @@ export function AmountForm(props: AmountFormProps) {
           accessibilityLabel={
             transaction.intent === "edit"
               ? `Edit: ${transaction.initial.pipeName} ${transaction.initial.title}`
-              : transaction.initial.pipeName
+              : `${transaction.intent === "create" ? "Create: " : ""}${transaction.initial.pipeName}${transactionSummary}`
           }
           className="flex-row items-center justify-between gap-2 border-b border-muted/20 p-2"
         >
@@ -47,6 +60,7 @@ export function AmountForm(props: AmountFormProps) {
             />
             <Text className="flex-1 text-md font-medium text-muted" numberOfLines={1}>
               {transaction.initial.pipeName}
+              {transactionSummary}
               {transaction.intent === "edit"
                 ? `: ${transaction.initial.title}`
                 : ""}
@@ -54,13 +68,15 @@ export function AmountForm(props: AmountFormProps) {
           </View>
           <View className="flex-row items-center gap-1">
             <Text className="text-sm text-muted">
-              {transaction.intent === "edit" ? "edit" : "repeat"}
+              {transactionIntentLabel}
             </Text>
             <Icon
               name={
                 transaction.intent === "edit"
                   ? "pencil-outline"
-                  : "repeat-once"
+                  : transaction.intent === "create"
+                    ? "add-circle-outline"
+                    : "repeat-once"
               }
               size={18}
               color={colors.muted}

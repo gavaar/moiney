@@ -133,14 +133,14 @@ export function buildEditTransactionCommand({
 }
 
 export function getIntentDate(
-  intent: "repeat" | "edit",
+  intent: "create" | "repeat" | "edit",
   initialDate: number | undefined,
   now: Date,
 ): Date | undefined {
   if (intent === "edit" && initialDate !== undefined) {
     return new Date(initialDate);
   }
-  if (intent === "repeat") return new Date(now);
+  if (intent === "create" || intent === "repeat") return new Date(now);
   return undefined;
 }
 
@@ -177,7 +177,10 @@ export function getTopmostPipeId(
   return topmostPipeId;
 }
 
-export function getButtonStyle(intent: "repeat" | "edit", isNegative: boolean) {
+export function getButtonStyle(
+  intent: "create" | "repeat" | "edit",
+  isNegative: boolean,
+) {
   if (intent === "edit") {
     return {
       border: "border-primary",
@@ -192,7 +195,11 @@ export function getButtonStyle(intent: "repeat" | "edit", isNegative: boolean) {
   } as const;
 }
 
-export function getButtonIcon(intent: "repeat" | "edit", isFeed: boolean, spendMode: string) {
+export function getButtonIcon(
+  intent: "create" | "repeat" | "edit",
+  isFeed: boolean,
+  spendMode: string,
+) {
   if (intent === "edit") return "checkmark";
   if (isFeed) return "add-circle-outline";
   return spendMode === "spend" ? "upload" : "repeat";

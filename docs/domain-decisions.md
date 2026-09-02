@@ -456,3 +456,27 @@ and new affected roots once.
 Correction history records both previous and current transaction structure.
 Loaded transaction caches update history and recent entities immediately and
 invalidate selected-pipe snapshots affected by either the old or new roles.
+
+## D018: Quick Transaction Creation
+
+Status: Implemented
+
+The middle tab-bar action opens transaction creation without navigating away
+from the active tab. It offers only owned, non-deleting leaf pipes, including a
+root that has no children. Feeds are not created through this entry point, and
+ordinary expense creation is rejected by the backend when the source pipe has
+children.
+
+Eligible pipes are ordered by source frequency across the first 100 rows of the
+unfiltered History list. The shared transaction snapshot supplies those rows
+without a request when its cached History scope is valid; otherwise the normal
+History loader seeds that scope. Only the logical `from` role contributes to
+this ranking; feed destinations, transfer destinations, and pay-by-transfer
+payer roles do not. Equal counts retain most-recent source order, followed by
+unused pipes in catalog order.
+
+After pipe selection, the normal expense, transfer, and pay-by-transfer form is
+shown with empty transaction values. Create and repeat headings display the
+current primary pipe as `name (spent / capacity)` using integer-cent
+presentation formatting. Create uses a plus marker while repeat retains its
+repeat marker.

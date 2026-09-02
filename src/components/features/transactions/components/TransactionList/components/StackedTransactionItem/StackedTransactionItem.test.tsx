@@ -80,6 +80,8 @@ const pipeInfo = {
   id: "pipe-1" as Id<"pipes">,
   icon: "cart-outline",
   name: "Groceries",
+  spent: 12345,
+  capacity: 50000,
 };
 
 const mockUsePipeSelection = vi.fn();
@@ -109,6 +111,8 @@ vi.mock("@features/components/AmountForm", () => ({
       data-transaction-id={initState?.transactionId}
       data-date={initState?.date}
       data-value={initState?.value}
+      data-spent={initState?.spent}
+      data-capacity={initState?.capacity}
       data-paid-from={
         initState?.structure?.type === "payByTransfer"
           ? initState.structure.paidFrom
@@ -150,6 +154,25 @@ describe("StackedTransactionItem", () => {
     );
 
     expect(screen.queryByTestId("amount-form")).toBeNull();
+  });
+
+  it("passes the current pipe spending summary to the repeat form", () => {
+    render(
+      <StackedTransactionItem
+        group={baseGroup}
+        expanded={false}
+        onToggle={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("transaction-group-main"));
+
+    expect(screen.getByTestId("amount-form").getAttribute("data-spent")).toBe(
+      "12345",
+    );
+    expect(
+      screen.getByTestId("amount-form").getAttribute("data-capacity"),
+    ).toBe("50000");
   });
 
   it("opens a pay-by-transfer repeat with the newest payer provenance", () => {

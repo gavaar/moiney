@@ -19,6 +19,8 @@ const pipeInfo = {
   id: "id" as Id<"pipes">,
   icon: "cart-outline",
   name: "Groceries",
+  spent: 12345,
+  capacity: 50000,
 };
 
 const salaryPipe = {
@@ -81,6 +83,8 @@ vi.mock("@features/components/AmountForm", () => ({
     <div
       data-testid="amount-form"
       data-intent={initState?.intent ?? "repeat"}
+      data-spent={initState?.spent}
+      data-capacity={initState?.capacity}
       data-paid-from={
         initState?.structure?.type === "payByTransfer"
           ? initState.structure.paidFrom
@@ -127,6 +131,23 @@ describe("TransactionItem", () => {
     );
 
     expect(screen.queryByTestId("amount-form")).toBeNull();
+  });
+
+  it("passes the current pipe spending summary to the repeat form", () => {
+    render(
+      <TransactionItem
+        transaction={{ ...baseTx, from: pipeInfo.id }}
+      />,
+    );
+
+    fireEvent.click(screen.getByText("Shopping mall"));
+
+    expect(screen.getByTestId("amount-form").getAttribute("data-spent")).toBe(
+      "12345",
+    );
+    expect(
+      screen.getByTestId("amount-form").getAttribute("data-capacity"),
+    ).toBe("50000");
   });
 
   it("opens the transaction directly for editing from the swipe action", () => {

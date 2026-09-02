@@ -85,6 +85,8 @@ export function TransactionItem({ transaction, onShowEditHistory }: TransactionI
   const amountFormInitState = primaryPipe && !viewOnly ? {
     pipeIcon: primaryPipe.icon,
     pipeName: primaryPipe.name,
+    spent: primaryPipe.spent,
+    capacity: primaryPipe.capacity,
     title: transaction.title,
     value: formatAmount(transaction.value),
     structure: transactionStructureFromRoles(transaction),

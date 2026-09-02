@@ -9,6 +9,8 @@ type CommonProps = {
 export type TransactionInitialState = {
   pipeIcon: string;
   pipeName: string;
+  spent?: number;
+  capacity?: number;
   title: string;
   value: string;
   structure: TransactionStructure<Id<"pipes">>;
@@ -21,7 +23,7 @@ export type TransactionInitialState = {
   | {
       transactionId?: never;
       date?: never;
-      intent?: never;
+      intent?: "create" | "repeat";
     }
 );
 
