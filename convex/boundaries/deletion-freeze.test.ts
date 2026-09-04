@@ -308,6 +308,7 @@ describe("Convex boundaries: deletion and freeze", () => {
 
     expect(state.job?.phase).toBe("complete");
     expect(state.parent?.fed).toBe(130);
+    expect(state.parent?.rule).toBe("instant_settlement");
     expect(state.child).toBeNull();
     const history = await t
       .withIdentity({ subject: userId })

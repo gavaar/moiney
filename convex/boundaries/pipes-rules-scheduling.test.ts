@@ -32,6 +32,7 @@ describe("Convex boundaries: pipes, rules, and scheduling", () => {
       capacity: 0,
       fed: 12_550,
       spent: 0,
+      rule: "instant_settlement",
     });
     expect(pipe?.contributedFed).toBeUndefined();
   });
@@ -86,6 +87,7 @@ describe("Convex boundaries: pipes, rules, and scheduling", () => {
       fed: 15_000,
       capacity: 0,
       spent: 0,
+      rule: "instant_settlement",
     });
   });
 

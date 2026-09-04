@@ -60,6 +60,7 @@ export async function addFeedOperation(
     pendingFedAdjustment: 0,
     sourceType: command.sourceType ?? "feed",
     contributedFed,
+    rule: "instant_settlement",
   });
 }
 

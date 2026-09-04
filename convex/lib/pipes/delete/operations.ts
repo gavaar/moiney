@@ -244,6 +244,14 @@ export async function processPipeDeletionOperation(
           ? { ...pipe, fed: pipe.fed + job.initialBalance }
           : pipe,
       );
+    const restoredRulePipeId =
+      job.parentPipeId &&
+      remainingPipes.some(
+        (pipe) => pipe._id === job.parentPipeId && pipe.parentId === undefined,
+      ) &&
+      !remainingPipes.some((pipe) => pipe.parentId === job.parentPipeId)
+        ? job.parentPipeId
+        : undefined;
     const reconciled = recalculatePipes(remainingPipes);
 
     for (const pipeId of job.memberPipeIds) {
@@ -252,7 +260,19 @@ export async function processPipeDeletionOperation(
     for (const update of reconciled) {
       const current = remainingPipes.find((pipe) => pipe._id === update._id)!;
       if (current.fed !== update.fed || current._id === job.parentPipeId) {
-        await ctx.db.patch("pipes", update._id, { fed: update.fed });
+        await ctx.db.patch(
+          "pipes",
+          update._id,
+          update._id === restoredRulePipeId
+            ? {
+                fed: update.fed,
+                rule: "instant_settlement",
+                capUpdateValue: undefined,
+                cronNextDate: undefined,
+                cronInterval: undefined,
+              }
+            : { fed: update.fed },
+        );
       }
     }
     await ctx.db.patch("pipeDeletionJobs", job._id, {

@@ -30,7 +30,7 @@ function BarRow({
 
   return (
     <View className="flex-row items-center">
-      <Text className="text-muted text-xs w-12">{label}</Text>
+      <Text className="text-muted text-xs w-20">{label}</Text>
       <View className="flex-1 relative h-1">
         <View
           testID={`bar-${label}-fill`}
@@ -123,7 +123,7 @@ export function PipeBars({
   rule,
   sourceType,
 }: PipeBarsProps) {
-  const showSpent = rule !== "instant_settlement" && sourceType !== "boiler";
+  const showSpent = rule !== "instant_settlement";
   const maxAbs = Math.max(
     1,
     Math.abs(fed),
@@ -135,7 +135,7 @@ export function PipeBars({
     <View className="gap-1 pb-3">
       {capacity !== 0 ? (
         <BarRow
-          label="capacity"
+          label={sourceType === "boiler" ? "contributed" : "capacity"}
           value={capacity}
           maxAbs={maxAbs}
           color={capacity < 0 ? colors.errorDark : colors.primary}

@@ -374,9 +374,10 @@ Boiler growth is `(fed - contributedFed) / contributedFed * 100`. Zero and
 positive growth are presented in blue and negative growth in red. Growth is not
 available when `contributedFed` is zero. Boiler liquidity bars use
 `contributedFed` as their presentation baseline without replacing or modifying
-the pipe's operational `capacity`. Boiler detail statistics omit left to spend,
-and boiler liquidity bars omit spent because those spending presentations are
-not relevant to boiler pipes.
+the pipe's operational `capacity`, and detail bars label that baseline
+`contributed`. Boiler detail statistics omit left to spend. Spent-bar visibility
+follows the pipe's rule rather than its source type; childless boilers omit it
+through their automatic `instant_settlement` rule.
 
 `sourceType` and `contributedFed` are optional persisted fields for compatibility
 with existing data. Existing roots without `sourceType` are ordinary feeds; new
@@ -504,3 +505,26 @@ A missing History snapshot causes no request and leaves the current feed order
 unchanged. When an existing snapshot is incomplete, or contains fewer than 100
 rows while more history is available, the normal History loader refreshes its
 100-row head. Ranking then uses all History rows available in the shared cache.
+
+## D020: Childless Root Settlement Default
+
+Status: Implemented
+
+A root source that has no children acts as both a feed and a drain. New ordinary
+feeds and boilers therefore default to `instant_settlement` so spending changes
+are consolidated immediately instead of accumulating indefinitely. Adding the
+first child continues to settle the former leaf and clear its rule and rule
+options. When deletion of the final child makes a root childless again,
+finalization restores `instant_settlement`. Nested pipes do not receive this
+topology-driven default.
+
+Existing non-deleting childless roots without a rule are migrated in bounded
+batches. Legacy roots without `sourceType` count as ordinary feeds. The migration
+settles each eligible root as `fed + pendingFedAdjustment - spent`, clears spent,
+pending adjustment, and stale rule options, and assigns `instant_settlement`.
+It preserves operational capacity, boiler contributed principal, and every
+explicit existing rule. The settlement conserves the root's accounting balance
+and the migration is idempotent.
+
+The migration completed in every persisted environment, and the temporary
+migration implementation was removed afterward.

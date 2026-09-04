@@ -177,7 +177,7 @@ describe("PipeBars", () => {
     expect(screen.getByTestId("bar-spent-fill")).toBeDefined();
   });
 
-  it("hides boiler spending without using it for scale", () => {
+  it("labels boiler contributions without hiding spending by source type", () => {
     render(
       <PipeBars
         fed={10000}
@@ -188,8 +188,9 @@ describe("PipeBars", () => {
       />,
     );
 
-    expect(screen.queryByText("spent")).toBeNull();
-    expect(screen.queryByTestId("bar-spent-fill")).toBeNull();
-    expect(screen.getByTestId("bar-fed-fill").style.width).toBe("100%");
+    expect(screen.getByText("contributed")).toBeDefined();
+    expect(screen.queryByText("capacity")).toBeNull();
+    expect(screen.getByTestId("bar-spent-fill")).toBeDefined();
+    expect(screen.getByTestId("bar-fed-fill").style.width).toBe("10%");
   });
 });

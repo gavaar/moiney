@@ -152,7 +152,7 @@ describe("processPipeDeletionOperation finalization", () => {
     expect(ctx.db.patch).not.toHaveBeenCalled();
   });
 
-  it("credits the stored initial balance and completes atomically", async () => {
+  it("credits the balance and restores instant settlement after deleting a root's last child", async () => {
     const job = {
       _id: "job-1",
       userId: "user-1",
@@ -163,7 +163,16 @@ describe("processPipeDeletionOperation finalization", () => {
       deleteTransactions: true,
     };
     const allPipes = [
-      { _id: "parent", userId: "user-1", priority: 0, fed: 100, spent: 0 },
+      {
+        _id: "parent",
+        userId: "user-1",
+        priority: 0,
+        fed: 100,
+        spent: 0,
+        capUpdateValue: 25,
+        cronNextDate: 1000,
+        cronInterval: { interval: 1, unit: "months" },
+      },
       {
         _id: "child",
         userId: "user-1",
@@ -193,7 +202,13 @@ describe("processPipeDeletionOperation finalization", () => {
       scheduleNext,
     );
 
-    expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "parent", { fed: 130 });
+    expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "parent", {
+      fed: 130,
+      rule: "instant_settlement",
+      capUpdateValue: undefined,
+      cronNextDate: undefined,
+      cronInterval: undefined,
+    });
     expect(ctx.db.delete).toHaveBeenCalledWith("pipes", "child");
     expect(ctx.db.patch).toHaveBeenCalledWith("pipeDeletionJobs", "job-1", {
       phase: "complete",
@@ -244,6 +259,99 @@ describe("processPipeDeletionOperation finalization", () => {
       scheduleNext,
     );
 
-    expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "parent", { fed: 120 });
+    expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "parent", {
+      fed: 120,
+      rule: "instant_settlement",
+      capUpdateValue: undefined,
+      cronNextDate: undefined,
+      cronInterval: undefined,
+    });
+  });
+
+  it.each([
+    {
+      name: "a sibling survives",
+      extraPipes: [
+        {
+          _id: "sibling",
+          userId: "user-1",
+          parentId: "parent",
+          priority: 0,
+          capacity: 100,
+          fed: 0,
+          spent: 0,
+        },
+      ],
+    },
+    {
+      name: "the surviving parent is nested",
+      parentId: "root",
+      extraPipes: [
+        {
+          _id: "root",
+          userId: "user-1",
+          priority: 0,
+          capacity: 0,
+          fed: 0,
+          spent: 0,
+        },
+      ],
+    },
+  ])("does not restore the root default when $name", async ({ parentId, extraPipes }) => {
+    const job = {
+      _id: "job-1",
+      userId: "user-1",
+      parentPipeId: "parent",
+      memberPipeIds: ["child"],
+      initialBalance: 30,
+      phase: "readyToFinalize",
+      deleteTransactions: true,
+    };
+    const allPipes = [
+      {
+        _id: "parent",
+        userId: "user-1",
+        parentId,
+        priority: 0,
+        capacity: 0,
+        fed: 100,
+        spent: 0,
+      },
+      {
+        _id: "child",
+        userId: "user-1",
+        parentId: "parent",
+        deletionJobId: "job-1",
+        priority: 0,
+        capacity: 100,
+        fed: 40,
+        spent: 10,
+      },
+      ...extraPipes,
+    ];
+    const ctx = {
+      db: {
+        get: vi.fn().mockResolvedValue(job),
+        query: vi.fn(() => ({
+          withIndex: vi.fn(() => ({
+            collect: vi.fn().mockResolvedValue(allPipes),
+          })),
+        })),
+        delete: vi.fn(),
+        patch: vi.fn(),
+      },
+      scheduler: { runAfter: vi.fn() },
+    };
+
+    await processPipeDeletionOperation(
+      ctx as any,
+      "job-1" as any,
+      scheduleNext,
+    );
+
+    const parentPatch = ctx.db.patch.mock.calls.find(
+      ([table, id]) => table === "pipes" && id === "parent",
+    )?.[2];
+    expect(parentPatch).not.toHaveProperty("rule");
   });
 });

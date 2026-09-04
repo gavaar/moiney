@@ -141,15 +141,17 @@ describe("InnerPipesScreen", () => {
         spent: 0,
         sourceType: "boiler",
         contributedFed: 10000,
+        rule: "instant_settlement",
       },
       selectedName: "Savings",
     });
 
     render(<InnerPipesScreen />);
 
-    expect(screen.getByTestId("bar-capacity-fill")).toBeDefined();
+    expect(screen.getByTestId("bar-contributed-fill")).toBeDefined();
     expect(screen.queryByTestId("bar-spent-fill")).toBeNull();
-    expect(screen.getByText("100.00")).toBeDefined();
+    const contributedRow = screen.getByText("contributed").parentElement!;
+    expect(within(contributedRow).getByText("100.00")).toBeDefined();
     expect(screen.getByTestId("boiler-growth-chip").textContent).toContain(
       "+50%",
     );
