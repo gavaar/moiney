@@ -1,10 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from "react-native-reanimated";
 import { Icon, safeIconName } from "@ui/Icon";
 import { cn, colors } from "@/lib/styles";
 import { ModalShell } from "@ui/Modal";
@@ -57,16 +52,7 @@ export function StackedTransactionItem({
   const isNegative = group.totalValue < 0;
   const [showForm, setShowForm] = useState(false);
   const [showDisabledInfo, setShowDisabledInfo] = useState(false);
-  const disclosureRotation = useSharedValue(expanded ? 1 : 0);
   const { allPipes, pipesById, childrenByParent } = usePipeCatalog();
-
-  useEffect(() => {
-    disclosureRotation.value = withTiming(expanded ? 1 : 0, { duration: 180 });
-  }, [disclosureRotation, expanded]);
-
-  const disclosureRotationStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${disclosureRotation.value * 180}deg` }],
-  }));
   const bgClass = useMemo(() => {
     if (group.totalValue === 0) return "bg-surface";
     return isNegative ? "bg-error/30" : "bg-success/30";
@@ -204,9 +190,11 @@ export function StackedTransactionItem({
           onPress={onToggle}
         >
           <Text className="text-muted text-xs font-bold">x{group.count}</Text>
-          <Animated.View style={disclosureRotationStyle}>
+          <View
+            style={{ transform: [{ rotate: expanded ? "180deg" : "0deg" }] }}
+          >
             <Icon name="chevron-down" size={12} color={colors.muted} />
-          </Animated.View>
+          </View>
         </Pressable>
       </View>
 

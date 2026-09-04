@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import * as Reanimated from "react-native-reanimated";
 import { StackedTransactionItem } from "./StackedTransactionItem";
 import type { TransactionGroup } from "@features/transactions/groupTransactions";
 import type { Id } from "@convex/_generated/dataModel";
@@ -504,34 +503,6 @@ describe("StackedTransactionItem", () => {
 
     fireEvent.click(disclosure);
     expect(onToggle).toHaveBeenCalledOnce();
-  });
-
-  it("animates one compact down chevron between disclosure states", () => {
-    const withTiming = vi.spyOn(Reanimated, "withTiming");
-    const { rerender } = render(
-      <StackedTransactionItem
-        group={baseGroup}
-        expanded={false}
-        onToggle={vi.fn()}
-      />,
-    );
-
-    rerender(
-      <StackedTransactionItem
-        group={baseGroup}
-        expanded
-        onToggle={vi.fn()}
-      />,
-    );
-
-    const chevrons = screen
-      .getAllByTestId("mock-icon")
-      .filter((icon) => icon.getAttribute("data-name") === "chevron-down");
-    expect(chevrons).toHaveLength(1);
-    expect(chevrons[0].getAttribute("data-size")).toBe("12");
-    expect(withTiming).toHaveBeenLastCalledWith(1, { duration: 180 });
-
-    withTiming.mockRestore();
   });
 
   it("renders normally when expanded (no crash)", () => {

@@ -12,6 +12,7 @@ type PipeBarsProps = {
   sourceType?: "feed" | "boiler";
 };
 
+// todo: unify BarRow and FedBarRow into a single component that can handle both cases, since they share a lot of logic and styling.
 function BarRow({
   label,
   value,
@@ -30,7 +31,7 @@ function BarRow({
 
   return (
     <View className="flex-row items-center">
-      <Text className="text-muted text-xs w-20">{label}</Text>
+      <Text className="text-muted text-xs w-16">{label}</Text>
       <View className="flex-1 relative h-1">
         <View
           testID={`bar-${label}-fill`}
@@ -79,7 +80,7 @@ function FedBarRow({
 
   return (
     <View className="flex-row items-center">
-      <Text className="text-muted text-xs w-12">fed</Text>
+      <Text className="text-muted text-xs w-16">fed</Text>
       <View className="flex-1 relative h-1">
         <View
           testID="bar-fed-fill"

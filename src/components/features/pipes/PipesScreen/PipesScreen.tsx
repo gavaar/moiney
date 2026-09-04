@@ -1,14 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { BackHandler, Pressable, Text } from "react-native";
+import { BackHandler, Pressable, Text, View } from "react-native";
 import { useFocusEffect } from "expo-router/react-navigation";
-import Animated, {
-  FadeInDown,
-  FadeOutUp,
-  LinearTransition,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AppScreenHeader } from "@features/app/AppScreenHeader";
 import { SlideToggle } from "@ui/SlideToggle";
@@ -29,7 +21,6 @@ import { useTransactionHistory } from "@features/transactions/cache/useTransacti
 export function PipesScreen() {
   const [treeMode, setTreeMode] = useState(false);
   const [latestExpanded, setLatestExpanded] = useState(true);
-  const open = useSharedValue(1);
   const { selectedName, selectedPipePath, selectPipe, deselectPipe } = usePipeSelection();
   const { allPipes, feeds, isLoading } = usePipeCatalog();
   const { cache, read } = useTransactionCache();
@@ -59,16 +50,8 @@ export function PipesScreen() {
   } = useTransactions();
 
   useEffect(() => {
-    open.value = withTiming(latestExpanded ? 1 : 0, { duration: 220 });
-  }, [latestExpanded, open]);
-
-  useEffect(() => {
     setLatestExpanded(!treeMode);
   }, [treeMode]);
-
-  const chevronStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${open.value * 180}deg` }],
-  }));
 
   useFocusEffect(
     useCallback(() => {
@@ -106,10 +89,9 @@ export function PipesScreen() {
         }
       />
 
-      <Animated.View
+      <View
         className="px-4"
         style={{ flex: 3 }}
-        layout={LinearTransition.duration(220)}
       >
         {treeMode ? (
           <PipeTreeView
@@ -127,48 +109,47 @@ export function PipesScreen() {
             onSelectFeed={(id) => selectPipe([id])}
           />
         )}
-      </Animated.View>
+      </View>
 
-      <Animated.View
-        className="px-4"
-        layout={LinearTransition.duration(220)}
-        style={{ flex: latestExpanded ? 2 : 0, overflow: "hidden" }}
+      <View
+        className="px-4 overflow-hidden"
+        style={{ flex: latestExpanded ? 2 : 0 }}
       >
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={
-              latestExpanded
-                ? "Collapse latest transactions"
-                : "Expand latest transactions"
-            }
-            accessibilityState={{ expanded: latestExpanded }}
-            onPress={() => setLatestExpanded((v) => !v)}
-            className="flex-row items-center justify-between bg-surface px-3 py-2 my-2 rounded-md"
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={
+            latestExpanded
+              ? "Collapse latest transactions"
+              : "Expand latest transactions"
+          }
+          accessibilityState={{ expanded: latestExpanded }}
+          onPress={() => setLatestExpanded((v) => !v)}
+          className="flex-row items-center justify-between bg-surface px-3 py-2 my-2 rounded-md"
+        >
+          <Text className="text-text font-semibold text-base">
+            Latest transactions
+          </Text>
+          <View
+            style={{
+              transform: [{ rotate: latestExpanded ? "180deg" : "0deg" }],
+            }}
           >
-            <Text className="text-text font-semibold text-base">
-              Latest transactions
-            </Text>
-            <Animated.View style={chevronStyle}>
-              <Icon name="chevron-up" size={18} color={colors.text} />
-            </Animated.View>
-          </Pressable>
-          {latestExpanded ? (
-            <Animated.View
-              className="flex-1"
-              entering={FadeInDown.duration(220)}
-              exiting={FadeOutUp.duration(220)}
-            >
-              <TransactionListWithHistory
-                transactions={transactions}
-                error={transactionError}
-                isLoading={transactionLoading}
-                onRefresh={refreshTransactions}
-                refreshing={transactionLoading && transactions !== undefined}
-                visiblePipeIds={pipeIds ?? undefined}
-              />
-            </Animated.View>
-          ) : null}
-        </Animated.View>
+            <Icon name="chevron-up" size={18} color={colors.text} />
+          </View>
+        </Pressable>
+        {latestExpanded ? (
+          <View className="flex-1">
+            <TransactionListWithHistory
+              transactions={transactions}
+              error={transactionError}
+              isLoading={transactionLoading}
+              onRefresh={refreshTransactions}
+              refreshing={transactionLoading && transactions !== undefined}
+              visiblePipeIds={pipeIds ?? undefined}
+            />
+          </View>
+        ) : null}
+      </View>
     </SafeAreaView>
   );
 }
