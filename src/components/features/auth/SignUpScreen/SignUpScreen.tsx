@@ -4,10 +4,10 @@ import { Input } from "@ui/Input";
 import { useAuth } from "@/lib/auth";
 import { useForm } from "@/lib/forms";
 import { useDebounce } from "@/lib/hooks";
-import { AuthScreenLayout } from "@ui/AuthScreenLayout";
 import { Link } from "expo-router";
 import { useState } from "react";
 import { colors } from "@/lib/styles";
+import { AuthScreenLayout } from "@features/auth/AuthScreenLayout";
 import { MoineyVers } from "@features/app/AppScreenHeader";
 import { useUsernameAvailability } from "@features/auth/data/auth";
 
