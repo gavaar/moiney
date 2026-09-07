@@ -109,6 +109,26 @@ describe("TransactionList", () => {
     expect(screen.getByText("x2")).toBeDefined();
   });
 
+  it.each(["transaction-group-main", "transaction-group-disclosure"])("reveals and hides individual transactions through %s without opening a form", (control) => {
+    render(<TransactionList transactions={[
+      tx("tx1", { date: 100, value: -500 }),
+      tx("tx2", { date: 200, value: -300 }),
+    ]} />);
+
+    expect(screen.getAllByText("Coffee")).toHaveLength(1);
+    fireEvent.click(screen.getByTestId(control));
+    expect(screen.getAllByText("Coffee")).toHaveLength(3);
+    expect(screen.getByText("-5.00")).toBeDefined();
+    expect(screen.getByText("-3.00")).toBeDefined();
+    expect(screen.queryByTestId("amount-form")).toBeNull();
+
+    fireEvent.click(screen.getByTestId(control));
+    expect(screen.getAllByText("Coffee")).toHaveLength(1);
+    expect(screen.queryByText("-5.00")).toBeNull();
+    expect(screen.queryByText("-3.00")).toBeNull();
+    expect(screen.queryByTestId("amount-form")).toBeNull();
+  });
+
   it("does not group transactions outside the visible pipe scope", () => {
     const inScope = tx("tx-in-scope", {
       title: "coffee",

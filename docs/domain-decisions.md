@@ -196,8 +196,7 @@ visible, while a transfer contributes zero because its value duplicates the
 corresponding expense activity. Transactions with no visible logical pipe are
 excluded from the scoped group.
 
-Collapsed groups retain the newest transaction's structure for the generic
-repeat form and expose the scope-visible participating pipes. One visible pipe
+Collapsed groups expose the scope-visible participating pipes. One visible pipe
 uses its icon; multiple visible pipes use the `card-multiple` icon. Transaction
 value is not an identity field, and `paidFrom` is not an identity field but does
 count as a participating pipe for scoped visibility and icon selection.
@@ -208,7 +207,15 @@ Transaction titles are canonicalized with `trim().toLowerCase()` before
 persistence and title-usage indexing. Whitespace-only titles are rejected.
 
 Group expansion uses a dedicated accessible count-and-chevron control. Tapping
-the main group row continues to open the generic repeat form.
+the main group row also toggles expansion; neither control opens a repeat form.
+
+Grouped-row presentation lives in the colocated pure
+`stackedTransactionItem.model.ts`, separately from the individual transaction
+model. The component delegates expansion to the list and owns no form or modal
+state. Deleted-role snapshots remain available for group icons, including
+`paidFrom` and snapshots on older members. Groups containing preserved history
+can still expand; repeat eligibility and view-only restrictions belong to each
+individual transaction row.
 
 All persisted environments were migrated. `kind` is required, and the
 deprecated `type` field and legacy fallback have been removed.
@@ -444,14 +451,14 @@ Status: In progress
 
 Transaction repeat forms use the same role controls as new transactions. A
 repeat may choose ordinary expense, transfer, or pay-by-transfer structure and
-must show every selected destination or payer before submission. Group repeats
-start from the newest transaction's structure.
+must show every selected destination or payer before submission. Groups expand
+to individual transactions rather than opening a group repeat form.
 
 Tapping an individual transaction opens its repeat form. Swiping the row left
 reveals a blue pencil action and opens the edit form after the swipe threshold;
 the action is also exposed as an accessible button. Repeat forms identify the
 pipe by icon and name, while edit forms use a centered `Edit:` title containing
-the pipe icon, pipe name, and transaction title. Group rows remain repeat-only.
+the pipe icon, pipe name, and transaction title. Group rows only toggle expansion.
 
 Structural editing keeps the original logical source pipe fixed. Feed
 transactions remain structurally fixed. Existing pay-by-transfer transactions
