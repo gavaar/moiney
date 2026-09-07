@@ -6,7 +6,6 @@ import { ModalShell } from "@ui/Modal";
 import { AmountForm } from "@features/components/AmountForm";
 import { transactionStructureFromRoles } from "@domain/transactions";
 import type { TransactionGroup } from "@features/transactions/groupTransactions";
-import { isPaidFromPipeEligible } from "@features/pipes/data/paidFromEligibility";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import { formatAmount } from "@/lib/format";
 
@@ -52,7 +51,7 @@ export function StackedTransactionItem({
   const isNegative = group.totalValue < 0;
   const [showForm, setShowForm] = useState(false);
   const [showDisabledInfo, setShowDisabledInfo] = useState(false);
-  const { allPipes, pipesById, childrenByParent } = usePipeCatalog();
+  const { pipesById, childrenByParent, isPaidFromEligible } = usePipeCatalog();
   const bgClass = useMemo(() => {
     if (group.totalValue === 0) return "bg-surface";
     return isNegative ? "bg-error/30" : "bg-success/30";
@@ -96,8 +95,7 @@ export function StackedTransactionItem({
   const paidFromValid =
     !!group.from &&
     !!group.paidFrom &&
-    isPaidFromPipeEligible(
-      allPipes ?? Object.values(pipesById ?? {}),
+    isPaidFromEligible(
       group.from,
       group.paidFrom,
       group.latestValue,

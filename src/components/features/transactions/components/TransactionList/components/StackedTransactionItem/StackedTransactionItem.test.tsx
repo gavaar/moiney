@@ -5,6 +5,7 @@ import { StackedTransactionItem } from "./StackedTransactionItem";
 import type { TransactionGroup } from "@features/transactions/groupTransactions";
 import type { Id } from "@convex/_generated/dataModel";
 import { colors } from "@/lib/styles";
+import { preparePaidFromPipeEligibility } from "@features/pipes/data/paidFromEligibility";
 
 vi.mock("react-native", async (importOriginal) => {
   const actual = await importOriginal<typeof import("react-native")>();
@@ -85,7 +86,13 @@ const pipeInfo = {
 
 const mockUsePipeSelection = vi.fn();
 vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
-  usePipeCatalog: () => mockUsePipeSelection(),
+  usePipeCatalog: () => {
+    const catalog = mockUsePipeSelection();
+    return {
+      ...catalog,
+      isPaidFromEligible: preparePaidFromPipeEligibility(Object.values(catalog.pipesById)),
+    };
+  },
 }));
 
 vi.mock("@ui/Icon", () => ({

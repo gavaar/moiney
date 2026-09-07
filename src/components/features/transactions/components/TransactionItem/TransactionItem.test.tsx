@@ -4,6 +4,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { TransactionItem } from "./TransactionItem";
 import type { Id } from "@convex/_generated/dataModel";
 import { colors } from "@/lib/styles";
+import { preparePaidFromPipeEligibility } from "@features/pipes/data/paidFromEligibility";
 
 const baseTx = {
   id: "tx1" as any,
@@ -16,7 +17,7 @@ const baseTx = {
 };
 
 const pipeInfo = {
-  id: "id" as Id<"pipes">,
+  id: "pipe-1" as Id<"pipes">,
   icon: "cart-outline",
   name: "Groceries",
   spent: 12345,
@@ -66,7 +67,13 @@ const feedTx = {
 
 const mockUsePipeSelection = vi.fn();
 vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
-  usePipeCatalog: () => mockUsePipeSelection(),
+  usePipeCatalog: () => {
+    const catalog = mockUsePipeSelection();
+    return {
+      ...catalog,
+      isPaidFromEligible: preparePaidFromPipeEligibility(Object.values(catalog.pipesById)),
+    };
+  },
 }));
 
 vi.mock("@ui/Icon", () => ({
@@ -75,7 +82,7 @@ vi.mock("@ui/Icon", () => ({
 }));
 
 vi.mock("@ui/Modal", () => ({
-  ModalShell: ({ children }: any) => <div data-testid="modal-shell">{children}</div>,
+  ModalShell: ({ children, visible }: any) => visible ? <div data-testid="modal-shell">{children}</div> : null,
 }));
 
 vi.mock("@features/components/AmountForm", () => ({
@@ -105,7 +112,8 @@ describe("TransactionItem", () => {
 
   it("renders the pipe icon", () => {
     render(<TransactionItem transaction={baseTx} />);
-    expect(screen.getByTestId("mock-icon")).toBeDefined();
+    expect(screen.getAllByTestId("mock-icon").map((icon) => icon.dataset.name))
+      .toContain("cart-outline");
   });
 
   it("renders the transaction title with first letter capitalized", () => {
@@ -131,6 +139,7 @@ describe("TransactionItem", () => {
     );
 
     expect(screen.queryByTestId("amount-form")).toBeNull();
+    expect(screen.queryByText("Cannot repeat transaction")).toBeNull();
   });
 
   it("passes the current pipe spending summary to the repeat form", () => {
@@ -214,8 +223,10 @@ describe("TransactionItem", () => {
     expect(screen.getByTestId("mock-icon")).toMatchObject({
       dataset: { name: "pipe-disconnected", color: colors.surface },
     });
+    expect(screen.queryByText("Cannot repeat transaction")).toBeNull();
     fireEvent.click(screen.getByText("Shopping mall"));
     expect(screen.getByText("Cannot repeat transaction")).toBeDefined();
+    expect(screen.queryByTestId("amount-form")).toBeNull();
   });
 
   it("renders preserved history from a deleted pipe as view-only", () => {
@@ -231,6 +242,7 @@ describe("TransactionItem", () => {
     render(<TransactionItem transaction={transaction} />);
 
     expect(screen.getByTestId("mock-icon").getAttribute("data-name")).toBe("cart-outline");
+    expect(screen.queryByText(/Preserved history is view-only/)).toBeNull();
     fireEvent.click(screen.getByText("Shopping mall"));
     expect(screen.getByText(/Preserved history is view-only/)).toBeDefined();
     expect(screen.queryByTestId("amount-form")).toBeNull();
@@ -246,9 +258,13 @@ describe("TransactionItem", () => {
     });
 
     render(<TransactionItem transaction={baseTx} />);
+    expect(screen.queryByText("Cannot repeat transaction")).toBeNull();
+    expect(screen.queryByTestId("amount-form")).toBeNull();
     fireEvent.click(screen.getByText("Shopping mall"));
     expect(screen.getByText("Cannot repeat transaction")).toBeDefined();
     expect(screen.getByText(/cannot accept transactions anymore/)).toBeDefined();
+    expect(screen.queryByTestId("amount-form")).toBeNull();
+    expect(screen.queryByLabelText("Edit shopping mall")).toBeNull();
   });
 
   it("shows disabled info when the source pipe is being deleted", () => {
@@ -403,20 +419,21 @@ describe("TransactionItem pay-by-transfer variant", () => {
       .toBe("salary-pipe");
   });
 
-  it("repeats a positive refund to an external root with children", () => {
+  it.each([5000, -5000])("allows only refunds to an external root with children (value %i)", (value) => {
+    const salaryChild = { id: "salary-child" as Id<"pipes">, parentId: salaryPipe.id };
     mockUsePipeSelection.mockReturnValue({
-      allPipes: [salaryPipe, rentPipe],
       pipesById: {
         "salary-pipe": salaryPipe,
         "rent-pipe": rentPipe,
+        [salaryChild.id]: salaryChild,
       },
       childrenByParent: new Map([
-        [salaryPipe.id, [{ id: "salary-child" as Id<"pipes"> }]],
+        [salaryPipe.id, [salaryChild]],
       ]),
     });
     const tx = {
       ...baseTx,
-      value: 5000,
+      value,
       from: "rent-pipe" as Id<"pipes">,
       paidFrom: "salary-pipe" as Id<"pipes">,
     };
@@ -424,7 +441,13 @@ describe("TransactionItem pay-by-transfer variant", () => {
     render(<TransactionItem transaction={tx} />);
     fireEvent.click(screen.getByText("Shopping mall"));
 
-    expect(screen.getByTestId("amount-form").getAttribute("data-paid-from"))
-      .toBe("salary-pipe");
+    if (value > 0) {
+      expect(screen.getByTestId("amount-form").getAttribute("data-paid-from"))
+        .toBe("salary-pipe");
+      expect(screen.queryByText("Cannot repeat transaction")).toBeNull();
+    } else {
+      expect(screen.queryByTestId("amount-form")).toBeNull();
+      expect(screen.getByText("Cannot repeat transaction")).toBeDefined();
+    }
   });
 });

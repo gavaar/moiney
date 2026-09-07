@@ -226,6 +226,16 @@ domain APIs without importing Convex implementation modules.
 This extraction uses the integer-cents monetary representation established by
 D001.
 
+Pay-by-transfer presentation eligibility is also owned by `domain/transactions`.
+A prepared evaluator indexes child membership and resolves roots, including
+missing ancestry and cycles, once per catalog snapshot. `PipeCatalogProvider`
+shares that evaluator across individual and grouped transaction rows and
+replaces it when the catalog changes. The feature adapter translates deletion
+state to the domain's blocked-payer flag; amount-form candidate lists prepare
+once per list build rather than once per candidate. Negative expenses require
+an external leaf payer, positive refunds require an external root, and zero
+values are ineligible. Backend authorization and accounting remain authoritative.
+
 ## D011: Transaction Edit History
 
 Status: Implemented

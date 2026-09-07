@@ -2,6 +2,9 @@ import { createContext, useContext, useMemo, type ReactNode } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { normalizePipe, type PipeModel } from "@features/pipes/data/pipes";
+import { preparePaidFromPipeEligibility } from "@features/pipes/data/paidFromEligibility";
+
+const EMPTY_PIPES: PipeModel[] = [];
 
 export type PipeCatalogContextValue = {
   allPipes: PipeModel[] | undefined;
@@ -9,6 +12,7 @@ export type PipeCatalogContextValue = {
   childrenByParent: Map<PipeModel["id"], PipeModel[]>;
   isLoading: boolean;
   feeds: PipeModel[];
+  isPaidFromEligible: ReturnType<typeof preparePaidFromPipeEligibility>;
 };
 
 const PipeCatalogContext = createContext<PipeCatalogContextValue | null>(null);
@@ -27,7 +31,11 @@ export function PipeCatalogProvider({ children }: { children: ReactNode }) {
     () => (persistedPipes ? persistedPipes.map(normalizePipe) : undefined),
     [persistedPipes],
   );
-  const allPipesFlat = allPipes ?? [];
+  const allPipesFlat = allPipes ?? EMPTY_PIPES;
+  const isPaidFromEligible = useMemo(
+    () => preparePaidFromPipeEligibility(allPipesFlat),
+    [allPipesFlat],
+  );
 
   const pipesById = useMemo(
     () =>
@@ -67,8 +75,9 @@ export function PipeCatalogProvider({ children }: { children: ReactNode }) {
       childrenByParent,
       isLoading: allPipes === undefined,
       feeds,
+      isPaidFromEligible,
     }),
-    [allPipes, pipesById, childrenByParent, feeds],
+    [allPipes, pipesById, childrenByParent, feeds, isPaidFromEligible],
   );
 
   return (

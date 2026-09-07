@@ -5,6 +5,7 @@ import type { Doc, Id } from "@convex/_generated/dataModel";
 import {
   PipeCatalogProvider,
   usePipeCatalog,
+  type PipeCatalogContextValue,
 } from "./PipeCatalogContext";
 
 const mockUseQuery = vi.fn();
@@ -50,6 +51,47 @@ function CatalogConsumer() {
 }
 
 describe("PipeCatalogProvider", () => {
+  it("shares eligibility and refreshes it when catalog topology or deletion changes", () => {
+    const catalogs: PipeCatalogContextValue[] = [];
+    function EligibilityConsumer() {
+      catalogs.push(usePipeCatalog());
+      return null;
+    }
+    const tree = () => (
+      <PipeCatalogProvider>
+        <EligibilityConsumer />
+        <EligibilityConsumer />
+      </PipeCatalogProvider>
+    );
+    const logicalId = "logical" as Id<"pipes">;
+    const payerId = "payer" as Id<"pipes">;
+    mockUseQuery.mockReturnValue(undefined);
+    const { rerender } = render(tree());
+    expect(catalogs.at(-1)!.isPaidFromEligible(logicalId, payerId, -500)).toBe(false);
+
+    const loaded = [pipe(logicalId), pipe(payerId)];
+    mockUseQuery.mockReturnValue(loaded);
+    rerender(tree());
+    const eligible = catalogs.at(-1)!.isPaidFromEligible;
+    expect(eligible(logicalId, payerId, -500)).toBe(true);
+    expect(catalogs.at(-2)!.isPaidFromEligible).toBe(eligible);
+
+    rerender(tree());
+    expect(catalogs.at(-1)!.isPaidFromEligible).toBe(eligible);
+
+    mockUseQuery.mockReturnValue([...loaded, pipe("child", payerId)]);
+    rerender(tree());
+    expect(catalogs.at(-1)!.isPaidFromEligible(logicalId, payerId, -500)).toBe(false);
+    expect(catalogs.at(-1)!.isPaidFromEligible(logicalId, payerId, 500)).toBe(true);
+
+    mockUseQuery.mockReturnValue([
+      pipe(logicalId),
+      { ...pipe(payerId), deletionJobId: "job" as Id<"pipeDeletionJobs"> },
+    ]);
+    rerender(tree());
+    expect(catalogs.at(-1)!.isPaidFromEligible(logicalId, payerId, 500)).toBe(false);
+  });
+
   it("exposes normalized pipes and derived indexes without selection state", () => {
     mockUseQuery.mockReturnValue([pipe("root"), pipe("child", "root")]);
 

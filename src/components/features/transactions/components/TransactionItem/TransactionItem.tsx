@@ -1,15 +1,13 @@
 import { Animated, PanResponder, Pressable, Text, View } from "react-native";
-import { Icon, safeIconName } from "@ui/Icon";
+import { Icon } from "@ui/Icon";
 import { cn, colors } from "@/lib/styles";
 import { ModalShell } from "@ui/Modal";
 import { AmountForm } from '@features/components/AmountForm';
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { usePipeCatalog } from '@features/pipes/context/PipeCatalogContext';
-import { resolveTransactionKind } from "@domain/transactions";
-import { transactionStructureFromRoles } from "@domain/transactions";
 import { formatAmount } from "@/lib/format";
 import type { TransactionModel } from "@features/transactions/data/transactions";
-import { isPaidFromPipeEligible } from "@features/pipes/data/paidFromEligibility";
+import { getTransactionItemModel } from "./transactionItem.model";
 
 type TransactionItemProps = {
   transaction: TransactionModel;
@@ -25,77 +23,19 @@ const EDIT_ACTION_WIDTH = 72;
 const EDIT_SWIPE_THRESHOLD = 40;
 
 export function TransactionItem({ transaction, onShowEditHistory }: TransactionItemProps) {
-  const kind = resolveTransactionKind(transaction);
-  const isFeed = kind === "feed";
-  const isTransfer = kind === "transfer";
-  const isPayByTransfer = kind === "expense" && !!transaction.paidFrom;
-  const isNegative = transaction.value < 0;
+  const { pipesById, childrenByParent, isPaidFromEligible } = usePipeCatalog();
+
   const [formIntent, setFormIntent] = useState<"repeat" | "edit" | null>(null);
   const [showDisabledInfo, setShowDisabledInfo] = useState(false);
   const translateX = useRef(new Animated.Value(0)).current;
-  const { allPipes, pipesById, childrenByParent } = usePipeCatalog();
 
-  const sourcePipe = transaction.from ? pipesById?.[transaction.from] : undefined;
-  const destPipe = transaction.to ? pipesById?.[transaction.to] : undefined;
-  const paidFromPipe = transaction.paidFrom ? pipesById?.[transaction.paidFrom] : undefined;
-  const fromValid =
-    !!sourcePipe &&
-    !sourcePipe.deletionJobId &&
-    (childrenByParent.get(sourcePipe.id)?.length ?? 0) === 0;
-  const toValid = !!destPipe && !destPipe.deletionJobId && destPipe.parentId === undefined;
-  const paidFromValid =
-    !!transaction.from &&
-    !!transaction.paidFrom &&
-    isPaidFromPipeEligible(
-      allPipes ?? Object.values(pipesById ?? {}),
-      transaction.from,
-      transaction.paidFrom,
-      transaction.value,
-    );
-  const viewOnly = !!transaction.fromIcon || !!transaction.toIcon || !!transaction.paidFromIcon;
-  const icons = {
-    from: {
-      name: sourcePipe?.icon ?? transaction.fromIcon ?? "pipe-disconnected",
-      color: sourcePipe || transaction.fromIcon ? colors.muted : colors.surface,
-    },
-    to: {
-      name: destPipe?.icon ?? transaction.toIcon ?? "pipe-disconnected",
-      color: destPipe || transaction.toIcon ? colors.muted : colors.surface,
-    },
-    paidFrom: {
-      name: paidFromPipe?.icon ?? transaction.paidFromIcon ?? "pipe-disconnected",
-      color: paidFromPipe || transaction.paidFromIcon ? colors.muted : colors.surface,
-    },
-  };
-  const disabled =
-    viewOnly ||
-    (!!transaction.from && !fromValid) ||
-    (!!transaction.to && !toValid) ||
-    (!!transaction.paidFrom && !paidFromValid);
-  const primaryPipe = isFeed ? destPipe : sourcePipe;
-  const bgClass = isFeed
-    ? "bg-secondary/30"
-    : isTransfer
-      ? "bg-accent/30"
-      : isNegative
-        ? "bg-error/30"
-        : isPayByTransfer
-          ? "bg-success/30"
-          : "bg-primary/30";
-  const amountFormInitState = primaryPipe && !viewOnly ? {
-    pipeIcon: primaryPipe.icon,
-    pipeName: primaryPipe.name,
-    spent: primaryPipe.spent,
-    capacity: primaryPipe.capacity,
-    title: transaction.title,
-    value: formatAmount(transaction.value),
-    structure: transactionStructureFromRoles(transaction),
-    transactionId: transaction.id,
-    date: transaction.date,
-  } : undefined;
+  const model = useMemo(
+    () => getTransactionItemModel(transaction, { pipesById, childrenByParent, isPaidFromEligible }),
+    [transaction, pipesById, childrenByParent, isPaidFromEligible],
+  );
 
   function openForm(intent: "repeat" | "edit") {
-    if (disabled) {
+    if (model.disabled) {
       setShowDisabledInfo(true);
     } else {
       setFormIntent(intent);
@@ -111,7 +51,7 @@ export function TransactionItem({ transaction, onShowEditHistory }: TransactionI
 
   const panResponder = PanResponder.create({
     onMoveShouldSetPanResponder: (_event, gesture) =>
-      !disabled &&
+      !model.disabled &&
       gesture.dx < -8 &&
       Math.abs(gesture.dx) > Math.abs(gesture.dy),
     onPanResponderMove: (_event, gesture) => {
@@ -127,7 +67,7 @@ export function TransactionItem({ transaction, onShowEditHistory }: TransactionI
   return (
     <View className="flex-row gap-1 items-center">
       <View className="relative flex-1 rounded-2xl">
-        {!disabled ? (
+        {!model.disabled ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={`Edit ${transaction.title}`}
@@ -150,43 +90,28 @@ export function TransactionItem({ transaction, onShowEditHistory }: TransactionI
           <Pressable
             className={cn(
               "w-full flex-row gap-1 items-center rounded-2xl border border-border px-2 py-2",
-              bgClass,
+              model.bgClass,
             )}
             onPress={() => openForm("repeat")}
           >
-            <Icon
-              name={safeIconName(isFeed ? icons.to.name : isPayByTransfer ? icons.paidFrom.name : icons.from.name)}
-              size={16}
-              color={isFeed ? icons.to.color : isPayByTransfer ? icons.paidFrom.color : icons.from.color}
-            />
-
-            {isTransfer || isPayByTransfer ? (
-              <>
-                <Icon name={isNegative ? "ray-start-arrow" : "ray-end-arrow"} size={14} color={colors.muted} />
-                <Icon
-                  name={safeIconName(isPayByTransfer ? icons.from.name : icons.to.name)}
-                  size={16}
-                  color={isPayByTransfer ? icons.from.color : icons.to.color}
-                />
-              </>
-            ) : null}
+            {model.uiIcons.map((icon, index) => (<Icon key={index} name={icon.name} size={icon.size} color={icon.color} />))}
 
             <Text
               className={cn(
                 "font-bold text-sm flex-1 ml-0.5",
-                disabled ? "text-muted" : "text-text",
+                model.disabled ? "text-muted" : "text-text",
               )}
               numberOfLines={1}
             >
               {transaction.title.charAt(0).toUpperCase() + transaction.title.slice(1)}
             </Text>
-            <Text className={cn("text-xs mr-4", disabled ? "text-muted" : "text-white")}>
+            <Text className={cn("text-xs mr-4", model.disabled ? "text-muted" : "text-white")}>
               {new Date(transaction.date).toLocaleDateString("en-US", DATE_FORMAT)}
             </Text>
             <Text
               className={cn(
                 "text-sm font-bold w-16 mr-2 text-right",
-                disabled ? "text-muted" : "text-white",
+                model.disabled ? "text-muted" : "text-white",
               )}
             >
               {formatAmount(transaction.value)}
@@ -209,11 +134,11 @@ export function TransactionItem({ transaction, onShowEditHistory }: TransactionI
       ) : null}
 
       <ModalShell visible={formIntent !== null} onClose={() => setFormIntent(null)}>
-        {formIntent && primaryPipe && amountFormInitState ? (
+        {formIntent && model.primaryPipeId && model.formInitState ? (
           <AmountForm
             variant="transaction"
-            pipeId={primaryPipe.id}
-            initState={{ ...amountFormInitState, intent: formIntent }}
+            pipeId={model.primaryPipeId}
+            initState={{ ...model.formInitState, intent: formIntent }}
             onSuccess={() => setFormIntent(null)}
           />
         ) : null}
@@ -223,7 +148,7 @@ export function TransactionItem({ transaction, onShowEditHistory }: TransactionI
         <View className="p-4">
           <Text className="text-text font-bold text-lg mb-2">Cannot repeat transaction</Text>
           <Text className="text-muted text-sm leading-5">
-            {viewOnly
+            {model.viewOnly
               ? "This is preserved history from a deleted pipe. Preserved history is view-only."
               : "This transaction was from a pipe that does not exist or cannot accept transactions anymore (probably due to now having children pipes)."}
           </Text>
