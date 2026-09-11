@@ -5,9 +5,10 @@ import { colors } from "@/lib/styles";
 
 type Props = {
   pages: readonly { key: number; content: ReactNode; hasError: boolean }[];
+  finalAction?: ReactNode;
 };
 
-export function FormPager({ pages }: Props) {
+export function FormPager({ pages, finalAction }: Props) {
   const [selectedKey, setSelectedKey] = useState<number | null>(null);
   const [width, setWidth] = useState(0);
   const pager = useRef<ScrollView>(null);
@@ -46,7 +47,7 @@ export function FormPager({ pages }: Props) {
     </ScrollView>
   ));
 
-  if (!multiple) return <>{content}</>;
+  if (!multiple) return <>{content}{pages.length === 1 ? finalAction : null}</>;
 
   return (
     <>
@@ -73,14 +74,16 @@ export function FormPager({ pages }: Props) {
       </ScrollView>
       <View className="flex-row justify-between gap-4">
         <Button title="Back" variant="muted" disabled={activeIndex === 0} onPress={() => navigate(activeIndex - 1)} />
-        <Button title="Next" disabled={activeIndex === pages.length - 1} onPress={() => navigate(activeIndex + 1)} />
+        {activeIndex === pages.length - 1 && finalAction ? finalAction : (
+          <Button title="Next" disabled={activeIndex === pages.length - 1} onPress={() => navigate(activeIndex + 1)} />
+        )}
       </View>
       <View className="flex-row justify-center gap-2">
         {pages.map((page, index) => {
           const selected = index === activeIndex;
           const backgroundColor = page.hasError
             ? selected ? colors.error : colors.errorDark
-            : selected ? colors.text : colors.surface;
+            : selected ? colors.text : colors.muted;
           return (
             <View
               key={page.key}

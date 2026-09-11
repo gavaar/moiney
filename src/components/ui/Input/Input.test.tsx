@@ -12,18 +12,18 @@ describe("Input", () => {
     type MultipleSelectProps = Extract<InputProps, { type: "select"; multiple: true }>;
 
     expectTypeOf<TextProps["value"]>().toEqualTypeOf<string>();
-    expectTypeOf<TextProps["onChange"]>().toEqualTypeOf<(value: string) => void>();
+    expectTypeOf<TextProps["onChange"]>().toEqualTypeOf<((value: string) => void) | undefined>();
     expectTypeOf<Extract<keyof TextProps, "defaultValue" | "onChangeText">>().toEqualTypeOf<never>();
     expectTypeOf<Extract<keyof Extract<InputProps, { type: "checkbox" }>, "checked">>().toEqualTypeOf<never>();
     expectTypeOf<Extract<keyof Extract<InputProps, { type: "icon" }>, "onSelect">>().toEqualTypeOf<never>();
     expectTypeOf<Extract<keyof SingleSelectProps, "onSelect">>().toEqualTypeOf<never>();
     expectTypeOf<Extract<keyof Extract<InputProps, { type: "text-select" }>, "onChangeText" | "onOptionSelect">>().toEqualTypeOf<never>();
     expectTypeOf<DateProps["value"]>().toEqualTypeOf<Date | null>();
-    expectTypeOf<Parameters<DateProps["onChange"]>>().toEqualTypeOf<[Date]>();
+    expectTypeOf<Parameters<NonNullable<DateProps["onChange"]>>>().toEqualTypeOf<[Date]>();
     expectTypeOf<SingleSelectProps["value"]>().toEqualTypeOf<string | null>();
-    expectTypeOf<Parameters<SingleSelectProps["onChange"]>>().toEqualTypeOf<[string]>();
+    expectTypeOf<Parameters<NonNullable<SingleSelectProps["onChange"]>>>().toEqualTypeOf<[string]>();
     expectTypeOf<MultipleSelectProps["value"]>().toEqualTypeOf<readonly string[]>();
-    expectTypeOf<Parameters<MultipleSelectProps["onChange"]>>().toEqualTypeOf<[string[]]>();
+    expectTypeOf<Parameters<NonNullable<MultipleSelectProps["onChange"]>>>().toEqualTypeOf<[string[]]>();
   });
 
   it("renders checkbox validation errors without changing its checked value", async () => {

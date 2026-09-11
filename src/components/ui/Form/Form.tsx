@@ -7,7 +7,7 @@ import type { FormProps, FormValue } from "./form.types";
 export function Form<
   Values extends Record<string, FormValue>,
   Keys extends keyof Values & string,
->({ header, form, value, onChange }: FormProps<Values, Keys>) {
+>({ header, finalAction, form, value, onChange }: FormProps<Values, Keys>) {
   const [validation, setValidation] = useState<ReadonlyMap<string, { source: Values; error: string | null }>>(() => new Map());
   const pages = new Map<number, { key: number; content: JSX.Element[]; hasError: boolean }>();
 
@@ -53,7 +53,7 @@ export function Form<
   return (
     <View style={{ flexShrink: 1 }} className="gap-4">
       {header ? <View accessibilityRole="header">{header}</View> : null}
-      <FormPager pages={[...pages.values()].sort((a, b) => a.key - b.key)} />
+      <FormPager pages={[...pages.values()].sort((a, b) => a.key - b.key)} finalAction={finalAction} />
     </View>
   );
 }

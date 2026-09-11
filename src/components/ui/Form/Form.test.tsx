@@ -6,6 +6,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, expectTypeOf, it, vi } from "vitest";
 import { Form, type FormProps } from ".";
 import { colors } from "@/lib/styles";
+import { Button } from "@ui/Button";
 
 type Values = { name: string; count: number; accepted: boolean };
 const fields: FormProps<Values>["form"] = [
@@ -97,6 +98,33 @@ function rgb(color: string) {
 }
 
 describe("Form steps", () => {
+  it("shows a caller-owned final action only on the last step instead of Next", async () => {
+    const submit = vi.fn();
+    const value: Values = { name: "Ada", count: 2, accepted: true };
+    render(<Form form={steps} value={value} onChange={() => {}} finalAction={<Button title="Create" onPress={submit} />} />);
+    expect(screen.queryByRole("button", { name: "Create" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Next" }));
+    expect(screen.queryByRole("button", { name: "Create" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Next" }));
+    expect(screen.queryByRole("button", { name: "Next" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Create" }));
+    expect(submit).toHaveBeenCalledOnce();
+    await userEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(screen.queryByRole("button", { name: "Create" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Next" })).toBeTruthy();
+  });
+
+  it("renders the final action on a single step without navigation or dots", async () => {
+    const submit = vi.fn();
+    const value: Values = { name: "Ada", count: 2, accepted: true };
+    render(<Form form={fields} value={value} onChange={() => {}} finalAction={<Button title="Create" onPress={submit} />} />);
+    expect(screen.queryByRole("button", { name: "Next" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Back" })).toBeNull();
+    expect(screen.queryByLabelText(/Step \d+ of/)).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Create" }));
+    expect(submit).toHaveBeenCalledOnce();
+  });
+
   it("sorts distinct steps, hides offscreen fields, and preserves edits through Next and Back", async () => {
     render(<Controlled form={steps} />);
     expect(screen.getByRole("textbox", { name: "Name" })).toBeTruthy();
@@ -118,7 +146,7 @@ describe("Form steps", () => {
   it("uses error/errorDark for invalid selected/unselected steps without blocking navigation", async () => {
     render(<Controlled form={steps} />);
     expect(background(dot(1))).toBe(rgb(colors.text));
-    expect(background(dot(2))).toBe(rgb(colors.surface));
+    expect(background(dot(2))).toBe(rgb(colors.muted));
     fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "A" } });
     expect(background(dot(1, true))).toBe(rgb(colors.error));
     await userEvent.click(screen.getByRole("button", { name: "Next" }));

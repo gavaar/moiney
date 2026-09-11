@@ -5,7 +5,7 @@ Variants keep their tests and private helpers colocated; application callers
 do not import variants directly.
 `InputProps` is exported from the public entry point for typed composition.
 
-Every variant is controlled through required `value` and `onChange` props,
+Every variant is controlled through a required `value` and optional `onChange`,
 including checkbox's boolean value. `onChange` receives the variant's value,
 never a native input event. Text-select uses the same callback for typing and
 choosing a suggestion. Native event translation belongs inside each variant;
@@ -22,6 +22,10 @@ their interfaces. Text inputs do not expose `defaultValue` or `onChangeText`.
 | `checkbox` | `Checkbox/` |
 | `select` | `SelectInput/` |
 | `text-select` | `TextSelectInput/` |
+| `toggle` | `ToggleInput/` |
+
+Toggle inputs take two labeled icon options: the first represents `false`,
+the second `true`. The selected label is displayed beside the toggle.
 
 ## Form Composition
 
@@ -29,6 +33,9 @@ their interfaces. Text inputs do not expose `defaultValue` or `onChangeText`.
 `FormProps`, `FormField`, and `FormValue` types. Form renders content only;
 callers own modal visibility, backdrop dismissal, submission, and value state.
 Its optional `header` is a JSX element, not a string.
+An optional JSX `finalAction` replaces Next on the last step, or appears below
+the fields for a single-step form. The caller owns its callback, eligibility,
+and loading state; Form does not submit or validate on its behalf.
 
 - `form` contains uniquely keyed definitions with `input`, a synchronous pure
   `validator(value): string | null`, optional `description`, and optional `step`.

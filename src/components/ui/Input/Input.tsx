@@ -1,5 +1,5 @@
 import type { ComponentProps } from "react";
-import { DateInput, DecimalInput, TextInput, NumberInput, IconInput, CheckboxInput, SelectInput, TextSelectInput } from "./components";
+import { DateInput, DecimalInput, TextInput, NumberInput, IconInput, CheckboxInput, SelectInput, TextSelectInput, ToggleInput } from "./components";
 
 export type InputProps =
   | (ComponentProps<typeof TextInput> & { type?: "text" })
@@ -8,6 +8,7 @@ export type InputProps =
   | (ComponentProps<typeof DateInput> & { type: "date" })
   | (ComponentProps<typeof IconInput> & { type: "icon" })
   | (ComponentProps<typeof CheckboxInput> & { type: "checkbox" })
+  | (ComponentProps<typeof ToggleInput> & { type: "toggle" })
   | (ComponentProps<typeof SelectInput> & { type: "select" })
   | (ComponentProps<typeof TextSelectInput> & { type: "text-select" });
 
@@ -23,6 +24,8 @@ export function Input(props: InputProps) {
       return <IconInput {...props} />;
     case "checkbox":
       return <CheckboxInput {...props} />;
+    case "toggle":
+      return <ToggleInput {...props} />;
     case "select":
       return <SelectInput {...props} />;
     case "text-select":

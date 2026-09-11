@@ -12,11 +12,12 @@ type Props = {
   options: [ToggleOption, ToggleOption];
   value: string;
   onChange: (value: string) => void;
+  disabled?: boolean;
 };
 
-export function SlideToggle({ options, value, onChange }: Props) {
+export function SlideToggle({ options, value, onChange, disabled }: Props) {
   return (
-    <View className="flex-row rounded-lg border border-border bg-surface">
+    <View className={cn("flex-row rounded-lg border border-border bg-surface", disabled && "opacity-50")}>
       {options.map((option, index) => {
         const isActive = option.value === value;
         return (
@@ -25,9 +26,10 @@ export function SlideToggle({ options, value, onChange }: Props) {
             testID={"slide-toggle-" + option.value}
             accessibilityRole="radio"
             accessibilityLabel={option.label}
-            accessibilityState={{ selected: isActive }}
+            accessibilityState={{ selected: isActive, disabled }}
             aria-selected={isActive}
-            onPress={() => onChange(option.value)}
+            disabled={disabled}
+            onPress={() => !disabled && onChange(option.value)}
             className={cn(
               "flex-row items-center justify-center py-1 px-2",
               index === 0 && "rounded-l-[7px]",

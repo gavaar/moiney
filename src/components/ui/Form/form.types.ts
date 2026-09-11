@@ -23,6 +23,7 @@ export type FormProps<
   Keys extends keyof Values & string = keyof Values & string,
 > = {
   header?: JSX.Element;
+  finalAction?: JSX.Element;
   form: readonly { [K in Keys]: FormField<Values[K], K> }[Keys][];
   value: Values;
   onChange: (value: Pick<Values, NoInfer<Keys>>) => void;
