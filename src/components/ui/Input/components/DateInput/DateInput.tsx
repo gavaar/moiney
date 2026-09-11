@@ -13,7 +13,7 @@ type Props = {
   disabled?: boolean;
   value: Date | null;
   placeholder?: string;
-  onChange: (date: Date) => void;
+  onChange?: (date: Date) => void;
 };
 
 function formatDate(date: Date): string {
@@ -76,7 +76,7 @@ export function DateInput({
         </Text>
       ) : null}
 
-      {showPicker ? (
+      {showPicker && onChange ? (
         <Calendar visible value={value ?? currentUtcDate()} onChange={onChange} onClose={handleClose} />
       ) : null}
     </View>

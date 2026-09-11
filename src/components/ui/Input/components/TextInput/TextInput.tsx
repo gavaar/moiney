@@ -11,7 +11,9 @@ import { cn, colors } from "@/lib/styles";
 import { Icon } from "@ui/Icon";
 import { getBorderStyle } from "../../input.config";
 
-type Props = TextInputProps & {
+type Props = Omit<TextInputProps, "value" | "defaultValue" | "onChange" | "onChangeText"> & {
+  value: string;
+  onChange?: (value: string) => void;
   label: string;
   hideLabel?: boolean;
   error?: string;
@@ -35,6 +37,7 @@ export function TextInput({
   editable,
   onFocus,
   onBlur,
+  onChange,
   ...props
 }: Props) {
   const [focused, setFocused] = useState(false);
@@ -50,6 +53,7 @@ export function TextInput({
       <View className="relative">
         <RNTextInput
           {...props}
+          onChangeText={text => onChange?.(text)}
           accessibilityLabel={label}
           accessibilityState={{ disabled }}
           className={cn(

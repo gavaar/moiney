@@ -152,7 +152,7 @@ export function DeletePipeConfirmation({ visible, onClose, pipeId, onDeleted }: 
         <Input
           type="checkbox"
           label="Delete orphaned transaction history"
-          checked={deleteTransactions}
+          value={deleteTransactions}
           onChange={setDeleteTransactions}
           disabled={isDeleting}
         />

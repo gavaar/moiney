@@ -52,7 +52,7 @@ describe("SelectInput", () => {
         items={items}
         renderItem={(item) => <>{item.name}</>}
         value={null}
-        onSelect={() => {}}
+        onChange={() => {}}
       />,
     );
     expect(screen.getByText("From")).toBeTruthy();
@@ -65,7 +65,7 @@ describe("SelectInput", () => {
         items={items}
         renderItem={(item) => <>{item.name}</>}
         value={null}
-        onSelect={() => {}}
+        onChange={() => {}}
       />,
     );
     expect(screen.getByRole("button", { name: "From" }).getAttribute("aria-expanded")).toBe("false");
@@ -78,7 +78,7 @@ describe("SelectInput", () => {
         items={items}
         renderItem={(item) => <>{item.name}</>}
         value={null}
-        onSelect={() => {}}
+        onChange={() => {}}
         placeholder="Pick one"
       />,
     );
@@ -92,7 +92,7 @@ describe("SelectInput", () => {
         items={items}
         renderItem={(item) => <>{item.name}</>}
         value="1"
-        onSelect={() => {}}
+        onChange={() => {}}
       />,
     );
     expect(screen.getByText("Groceries")).toBeTruthy();
@@ -106,7 +106,7 @@ describe("SelectInput", () => {
         items={items}
         renderItem={(item) => <>{item.name}</>}
         value={null}
-        onSelect={() => {}}
+        onChange={() => {}}
       />,
     );
     await user.click(screen.getByTestId("select-trigger"));
@@ -114,38 +114,38 @@ describe("SelectInput", () => {
     expect(screen.getByText("Salary")).toBeTruthy();
   });
 
-  it("calls onSelect with item id on item tap", async () => {
+  it("calls onChange with item id on item tap", async () => {
     const user = userEvent.setup();
-    const onSelect = vi.fn();
+    const onChange = vi.fn();
     render(
       <SelectInput
         label="From"
         items={items}
         renderItem={(item) => <>{item.name}</>}
         value={null}
-        onSelect={onSelect}
+        onChange={onChange}
       />,
     );
     await user.click(screen.getByTestId("select-trigger"));
     await user.click(screen.getByText("Salary"));
-    expect(onSelect).toHaveBeenCalledWith("2");
+    expect(onChange).toHaveBeenCalledWith("2");
   });
 
   it("shows selected item in trigger after selection", async () => {
     const user = userEvent.setup();
-    const onSelect = vi.fn();
+    const onChange = vi.fn();
     render(
       <SelectInput
         label="From"
         items={items}
         renderItem={(item) => <>{item.name}</>}
         value={null}
-        onSelect={onSelect}
+        onChange={onChange}
       />,
     );
     await user.click(screen.getByTestId("select-trigger"));
     await user.click(screen.getByText("Salary"));
-    expect(onSelect).toHaveBeenCalledWith("2");
+    expect(onChange).toHaveBeenCalledWith("2");
   });
 
   it("shows error message", () => {
@@ -155,7 +155,7 @@ describe("SelectInput", () => {
         items={items}
         renderItem={(item) => <>{item.name}</>}
         value={null}
-        onSelect={() => {}}
+        onChange={() => {}}
         error="Select a source"
       />,
     );
@@ -170,7 +170,7 @@ describe("SelectInput", () => {
         items={items}
         renderItem={(item) => <>{item.name}</>}
         value={null}
-        onSelect={() => {}}
+        onChange={() => {}}
         disabled
       />,
     );

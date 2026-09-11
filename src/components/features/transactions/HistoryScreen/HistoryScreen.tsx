@@ -93,7 +93,7 @@ function HistoryFilterControls({
             hideLabel
             label="Title contains"
             value={draft.title}
-            onChangeText={(title) => setDraft((current) => ({ ...current, title }))}
+            onChange={(title) => setDraft((current) => ({ ...current, title }))}
             placeholder="Any title"
           />
         </View>

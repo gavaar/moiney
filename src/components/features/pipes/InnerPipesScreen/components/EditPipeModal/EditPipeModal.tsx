@@ -79,7 +79,7 @@ export function EditPipeModal({ visible, onClose, pipeId }: EditPipeModalProps) 
             label="Name"
             placeholder="Pipe name"
             value={name}
-            onChangeText={(v) => {
+            onChange={(v) => {
               setName(v);
               setNameError(undefined);
             }}
@@ -110,13 +110,13 @@ export function EditPipeModal({ visible, onClose, pipeId }: EditPipeModalProps) 
             </View>
           </View>
 
-          <Input type="icon" label="Icon" value={icon} onSelect={setIcon} />
+          <Input type="icon" label="Icon" value={icon} onChange={setIcon} />
 
           <Input
             label="Description"
             placeholder="Optional description"
             value={description}
-            onChangeText={setDescription}
+            onChange={setDescription}
             multiline
             numberOfLines={3}
           />

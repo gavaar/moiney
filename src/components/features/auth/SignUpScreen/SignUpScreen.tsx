@@ -101,7 +101,7 @@ export function SignUpScreen() {
         label="Username"
         placeholder="Choose a username"
         value={values.username}
-        onChangeText={(v) => setField("username", v)}
+        onChange={(v) => setField("username", v)}
         autoCapitalize="none"
         autoCorrect={false}
         error={usernameError}
@@ -111,7 +111,7 @@ export function SignUpScreen() {
         label="Email"
         placeholder="Enter your email"
         value={values.email}
-        onChangeText={(v) => setField("email", v)}
+        onChange={(v) => setField("email", v)}
         onBlur={() => validateField("email")}
         autoCapitalize="none"
         autoCorrect={false}
@@ -122,7 +122,7 @@ export function SignUpScreen() {
         label="Password"
         placeholder="At least 8 characters"
         value={values.password}
-        onChangeText={(v) => setField("password", v)}
+        onChange={(v) => setField("password", v)}
         onBlur={() => validateField("password")}
         secureTextEntry={!showPassword}
         endIcon={showPassword ? "eye-off" : "eye"}
@@ -133,7 +133,7 @@ export function SignUpScreen() {
         label="Repeat Password"
         placeholder="Confirm your password"
         value={values.repeatPassword}
-        onChangeText={(v) => setField("repeatPassword", v)}
+        onChange={(v) => setField("repeatPassword", v)}
         onBlur={() => validateField("repeatPassword")}
         secureTextEntry={!showRepeatPassword}
         endIcon={showRepeatPassword ? "eye-off" : "eye"}

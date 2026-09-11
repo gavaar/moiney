@@ -13,7 +13,7 @@ type Props = {
   error?: string;
   disabled?: boolean;
   value: string;
-  onChange: (value: string) => void;
+  onChange?: (value: string) => void;
   placeholder?: string;
   allowNegative?: boolean;
 };
@@ -32,6 +32,7 @@ export function DecimalInput({ label, error, disabled, value, onChange, placehol
   const isNegative = useMemo(() => allowNegative && (value.startsWith("-")), [allowNegative, value]);
 
   const handleChangeText = useCallback((text: string) => {
+    if (!onChange || disabled) return;
     const newSign = allowNegative
       ? text.includes("-") ? (isNegative ? "" : "-") : (isNegative ? "-" : "")
       : "";
@@ -39,7 +40,7 @@ export function DecimalInput({ label, error, disabled, value, onChange, placehol
   }, [allowNegative, isNegative, onChange]);
 
   const handleSignPress = useCallback(() => {
-    if (disabled) return;
+    if (disabled || !onChange) return;
     const newSign = isNegative ? "" : "-";
     onChange(`${newSign}${sanitizeDecimal(value)}`);
   }, [isNegative, value, disabled, onChange]);

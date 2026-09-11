@@ -6,19 +6,19 @@ import { CheckboxInput } from "./CheckboxInput";
 
 describe("CheckboxInput", () => {
   it("renders label and unchecked state", () => {
-    render(<CheckboxInput label="Option" checked={false} onChange={() => {}} />);
+    render(<CheckboxInput label="Option" value={false} onChange={() => {}} />);
     expect(screen.getByText("Option")).toBeTruthy();
     const checkbox = screen.getByTestId("checkbox-touchable");
     expect(checkbox).toBeTruthy();
   });
 
   it("shows checked indicator when checked", () => {
-    render(<CheckboxInput label="Option" checked={true} onChange={() => {}} />);
+    render(<CheckboxInput label="Option" value={true} onChange={() => {}} />);
     expect(screen.getByTestId("checkbox-checked-icon")).toBeTruthy();
   });
 
   it("exposes its label and checked state to assistive technology", () => {
-    render(<CheckboxInput label="Option" checked={true} onChange={() => {}} />);
+    render(<CheckboxInput label="Option" value={true} onChange={() => {}} />);
 
     const checkbox = screen.getByRole("checkbox", { name: "Option" });
     expect(checkbox.getAttribute("aria-checked")).toBe("true");
@@ -26,21 +26,21 @@ describe("CheckboxInput", () => {
 
   it("toggles on press", async () => {
     const onChange = vi.fn();
-    render(<CheckboxInput label="Option" checked={false} onChange={onChange} />);
+    render(<CheckboxInput label="Option" value={false} onChange={onChange} />);
     await userEvent.click(screen.getByTestId("checkbox-touchable"));
     expect(onChange).toHaveBeenCalledWith(true);
   });
 
   it("calls onChange with false when checked and pressed", async () => {
     const onChange = vi.fn();
-    render(<CheckboxInput label="Option" checked={true} onChange={onChange} />);
+    render(<CheckboxInput label="Option" value={true} onChange={onChange} />);
     await userEvent.click(screen.getByTestId("checkbox-touchable"));
     expect(onChange).toHaveBeenCalledWith(false);
   });
 
   it("does not toggle when disabled", () => {
     const onChange = vi.fn();
-    render(<CheckboxInput label="Option" checked={false} onChange={onChange} disabled />);
+    render(<CheckboxInput label="Option" value={false} onChange={onChange} disabled />);
     fireEvent.click(screen.getByTestId("checkbox-touchable"));
     expect(onChange).not.toHaveBeenCalled();
   });

@@ -48,7 +48,7 @@ export function LoginScreen() {
         label="Username"
         placeholder="Enter your username"
         value={values.username}
-        onChangeText={(v) => setField("username", v)}
+        onChange={(v) => setField("username", v)}
         autoCapitalize="none"
         autoCorrect={false}
       />
@@ -56,7 +56,7 @@ export function LoginScreen() {
         label="Password"
         placeholder="Enter your password"
         value={values.password}
-        onChangeText={(v) => setField("password", v)}
+        onChange={(v) => setField("password", v)}
         secureTextEntry={!showPassword}
         endIcon={showPassword ? "eye-off" : "eye"}
         onEndIconPress={() => setShowPassword((v) => !v)}

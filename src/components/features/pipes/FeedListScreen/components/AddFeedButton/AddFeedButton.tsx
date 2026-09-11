@@ -164,7 +164,7 @@ export function AddFeedButton() {
             label="Name"
             placeholder="Feed name"
             value={name}
-            onChangeText={handleNameChange}
+            onChange={handleNameChange}
             onBlur={handleNameBlur}
             error={nameError}
           />
@@ -190,12 +190,12 @@ export function AddFeedButton() {
               }
             />
           ) : null}
-          <Input type="icon" label="Icon" value={icon} onSelect={setIcon} />
+          <Input type="icon" label="Icon" value={icon} onChange={setIcon} />
           <Input
             label="Description"
             placeholder="Optional description"
             value={description}
-            onChangeText={setDescription}
+            onChange={setDescription}
             multiline
             numberOfLines={3}
           />

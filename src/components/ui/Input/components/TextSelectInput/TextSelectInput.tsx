@@ -6,8 +6,7 @@ import { getBorderStyle } from "../../input.config";
 type Props = {
   label?: string;
   value: string;
-  onChangeText: (text: string) => void;
-  onOptionSelect: (value: string) => void;
+  onChange?: (value: string) => void;
   options: readonly string[];
   error?: string;
   disabled?: boolean;
@@ -19,8 +18,7 @@ type Props = {
 export function TextSelectInput({
   label,
   value,
-  onChangeText,
-  onOptionSelect,
+  onChange,
   options,
   error,
   disabled,
@@ -58,7 +56,7 @@ export function TextSelectInput({
            accessibilityState={{ disabled }}
            editable={!disabled}
           value={value}
-          onChangeText={onChangeText}
+          onChangeText={text => onChange?.(text)}
           placeholder={placeholder}
           multiline={multiline}
           maxLength={maxLength}
@@ -81,7 +79,7 @@ export function TextSelectInput({
                   <Pressable
                     key={option}
                     onPress={() => {
-                      onOptionSelect(option);
+                      onChange?.(option);
                       inputRef.current?.blur();
                     }}
                     className="px-3 py-3 border-b border-border/30 last:border-b-0 active:opacity-70"

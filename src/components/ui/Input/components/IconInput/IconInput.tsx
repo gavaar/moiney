@@ -13,7 +13,7 @@ import { ModalShell } from "@ui/Modal";
 type Props = {
   label: string;
   value: IconName | "";
-  onSelect: (name: IconName) => void;
+  onChange?: (name: IconName) => void;
   error?: string;
   disabled?: boolean;
 };
@@ -26,7 +26,7 @@ function filterIcons(search: string, icons: { name: string }[]) {
     : icons;
 }
 
-export function IconInput({ label, value, onSelect, error, disabled }: Props) {
+export function IconInput({ label, value, onChange, error, disabled }: Props) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
 
@@ -85,7 +85,8 @@ export function IconInput({ label, value, onSelect, error, disabled }: Props) {
                 <View key={icon.name} className="w-1/4 p-1 items-center">
                   <Pressable
                     onPress={() => {
-                      onSelect(icon.name);
+                      if (disabled || !onChange) return;
+                      onChange(icon.name);
                       setOpen(false);
                       setSearch("");
                     }}

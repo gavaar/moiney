@@ -13,7 +13,7 @@ type Props = {
   error?: string;
   disabled?: boolean;
   value: number;
-  onChange: (value: number) => void;
+  onChange?: (value: number) => void;
   min?: number;
   max?: number;
   step?: number;
@@ -47,25 +47,25 @@ export function NumberInput({
   );
 
   const handleIncrement = () => {
-    if (disabled) return;
+    if (disabled || !onChange) return;
     const next = clamp(value + step);
     if (next !== value) onChange(next);
   };
 
   const handleDecrement = () => {
-    if (disabled) return;
+    if (disabled || !onChange) return;
     const next = clamp(value - step);
     if (next !== value) onChange(next);
   };
 
   const handleChangeText = (text: string) => {
-    onChange(parseDigits(text));
+    onChange?.(parseDigits(text));
   };
 
   const handleBlur = () => {
     setFocused(false);
     const clamped = clamp(value);
-    if (clamped !== value) onChange(clamped);
+    if (clamped !== value) onChange?.(clamped);
   };
 
   const atMin = value <= min;

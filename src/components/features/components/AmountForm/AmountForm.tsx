@@ -104,8 +104,7 @@ export function AmountForm(props: AmountFormProps) {
       <Input
         type="text-select"
         value={common.title}
-        onChangeText={common.setTitle}
-        onOptionSelect={common.setTitle}
+        onChange={common.setTitle}
         options={common.recentTitles}
         maxLength={140}
         multiline
@@ -141,7 +140,7 @@ export function AmountForm(props: AmountFormProps) {
           type="select"
           label={transaction.paidFrom.label}
           value={transaction.paidFrom.value}
-          onSelect={(id) =>
+          onChange={(id) =>
             transaction.paidFrom?.setValue(
               id ? (id as Id<"pipes">) : null,
             )
@@ -179,7 +178,7 @@ export function AmountForm(props: AmountFormProps) {
           type="select"
           label="Transfer to"
           value={spend.sentToPipeId}
-          onSelect={(id) =>
+          onChange={(id) =>
             spend.setSentToPipeId(id ? (id as Id<"pipes">) : null)
           }
           items={spend.pipeItems}
@@ -194,7 +193,7 @@ export function AmountForm(props: AmountFormProps) {
             type="select"
             label={spend.isNegative ? "Paid from" : "Refunded to"}
             value={spend.paidFromPipeId}
-            onSelect={(id) =>
+            onChange={(id) =>
               spend.setPaidFromPipeId(id ? (id as Id<"pipes">) : null)
             }
             items={spend.paidFromPipeItems}

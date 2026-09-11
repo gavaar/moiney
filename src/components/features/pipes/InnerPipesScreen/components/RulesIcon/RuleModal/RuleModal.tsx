@@ -173,7 +173,7 @@ export function RuleModal({ visible, onClose, pipeId }: Props) {
               </View>
             )}
             value={selectedRule}
-            onSelect={(id) => setSelectedRule(id as RuleId)}
+            onChange={(id) => setSelectedRule(id as RuleId)}
           />
 
            <Text className="text-xs italic text-muted">
@@ -226,7 +226,7 @@ export function RuleModal({ visible, onClose, pipeId }: Props) {
                       <Text className="text-text text-base">{item.label}</Text>
                     )}
                     value={unit}
-                    onSelect={(value) => {
+                    onChange={(value) => {
                       const nextUnit = value as CronUnit;
                       const nextSchedule = transitionCronUnit(
                         { unit, pacing },
@@ -247,7 +247,7 @@ export function RuleModal({ visible, onClose, pipeId }: Props) {
                   <Text className="text-text text-base">{item.label}</Text>
                 )}
                 value={pacing ?? null}
-                onSelect={(value) => setPacing(value as Pacing)}
+                onChange={(value: string) => setPacing(value as Pacing)}
                 placeholder="Select pacing..."
                 disabled={capNumber == null || capNumber === 0 || pacingOptions.length === 0}
               />

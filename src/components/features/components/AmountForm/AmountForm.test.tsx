@@ -113,7 +113,7 @@ vi.mock("@features/transactions/cache/TransactionCacheContext", () => ({
 }));
 
 vi.mock("@ui/Input", () => ({
-  Input: ({ label, type, value, onChangeText, onChange, disabled, placeholder, allowNegative, error, maxLength, items, onSelect, options, onOptionSelect }: any) => {
+  Input: ({ label, type, value, onChange, disabled, placeholder, allowNegative, error, maxLength, items, options }: any) => {
     if (type === "date") {
       return (
         <div data-testid={`input-${label}`}>
@@ -143,7 +143,7 @@ vi.mock("@ui/Input", () => ({
               <button
                 key={item.id}
                 data-testid={`select-item-${item.id}`}
-                onClick={() => onSelect?.(item.id)}
+                onClick={() => onChange?.(item.id)}
                 disabled={disabled}
               >
                 {item.name}
@@ -161,7 +161,7 @@ vi.mock("@ui/Input", () => ({
           <input
             data-testid={`input-${labelKey}-field`}
             value={value}
-            onChange={(e) => onChangeText?.(e.target.value)}
+            onChange={(e) => onChange?.(e.target.value)}
             disabled={disabled}
             placeholder={placeholder}
           />
@@ -171,7 +171,7 @@ vi.mock("@ui/Input", () => ({
                 <button
                   key={opt}
                   data-testid={`text-select-option-${opt}`}
-                  onClick={() => onOptionSelect?.(opt)}
+                  onClick={() => onChange?.(opt)}
                 >
                   {opt}
                 </button>
@@ -192,7 +192,7 @@ vi.mock("@ui/Input", () => ({
         <input
           data-testid={`input-${label}-field`}
           value={value}
-          onChange={(e) => (onChangeText || onChange)?.(e.target.value)}
+          onChange={(e) => onChange?.(e.target.value)}
           disabled={disabled}
           placeholder={placeholder}
           data-allow-negative={allowNegative}

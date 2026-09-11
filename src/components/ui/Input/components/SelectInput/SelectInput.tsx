@@ -18,12 +18,12 @@ export type SelectInputProps = CommonSelectInputProps &
     | {
         multiple?: false;
         value: string | null;
-        onSelect: (id: string) => void;
+        onChange?: (id: string) => void;
       }
     | {
         multiple: true;
         value: readonly string[];
-        onChange: (ids: string[]) => void;
+        onChange?: (ids: string[]) => void;
       }
   );
 
@@ -42,13 +42,13 @@ export function SelectInput(props: SelectInputProps) {
 
   const handleItemPress = (id: string) => {
     if (props.multiple) {
-      props.onChange(
+      props.onChange?.(
         props.value.includes(id)
           ? props.value.filter((selectedId) => selectedId !== id)
           : [...props.value, id],
       );
     } else {
-      props.onSelect(id);
+      props.onChange?.(id);
       setOpen(false);
     }
   };

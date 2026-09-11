@@ -41,12 +41,12 @@ vi.mock("@ui/Icon", () => ({
 }));
 
 vi.mock("@ui/Input", () => ({
-  Input: ({ label, value, onChangeText }: any) =>
-    onChangeText ? (
+  Input: ({ label, type = "text", value, onChange }: any) =>
+    type === "text" ? (
       <input
         aria-label={label}
         value={value}
-        onChange={(event) => onChangeText(event.target.value)}
+        onChange={(event) => onChange(event.target.value)}
       />
     ) : null,
 }));
