@@ -42,8 +42,11 @@ describe("Form controlled fields", () => {
     expect(screen.getByDisplayValue("Parent update")).toBeTruthy();
   });
 
-  it("validates on blur, clears errors live, and adapts number and checkbox changes", async () => {
-    render(<Controlled />);
+  it.each(["stacked", "shared row"] as const)("validates and updates %s fields independently", async (layout) => {
+    const form = layout === "shared row"
+      ? fields.map(field => field.key === "accepted" ? field : { ...field, row: "name-count" })
+      : fields;
+    render(<Controlled form={form} />);
     const name = screen.getByRole("textbox", { name: "Name" });
     fireEvent.change(name, { target: { value: "A" } });
     expect(screen.queryByRole("alert")).toBeNull();

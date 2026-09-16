@@ -76,6 +76,11 @@ and loading state; Form does not submit or validate on its behalf.
 - Missing steps default to `0`. Distinct step numbers are sorted numerically;
   field order within a step follows the array. Gaps do not create empty pages.
   Input-level number `step` still means the increment size, not the form page.
+- Optional `row` identifiers group consecutive fields within a step into a
+  horizontal row with equal-width, top-aligned columns. Labels, descriptions,
+  and errors stay in their field's column. Fields without `row` occupy their
+  own full-width row. An intervening field with a different or absent `row`
+  starts a new row; identifiers never group fields across steps or reorder them.
 - Multiple steps support horizontal paging and Next/Back, with no implicit
   submit action. Dots use `muted`/`text` when unselected/selected, overridden
   by `errorDark`/`error` if any field on that step displays an error. A single step

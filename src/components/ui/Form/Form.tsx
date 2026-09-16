@@ -4,17 +4,24 @@ import { Input, type InputProps } from "@ui/Input";
 import { FormPager } from "./FormPager";
 import type { FormProps, FormValue } from "./form.types";
 
+type FormRow = { key: string; id?: string; content: JSX.Element[] };
+
 export function Form<
   Values extends Record<string, FormValue>,
   Keys extends keyof Values & string,
 >({ header, finalAction, form, value, onChange }: FormProps<Values, Keys>) {
   const [errors, setErrors] = useState<Partial<Record<Keys, string>>>({});
   const pages = useMemo(() => {
-    const mappedPages: Record<number, { key: number; content: JSX.Element[]; hasError: boolean }> = {};
+    const mappedPages: Record<number, { key: number; rows: FormRow[]; hasError: boolean }> = {};
 
     for (const field of form) {
       const step = field.step ?? 0;
-      const page = mappedPages[step] ||= { key: step, content: [], hasError: false };
+      const page = mappedPages[step] ||= { key: step, rows: [], hasError: false };
+      let row = page.rows.at(-1);
+      if (field.row === undefined || !row || row.id !== field.row) {
+        row = { key: field.key, id: field.row, content: [] };
+        page.rows.push(row);
+      }
 
       const inputProps = {
         ...field.input,
@@ -30,7 +37,7 @@ export function Form<
       } as InputProps;
 
       const content = (
-        <View key={field.key} className="gap-1">
+        <View key={field.key} className="gap-1" style={{ flex: 1, minWidth: 0 }}>
           <Input {...inputProps} />
           {field.description &&
             <Text className="text-sm text-muted">
@@ -40,11 +47,18 @@ export function Form<
         </View>
       );
 
-      page.content.push(content);
+      row.content.push(content);
       page.hasError = errors[field.key] !== undefined || page.hasError;
     }
 
-    return Object.values(mappedPages).sort((a, b) => a.key - b.key);
+    return Object.values(mappedPages).sort((a, b) => a.key - b.key).map(({ rows, ...page }) => ({
+      ...page,
+      content: rows.map(row => (
+        <View key={row.key} className="flex-row items-start gap-4">
+          {row.content}
+        </View>
+      )),
+    }));
   }, [form, value, onChange, errors]);
 
   return (

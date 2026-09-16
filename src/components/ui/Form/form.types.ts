@@ -15,6 +15,7 @@ export type FormField<V extends FormValue, Key extends string = string> = {
   input: InputConfiguration<V>;
   description?: string;
   step?: number;
+  row?: string;
 };
 
 export type FormProps<

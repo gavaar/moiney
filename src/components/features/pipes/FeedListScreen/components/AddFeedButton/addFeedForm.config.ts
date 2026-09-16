@@ -46,6 +46,7 @@ export function buildAddFeedForm(draft: AddFeedDraft, disabled = false) {
     {
       key: "name",
       step: 0,
+      row: "name-icon",
       input: {
         type: "text", label: "Name", placeholder: draft.isBoiler ? "Boiler name" : "Feed name", disabled,
         validator: (value: string) => {
@@ -57,6 +58,7 @@ export function buildAddFeedForm(draft: AddFeedDraft, disabled = false) {
     {
       key: "icon",
       step: 0,
+      row: "name-icon",
       input: { type: "icon", label: "Icon", disabled,
         validator: (value: string) => Object.hasOwn(ICON_REGISTRY, value) ? undefined : "Icon is required" },
     },
