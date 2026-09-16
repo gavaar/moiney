@@ -29,7 +29,6 @@ export function EditPipeModal({ visible, onClose, pipeId }: EditPipeModalProps) 
   const [capacity, setCapacity] = useState(
     pipe ? formatMoneyInput(pipe.capacity) : "",
   );
-  const [nameError, setNameError] = useState<string | undefined>(undefined);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const showAlert = useAlert();
   const updatePipe = useMutation(api.pipes.updatePipe);
@@ -41,11 +40,7 @@ export function EditPipeModal({ visible, onClose, pipeId }: EditPipeModalProps) 
   };
 
   const handleSubmit = async () => {
-    const error = validateName(name);
-    if (error) {
-      setNameError(error);
-      return;
-    }
+    if (validateName(name) !== undefined || isSubmitting) return;
 
     setIsSubmitting(true);
     try {
@@ -79,12 +74,8 @@ export function EditPipeModal({ visible, onClose, pipeId }: EditPipeModalProps) 
             label="Name"
             placeholder="Pipe name"
             value={name}
-            onChange={(v) => {
-              setName(v);
-              setNameError(undefined);
-            }}
-            onBlur={() => setNameError(validateName(name))}
-            error={nameError}
+            onChange={setName}
+            validator={validateName}
           />
 
           <View className="flex-row gap-4">
@@ -124,7 +115,7 @@ export function EditPipeModal({ visible, onClose, pipeId }: EditPipeModalProps) 
       </ScrollView>
 
       <View className="mt-4">
-        <Button title="Submit" loading={isSubmitting} onPress={handleSubmit} />
+        <Button title="Submit" loading={isSubmitting} onPress={handleSubmit} disabled={validateName(name) !== undefined} />
       </View>
     </ModalShell>
   );

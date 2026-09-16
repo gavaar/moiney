@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { DateInput } from "./DateInput";
+import { useState } from "react";
 
 describe("DateInput", () => {
   const baseDate = new Date(Date.UTC(2026, 6, 21, 12));
@@ -49,11 +50,18 @@ describe("DateInput", () => {
     expect(screen.getByRole("button", { name: "Date" })).toBeTruthy();
   });
 
-  it("shows error message", () => {
-    render(
-      <DateInput label="Date" value={baseDate} onChange={() => {}} error="Required" />,
-    );
-    expect(screen.getByText("Required")).toBeTruthy();
+  it("validates committed dates but not opening or cancelling", async () => {
+    function Controlled() {
+      const [value, setValue] = useState(baseDate);
+      return <DateInput label="Date" value={value} onChange={setValue} validator={date => date?.getUTCDate() === 15 ? "Unavailable" : undefined} />;
+    }
+    render(<Controlled />);
+    await userEvent.click(screen.getByTestId("date-trigger"));
+    await userEvent.click(screen.getByTestId("modal-backdrop"));
+    expect(screen.queryByRole("alert")).toBeNull();
+    await userEvent.click(screen.getByTestId("date-trigger"));
+    await userEvent.click(screen.getByTestId("day-15"));
+    expect(screen.getByText("Unavailable")).toBeTruthy();
   });
 
   it("renders calendar icon and trigger", () => {

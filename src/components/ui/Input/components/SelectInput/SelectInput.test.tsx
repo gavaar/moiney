@@ -148,18 +148,43 @@ describe("SelectInput", () => {
     expect(onChange).toHaveBeenCalledWith("2");
   });
 
-  it("shows error message", () => {
-    render(
-      <SelectInput
+  it("validates a committed single selection", async () => {
+    function Controlled() {
+      const [value, setValue] = useState<string | null>(null);
+      return <SelectInput
         label="From"
         items={items}
         renderItem={(item) => <>{item.name}</>}
-        value={null}
-        onChange={() => {}}
-        error="Select a source"
-      />,
-    );
+        value={value}
+        onChange={setValue}
+        validator={value => value === "1" ? "Select a source" : undefined}
+      />;
+    }
+    render(<Controlled />);
+    expect(screen.queryByRole("alert")).toBeNull();
+    await userEvent.click(screen.getByTestId("select-trigger"));
+    await userEvent.click(screen.getByText("Groceries"));
     expect(screen.getByText("Select a source")).toBeTruthy();
+  });
+
+  it("validates multiple selections on close, then corrects errors while open", async () => {
+    function Controlled() {
+      const [value, setValue] = useState<string[]>([]);
+      return <SelectInput multiple label="Pipes" items={items} renderItem={item => <>{item.name}</>} value={value} onChange={setValue} validator={value => value.length < 2 ? "Pick two" : undefined} />;
+    }
+    render(<Controlled />);
+    await userEvent.click(screen.getByTestId("select-trigger"));
+    await userEvent.click(screen.getByRole("checkbox", { name: "Groceries" }));
+    expect(screen.queryByRole("alert")).toBeNull();
+    await userEvent.click(screen.getByTestId("modal-backdrop"));
+    expect(screen.getByRole("alert").textContent).toBe("Pick two");
+    await userEvent.click(screen.getByTestId("select-trigger"));
+    await userEvent.click(screen.getByRole("checkbox", { name: "Salary" }));
+    expect(screen.queryByRole("alert")).toBeNull();
+    await userEvent.click(screen.getByRole("checkbox", { name: "Salary" }));
+    expect(screen.getByRole("alert").textContent).toBe("Pick two");
+    await userEvent.click(screen.getByTestId("modal-backdrop"));
+    expect(screen.getByRole("alert").textContent).toBe("Pick two");
   });
 
   it("does not open when disabled", async () => {

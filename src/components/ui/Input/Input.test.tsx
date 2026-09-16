@@ -3,6 +3,7 @@ import { describe, expect, expectTypeOf, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Input, type InputProps } from "./Input";
+import { useState } from "react";
 
 describe("Input", () => {
   it("requires controlled values and preserves variant-specific emissions", () => {
@@ -24,14 +25,31 @@ describe("Input", () => {
     expectTypeOf<Parameters<NonNullable<SingleSelectProps["onChange"]>>>().toEqualTypeOf<[string]>();
     expectTypeOf<MultipleSelectProps["value"]>().toEqualTypeOf<readonly string[]>();
     expectTypeOf<Parameters<NonNullable<MultipleSelectProps["onChange"]>>>().toEqualTypeOf<[string[]]>();
+    expectTypeOf<Extract<keyof InputProps, "error">>().toEqualTypeOf<never>();
+    expectTypeOf<NonNullable<TextProps["validator"]>>().toEqualTypeOf<(value: string) => string | undefined>();
+    expectTypeOf<Parameters<NonNullable<DateProps["validator"]>>>().toEqualTypeOf<[Date | null]>();
+    expectTypeOf<Parameters<NonNullable<SingleSelectProps["validator"]>>>().toEqualTypeOf<[string | null]>();
+    expectTypeOf<Parameters<NonNullable<MultipleSelectProps["validator"]>>>().toEqualTypeOf<[readonly string[]]>();
+    type NumberProps = Extract<InputProps, { type: "number" }>;
+    type DecimalProps = Extract<InputProps, { type: "decimal" }>;
+    type CheckboxProps = Extract<InputProps, { type: "checkbox" }>;
+    expectTypeOf<Parameters<NonNullable<NumberProps["validator"]>>>().toEqualTypeOf<[number]>();
+    expectTypeOf<Parameters<NonNullable<DecimalProps["validator"]>>>().toEqualTypeOf<[string]>();
+    expectTypeOf<Parameters<NonNullable<CheckboxProps["validator"]>>>().toEqualTypeOf<[boolean]>();
   });
 
-  it("renders checkbox validation errors without changing its checked value", async () => {
+  it("renders checkbox validation errors for the controlled selection", async () => {
     const onChange = vi.fn();
-    render(<Input type="checkbox" label="Accepted" value={true} onChange={onChange} error="Required" />);
-    expect(screen.getByRole("alert").textContent).toBe("Required");
+    function Controlled() {
+      const [value, setValue] = useState(true);
+      return <Input type="checkbox" label="Accepted" value={value} onChange={next => { setValue(next); onChange(next); }} validator={value => value ? undefined : "Required"} />;
+    }
+    render(<Controlled />);
+    expect(screen.queryByRole("alert")).toBeNull();
     expect(screen.getByRole("checkbox").getAttribute("aria-checked")).toBe("true");
     await userEvent.click(screen.getByRole("checkbox", { name: "Accepted" }));
+    expect(screen.getByRole("alert").textContent).toBe("Required");
+    expect(screen.getByRole("checkbox").getAttribute("aria-checked")).toBe("false");
     expect(onChange).toHaveBeenCalledWith(false);
   });
 

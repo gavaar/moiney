@@ -30,7 +30,6 @@ export function AddPipeModal({ parentId, visible, onClose }: AddPipeModalProps) 
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState(0);
   const [capacity, setCapacity] = useState("");
-  const [nameError, setNameError] = useState<string | undefined>(undefined);
   const [submitError, setSubmitError] = useState<string | undefined>(undefined);
 
   const addPipe = useMutation(api.pipes.addPipe);
@@ -47,7 +46,6 @@ export function AddPipeModal({ parentId, visible, onClose }: AddPipeModalProps) 
     setDescription("");
     setPriority(0);
     setCapacity("");
-    setNameError(undefined);
     setSubmitError(undefined);
   };
 
@@ -56,11 +54,7 @@ export function AddPipeModal({ parentId, visible, onClose }: AddPipeModalProps) 
   }, [visible]);
 
   const handleSubmit = async () => {
-    const error = validateName(name);
-    if (error) {
-      setNameError(error);
-      return;
-    }
+    if (validateName(name) !== undefined || loading) return;
 
     setLoading(true);
     setSubmitError(undefined);
@@ -94,12 +88,8 @@ export function AddPipeModal({ parentId, visible, onClose }: AddPipeModalProps) 
             label="Name"
             placeholder="Pipe name"
             value={name}
-            onChange={(v) => {
-              setName(v);
-              setNameError(undefined);
-            }}
-            onBlur={() => setNameError(validateName(name))}
-            error={nameError}
+            onChange={setName}
+            validator={validateName}
           />
 
           <View className="flex-row gap-4">
@@ -159,7 +149,7 @@ export function AddPipeModal({ parentId, visible, onClose }: AddPipeModalProps) 
       ) : null}
 
       <View className="mt-4">
-        <Button title="Submit" onPress={handleSubmit} loading={loading} />
+        <Button title="Submit" onPress={handleSubmit} loading={loading} disabled={validateName(name) !== undefined} />
       </View>
     </ModalShell>
   );

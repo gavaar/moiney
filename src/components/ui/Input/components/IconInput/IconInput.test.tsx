@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { IconInput } from "./IconInput";
+import { useState, type ComponentProps } from "react";
 
 describe("IconInput", () => {
   it("shows placeholder when no icon selected", () => {
@@ -35,8 +36,16 @@ describe("IconInput", () => {
     expect(onChange).toHaveBeenCalledWith("wallet-outline");
   });
 
-  it("shows error message", () => {
-    render(<IconInput label="Icon" value="" onChange={() => {}} error="Pick one" />);
+  it("validates a committed icon", async () => {
+    function Controlled() {
+      const [value, setValue] = useState<ComponentProps<typeof IconInput>["value"]>("");
+      return <IconInput label="Icon" value={value} onChange={setValue} validator={value => value === "wallet-outline" ? "Pick one" : undefined} />;
+    }
+    render(<Controlled />);
+    expect(screen.queryByRole("alert")).toBeNull();
+    await userEvent.click(screen.getByTestId("icon-picker-trigger"));
+    expect(screen.queryByRole("alert")).toBeNull();
+    await userEvent.click(screen.getByText("wallet-outline"));
     expect(screen.getByText("Pick one")).toBeTruthy();
   });
 });

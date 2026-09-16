@@ -133,11 +133,26 @@ describe("TextSelectInput", () => {
         value=""
         onChange={vi.fn()}
         options={[]}
-        error="Something went wrong"
+        validator={() => "Something went wrong"}
         placeholder="What was this for?"
       />,
     );
+    expect(screen.queryByRole("alert")).toBeNull();
+    fireEvent.blur(screen.getByRole("textbox"));
     expect(screen.getByText("Something went wrong")).toBeTruthy();
+  });
+
+  it("validates a committed suggestion accepted by the parent", () => {
+    const validator = vi.fn((value: string) => value === "gas" ? "Unavailable" : undefined);
+    function Controlled() {
+      const [value, setValue] = useState("");
+      return <TextSelectInput label="Title" value={value} onChange={setValue} options={["gas"]} validator={validator} />;
+    }
+    render(<Controlled />);
+    fireEvent.focus(screen.getByRole("textbox"));
+    fireEvent.click(screen.getByText("gas"));
+    expect(screen.getByRole("alert").textContent).toBe("Unavailable");
+    expect(validator).toHaveBeenLastCalledWith("gas");
   });
 
   it("input is not disabled when disabled is not set", () => {

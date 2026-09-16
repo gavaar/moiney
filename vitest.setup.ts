@@ -3,6 +3,15 @@ import React from "react";
 
 process.env.EXPO_PUBLIC_CONVEX_URL = "https://test.convex.cloud";
 
+// DOM tests have no native safe-area measurements; device layout is verified separately.
+vi.mock("react-native-safe-area-context", async () => {
+  const { View } = await import("react-native");
+  return {
+    SafeAreaProvider: ({ children }: { children: React.ReactNode }) => children,
+    SafeAreaView: View,
+  };
+});
+
 vi.mock("@expo/vector-icons", () => {
   const MockIcon = ({ testID, ...props }: any) =>
     React.createElement("span", { "data-testid": testID || "mock-icon", ...props });

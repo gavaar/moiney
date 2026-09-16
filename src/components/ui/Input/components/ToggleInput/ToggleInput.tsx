@@ -2,18 +2,21 @@ import { Text, View } from "react-native";
 import { cn } from "@/lib/styles";
 import type { IconName } from "@ui/Icon";
 import { SlideToggle } from "@ui/SlideToggle";
+import { InputError, useInputValidation } from "../../useInputValidation";
 
 type ToggleOption = { label: string; icon: IconName };
 
 type Props = {
   value: boolean;
-  onChange?: (value: boolean) => void;
   options: readonly [ToggleOption, ToggleOption];
-  error?: string;
   disabled?: boolean;
+  onChange?: (value: boolean) => void;
+  onError?: (error?: string) => void;
+  validator?: (value: boolean) => string | undefined;
 };
 
-export function ToggleInput({ value, onChange, options, error, disabled }: Props) {
+export function ToggleInput({ value, onChange, onError, options, validator, disabled }: Props) {
+  const { error, markAsDirty } = useInputValidation(value, validator, onError);
   return (
     <View className="gap-1">
       <View className="flex-row items-center gap-2">
@@ -23,16 +26,17 @@ export function ToggleInput({ value, onChange, options, error, disabled }: Props
             { ...options[1], value: "true" },
           ]}
           value={value ? "true" : "false"}
-          onChange={(selected) => onChange?.(selected === "true")}
+          onChange={(selected) => {
+            if (disabled) return;
+            const next = selected === "true";
+            markAsDirty();
+            onChange?.(next);
+          }}
           disabled={disabled}
         />
         <Text className={cn("text-sm font-medium text-text", disabled && "opacity-50")}>{options[value ? 1 : 0].label}</Text>
       </View>
-      {error ? (
-        <Text accessibilityRole="alert" accessibilityLabel={error} className="text-sm text-error">
-          {error}
-        </Text>
-      ) : null}
+      <InputError error={error} />
     </View>
   );
 }

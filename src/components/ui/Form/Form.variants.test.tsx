@@ -30,39 +30,39 @@ const items = [
 const fields: FormProps<Values>["form"] = [
   {
     key: "amount",
-    input: { type: "decimal", label: "Amount", allowNegative: false },
-    validator: (value) => value.endsWith(".") ? "Finish the amount" : null,
+    input: { type: "decimal", label: "Amount", allowNegative: false,
+      validator: (value) => value.endsWith(".") ? "Finish the amount" : undefined },
   },
   {
     key: "date",
-    input: { type: "date", label: "Date" },
-    validator: (value) => value && value.getUTCDate() < 20 ? "Choose a later date" : null,
+    input: { type: "date", label: "Date",
+      validator: (value) => value && value.getUTCDate() < 20 ? "Choose a later date" : undefined },
   },
   {
     key: "icon",
-    input: { type: "icon", label: "Icon" },
-    validator: (value) => value === "wallet-outline" ? "Choose another icon" : null,
+    input: { type: "icon", label: "Icon",
+      validator: (value) => value === "wallet-outline" ? "Choose another icon" : undefined },
   },
   {
     key: "source",
     input: {
       type: "select", label: "Source", items,
       renderItem: (item) => <>{item.name}</>,
+      validator: (value) => value === "groceries" ? "Choose an income source" : undefined,
     },
-    validator: (value) => value === "groceries" ? "Choose an income source" : null,
   },
   {
     key: "categories",
     input: {
       type: "select", multiple: true, label: "Categories", items,
       renderItem: (item) => <>{item.name}</>,
+      validator: (value) => value.length < 2 ? "Choose two categories" : undefined,
     },
-    validator: (value) => value.length < 2 ? "Choose two categories" : null,
   },
   {
     key: "title",
-    input: { type: "text-select", label: "Title", options: ["groceries", "gas", "rent"] },
-    validator: (value) => value.length < 3 ? "Title is too short" : null,
+    input: { type: "text-select", label: "Title", options: ["groceries", "gas", "rent"],
+      validator: (value) => value.length < 3 ? "Title is too short" : undefined },
   },
 ];
 
@@ -87,12 +87,14 @@ function renderControlledForm() {
 }
 
 describe("Form Input variants", () => {
-  it("preserves decimal drafts and validates the sanitized string on edits", () => {
+  it("preserves decimal drafts and validates on blur then correction", () => {
     const onChange = renderControlledForm();
     const input = screen.getByRole("textbox", { name: "Amount" });
     fireEvent.change(input, { target: { value: "12." } });
     expect(onChange).toHaveBeenLastCalledWith({ ...initialValue, amount: "12." });
     expect(screen.getByDisplayValue("12.")).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+    fireEvent.blur(input);
     expect(screen.getByRole("alert").textContent).toBe("Finish the amount");
 
     fireEvent.change(input, { target: { value: "abc12.34xyz" } });
@@ -170,7 +172,10 @@ describe("Form Input variants", () => {
     const salary = screen.getByRole("checkbox", { name: "Salary" });
     await user.click(groceries);
     expect(onChange).toHaveBeenLastCalledWith({ ...initialValue, categories: ["groceries"] });
+    expect(screen.queryByRole("alert")).toBeNull();
+    await user.click(screen.getByTestId("modal-backdrop"));
     expect(screen.getByRole("alert").textContent).toBe("Choose two categories");
+    await user.click(trigger);
     await user.click(salary);
     expect(onChange).toHaveBeenLastCalledWith({ ...initialValue, categories: ["groceries", "salary"] });
     expect(groceries.getAttribute("aria-checked")).toBe("true");
@@ -181,6 +186,8 @@ describe("Form Input variants", () => {
     expect(onChange).toHaveBeenLastCalledWith({ ...initialValue, categories: ["salary"] });
     expect(groceries.getAttribute("aria-checked")).toBe("false");
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByRole("alert").textContent).toBe("Choose two categories");
+    await user.click(screen.getByTestId("modal-backdrop"));
     expect(screen.getByRole("alert").textContent).toBe("Choose two categories");
   });
 
@@ -194,7 +201,10 @@ describe("Form Input variants", () => {
     await user.click(title);
     await user.type(title, "gr");
     expect(onChange).toHaveBeenLastCalledWith({ ...initialValue, amount: "25.50", title: "gr" });
+    expect(screen.queryByRole("alert")).toBeNull();
+    fireEvent.blur(title);
     expect(screen.getByRole("alert").textContent).toBe("Title is too short");
+    fireEvent.focus(title);
     expect(screen.getByText("groceries")).toBeTruthy();
     expect(screen.queryByText("gas")).toBeNull();
     expect(screen.queryByText("rent")).toBeNull();

@@ -11,6 +11,6 @@ export function getBorderStyle(
 ): string {
   if (disabled) return "border-border";
   if (focused) return BORDER_STYLES.focused;
-  if (error) return BORDER_STYLES.error;
+  if (error !== undefined) return BORDER_STYLES.error;
   return BORDER_STYLES.default;
 }

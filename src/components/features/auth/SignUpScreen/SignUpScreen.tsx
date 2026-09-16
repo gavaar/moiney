@@ -11,30 +11,41 @@ import { AuthScreenLayout } from "@features/auth/AuthScreenLayout";
 import { MoineyVers } from "@features/app/AppScreenHeader";
 import { useUsernameAvailability } from "@features/auth/data/auth";
 
+const validateUsername = (value: string) => value.trim() ? undefined : "Username is required";
+const validateEmail = (value: string) => !value ? "Email is required"
+  : /\S+@\S+\.\S+/.test(value) ? undefined : "Invalid email";
+const validatePassword = (value: string) => !value ? "Password is required"
+  : value.length < 8 ? "Password must be at least 8 characters" : undefined;
+const validateRepeatPassword = (value: string, password: string) =>
+  value === password ? undefined : "Passwords do not match";
+
+function validateSignUp(values: { username: string; email: string; password: string; repeatPassword: string }) {
+  const errors: Record<string, string> = {};
+  const results = {
+    username: validateUsername(values.username),
+    email: validateEmail(values.email),
+    password: validatePassword(values.password),
+    repeatPassword: validateRepeatPassword(values.repeatPassword, values.password),
+  };
+  for (const [key, error] of Object.entries(results)) {
+    if (error !== undefined) errors[key] = error;
+  }
+  return errors;
+}
+
 export function SignUpScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [showRepeatPassword, setShowRepeatPassword] = useState(false);
   const { signUp } = useAuth();
 
-  const { values, setField, errors, loading, handleSubmit, validateField } = useForm({
+  const { values, setField, errors, loading, handleSubmit } = useForm({
     initialValues: {
       username: "",
       email: "",
       password: "",
       repeatPassword: "",
     },
-    validate: (v) => {
-      const e: Record<string, string> = {};
-      if (!v.username.trim()) e.username = "Username is required";
-      if (!v.email) e.email = "Email is required";
-      else if (!/\S+@\S+\.\S+/.test(v.email)) e.email = "Invalid email";
-      if (!v.password) e.password = "Password is required";
-      else if (v.password.length < 8)
-        e.password = "Password must be at least 8 characters";
-      if (v.password !== v.repeatPassword)
-        e.repeatPassword = "Passwords do not match";
-      return e;
-    },
+    validate: validateSignUp,
     onSubmit: async (v) => {
       await signUp(v.username, v.email, v.password);
     },
@@ -60,20 +71,16 @@ export function SignUpScreen() {
     }
   }
 
-  const showAsyncError =
-    usernameStatus === "unavailable" && values.username === debouncedUsername;
-  const asyncUsernameError = showAsyncError
-    ? "Username is already taken"
-    : undefined;
-  const usernameError = errors.username || asyncUsernameError;
+  const usernameValidator = (value: string) => validateUsername(value)
+    ?? (usernameStatus === "unavailable" && value === debouncedUsername
+      ? "Username is already taken" : undefined);
 
   const hasEmptyFields =
     !values.username.trim() ||
     !values.email ||
     !values.password ||
     !values.repeatPassword;
-  const { form: _formError, ...fieldErrors } = errors;
-  const hasClientErrors = Object.keys(fieldErrors).length > 0;
+  const hasClientErrors = Object.keys(validateSignUp(values)).length > 0;
   const hasCurrentUsernameAvailability =
     values.username === debouncedUsername && usernameStatus === "available";
   const canSubmit =
@@ -104,7 +111,7 @@ export function SignUpScreen() {
         onChange={(v) => setField("username", v)}
         autoCapitalize="none"
         autoCorrect={false}
-        error={usernameError}
+        validator={usernameValidator}
         status={values.username ? usernameStatus : undefined}
       />
       <Input
@@ -112,33 +119,30 @@ export function SignUpScreen() {
         placeholder="Enter your email"
         value={values.email}
         onChange={(v) => setField("email", v)}
-        onBlur={() => validateField("email")}
         autoCapitalize="none"
         autoCorrect={false}
         keyboardType="email-address"
-        error={errors.email}
+        validator={validateEmail}
       />
       <Input
         label="Password"
         placeholder="At least 8 characters"
         value={values.password}
         onChange={(v) => setField("password", v)}
-        onBlur={() => validateField("password")}
         secureTextEntry={!showPassword}
         endIcon={showPassword ? "eye-off" : "eye"}
         onEndIconPress={() => setShowPassword((v) => !v)}
-        error={errors.password}
+        validator={validatePassword}
       />
       <Input
         label="Repeat Password"
         placeholder="Confirm your password"
         value={values.repeatPassword}
         onChange={(v) => setField("repeatPassword", v)}
-        onBlur={() => validateField("repeatPassword")}
         secureTextEntry={!showRepeatPassword}
         endIcon={showRepeatPassword ? "eye-off" : "eye"}
         onEndIconPress={() => setShowRepeatPassword((v) => !v)}
-        error={errors.repeatPassword}
+        validator={value => validateRepeatPassword(value, values.password)}
       />
 
       {errors.form ? (

@@ -2,6 +2,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { TextInput } from "./TextInput";
 
 const getBorderStyle = vi.fn((..._args: unknown[]) => "");
@@ -17,9 +18,81 @@ describe("TextInput", () => {
     expect(screen.getByPlaceholderText("Enter name")).toBeTruthy();
   });
 
-  it("shows error message", () => {
-    render(<TextInput label="Name" value="" onChange={() => {}} error="Required" />);
+  it("validates on blur and stays live after correcting an error", () => {
+    function Controlled() {
+      const [value, setValue] = useState("");
+      return <TextInput label="Name" value={value} onChange={setValue} validator={value => value.length < 3 ? "Required" : undefined} />;
+    }
+    render(<Controlled />);
+    const input = screen.getByRole("textbox", { name: "Name" });
+    expect(screen.queryByRole("alert")).toBeNull();
+    fireEvent.change(input, { target: { value: "a" } });
+    expect(screen.queryByRole("alert")).toBeNull();
+    fireEvent.blur(input);
     expect(screen.getByText("Required")).toBeTruthy();
+    fireEvent.change(input, { target: { value: "ab" } });
+    expect(screen.getByText("Required")).toBeTruthy();
+    fireEvent.change(input, { target: { value: "abc" } });
+    expect(screen.queryByRole("alert")).toBeNull();
+    fireEvent.change(input, { target: { value: "a" } });
+    expect(screen.getByText("Required")).toBeTruthy();
+  });
+
+  it("rechecks dirty inputs on external value and validator changes", () => {
+    const validator = (value: string) => value ? undefined : "Required";
+    const { rerender } = render(<TextInput label="Name" value="" validator={validator} />);
+    fireEvent.blur(screen.getByRole("textbox"));
+    expect(screen.getByRole("alert").textContent).toBe("Required");
+    rerender(<TextInput label="Name" value="" validator={() => "Unavailable"} />);
+    expect(screen.getByRole("alert").textContent).toBe("Unavailable");
+    rerender(<TextInput label="Name" value="Valid" validator={validator} />);
+    expect(screen.queryByRole("alert")).toBeNull();
+    rerender(<TextInput label="Name" value="" validator={validator} />);
+    expect(screen.getByRole("alert").textContent).toBe("Required");
+  });
+
+  it("displays controlled initial values and external resets", () => {
+    const { rerender } = render(<TextInput label="Name" value="Initial" />);
+    expect(screen.getByDisplayValue("Initial")).toBeTruthy();
+    rerender(<TextInput label="Name" value="Reset" />);
+    expect(screen.getByDisplayValue("Reset")).toBeTruthy();
+  });
+
+  it("keeps validating the controlled value when the parent rejects an edit", () => {
+    render(<TextInput label="Name" value="" validator={value => value ? undefined : "Required"} onChange={() => {}} />);
+    const input = screen.getByRole("textbox");
+    fireEvent.blur(input);
+    expect(screen.getByRole("alert")).toBeTruthy();
+    fireEvent.change(input, { target: { value: "Valid" } });
+    expect(screen.getByRole("alert").textContent).toBe("Required");
+    expect(screen.getByDisplayValue("")).toBeTruthy();
+  });
+
+  it("treats an empty error string as an error and restores the counter on correction", () => {
+    function Controlled() {
+      const [value, setValue] = useState("");
+      return <TextInput label="Name" value={value} onChange={setValue} maxLength={10} validator={value => value ? undefined : ""} />;
+    }
+    render(<Controlled />);
+    expect(screen.getByText("0 / 10")).toBeTruthy();
+    fireEvent.blur(screen.getByRole("textbox"));
+    expect(screen.getByRole("alert").textContent).toBe("");
+    expect(screen.queryByText("0 / 10")).toBeNull();
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "A" } });
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByText("1 / 10")).toBeTruthy();
+  });
+
+  it("does not validate disabled interactions and resets validation on remount", () => {
+    const validator = vi.fn(() => "Required");
+    const { rerender } = render(<TextInput label="Name" value="" disabled validator={validator} />);
+    fireEvent.blur(screen.getByRole("textbox"));
+    expect(validator).not.toHaveBeenCalled();
+    rerender(<TextInput label="Name" value="" validator={validator} />);
+    fireEvent.blur(screen.getByRole("textbox"));
+    expect(screen.getByRole("alert")).toBeTruthy();
+    rerender(<TextInput key="reset" label="Name" value="" validator={validator} />);
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   it("does not show error when no error", () => {

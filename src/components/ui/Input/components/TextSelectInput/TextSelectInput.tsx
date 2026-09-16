@@ -2,25 +2,28 @@ import { useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, Text, TextInput as RNTextInput, View } from "react-native";
 import { cn } from "@/lib/styles";
 import { getBorderStyle } from "../../input.config";
+import { InputError, useInputValidation } from "../../useInputValidation";
 
 type Props = {
   label?: string;
   value: string;
-  onChange?: (value: string) => void;
   options: readonly string[];
-  error?: string;
   disabled?: boolean;
   maxLength?: number;
   placeholder?: string;
   multiline?: boolean;
+  onChange?: (value: string) => void;
+  onError?: (error?: string) => void;
+  validator?: (value: string) => string | undefined;
 };
 
 export function TextSelectInput({
   label,
   value,
   onChange,
+  onError,
   options,
-  error,
+  validator,
   disabled,
   maxLength,
   placeholder,
@@ -28,6 +31,7 @@ export function TextSelectInput({
 }: Props) {
   const [focused, setFocused] = useState(false);
   const inputRef = useRef<RNTextInput>(null);
+  const { error, markAsDirty } = useInputValidation(value, validator, onError);
 
   const filteredOptions = useMemo(() => {
     if (!value) return options;
@@ -56,12 +60,18 @@ export function TextSelectInput({
            accessibilityState={{ disabled }}
            editable={!disabled}
           value={value}
-          onChangeText={text => onChange?.(text)}
+          onChangeText={text => {
+            if (disabled) return;
+            onChange?.(text);
+          }}
           placeholder={placeholder}
           multiline={multiline}
           maxLength={maxLength}
           onFocus={() => !disabled && setFocused(true)}
-          onBlur={() => setFocused(false)}
+          onBlur={() => {
+            setFocused(false);
+            if (!disabled) markAsDirty();
+          }}
         />
         {showList && (
           <>
@@ -79,7 +89,10 @@ export function TextSelectInput({
                   <Pressable
                     key={option}
                     onPress={() => {
+                      if (disabled) return;
+                      markAsDirty();
                       onChange?.(option);
+                      setFocused(false);
                       inputRef.current?.blur();
                     }}
                     className="px-3 py-3 border-b border-border/30 last:border-b-0 active:opacity-70"
@@ -92,11 +105,7 @@ export function TextSelectInput({
           </>
         )}
       </View>
-      {error ? (
-        <Text accessibilityRole="alert" accessibilityLabel={error} className="text-sm text-error">
-          {error}
-        </Text>
-      ) : maxLength !== undefined ? (
+      {error !== undefined ? (<InputError error={error} />) : maxLength !== undefined ? (
         <Text className={cn("text-sm", currentLength > maxLength ? "text-error" : "text-muted")}>
           {currentLength} / {maxLength}
         </Text>

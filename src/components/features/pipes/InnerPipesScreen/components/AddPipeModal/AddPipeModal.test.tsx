@@ -63,6 +63,10 @@ describe("AddPipeModal", () => {
   it("shows validation error when name is empty", async () => {
     const user = userEvent.setup();
     renderModal();
+    expect(screen.getByRole("button", { name: "Submit" }).getAttribute("aria-disabled")).toBe("true");
+    expect(screen.queryByText("Name is required")).toBeNull();
+    await user.click(screen.getByPlaceholderText("Pipe name"));
+    await user.tab();
     await user.click(screen.getByText("Submit"));
     expect(screen.getByText("Name is required")).toBeDefined();
     expect(mockAddPipe).not.toHaveBeenCalled();
@@ -72,9 +76,23 @@ describe("AddPipeModal", () => {
     const user = userEvent.setup();
     renderModal();
     await user.type(screen.getByPlaceholderText("Pipe name"), "ab");
+    expect(screen.queryByText("Name must be at least 3 characters")).toBeNull();
+    await user.tab();
     await user.click(screen.getByText("Submit"));
     expect(screen.getByText("Name must be at least 3 characters")).toBeDefined();
     expect(mockAddPipe).not.toHaveBeenCalled();
+  });
+
+  it("keeps an error visible during invalid corrections and clears it as soon as valid", async () => {
+    const user = userEvent.setup();
+    renderModal();
+    const input = screen.getByPlaceholderText("Pipe name");
+    await user.click(input);
+    await user.tab();
+    await user.type(input, "a");
+    expect(screen.getByRole("alert").textContent).toBe("Name must be at least 3 characters");
+    await user.type(input, "bc");
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   it("calls addPipe mutation with form data on valid submit", async () => {

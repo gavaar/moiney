@@ -6,14 +6,13 @@ export type FormValue = InputProps["value"];
 // A field must both supply a supported value and accept every value its input can emit.
 type InputConfiguration<V, P = InputProps> = P extends InputProps
   ? [V] extends [P["value"]]
-    ? [Parameters<NonNullable<P["onChange"]>>[0]] extends [V] ? Omit<P, "value" | "onChange"> : never
+    ? [Parameters<NonNullable<P["onChange"]>>[0]] extends [V] ? Omit<P, "value" | "onChange" | "onError"> : never
     : never
   : never;
 
 export type FormField<V extends FormValue, Key extends string = string> = {
   key: Key;
   input: InputConfiguration<V>;
-  validator: (value: V) => string | null;
   description?: string;
   step?: number;
 };

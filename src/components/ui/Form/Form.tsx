@@ -1,4 +1,4 @@
-import { useState, type JSX } from "react";
+import { useMemo, useState, type JSX } from "react";
 import { Text, View } from "react-native";
 import { Input, type InputProps } from "@ui/Input";
 import { FormPager } from "./FormPager";
@@ -8,52 +8,52 @@ export function Form<
   Values extends Record<string, FormValue>,
   Keys extends keyof Values & string,
 >({ header, finalAction, form, value, onChange }: FormProps<Values, Keys>) {
-  const [validation, setValidation] = useState<ReadonlyMap<string, { source: Values; error: string | null }>>(() => new Map());
-  const pages = new Map<number, { key: number; content: JSX.Element[]; hasError: boolean }>();
+  const [errors, setErrors] = useState<Partial<Record<Keys, string>>>({});
+  const pages = useMemo(() => {
+    const mappedPages: Record<number, { key: number; content: JSX.Element[]; hasError: boolean }> = {};
 
-  for (const field of form) {
-    const step = field.step ?? 0;
-    let page = pages.get(step);
-    if (!page) {
-      page = { key: step, content: [], hasError: false };
-      pages.set(step, page);
+    for (const field of form) {
+      const step = field.step ?? 0;
+      const page = mappedPages[step] ||= { key: step, content: [], hasError: false };
+
+      const inputProps = {
+        ...field.input,
+        value: value[field.key],
+        onChange: (nextValue: Values[Keys]) => {
+          const next = Object.fromEntries(form.map(({ key }) => [key, value[key]])) as Pick<Values, Keys>;
+          next[field.key] = nextValue;
+          onChange(next);
+        },
+        onError: (error?: string) => setErrors(previous => previous[field.key] === error
+          ? previous
+          : { ...previous, [field.key]: error }),
+      } as InputProps;
+
+      const content = (
+        <View key={field.key} className="gap-1">
+          <Input {...inputProps} />
+          {field.description &&
+            <Text className="text-sm text-muted">
+              {field.description}
+            </Text>
+          }
+        </View>
+      );
+
+      page.content.push(content);
+      page.hasError = errors[field.key] !== undefined || page.hasError;
     }
 
-    let error = field.input.error;
-    const result = validation.get(field.key);
-    if (result) {
-      // Retain the edit's error until the parent supplies its next controlled value.
-      const validationError = result.source === value ? result.error : field.validator(value[field.key]);
-      error = validationError ?? error;
-    }
-    page.hasError ||= error != null;
-
-    // FormProps ties this key's value and callback to its input variant.
-    const inputProps = {
-      ...field.input,
-      value: value[field.key],
-      error,
-      onChange: (nextValue: Values[Keys]) => {
-        const error = field.validator(nextValue);
-        setValidation((previous) => new Map(previous).set(field.key, { source: value, error }));
-        onChange(Object.fromEntries(
-          form.map(({ key }) => [key, key === field.key ? nextValue : value[key]]),
-        ) as Pick<Values, Keys>);
-      },
-    } as InputProps;
-
-    page.content.push(
-      <View key={field.key} className="gap-1">
-        <Input {...inputProps} />
-        {field.description ? <Text className="text-sm text-muted">{field.description}</Text> : null}
-      </View>,
-    );
-  }
+    return Object.values(mappedPages).sort((a, b) => a.key - b.key);
+  }, [form, value, onChange, errors]);
 
   return (
     <View style={{ flexShrink: 1 }} className="gap-4">
-      {header ? <View accessibilityRole="header">{header}</View> : null}
-      <FormPager pages={[...pages.values()].sort((a, b) => a.key - b.key)} finalAction={finalAction} />
+      {header}
+      <FormPager
+        pages={pages}
+        finalAction={finalAction}
+      />
     </View>
   );
 }

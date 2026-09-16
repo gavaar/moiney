@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { Text, TouchableOpacity } from "react-native";
 import { useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
@@ -13,17 +13,16 @@ export function AddFeedButton() {
   const [visible, setVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [draft, setDraft] = useState(ADD_FEED_DEFAULTS);
-  const submitting = useRef(false);
   const showAlert = useAlert();
   const addFeed = useMutation(api.pipes.addFeed);
   const form = buildAddFeedForm(draft, loading);
-  const canSubmit = form.every((field) => field.key === "isBoiler"
-    ? field.validator(draft.isBoiler) === null
-    : field.validator(draft[field.key]) === null);
+  const canSubmit = form.every((field) => {
+    if (field.key === "isBoiler" || field.key === "description") return true;
+    return field.input.validator(draft[field.key]) === undefined;
+  }) && !loading;
 
   async function handleSubmit() {
-    if (!canSubmit || submitting.current) return;
-    submitting.current = true;
+    if (!canSubmit) return;
     setLoading(true);
     try {
       await addFeed({
@@ -41,7 +40,6 @@ export function AddFeedButton() {
     } catch (error) {
       showAlert.error(error instanceof Error ? error.message : "Something went wrong");
     } finally {
-      submitting.current = false;
       setLoading(false);
     }
   }
@@ -58,7 +56,7 @@ export function AddFeedButton() {
       <ModalShell visible={visible} onClose={() => setVisible(false)}>
         {visible ? (
           <Form
-            header={<Text className="text-lg font-semibold text-text">{draft.isBoiler ? "Create Boiler" : "Create Feed"}</Text>}
+            header={<Text accessibilityRole="header" className="text-lg font-semibold text-text">{draft.isBoiler ? "Create Boiler" : "Create Feed"}</Text>}
             form={form}
             value={draft}
             onChange={(value) => setDraft((previous) => ({ ...previous, ...value }))}

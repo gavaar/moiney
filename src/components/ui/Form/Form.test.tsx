@@ -10,9 +10,9 @@ import { Button } from "@ui/Button";
 
 type Values = { name: string; count: number; accepted: boolean };
 const fields: FormProps<Values>["form"] = [
-  { key: "name", input: { label: "Name" }, validator: (value) => value.length < 2 ? "Too short" : null, description: "Your display name" },
-  { key: "count", input: { type: "number", label: "Count", step: 2 }, validator: () => null },
-  { key: "accepted", input: { type: "checkbox", label: "Accepted" }, validator: (value) => value ? null : "Required" },
+  { key: "name", input: { label: "Name", validator: (value) => value.length < 2 ? "Too short" : undefined }, description: "Your display name" },
+  { key: "count", input: { type: "number", label: "Count", step: 2 } },
+  { key: "accepted", input: { type: "checkbox", label: "Accepted", validator: (value) => value ? undefined : "Required" } },
 ];
 
 function Controlled({ form = fields }: { form?: FormProps<Values>["form"] }) {
@@ -42,10 +42,12 @@ describe("Form controlled fields", () => {
     expect(screen.getByDisplayValue("Parent update")).toBeTruthy();
   });
 
-  it("validates on edits, clears errors, and adapts number and checkbox changes", async () => {
+  it("validates on blur, clears errors live, and adapts number and checkbox changes", async () => {
     render(<Controlled />);
     const name = screen.getByRole("textbox", { name: "Name" });
     fireEvent.change(name, { target: { value: "A" } });
+    expect(screen.queryByRole("alert")).toBeNull();
+    fireEvent.blur(name);
     expect(screen.getByRole("alert").textContent).toBe("Too short");
     fireEvent.change(name, { target: { value: "Ada" } });
     expect(screen.queryByRole("alert")).toBeNull();
@@ -62,25 +64,31 @@ describe("Form controlled fields", () => {
     const { rerender } = render(<Form form={fields} value={initial} onChange={onChange} />);
     fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "A" } });
     rerender(<Form form={fields} value={{ ...initial, name: "A" }} onChange={onChange} />);
+    fireEvent.blur(screen.getByRole("textbox", { name: "Name" }));
     expect(screen.getByRole("alert").textContent).toBe("Too short");
     rerender(<Form form={fields} value={{ ...initial, name: "Valid" }} onChange={onChange} />);
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
-  it("validates the edited value even when the parent has not accepted it yet", () => {
-    const validator = vi.fn((value: string) => value.length < 2 ? "Too short" : null);
-    render(<Form form={[{ key: "name", input: { label: "Name" }, validator }]} value={{ name: "Ada" }} onChange={() => {}} />);
+  it("validates only the controlled value until the parent accepts an edit", () => {
+    const validator = vi.fn((value: string) => value.length < 2 ? "Too short" : undefined);
+    const form = [{ key: "name" as const, input: { label: "Name", validator } }];
+    const { rerender } = render(<Form form={form} value={{ name: "" }} onChange={() => {}} />);
     expect(validator).not.toHaveBeenCalled();
-    fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "A" } });
-    expect(validator).toHaveBeenCalledWith("A");
+    fireEvent.blur(screen.getByRole("textbox", { name: "Name" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "Ada" } });
+    expect(validator).not.toHaveBeenCalledWith("Ada");
     expect(screen.getByRole("alert").textContent).toBe("Too short");
+    rerender(<Form form={form} value={{ name: "Ada" }} onChange={() => {}} />);
+    expect(validator).toHaveBeenLastCalledWith("Ada");
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 });
 
 const steps: FormProps<Values>["form"] = [
-  { ...fields[2], key: "accepted", input: { type: "checkbox", label: "Accepted" }, validator: (value) => value ? null : "Required", step: 8 },
+  { key: "accepted", input: { type: "checkbox", label: "Accepted", validator: (value) => value ? undefined : "Required" }, step: 8 },
   fields[0],
-  { ...fields[1], key: "count", input: { type: "number", label: "Count", step: 2 }, validator: () => null, step: 3 },
+  { key: "count", input: { type: "number", label: "Count", step: 2 }, step: 3 },
 ];
 
 function dot(step: number, errors = false) {
@@ -98,6 +106,29 @@ function rgb(color: string) {
 }
 
 describe("Form steps", () => {
+  it("retains simultaneous field errors when inline validators change", async () => {
+    function Example({ invalid }: { invalid: boolean }) {
+      return <Form
+        form={[
+          { key: "first", input: { label: "First", validator: () => invalid ? "First invalid" : undefined } },
+          { key: "second", step: 1, input: { label: "Second", validator: () => invalid ? "Second invalid" : undefined } },
+        ]}
+        value={{ first: "A", second: "B" }}
+        onChange={() => {}}
+      />;
+    }
+    const { rerender } = render(<Example invalid={false} />);
+    fireEvent.blur(screen.getByRole("textbox", { name: "First" }));
+    await userEvent.click(screen.getByRole("button", { name: "Next" }));
+    fireEvent.blur(screen.getByRole("textbox", { name: "Second" }));
+    rerender(<Example invalid />);
+    expect(screen.getByLabelText("Step 1 of 2, has errors")).toBeTruthy();
+    expect(screen.getByLabelText("Step 2 of 2, has errors")).toBeTruthy();
+    rerender(<Example invalid={false} />);
+    expect(screen.getByLabelText("Step 1 of 2")).toBeTruthy();
+    expect(screen.getByLabelText("Step 2 of 2")).toBeTruthy();
+  });
+
   it("shows a caller-owned final action only on the last step instead of Next", async () => {
     const submit = vi.fn();
     const value: Values = { name: "Ada", count: 2, accepted: true };
@@ -148,6 +179,7 @@ describe("Form steps", () => {
     expect(background(dot(1))).toBe(rgb(colors.text));
     expect(background(dot(2))).toBe(rgb(colors.muted));
     fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "A" } });
+    fireEvent.blur(screen.getByRole("textbox", { name: "Name" }));
     expect(background(dot(1, true))).toBe(rgb(colors.error));
     await userEvent.click(screen.getByRole("button", { name: "Next" }));
     expect(background(dot(1, true))).toBe(rgb(colors.errorDark));
@@ -177,8 +209,11 @@ describe("Form steps", () => {
     expect(screen.queryByTestId("form-pager")).toBeNull();
   });
 
-  it("includes supplied Input errors in the step indicator", () => {
-    render(<Controlled form={steps.map((field) => field.key === "name" ? { ...field, input: { ...field.input, error: "Already taken" } } : field)} />);
+  it("includes displayed Input validation errors in the step indicator", () => {
+    render(<Controlled form={steps.map((field) => field.key === "name" ? { ...field, input: { ...field.input, validator: () => "Already taken" } } : field)} />);
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(background(dot(1))).toBe(rgb(colors.text));
+    fireEvent.blur(screen.getByRole("textbox", { name: "Name" }));
     expect(screen.getByRole("alert").textContent).toBe("Already taken");
     expect(background(dot(1, true))).toBe(rgb(colors.error));
   });

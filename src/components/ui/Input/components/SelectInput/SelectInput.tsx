@@ -1,16 +1,17 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { cn, colors } from "@/lib/styles";
 import { ModalShell } from "@ui/Modal";
+import { InputError, useInputValidation } from "../../useInputValidation";
 
 type CommonSelectInputProps = {
   label: string;
   hideLabel?: boolean;
   items: readonly ({ id: string } & Record<string, any>)[];
   renderItem: (item: CommonSelectInputProps["items"][number]) => React.ReactNode;
-  error?: string;
   disabled?: boolean;
   placeholder?: string;
+  onError?: (error?: string) => void;
 };
 
 export type SelectInputProps = CommonSelectInputProps &
@@ -19,19 +20,25 @@ export type SelectInputProps = CommonSelectInputProps &
         multiple?: false;
         value: string | null;
         onChange?: (id: string) => void;
+        validator?: (value: string | null) => string | undefined;
       }
     | {
         multiple: true;
         value: readonly string[];
         onChange?: (ids: string[]) => void;
+        validator?: (value: readonly string[]) => string | undefined;
       }
   );
 
-export function SelectInput(props: SelectInputProps) {
-  const { label, hideLabel, items, renderItem, value, error, disabled, placeholder } = props;
+export function SelectInput({ label, hideLabel, items, renderItem, value, disabled, placeholder, validator, multiple, onChange, onError }: SelectInputProps) {
   const [open, setOpen] = useState(false);
+  const validateValue = useCallback((next: string | null | readonly string[]) => {
+    if (multiple) return typeof next !== "string" && next !== null ? validator?.(next) : undefined;
+    return typeof next === "string" || next === null ? validator?.(next) : undefined;
+  }, [multiple, validator]);
+  const { error, markAsDirty } = useInputValidation(value, validateValue, onError);
 
-  const selectedItem = !props.multiple && value
+  const selectedItem = !multiple && value
     ? items.find((item) => item.id === value) ?? null
     : null;
 
@@ -41,14 +48,15 @@ export function SelectInput(props: SelectInputProps) {
   };
 
   const handleItemPress = (id: string) => {
-    if (props.multiple) {
-      props.onChange?.(
-        props.value.includes(id)
-          ? props.value.filter((selectedId) => selectedId !== id)
-          : [...props.value, id],
-      );
+    if (disabled) return;
+    if (multiple) {
+      const next = value.includes(id)
+          ? value.filter((selectedId) => selectedId !== id)
+          : [...value, id];
+      onChange?.(next);
     } else {
-      props.onChange?.(id);
+      markAsDirty();
+      onChange?.(id);
       setOpen(false);
     }
   };
@@ -65,36 +73,35 @@ export function SelectInput(props: SelectInputProps) {
         onPress={handleTriggerPress}
         className={cn(
           "rounded-lg border bg-surface px-3 py-2 flex-row items-center gap-2",
-          error ? "border-error" : "border-border",
+          error !== undefined ? "border-error" : "border-border",
         )}
       >
-        {props.multiple && props.value.length > 0 ? (
-          <Text className="text-base text-text">{props.value.length} selected</Text>
+        {multiple && value.length > 0 ? (
+          <Text className="text-base text-text">{value.length} selected</Text>
         ) : selectedItem ? (
           <View className="flex-1">{renderItem(selectedItem)}</View>
         ) : (
           <Text className="text-base text-muted">{placeholder ?? "Select..."}</Text>
         )}
       </Pressable>
-      {error ? (
-        <Text accessibilityRole="alert" accessibilityLabel={error} className="text-sm text-error">
-          {error}
-        </Text>
-      ) : null}
+      <InputError error={error} />
 
-      <ModalShell visible={open} onClose={() => setOpen(false)}>
+      <ModalShell visible={open} onClose={() => {
+        if (multiple && !disabled) markAsDirty();
+        setOpen(false);
+      }}>
         <ScrollView className="max-h-64">
           {items.length === 0 ? (
             <Text className="text-center text-sm text-muted py-4">No options</Text>
           ) : (
             items.map((item) => {
-              const checked = props.multiple && props.value.includes(item.id);
+              const checked = multiple && value.includes(item.id);
               return (
                 <Pressable
                   key={item.id}
-                  accessibilityRole={props.multiple ? "checkbox" : "button"}
-                  accessibilityState={props.multiple ? { checked } : undefined}
-                  aria-checked={props.multiple ? checked : undefined}
+                  accessibilityRole={multiple ? "checkbox" : "button"}
+                  accessibilityState={multiple ? { checked } : undefined}
+                  aria-checked={multiple ? checked : undefined}
                   onPress={() => handleItemPress(item.id)}
                   style={
                     checked

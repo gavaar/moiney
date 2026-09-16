@@ -9,13 +9,15 @@ import {
 import { cn, colors } from "@/lib/styles";
 import { Icon, CURATED_ICONS, type IconName } from "@ui/Icon";
 import { ModalShell } from "@ui/Modal";
+import { InputError, useInputValidation } from "../../useInputValidation";
 
 type Props = {
   label: string;
   value: IconName | "";
-  onChange?: (name: IconName) => void;
-  error?: string;
   disabled?: boolean;
+  onChange?: (name: IconName) => void;
+  onError?: (error?: string) => void;
+  validator?: (value: IconName | "") => string | undefined;
 };
 
 function filterIcons(search: string, icons: { name: string }[]) {
@@ -26,9 +28,10 @@ function filterIcons(search: string, icons: { name: string }[]) {
     : icons;
 }
 
-export function IconInput({ label, value, onChange, error, disabled }: Props) {
+export function IconInput({ label, value, onChange, validator, disabled, onError }: Props) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const { error, markAsDirty } = useInputValidation(value, validator, onError);
 
   const filtered = filterIcons(search, CURATED_ICONS);
 
@@ -44,7 +47,7 @@ export function IconInput({ label, value, onChange, error, disabled }: Props) {
         onPress={() => !disabled && setOpen(true)}
         className={cn(
           "rounded-lg border bg-surface px-3 py-2 flex-row items-center gap-2",
-          error ? "border-error" : "border-border",
+          error !== undefined ? "border-error" : "border-border",
         )}
       >
         {value ? (
@@ -56,11 +59,7 @@ export function IconInput({ label, value, onChange, error, disabled }: Props) {
           <Text className="text-base text-muted">---</Text>
         )}
       </Pressable>
-      {error ? (
-        <Text accessibilityRole="alert" accessibilityLabel={error} className="text-sm text-error">
-          {error}
-        </Text>
-      ) : null}
+      <InputError error={error} />
 
       <ModalShell
         visible={open}
@@ -86,6 +85,7 @@ export function IconInput({ label, value, onChange, error, disabled }: Props) {
                   <Pressable
                     onPress={() => {
                       if (disabled || !onChange) return;
+                      markAsDirty();
                       onChange(icon.name);
                       setOpen(false);
                       setSearch("");

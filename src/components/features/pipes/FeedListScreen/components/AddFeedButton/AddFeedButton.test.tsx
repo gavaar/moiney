@@ -48,10 +48,10 @@ describe("AddFeedButton", () => {
     const field = buildAddFeedForm({ ...ADD_FEED_DEFAULTS, isBoiler: true }).find((field) => field.key === key)!;
     if (field.key !== "amount" && field.key !== "contributed") throw new Error("Expected an opening amount field");
     for (const invalid of ["-0.01", "1.234", "abc", "1000000000.01", "9007199254740992"]) {
-      expect(field.validator(invalid)).not.toBeNull();
+      expect(field.input.validator(invalid)).toEqual(expect.any(String));
     }
     for (const valid of ["", "0", "0.01", "123.45", "1000000000.00"]) {
-      expect(field.validator(valid)).toBeNull();
+      expect(field.input.validator(valid)).toBeUndefined();
     }
   });
 
@@ -75,13 +75,13 @@ describe("AddFeedButton", () => {
     expect(screen.queryByTestId("add-feed-submit")).toBeNull();
   });
 
-  it("validates name on edits, marks error dots, and allows navigation without allowing invalid submission", async () => {
+  it("validates name on blur, corrects errors live, and blocks invalid submission", async () => {
     const user = await openModal();
     const name = screen.getByPlaceholderText("Feed name");
-    await user.click(name);
-    await user.tab();
     expect(screen.queryByText("Name is required")).toBeNull();
     await user.type(name, "a");
+    expect(screen.queryByText("Name must be at least 2 characters")).toBeNull();
+    await user.tab();
     expect(screen.getByText("Name must be at least 2 characters")).toBeDefined();
     await user.clear(name);
     expect(screen.getByText("Name is required")).toBeDefined();
@@ -129,6 +129,7 @@ describe("AddFeedButton", () => {
     await fillIdentity(user);
     await user.click(screen.getByText("Next"));
     await user.type(screen.getByLabelText("Contributed amount"), "1.234");
+    fireEvent.blur(screen.getByLabelText("Contributed amount"));
     expect(screen.getByText("Enter a valid contribution")).toBeDefined();
     expect(screen.getByLabelText("Step 2 of 2, has errors")).toBeDefined();
     expect(screen.getByTestId("add-feed-submit").getAttribute("aria-disabled")).toBe("true");
@@ -153,6 +154,7 @@ describe("AddFeedButton", () => {
     await fillIdentity(user);
     await user.click(screen.getByText("Next"));
     await user.type(screen.getByLabelText("Initial amount"), "1.234");
+    fireEvent.blur(screen.getByLabelText("Initial amount"));
     expect(screen.getByText("Enter a valid amount")).toBeDefined();
     expect(screen.getByTestId("add-feed-submit").getAttribute("aria-disabled")).toBe("true");
     await user.clear(screen.getByLabelText("Initial amount"));

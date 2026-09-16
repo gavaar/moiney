@@ -27,6 +27,32 @@ their interfaces. Text inputs do not expose `defaultValue` or `onChangeText`.
 Toggle inputs take two labeled icon options: the first represents `false`,
 the second `true`. The selected label is displayed beside the toggle.
 
+## Validation
+
+Inputs own their displayed errors through an optional synchronous, pure
+`validator(value): string | undefined`. The argument is the variant's controlled
+value type, including empty values (`null` for date/single select, `""` for icon).
+Decimal validators receive signed strings, including partial drafts; multiple
+select validators receive readonly string arrays. Only `undefined` means valid.
+
+- Errors start hidden. Text, number, decimal, and typed text-select become dirty
+  on blur. Dirty means the input has been interacted with; once dirty, validation
+  stays live until remount, including after an error clears. The controlled `value`
+  is the sole validation source; edits are validated when the parent updates it.
+  Number blur emits a clamped value, which is validated after the parent accepts it.
+- Date, icon, and single-select choices, text-select suggestions, checkbox, and
+  toggle changes become dirty and validate on commit. Multiple select becomes
+  dirty on picker close and then validates on every selection change. Opening a picker,
+  searching icons, or cancelling a date/icon/single-select picker does not validate.
+- Controlled value or validator changes revalidate dirty inputs; pristine inputs
+  keep errors hidden. Cross-field rules and asynchronous results can be captured
+  by a synchronous validator. Rejected edits do not change the displayed error.
+  Removing the validator clears its displayed error. Remount to reset validation.
+- Optional `onError(error)` reports the current displayed error after mount and
+  whenever that error changes, independently of `onChange(value)`. Callback identity
+  changes do not emit notifications. This supports Form page indicators. A hidden error
+  does not imply validity: submission owners must check the rules independently.
+
 ## Form Composition
 
 `src/components/ui/Form` exports the controlled `Form` component and its
@@ -37,21 +63,20 @@ An optional JSX `finalAction` replaces Next on the last step, or appears below
 the fields for a single-step form. The caller owns its callback, eligibility,
 and loading state; Form does not submit or validate on its behalf.
 
-- `form` contains uniquely keyed definitions with `input`, a synchronous pure
-  `validator(value): string | null`, optional `description`, and optional `step`.
-  Input configuration excludes controlled values and change callbacks; Form
-  supplies these through the public Input dispatcher for every variant.
+- `form` contains uniquely keyed definitions with `input`, optional `description`,
+  and optional `step`. Validators live in `input.validator`. Input configuration
+  excludes `value`, `onChange`, and `onError`; Form supplies these
+  through the public Input dispatcher for every variant.
 - `value` supplies each configured key's value. `onChange` emits all and only
   configured keys, not a patch. Define every managed key in `form`; unrelated
   keys supplied in `value` are omitted from the emitted record.
-- Validation starts on edits, including edits awaiting a parent update. Edited
-  fields are revalidated against subsequent controlled values. A validation
-  error overrides `input.error`; otherwise a supplied Input error is retained.
-  Errors never block navigation. Remount Form to reset validation and navigation.
+- Inputs follow the validation timing above; Form observes their displayed errors
+  for page indicators. Errors never block navigation. Remount Form to reset
+  validation and navigation.
 - Missing steps default to `0`. Distinct step numbers are sorted numerically;
   field order within a step follows the array. Gaps do not create empty pages.
   Input-level number `step` still means the increment size, not the form page.
 - Multiple steps support horizontal paging and Next/Back, with no implicit
-  submit action. Dots use `surface`/`text` when unselected/selected, overridden
-  by `errorDark`/`error` if any field on that step has an error. A single step
+  submit action. Dots use `muted`/`text` when unselected/selected, overridden
+  by `errorDark`/`error` if any field on that step displays an error. A single step
   has no pager, navigation buttons, or dots.

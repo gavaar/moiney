@@ -3,7 +3,8 @@ import { describe, expect, expectTypeOf, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { IconName } from "@ui/Icon";
-import { Input, type InputProps } from "./Input";
+import { Input, type InputProps } from "../../Input";
+import { useState } from "react";
 
 const options = [
   { label: "Bar view", icon: "align-horizontal-left" },
@@ -38,11 +39,17 @@ describe("Input toggle", () => {
     expect(onChange).toHaveBeenCalledTimes(2);
   });
 
-  it("exposes and clears validation errors without changing selection", () => {
-    const { rerender } = render(<Input type="toggle" options={options} value={true} error="Choose a view" />);
+  it("exposes and clears validation errors for the controlled selection", () => {
+    function Controlled() {
+      const [value, setValue] = useState(true);
+      return <Input type="toggle" options={options} value={value} onChange={setValue} validator={value => value ? undefined : "Choose a view"} />;
+    }
+    render(<Controlled />);
+    expect(screen.queryByRole("alert")).toBeNull();
+    fireEvent.click(screen.getByRole("radio", { name: "Bar view" }));
     expect(screen.getByRole("alert").textContent).toBe("Choose a view");
-    expect(screen.getByText("Tree view")).toBeTruthy();
-    rerender(<Input type="toggle" options={options} value={true} />);
+    expect(screen.getByText("Bar view")).toBeTruthy();
+    fireEvent.click(screen.getByRole("radio", { name: "Tree view" }));
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
