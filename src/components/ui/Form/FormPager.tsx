@@ -4,15 +4,17 @@ import { Button } from "@ui/Button";
 import { colors } from "@/lib/styles";
 
 type Props = {
-  pages: readonly { key: number; content: ReactNode; hasError: boolean }[];
+  pages: readonly { key: number; content: ReactNode; hasError: boolean; scrollable?: boolean }[];
   finalAction?: ReactNode;
+  activeStep?: number;
+  onStepChange?: (step: number) => void;
 };
 
-export function FormPager({ pages, finalAction }: Props) {
+export function FormPager({ pages, finalAction, activeStep, onStepChange }: Props) {
   const [selectedKey, setSelectedKey] = useState<number | null>(null);
   const [width, setWidth] = useState(0);
   const pager = useRef<ScrollView>(null);
-  const activeIndex = Math.max(0, pages.findIndex((page) => page.key === selectedKey));
+  const activeIndex = Math.max(0, pages.findIndex((page) => page.key === (activeStep ?? selectedKey)));
   const multiple = pages.length > 1;
   const pageSignature = pages.map((page) => page.key).join(",");
 
@@ -21,31 +23,42 @@ export function FormPager({ pages, finalAction }: Props) {
   });
   useEffect(() => {
     alignPage();
-  }, [width, pageSignature]);
+  }, [width, pageSignature, activeStep]);
+
+  function selectPage(index: number) {
+    const key = pages[index]?.key;
+    if (key === undefined) return;
+    if (activeStep === undefined) setSelectedKey(key);
+    if (key !== (activeStep ?? selectedKey)) onStepChange?.(key);
+  }
 
   function navigate(index: number) {
     const nextIndex = Math.max(0, Math.min(pages.length - 1, index));
     Keyboard.dismiss();
-    setSelectedKey(pages[nextIndex].key);
-    pager.current?.scrollTo({ x: nextIndex * width, animated: true });
+    selectPage(nextIndex);
+    if (activeStep === undefined) pager.current?.scrollTo({ x: nextIndex * width, animated: true });
   }
 
-  const content = pages.map((page, index) => (
-    <ScrollView
-      key={page.key}
-      style={{ width: multiple ? width || "100%" : undefined, flexGrow: 0 }}
-      contentContainerStyle={{ gap: 16, paddingBottom: 4 }}
-      keyboardShouldPersistTaps="handled"
-      nestedScrollEnabled
-      aria-hidden={index !== activeIndex}
-      accessibilityElementsHidden={index !== activeIndex}
-      importantForAccessibility={index === activeIndex ? "auto" : "no-hide-descendants"}
-      pointerEvents={index === activeIndex ? "auto" : "none"}
-      {...(Platform.OS === "web" ? { inert: index !== activeIndex } : {})}
-    >
-      {page.content}
-    </ScrollView>
-  ));
+  const content = pages.map((page, index) => {
+    const accessibility = {
+      "aria-hidden": index !== activeIndex,
+      accessibilityElementsHidden: index !== activeIndex,
+      importantForAccessibility: index === activeIndex ? "auto" as const : "no-hide-descendants" as const,
+      pointerEvents: index === activeIndex ? "auto" as const : "none" as const,
+      ...(Platform.OS === "web" ? { inert: index !== activeIndex } : {}),
+    };
+    const style = { width: multiple ? width || "100%" as const : undefined, flexGrow: 0, flexShrink: 1 };
+    return page.scrollable === false ? (
+      <View key={page.key} {...accessibility} style={[style, { gap: 16, padding: 4 }]}>
+        {page.content}
+      </View>
+    ) : (
+      <ScrollView key={page.key} {...accessibility} style={style}
+        contentContainerStyle={{ gap: 16, padding: 4 }} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
+        {page.content}
+      </ScrollView>
+    );
+  });
 
   if (!multiple) return <>{content}{pages.length === 1 ? finalAction : null}</>;
 
@@ -67,7 +80,7 @@ export function FormPager({ pages, finalAction }: Props) {
           const pageWidth = nativeEvent.layoutMeasurement.width;
           if (pageWidth <= 0) return;
           const index = Math.max(0, Math.min(pages.length - 1, Math.round(nativeEvent.contentOffset.x / pageWidth)));
-          setSelectedKey(pages[index].key);
+          selectPage(index);
         }}
       >
         {content}

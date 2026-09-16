@@ -27,6 +27,14 @@ their interfaces. Text inputs do not expose `defaultValue` or `onChangeText`.
 Toggle inputs take two labeled icon options: the first represents `false`,
 the second `true`. The selected label is displayed beside the toggle.
 
+Select inputs accept `renderItem(item)` for custom option content. Their optional
+`presentation` is `"modal"` by default; `"inline"` shows a bounded, virtualized
+list directly in the form. Inline selections use a subtle neutral background,
+with checked radio semantics for single selection and checkbox semantics for
+multiple selection. Selection indicators belong to Select, not the renderer.
+Optional `loading` displays a loading indicator for inline options and prevents
+selection while loading. Empty lists display an empty state.
+
 ## Validation
 
 Inputs own their displayed errors through an optional synchronous, pure
@@ -42,7 +50,8 @@ select validators receive readonly string arrays. Only `undefined` means valid.
   Number blur emits a clamped value, which is validated after the parent accepts it.
 - Date, icon, and single-select choices, text-select suggestions, checkbox, and
   toggle changes become dirty and validate on commit. Multiple select becomes
-  dirty on picker close and then validates on every selection change. Opening a picker,
+  dirty on picker close (or on commit for inline presentation) and then validates
+  on every selection change. Opening a picker,
   searching icons, or cancelling a date/icon/single-select picker does not validate.
 - Controlled value or validator changes revalidate dirty inputs; pristine inputs
   keep errors hidden. Cross-field rules and asynchronous results can be captured
@@ -85,3 +94,12 @@ and loading state; Form does not submit or validate on its behalf.
   submit action. Dots use `muted`/`text` when unselected/selected, overridden
   by `errorDark`/`error` if any field on that step displays an error. A single step
   has no pager, navigation buttons, or dots.
+- Navigation is internal by default. Supply `activeStep` and `onStepChange`
+  together to control it; values refer to configured step numbers, not page
+  indexes. Buttons and swipes request step changes through the callback, while
+  external `activeStep` changes align the pager. An unavailable step displays
+  the first page. Auto-advance belongs in the caller's selection handler, not
+  an effect that would also fire when navigating Back.
+- A step containing an inline Select lets the list own vertical scrolling rather
+  than nesting it inside a vertical ScrollView. Use inline selectors on dedicated
+  selection steps; ordinary form steps remain vertically scrollable.

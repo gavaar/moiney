@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, FlatList, Pressable, ScrollView, Text, View } from "react-native";
 import { cn, colors } from "@/lib/styles";
 import { ModalShell } from "@ui/Modal";
 import { InputError, useInputValidation } from "../../useInputValidation";
@@ -12,6 +12,8 @@ type CommonSelectInputProps = {
   disabled?: boolean;
   placeholder?: string;
   onError?: (error?: string) => void;
+  presentation?: "modal" | "inline";
+  loading?: boolean;
 };
 
 export type SelectInputProps = CommonSelectInputProps &
@@ -30,7 +32,7 @@ export type SelectInputProps = CommonSelectInputProps &
       }
   );
 
-export function SelectInput({ label, hideLabel, items, renderItem, value, disabled, placeholder, validator, multiple, onChange, onError }: SelectInputProps) {
+export function SelectInput({ label, hideLabel, items, renderItem, value, disabled, placeholder, validator, multiple, onChange, onError, presentation = "modal", loading = false }: SelectInputProps) {
   const [open, setOpen] = useState(false);
   const validateValue = useCallback((next: string | null | readonly string[]) => {
     if (multiple) return typeof next !== "string" && next !== null ? validator?.(next) : undefined;
@@ -43,23 +45,61 @@ export function SelectInput({ label, hideLabel, items, renderItem, value, disabl
     : null;
 
   const handleTriggerPress = () => {
-    if (disabled) return;
+    if (disabled || loading) return;
     setOpen(true);
   };
 
   const handleItemPress = (id: string) => {
-    if (disabled) return;
+    if (disabled || loading) return;
     if (multiple) {
       const next = value.includes(id)
           ? value.filter((selectedId) => selectedId !== id)
           : [...value, id];
       onChange?.(next);
+      if (presentation === "inline") markAsDirty();
     } else {
       markAsDirty();
       onChange?.(id);
       setOpen(false);
     }
   };
+
+  if (presentation === "inline") {
+    return (
+      <View className={cn("gap-1", disabled && "opacity-60")} style={{ flexShrink: 1 }}>
+        {!hideLabel ? <Text className="text-sm font-medium text-text">{label}</Text> : null}
+        {loading ? <ActivityIndicator accessibilityLabel={`Loading ${label}`} /> : (
+          <FlatList
+            data={items}
+            extraData={{ value, disabled }}
+            keyExtractor={item => item.id}
+            style={{ maxHeight: 320, flexShrink: 1 }}
+            contentContainerStyle={{ gap: 8 }}
+            keyboardShouldPersistTaps="handled"
+            nestedScrollEnabled
+            ListEmptyComponent={<Text className="py-4 text-center text-muted">No options</Text>}
+            renderItem={({ item }) => {
+              const checked = multiple ? value.includes(item.id) : value === item.id;
+              return (
+                <Pressable
+                  accessibilityRole={multiple ? "checkbox" : "radio"}
+                  accessibilityState={{ checked, disabled }}
+                  aria-checked={checked}
+                  disabled={disabled}
+                  onPress={() => handleItemPress(item.id)}
+                  className="rounded-xl border border-muted/30 p-3"
+                  style={{ backgroundColor: checked ? `${colors.muted}1A` : "transparent" }}
+                >
+                  {renderItem(item)}
+                </Pressable>
+              );
+            }}
+          />
+        )}
+        <InputError error={error} />
+      </View>
+    );
+  }
 
   return (
     <View className={cn("gap-1", disabled && "opacity-60")}>

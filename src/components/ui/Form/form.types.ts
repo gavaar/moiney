@@ -24,6 +24,8 @@ export type FormProps<
 > = {
   header?: JSX.Element;
   finalAction?: JSX.Element;
+  activeStep?: number;
+  onStepChange?: (step: number) => void;
   form: readonly { [K in Keys]: FormField<Values[K], K> }[Keys][];
   value: Values;
   onChange: (value: Pick<Values, NoInfer<Keys>>) => void;

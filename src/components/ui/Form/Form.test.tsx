@@ -109,6 +109,30 @@ function rgb(color: string) {
 }
 
 describe("Form steps", () => {
+  it("supports caller-controlled steps, navigation buttons, and swiping", async () => {
+    function ControlledStep({ initialStep }: { initialStep: number }) {
+      const [activeStep, setActiveStep] = useState(initialStep);
+      const value: Values = { name: "Ada", count: 2, accepted: true };
+      return <>
+        <button onClick={() => setActiveStep(8)}>Jump to last</button>
+        <Form form={steps} value={value} onChange={() => {}}
+          activeStep={activeStep} onStepChange={setActiveStep} />
+      </>;
+    }
+    render(<ControlledStep initialStep={3} />);
+    expect(screen.getByRole("textbox", { name: "Count" })).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(screen.getByRole("textbox", { name: "Name" })).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Next" }));
+    expect(screen.getByRole("textbox", { name: "Count" })).toBeTruthy();
+    await userEvent.click(screen.getByText("Jump to last"));
+    expect(screen.getByRole("checkbox")).toBeTruthy();
+    const pager = screen.getByTestId("form-pager");
+    Object.defineProperty(pager, "offsetWidth", { configurable: true, value: 320 });
+    fireEvent.scroll(pager, { target: { scrollLeft: 0 } });
+    await waitFor(() => expect(screen.getByRole("textbox", { name: "Name" })).toBeTruthy());
+  });
+
   it("retains simultaneous field errors when inline validators change", async () => {
     function Example({ invalid }: { invalid: boolean }) {
       return <Form

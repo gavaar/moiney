@@ -9,14 +9,16 @@ type FormRow = { key: string; id?: string; content: JSX.Element[] };
 export function Form<
   Values extends Record<string, FormValue>,
   Keys extends keyof Values & string,
->({ header, finalAction, form, value, onChange }: FormProps<Values, Keys>) {
+>({ header, finalAction, form, value, onChange, activeStep, onStepChange }: FormProps<Values, Keys>) {
   const [errors, setErrors] = useState<Partial<Record<Keys, string>>>({});
   const pages = useMemo(() => {
-    const mappedPages: Record<number, { key: number; rows: FormRow[]; hasError: boolean }> = {};
+    const mappedPages: Record<number, { key: number; rows: FormRow[]; hasError: boolean; scrollable: boolean }> = {};
 
     for (const field of form) {
       const step = field.step ?? 0;
-      const page = mappedPages[step] ||= { key: step, rows: [], hasError: false };
+      const page = mappedPages[step] ||= { key: step, rows: [], hasError: false, scrollable: true };
+      // Inline selects own their vertical scrolling; don't nest them in a ScrollView.
+      if (field.input.type === "select" && field.input.presentation === "inline") page.scrollable = false;
       let row = page.rows.at(-1);
       if (field.row === undefined || !row || row.id !== field.row) {
         row = { key: field.key, id: field.row, content: [] };
@@ -37,10 +39,10 @@ export function Form<
       } as InputProps;
 
       const content = (
-        <View key={field.key} className="gap-1" style={{ flex: 1, minWidth: 0 }}>
+        <View key={field.key} className="gap-1 flex-1">
           <Input {...inputProps} />
           {field.description &&
-            <Text className="text-sm text-muted">
+            <Text className="text-sm text-muted whitespace-normal">
               {field.description}
             </Text>
           }
@@ -67,6 +69,8 @@ export function Form<
       <FormPager
         pages={pages}
         finalAction={finalAction}
+        activeStep={activeStep}
+        onStepChange={onStepChange}
       />
     </View>
   );

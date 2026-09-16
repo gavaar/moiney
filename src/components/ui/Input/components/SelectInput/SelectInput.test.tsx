@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SelectInput } from "./SelectInput";
 
@@ -11,6 +11,24 @@ const items = [
 ] as const;
 
 describe("SelectInput", () => {
+  it("renders inline custom items and exposes the controlled selection without a picker modal", async () => {
+    function Controlled({ disabled = false }: { disabled?: boolean }) {
+      const [value, setValue] = useState<string | null>("1");
+      return <SelectInput presentation="inline" label="Owner" items={items}
+        renderItem={item => <>{item.name}</>} value={value} onChange={setValue} disabled={disabled} />;
+    }
+    const { rerender } = render(<Controlled />);
+    expect(screen.queryByTestId("select-trigger")).toBeNull();
+    expect(screen.queryByTestId("modal-backdrop")).toBeNull();
+    expect(screen.getByRole("radio", { name: "Groceries" }).getAttribute("aria-checked")).toBe("true");
+    await userEvent.click(screen.getByRole("radio", { name: "Salary" }));
+    expect(screen.getByRole("radio", { name: "Salary" }).getAttribute("aria-checked")).toBe("true");
+    expect(screen.getByRole("radio", { name: "Groceries" }).getAttribute("aria-checked")).toBe("false");
+    rerender(<Controlled disabled />);
+    fireEvent.click(screen.getByRole("radio", { name: "Groceries" }));
+    expect(screen.getByRole("radio", { name: "Salary" }).getAttribute("aria-checked")).toBe("true");
+  });
+
   it("selects multiple options without closing the option list", async () => {
     const user = userEvent.setup();
 
