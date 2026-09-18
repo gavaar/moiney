@@ -14,6 +14,7 @@ import { OptionsButton } from "./components/OptionsButton";
 import { PipeBars } from "./components/PipeBars";
 import { RulesIcon } from "./components/RulesIcon";
 import { StatisticsRow } from "./components/StatisticsRow";
+import { AddChildPipeButton } from "./components/AddChildPipeButton";
 
 export function InnerPipesScreen() {
   const { selectedPipe, selectedPipePath, selectPipe } = usePipeSelection();
@@ -44,7 +45,7 @@ export function InnerPipesScreen() {
     [selectedPipePath, selectPipe],
   );
 
-  const leading = useCallback(
+  const trailing = useCallback(
     (pipe: PipesListPipe) => (
       <RulesIcon
         pipeId={pipe.id}
@@ -109,7 +110,8 @@ export function InnerPipesScreen() {
           pipes={children}
           priority={true}
           onSelectPipe={handleSelectPipe}
-          leading={leading}
+           trailing={trailing}
+           footer={!isDeleting && selectedId ? <AddChildPipeButton key={selectedId} parentId={selectedId} /> : null}
         /> : null}
       </View>
     </View>

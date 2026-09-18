@@ -56,23 +56,19 @@ export function FeedListScreen({
                fed={pipe.fed}
              />
            )}
-          footer={<View className="self-center my-2"><AddFeedButton /></View>}
+          footer={<AddFeedButton />}
         />
       ) : (
-        <View className="flex-1 items-center justify-center">
-          <Pressable onPress={() => setShowFeedInfo(true)}>
+        <View className="gap-2">
+          <Pressable className="items-center py-2" onPress={() => setShowFeedInfo(true)}>
             <Text className="text-muted text-base">
               Add your first{" "}
               <Text className="underline">feed</Text>.
             </Text>
           </Pressable>
-        </View>
-      )}
-      {!isLoading && pipes.length === 0 ? (
-        <View className="items-center py-2 border-t border-border/30">
           <AddFeedButton />
         </View>
-      ) : null}
+      )}
 
       <ModalShell visible={showFeedInfo} onClose={() => setShowFeedInfo(false)}>
         <FeedDescription />

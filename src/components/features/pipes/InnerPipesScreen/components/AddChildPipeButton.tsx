@@ -2,20 +2,18 @@ import { useState } from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import { colors } from "@/lib/styles";
 import { Icon } from "@ui/Icon";
-import { Form } from "@ui/Form";
-import { ModalShell } from "@ui/Modal";
-import { useAddFeedForm } from "./useAddFeedForm";
+import type { PipeModel } from "@features/pipes/data/pipes";
+import { AddPipeModal } from "./AddPipeModal/AddPipeModal";
 
-export function AddFeedButton() {
+export function AddChildPipeButton({ parentId }: { parentId: PipeModel["id"] }) {
   const [visible, setVisible] = useState(false);
-  const form = useAddFeedForm(() => setVisible(false));
 
   return (
     <>
       <TouchableOpacity
         onPress={() => setVisible(true)}
         accessibilityRole="button"
-        accessibilityLabel="Add new Feed"
+        accessibilityLabel="Add child pipe"
         className="min-h-12 flex-row border-dashed border border-muted/50 rounded-md mr-11"
         activeOpacity={0.5}
       >
@@ -25,12 +23,10 @@ export function AddFeedButton() {
           </View>
         </View>
         <View className="flex-1 items-center justify-center px-3 py-2">
-          <Text className="text-muted text-base">Add new Feed</Text>
+          <Text className="text-muted text-base">Add child pipe</Text>
         </View>
       </TouchableOpacity>
-      <ModalShell visible={visible} onClose={() => setVisible(false)}>
-        {visible ? <Form {...form} /> : null}
-      </ModalShell>
+      <AddPipeModal parentId={parentId} visible={visible} onClose={() => setVisible(false)} />
     </>
   );
 }
