@@ -5,6 +5,16 @@ import userEvent from "@testing-library/user-event";
 import { ModalShell } from "./ModalShell";
 
 describe("ModalShell", () => {
+  it("renders an interactive bottom accessory without dismissing", async () => {
+    const onClose = vi.fn();
+    const onSelect = vi.fn();
+    render(<ModalShell visible onClose={onClose} bottomAccessory={<button onClick={onSelect}>Select mode</button>}>
+      <div>content</div>
+    </ModalShell>);
+    await userEvent.click(screen.getByText("Select mode"));
+    expect(onSelect).toHaveBeenCalledOnce();
+    expect(onClose).not.toHaveBeenCalled();
+  });
   it("renders children when visible", () => {
     render(
       <ModalShell visible onClose={() => {}}>

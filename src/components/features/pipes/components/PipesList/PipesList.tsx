@@ -73,9 +73,7 @@ export const PipesList = memo(function PipesList({
         );
       })}
 
-      <View className="mt-auto">
-        {footer}
-      </View>
+      {footer}
     </ScrollView>
   );
 });

@@ -86,9 +86,35 @@ describe("DecimalInput", () => {
 
   it("shows error message", () => {
     render(
-      <DecimalInput label="Amount" value="" onChange={() => {}} error="Invalid amount" />,
+      <DecimalInput label="Amount" value="" onChange={() => {}} validator={() => "Invalid amount"} />,
     );
+    expect(screen.queryByRole("alert")).toBeNull();
+    fireEvent.blur(screen.getByRole("textbox"));
     expect(screen.getByText("Invalid amount")).toBeTruthy();
+  });
+
+  it("preserves the signed value on blur without emitting a value change", () => {
+    const onChange = vi.fn();
+    const validator = vi.fn(() => undefined);
+    render(<DecimalInput label="Amount" value="-42" onChange={onChange} validator={validator} />);
+    fireEvent.blur(screen.getByRole("textbox"));
+    expect(onChange).not.toHaveBeenCalled();
+    expect(validator).toHaveBeenLastCalledWith("-42");
+    expect(screen.getByDisplayValue("42")).toBeTruthy();
+  });
+
+  it("validates signed partial strings on blur and live corrections", () => {
+    const validator = vi.fn((value: string) => value === "-" ? "Incomplete" : undefined);
+    function Controlled() {
+      const [value, setValue] = useState("-");
+      return <DecimalInput label="Amount" value={value} onChange={setValue} validator={validator} />;
+    }
+    render(<Controlled />);
+    fireEvent.blur(screen.getByRole("textbox"));
+    expect(screen.getByRole("alert").textContent).toBe("Incomplete");
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "1." } });
+    expect(validator).toHaveBeenLastCalledWith("-1.");
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   describe("allowNegative", () => {

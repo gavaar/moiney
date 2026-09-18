@@ -10,22 +10,26 @@ import {
 import { cn, colors } from "@/lib/styles";
 import { Icon } from "@ui/Icon";
 import { getBorderStyle } from "../../input.config";
+import { InputError, useInputValidation } from "../../useInputValidation";
 
-type Props = TextInputProps & {
+type Props = Omit<TextInputProps, "value" | "defaultValue" | "onChange" | "onChangeText"> & {
+  value: string;
   label: string;
   hideLabel?: boolean;
-  error?: string;
   disabled?: boolean;
   endIcon?: "eye" | "eye-off";
   onEndIconPress?: () => void;
   status?: "checking" | "available" | "unavailable";
   maxLength?: number;
+  onChange?: (value: string) => void;
+  onError?: (error?: string) => void;
+  validator?: (value: string) => string | undefined;
 };
 
 export function TextInput({
   label,
   hideLabel,
-  error,
+  validator,
   className,
   disabled,
   endIcon,
@@ -35,14 +39,18 @@ export function TextInput({
   editable,
   onFocus,
   onBlur,
+  onChange,
+  onError,
+  value,
   ...props
 }: Props) {
   const [focused, setFocused] = useState(false);
+  const { error, markAsDirty } = useInputValidation(value, validator, onError);
 
   const borderStyle = getBorderStyle(disabled, focused, error);
 
   const hasTrailing = !!(status || endIcon);
-  const currentLength = String(props.value ?? "").length;
+  const currentLength = String(value ?? "").length;
 
   return (
     <View className="gap-1">
@@ -50,6 +58,11 @@ export function TextInput({
       <View className="relative">
         <RNTextInput
           {...props}
+          value={value}
+          onChangeText={text => {
+            if (disabled || editable === false) return;
+            onChange?.(text);
+          }}
           accessibilityLabel={label}
           accessibilityState={{ disabled }}
           className={cn(
@@ -67,6 +80,7 @@ export function TextInput({
           }}
           onBlur={(event) => {
             setFocused(false);
+            if (!disabled && editable !== false) markAsDirty();
             onBlur?.(event);
           }}
         />
@@ -102,10 +116,8 @@ export function TextInput({
           </View>
         ) : null}
       </View>
-      {error ? (
-        <Text accessibilityRole="alert" accessibilityLabel={error} className="text-sm text-error">
-          {error}
-        </Text>
+      {error !== undefined ? (
+        <InputError error={error} />
       ) : maxLength !== undefined ? (
         <Text className={cn("text-sm", currentLength > maxLength ? "text-error" : "text-muted")}>
           {currentLength} / {maxLength}

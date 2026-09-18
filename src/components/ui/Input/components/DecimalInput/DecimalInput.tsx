@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Pressable,
   Text,
@@ -7,15 +7,17 @@ import {
 } from "react-native";
 import { cn } from "@/lib/styles";
 import { getBorderStyle } from "../../input.config";
+import { InputError, useInputValidation } from "../../useInputValidation";
 
 type Props = {
   label: string;
-  error?: string;
   disabled?: boolean;
   value: string;
-  onChange: (value: string) => void;
   placeholder?: string;
   allowNegative?: boolean;
+  onChange?: (value: string) => void;
+  onError?: (error?: string) => void;
+  validator?: (value: string) => string | undefined;
 };
 
 const sanitizeDecimal = (input: string): string => {
@@ -24,25 +26,29 @@ const sanitizeDecimal = (input: string): string => {
   return parts[0] + (parts.length > 1 ? "." + parts.slice(1).join("") : "");
 };
 
-export function DecimalInput({ label, error, disabled, value, onChange, placeholder, allowNegative = true }: Props) {
+export function DecimalInput({ label, validator, disabled, value, onChange, onError, placeholder, allowNegative = true }: Props) {
   const [focused, setFocused] = useState(false);
+  const { error, markAsDirty } = useInputValidation(value, validator, onError);
   const borderStyle = useMemo(() => getBorderStyle(disabled, focused, error), [disabled, focused, error]);
 
   const displayValue = useMemo(() => sanitizeDecimal(value), [value]);
   const isNegative = useMemo(() => allowNegative && (value.startsWith("-")), [allowNegative, value]);
 
-  const handleChangeText = useCallback((text: string) => {
+  const handleChangeText = (text: string) => {
+    if (!onChange || disabled) return;
     const newSign = allowNegative
       ? text.includes("-") ? (isNegative ? "" : "-") : (isNegative ? "-" : "")
       : "";
-    onChange(`${newSign}${sanitizeDecimal(text)}`);
-  }, [allowNegative, isNegative, onChange]);
+    const next = `${newSign}${sanitizeDecimal(text)}`;
+    onChange(next);
+  };
 
-  const handleSignPress = useCallback(() => {
-    if (disabled) return;
+  const handleSignPress = () => {
+    if (disabled || !onChange) return;
     const newSign = isNegative ? "" : "-";
-    onChange(`${newSign}${sanitizeDecimal(value)}`);
-  }, [isNegative, value, disabled, onChange]);
+    const next = `${newSign}${sanitizeDecimal(value)}`;
+    onChange(next);
+  };
 
   return (
     <View className="gap-1">
@@ -80,14 +86,15 @@ export function DecimalInput({ label, error, disabled, value, onChange, placehol
           placeholderTextColor="#9CA3AF"
           editable={!disabled}
           onFocus={() => !disabled && setFocused(true)}
-          onBlur={() => setFocused(false)}
+          onBlur={() => {
+            setFocused(false);
+            if (!disabled) {
+              markAsDirty();
+            }
+          }}
         />
       </View>
-      {error ? (
-        <Text accessibilityRole="alert" accessibilityLabel={error} className="text-sm text-error">
-          {error}
-        </Text>
-      ) : null}
+      <InputError error={error} />
     </View>
   );
 }

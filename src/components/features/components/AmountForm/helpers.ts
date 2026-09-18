@@ -1,7 +1,7 @@
 import { colors } from "@/lib/styles";
 import type { Id } from "@convex/_generated/dataModel";
 import type { PipeModel } from "@features/pipes/data/pipes";
-import { isPaidFromPipeEligible } from "@features/pipes/data/paidFromEligibility";
+import { preparePaidFromPipeEligibility } from "@features/pipes/data/paidFromEligibility";
 import type { TransactionStructure } from "@domain/transactions";
 
 type PipeReference = Pick<
@@ -250,8 +250,9 @@ export function buildPaidFromPipeItems(
 ): Array<{ id: string; name: string; icon: string }> {
   const pipes = allPipes ?? [];
   const value = isNegative ? -1 : 1;
+  const isPaidFromEligible = preparePaidFromPipeEligibility(pipes);
   const eligiblePipes = pipes.filter((pipe) =>
-    isPaidFromPipeEligible(pipes, pipeId, pipe.id, value),
+    isPaidFromEligible(pipeId, pipe.id, value),
   );
 
   return [

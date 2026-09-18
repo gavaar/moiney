@@ -7,3 +7,4 @@ export { CheckboxInput } from "./Checkbox";
 export { SelectInput } from "./SelectInput";
 export type { SelectInputProps } from "./SelectInput";
 export { TextSelectInput } from "./TextSelectInput";
+export { ToggleInput } from "./ToggleInput";

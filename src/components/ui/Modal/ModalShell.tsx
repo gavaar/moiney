@@ -4,14 +4,16 @@ import {
   Pressable,
   View,
 } from "react-native";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 
 type Props = {
   visible: boolean;
   onClose: () => void;
   children: ReactNode;
+  bottomAccessory?: ReactNode;
 };
 
-export function ModalShell({ visible, onClose, children }: Props) {
+export function ModalShell({ visible, onClose, children, bottomAccessory }: Props) {
   return (
     <RNModal
       transparent
@@ -19,16 +21,28 @@ export function ModalShell({ visible, onClose, children }: Props) {
       visible={visible}
       onRequestClose={onClose}
     >
-      <View className="flex-1 justify-center items-center bg-black/50">
-        <Pressable
-          className="absolute inset-0"
-          testID="modal-backdrop"
-          onPress={onClose}
-        />
-        <View className="bg-surface rounded-xl p-4 w-[85%] max-w-[960px] max-h-[75%]">
-          {children}
+      <SafeAreaProvider>
+        <View className="flex-1 bg-black/50">
+          <Pressable
+            className="absolute inset-0"
+            testID="modal-backdrop"
+            onPress={onClose}
+          />
+          <SafeAreaView
+            pointerEvents="box-none"
+            style={{ flex: 1, alignItems: "center", paddingVertical: 24 }}
+          >
+            <View className="bg-surface rounded-xl p-4 w-[85%] max-w-[960px] max-h-[85%]" style={{ flexShrink: 1 }}>
+              {children}
+            </View>
+            {bottomAccessory ? (
+              <View pointerEvents="box-none" style={{ marginTop: "auto", marginBottom: 48, paddingTop: 16, width: "85%", alignItems: "center", flexShrink: 0 }}>
+                {bottomAccessory}
+              </View>
+            ) : null}
+          </SafeAreaView>
         </View>
-      </View>
+      </SafeAreaProvider>
     </RNModal>
   );
 }

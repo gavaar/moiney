@@ -13,11 +13,11 @@ vi.mock("@/lib/auth", () => ({
 }));
 
 vi.mock("@ui/Input", () => ({
-  Input: ({ label, value, onChangeText }: any) => (
+  Input: ({ label, value, onChange }: any) => (
     <input
       aria-label={label}
       value={value}
-      onChange={(event) => onChangeText?.(event.target.value)}
+      onChange={(event) => onChange?.(event.target.value)}
     />
   ),
 }));

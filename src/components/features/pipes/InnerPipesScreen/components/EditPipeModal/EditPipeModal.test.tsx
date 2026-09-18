@@ -36,28 +36,31 @@ vi.mock("@ui/Alert", () => ({
   useAlert: () => ({ error: vi.fn() }),
 }));
 
-vi.mock("@ui/Icon", () => ({
+vi.mock("@ui/Icon", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@ui/Icon")>()),
   Icon: () => null,
 }));
 
-vi.mock("@ui/Input", () => ({
-  Input: ({ label, value, onChangeText }: any) =>
-    onChangeText ? (
-      <input
-        aria-label={label}
-        value={value}
-        onChange={(event) => onChangeText(event.target.value)}
-      />
-    ) : null,
-}));
-
 vi.mock("@ui/Button", () => ({
-  Button: ({ title, onPress }: any) => <button onClick={onPress}>{title}</button>,
+  Button: ({ title, onPress, disabled }: any) => <button disabled={disabled} onClick={onPress}>{title}</button>,
 }));
 
 describe("EditPipeModal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("validates the name on blur and clears its error during correction", () => {
+    render(<EditPipeModal visible pipeId={"pipe-1" as any} onClose={vi.fn()} />);
+    const name = screen.getByLabelText("Name");
+    fireEvent.change(name, { target: { value: "a" } });
+    expect(screen.queryByRole("alert")).toBeNull();
+    fireEvent.blur(name);
+    expect(screen.getByRole("alert").textContent).toBe("Name must be at least 3 characters");
+    fireEvent.click(screen.getByText("Submit"));
+    expect(updatePipe).not.toHaveBeenCalled();
+    fireEvent.change(name, { target: { value: "Food" } });
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   it("sends an explicit clear command when the description is emptied", async () => {

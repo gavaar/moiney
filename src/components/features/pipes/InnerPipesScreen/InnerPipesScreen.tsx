@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import type { PipeModel } from "@features/pipes/data/pipes";
@@ -14,6 +14,7 @@ import { OptionsButton } from "./components/OptionsButton";
 import { PipeBars } from "./components/PipeBars";
 import { RulesIcon } from "./components/RulesIcon";
 import { StatisticsRow } from "./components/StatisticsRow";
+import { AddChildPipeButton } from "./components/AddChildPipeButton";
 
 export function InnerPipesScreen() {
   const { selectedPipe, selectedPipePath, selectPipe } = usePipeSelection();
@@ -44,7 +45,7 @@ export function InnerPipesScreen() {
     [selectedPipePath, selectPipe],
   );
 
-  const leading = useCallback(
+  const trailing = useCallback(
     (pipe: PipesListPipe) => (
       <RulesIcon
         pipeId={pipe.id}
@@ -101,19 +102,17 @@ export function InnerPipesScreen() {
             </Text>
           </View>
         ) : children.length === 0 && selectedPipe ? (
-          <ScrollView
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={{ flexGrow: 1 }}
-          >
-            <AmountForm pipeId={selectedPipe.id} variant="spend" />
-          </ScrollView>
+          <View style={{ flex: 1 }}>
+            <AmountForm pipeId={selectedPipe.id} variant="spend" fill />
+          </View>
         ) : null}
-        <PipesList
+        {children.length > 0 ? <PipesList
           pipes={children}
           priority={true}
           onSelectPipe={handleSelectPipe}
-          leading={leading}
-        />
+           trailing={trailing}
+           footer={!isDeleting && selectedId ? <AddChildPipeButton key={selectedId} parentId={selectedId} /> : null}
+        /> : null}
       </View>
     </View>
   );

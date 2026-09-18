@@ -1,147 +1,81 @@
 # Moiney - Financial Companion App
 
-## Source Of Truth
+## Start Here
 
-- Verify dependency versions in `package.json`; documentation is descriptive and must be updated after upgrades.
-- Read `docs/engineering-principles.md` before changing production code.
-- Read `docs/domain-decisions.md` before changing money, transactions, pipes, deletion, scheduling, or authentication.
-- Load the relevant project skill for Convex, Expo, routing, migrations, auth, or performance work.
+Expo/React Native, Expo Router, NativeWind, Convex, strict TypeScript, Bun, and
+Vitest. `package.json` owns dependency versions and available scripts.
 
-## Current Stack
+Read only the guides relevant to the task before editing; do not preload all
+references. Follow cross-links when the change touches their contracts.
 
-- Expo SDK 57, React Native 0.86, React 19
-- Expo Router with routes under `src/app/`
-- NativeWind v4 and Tailwind CSS v3
-- Convex backend under `convex/`
-- TypeScript in strict mode
-- Bun package manager
-- Vitest test runner
+| Task | Read |
+| --- | --- |
+| Production behavior change or bug fix | `.agents/skills/tdd/SKILL.md` |
+| Architecture, substantial refactoring, or performance | `docs/engineering-principles.md` |
+| Convex functions or persisted schema | `docs/backend.md` and the relevant Convex skill |
+| Money, allocation, rules, scheduling, boiler balances | `docs/domain/accounting.md` |
+| Transaction creation, editing, grouping, or eligibility | `docs/domain/transactions.md` |
+| Pipe deletion, freezes, or deletion reconciliation | `docs/domain/deletion.md` |
+| Authentication, sessions, or recovery | `docs/domain/auth.md` |
+| Transaction caching, history loading, or usage ranking | `docs/domain/history-cache.md` |
+| Pipe statistics or monthly summaries | `docs/domain/reporting.md` |
+| Input dispatcher or variant changes | `docs/input.md` |
+| Decision status or finding a domain contract | `docs/domain-decisions.md` |
 
-## Project Structure
-
-```text
-moiney/
-|-- src/
-|   |-- app/                 # Expo Router route and layout files only
-|   |-- components/
-|   |   |-- ui/              # Reusable presentation primitives
-|   |   `-- features/        # Feature-owned screens, state, and components
-|   `-- lib/                 # Cross-feature infrastructure and utilities
-|-- convex/
-|   |-- _generated/          # Generated Convex code; do not edit manually
-|   |-- lib/                 # Existing backend helpers and pure algorithms
-|   |-- schema.ts
-|   `-- *.ts                 # Registered Convex functions
-|-- docs/                    # Engineering rules and domain decisions
-|-- assets/
-`-- .agents/skills/          # Project agent skills
-```
-
-The current structure contains known boundary violations and oversized modules. Do not treat every existing dependency or boundary as an approved pattern.
+Load the relevant project skill for Convex, Expo, routing, migrations, auth, or
+performance work. Skills live under `.agents/skills/`.
 
 ## Commands
 
-- `bun start` or `bun run dev` - start Expo
-- `bun run ios` - start iOS
-- `bun run android` - start Android
-- `bun run web` - start web
-- `bun run convex:dev` - start Convex development
-- `bun run convex:deploy` - verify, then deploy Convex functions
-- `bun run test` - run the test suite; do not use `bun test`
-- `bun run typecheck` - run the current type-check baseline
-- `bun run verify` - run the full test suite and type check
+- `bun start` / `bun run dev`: Expo; `bun run ios`, `bun run android`, `bun run web`: platform launch.
+- `bun run convex:dev`: backend development; `bun run convex:deploy`: verify then deploy.
+- `bun run test`: Vitest suite; do not use `bun test`.
+- `bun run typecheck`: TypeScript; `bun run verify`: full tests and type checking.
 
-## Mandatory Workflow
+## Change Safety
 
-- Follow `.agents/skills/tdd/SKILL.md` for production behavior changes.
-- Require tests for observable contracts, domain calculations, interactions,
-  accessibility, API contracts, authorization, and persistence behavior. Do
-  not require dedicated tests for supporting implementation details such as
-  icon registry entries, imports, types, or prop plumbing when they support an
-  already-tested behavior.
-- Documentation, comments, formatting, and visual-only adjustments do not
-  require a Red-Green cycle. Do not add tests that only assert source
-  structure, exact utility classes, or registry membership. Exempt changes
-  must still pass relevant existing tests and type checking.
-- Work on one observable behavior at a time: plan, failing test, minimum implementation, refactor.
-- Run the focused test first, then the full suite and type check before completion.
-- Prefer behavioral tests over source-text assertions or tests of implementation shape.
-- Do not install packages without explicit user approval.
-- Keep unrelated changes out of the current update.
-- Update domain decisions when behavior or architecture changes.
-- Do not add backward-compatibility paths unless persisted data, shipped behavior, or an external consumer requires them.
+- Keep changes scoped; do not install packages without explicit user approval.
+- For behavior changes, use a failing test before implementation; follow the TDD skill for scope and procedure.
+- Documentation, comments, formatting, and visual-only changes need no Red-Green cycle or source-structure tests; still run relevant existing tests and type checking.
+- Run focused tests first, then the full suite and type check before completion.
+- Add compatibility paths only for persisted data, shipped behavior, or external consumers, not hypothetical needs.
+- Pending and in-progress decisions are not shipped guarantees; check the relevant guide's status.
 
-## Architecture Boundaries
+## Architecture
 
-- Keep route files thin: route composition, route parameters, and navigation only.
-- Keep tests, helpers, components, and types outside `src/app/`; Expo Router treats matching source files there as routes and bundles them into the application.
-- Keep genuine UI primitives independent of feature modules and generated Convex document types.
-- Normalize backend data at feature boundaries instead of scattering casts through render code.
-- Prefer deep modules that hide representation and invariants over many pass-through wrappers.
-- Remove functions that only return a call to another function; call the underlying function directly unless the wrapper adds meaningful behavior or establishes a necessary boundary.
-- Keep pure domain calculations separate from React state and Convex database orchestration.
-- Split components by responsibility and state ownership, not by a line-count rule alone.
-- Keep contexts narrow, fail loudly outside providers, and scope providers to actual consumers.
-- Avoid generic `components` or `utils` dumping grounds; ownership must be clear from the path.
-- Do not deepen known boundary exceptions or create parallel compatibility layers.
+- `src/app/` contains thin routes: composition, parameters, navigation only. Keep tests, helpers, types, and feature components outside it; Router bundles matching source files as routes.
+- `src/components/features/` owns feature UI/state; `src/components/ui/` owns presentation primitives independent of features and generated Convex types.
+- `src/lib/` owns cross-feature infrastructure; root `domain/` owns framework-independent calculations; `convex/` owns backend I/O and orchestration.
+- Never manually edit `convex/_generated/`.
+- Normalize backend data at feature boundaries; avoid casts scattered through rendering.
+- Keep pure calculations separate from React state and database orchestration.
+- Prefer modules that hide invariants, not pass-through wrappers; split by responsibility and state ownership, not line count.
+- Keep contexts narrow, scoped to consumers, and fail loudly outside providers. Make ownership clear rather than adding generic dumping grounds.
+- Existing boundary violations are not approved patterns; do not deepen them.
 
-## Convex Safety Rules
+## Security And Accounting
 
-For every new or modified registered Convex function:
+- Never expose credentials, password hashes, tokens, or full account/session documents publicly.
+- Authentication and resource authorization are separate checks; validate ownership before any writes.
+- Backend APIs enforce semantic bounds, pipe topology, and transaction eligibility, not just client checks.
+- Money is persisted and calculated as whole integer cents; do not introduce another representation or convert cents back to major-unit decimals.
+- Accounting mutations need conservation, negative-value, and boundary tests.
+- Transaction involvement includes `from`, `to`, and `paidFrom`.
+- Scheduling uses an explicit clock in pure code and idempotent execution boundaries.
+- Bound backend reads and writes. Add persisted fields, indexes, statuses, phases, or API result fields only for an identified current consumer or enforced invariant.
 
-- Expose the smallest public API and return only fields required by the caller.
-- Never return credential, password-hash, token, or full account/session documents publicly.
-- Treat authentication and resource authorization as separate checks.
-- Validate resource ownership before inserting, patching, or deleting anything.
-- Validate semantic bounds in addition to Convex value types.
-- Use internal functions and generated `internal.*` references for backend-only orchestration.
-- Define argument and return validators.
-- Prefer structured expected errors over client parsing of error-message text.
-- Avoid unbounded `.collect()`, post-index database `.filter()`, and unbounded fan-out mutations.
-- Use the smallest correct read/write set. Reuse documents already loaded in the current function, pass them into helpers, avoid duplicate point reads and unchanged writes, and bound every query. Do not add a cache for a document read only once or reuse pre-write data when correctness requires post-write state.
-- Use explicit table names with `ctx.db.get`, `patch`, `replace`, and `delete` when touched code supports it.
-- Use the migration skill and widen-migrate-narrow for persisted breaking schema changes.
-- Do not add persisted fields, indexes, status values, background phases, or API result fields without an identified current consumer or enforced invariant. Future observability or recovery possibilities are not sufficient justification.
+## UI And Performance
 
-Known violations remain in the codebase. Do not deepen them or create parallel compatibility layers.
+- Measure before optimizing and remeasure afterward; fix ownership, subscription scope, and virtualization before adding memoization.
+- Virtualize collections that can grow materially; scope subscriptions and listeners to focus when hidden tabs should be inactive.
+- Do not add state libraries, caches, or memoization without a demonstrated bottleneck.
+- Test platform-sensitive navigation, keyboard, modals, and accessibility with native-oriented tools where practical.
+- Every modal dismisses on backdrop tap. No close buttons, close icons, or other dismissal-only controls inside modal content; domain actions remain allowed.
+- Application code uses `src/components/ui/Input/Input.tsx`, not direct variant imports. Preserve its public contract unless an approved refactor replaces it completely.
 
-## Financial Domain Rules
+## Documentation Discipline
 
-- Consult `docs/domain-decisions.md`; it distinguishes current behavior from accepted target behavior.
-- Money is persisted and calculated as whole integer cents.
-- Do not introduce another monetary representation or convert integer cents back to major-unit decimals.
-- Any accounting mutation must have tests for conservation, negative values, and boundary cases.
-- Consider `from`, `to`, and `paidFrom` whenever determining transaction involvement.
-- Enforce pipe topology and transaction eligibility on the backend, not only in the UI.
-- Scheduling calculations must accept an explicit clock in pure code and be idempotent at execution boundaries.
-
-## React Native And Performance
-
-- Measure before optimizing and remeasure afterward.
-- Fix ownership, subscription scope, and list virtualization before adding memoization.
-- Use virtualized lists for collections that can grow materially.
-- Scope listeners and subscriptions to screen focus when hidden tabs should not remain active.
-- Do not add state libraries, caching layers, or memoization without evidence of a real bottleneck.
-- Test platform-sensitive navigation, keyboard, modal, and accessibility behavior with native-oriented tools where practical.
-
-## Modal Behavior
-
-- Every modal must be dismissible by tapping its backdrop; use `ModalShell` or an equivalent backdrop-dismissable primitive.
-- Never add a close button, close icon, or other dismissal-only control inside modal content. Buttons that perform an action, such as submit or delete, remain allowed.
-
-## Input Component
-
-Application code uses the polymorphic `src/components/ui/Input/Input.tsx` dispatcher rather than importing variants directly.
-
-| `type` | Component folder |
-| --- | --- |
-| `text` | `TextInput/` |
-| `number` | `NumberInput/` |
-| `decimal` | `DecimalInput/` |
-| `date` | `DateInput/` |
-| `icon` | `IconInput/` |
-| `checkbox` | `Checkbox/` |
-| `select` | `SelectInput/` |
-| `text-select` | `TextSelectInput/` |
-
-Each variant remains colocated with its tests and private helpers. Preserve this public dispatcher unless an approved refactor replaces the complete contract.
+- Update the canonical guide only for a durable invariant, public contract, compatibility constraint, or meaningful architectural decision. Edit existing text in place and remove what it supersedes.
+- Do not append implementation summaries, completed-task notes, or rollout progress. Completed migration history belongs in Git unless it still constrains supported data or operations.
+- Keep one authoritative home per detailed rule; link rather than duplicate. Code owns implementation details, tests demonstrate behavior, and docs explain constraints and non-obvious reasons.
+- Add a discovery link for new guides, not a global instruction entry. Keep this startup guide around 80-120 lines; move task-specific detail to references rather than removing safeguards.

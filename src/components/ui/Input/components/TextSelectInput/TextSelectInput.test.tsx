@@ -17,14 +17,12 @@ const defaultOptions = ["groceries", "gas", "rent"];
 
 function ControlledWrapper({ options, initialValue }: { options?: string[]; initialValue?: string }) {
   const [value, setValue] = useState(initialValue ?? "");
-  const handleSelect = (v: string) => setValue(v);
 
   return (
     <TextSelectInput
       label="Title"
       value={value}
-      onChangeText={setValue}
-      onOptionSelect={handleSelect}
+      onChange={setValue}
       options={options ?? defaultOptions}
       placeholder="What was this for?"
     />
@@ -100,7 +98,7 @@ describe("TextSelectInput", () => {
     expect(screen.getByText("rent")).toBeTruthy();
   });
 
-  it("calls onOptionSelect when tapping an option and hides the list", () => {
+  it("calls onChange when tapping an option and hides the list", () => {
     render(<ControlledWrapper />);
     const input = screen.getByPlaceholderText(
       "What was this for?",
@@ -119,8 +117,7 @@ describe("TextSelectInput", () => {
       <TextSelectInput
         label="Title"
         value="Hello"
-        onChangeText={vi.fn()}
-        onOptionSelect={vi.fn()}
+        onChange={vi.fn()}
         options={[]}
         maxLength={140}
         placeholder="What was this for?"
@@ -134,14 +131,28 @@ describe("TextSelectInput", () => {
       <TextSelectInput
         label="Title"
         value=""
-        onChangeText={vi.fn()}
-        onOptionSelect={vi.fn()}
+        onChange={vi.fn()}
         options={[]}
-        error="Something went wrong"
+        validator={() => "Something went wrong"}
         placeholder="What was this for?"
       />,
     );
+    expect(screen.queryByRole("alert")).toBeNull();
+    fireEvent.blur(screen.getByRole("textbox"));
     expect(screen.getByText("Something went wrong")).toBeTruthy();
+  });
+
+  it("validates a committed suggestion accepted by the parent", () => {
+    const validator = vi.fn((value: string) => value === "gas" ? "Unavailable" : undefined);
+    function Controlled() {
+      const [value, setValue] = useState("");
+      return <TextSelectInput label="Title" value={value} onChange={setValue} options={["gas"]} validator={validator} />;
+    }
+    render(<Controlled />);
+    fireEvent.focus(screen.getByRole("textbox"));
+    fireEvent.click(screen.getByText("gas"));
+    expect(screen.getByRole("alert").textContent).toBe("Unavailable");
+    expect(validator).toHaveBeenLastCalledWith("gas");
   });
 
   it("input is not disabled when disabled is not set", () => {

@@ -25,7 +25,15 @@ Use types and command shapes to prevent invalid combinations where practical.
 
 Runtime validation remains necessary at network and database boundaries even when TypeScript types are strict.
 
-## Functional Core, Imperative Shell
+## Shared Domain Core
+
+D010 status: Implemented. Pure transaction identity, role involvement,
+accounting effects, pipe graph reconciliation, and cron schedule calculations
+live under the framework-independent root `domain/` boundary. Convex owns
+database I/O, authorization, and scheduling orchestration; UI consumes domain
+APIs without importing backend implementation modules. The monetary contract
+is [D001](domain/accounting.md#d001-monetary-representation); payer presentation
+eligibility is [D010](domain/transactions.md#d010-pay-by-transfer-presentation-eligibility).
 
 Place calculations and decisions in pure functions. Keep framework and database code responsible for I/O and orchestration.
 
@@ -71,27 +79,10 @@ Avoid dependencies from UI primitives to features, from client code to backend i
 
 ## Backend Contracts
 
-Registered Convex functions are security and consistency boundaries.
-
-- Public functions receive hostile input even when only the app currently calls them.
-- Authorization occurs before writes.
-- The backend owns domain invariants enforced by the product.
-- Expected failures have stable machine-readable codes.
-- Multi-step operations that require atomicity belong in one mutation.
-- Maintenance work that can grow without a strict bound must be paginated or batched.
-
-Indexes and denormalized projections are introduced for demonstrated access patterns, not by reflex. When added, writes, backfills, fallback reads, and cutover must be planned together.
-
-Persisted-contract discipline applies to fields, indexes, status values, background phases, and API result fields: each must have an identified current consumer or enforced invariant. Speculative observability, recovery, or future filtering does not justify adding it, and unused persisted structure should be removed when its consumer disappears.
-
-Treat every `db.get`, query range, insert, patch, and delete as explicit
-transaction work. Before completing a modified Convex function, trace its
-read/write set and remove redundant operations. Prefer invocation-scoped reuse
-of loaded documents over generalized caching, avoid writing unchanged fields or
-documents, and bound queries by the contract they enforce. Narrow broad
-reconciliation only when behavioral tests prove accounting and topology
-invariants remain intact; do not reuse pre-write data when post-write state is
-required for correctness.
+Registered Convex functions are security and consistency boundaries: public
+inputs are hostile even when only the app currently calls them. The detailed
+[backend contracts](backend.md) cover validators, atomicity, bounded transaction
+work, and persisted changes.
 
 ## Performance Method
 
@@ -111,25 +102,13 @@ Do not use component count or an inline callback as sufficient evidence of a per
 
 ## Testing Strategy
 
-- Test observable contracts and pure domain behavior.
-- Add a regression test before fixing a defect.
-- Prefer small table-driven tests for domain combinations.
-- Test authorization and validation through realistic Convex boundaries where tooling permits.
-- Use React Native-oriented interaction tests for platform-sensitive behavior.
-- Avoid tests that read production source text or only verify mocked argument forwarding.
-
-Large test files should be reorganized by behavioral contract after production boundaries become clear, not split arbitrarily.
-
-## Modal Interaction
-
-Modal dismissal has one consistent interaction: tapping the backdrop closes the
-modal. Modal content should not contain a close button or close icon; controls
-inside the content should perform a domain action rather than duplicate
-dismissal.
+The [TDD skill](../.agents/skills/tdd/SKILL.md) owns test scope and procedure.
+Production boundaries should become clear before reorganizing large test files;
+test-file size alone is not evidence that a production abstraction is needed.
 
 ## Change Discipline
 
 - Make the smallest complete change that establishes the agreed behavior.
 - Separate security containment, data migration, architecture movement, and visual changes when they carry different risks.
 - Do not mix speculative cleanup into a correctness fix.
-- Record meaningful architecture and domain decisions in `docs/domain-decisions.md`.
+- Follow the documentation discipline in `AGENTS.md`; the [decision index](domain-decisions.md) links to canonical contracts rather than accumulating implementation notes.

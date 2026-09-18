@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SelectInput } from "./SelectInput";
 
@@ -11,6 +11,24 @@ const items = [
 ] as const;
 
 describe("SelectInput", () => {
+  it("renders inline custom items and exposes the controlled selection without a picker modal", async () => {
+    function Controlled({ disabled = false }: { disabled?: boolean }) {
+      const [value, setValue] = useState<string | null>("1");
+      return <SelectInput presentation="inline" label="Owner" items={items}
+        renderItem={item => <>{item.name}</>} value={value} onChange={setValue} disabled={disabled} />;
+    }
+    const { rerender } = render(<Controlled />);
+    expect(screen.queryByTestId("select-trigger")).toBeNull();
+    expect(screen.queryByTestId("modal-backdrop")).toBeNull();
+    expect(screen.getByRole("radio", { name: "Groceries" }).getAttribute("aria-checked")).toBe("true");
+    await userEvent.click(screen.getByRole("radio", { name: "Salary" }));
+    expect(screen.getByRole("radio", { name: "Salary" }).getAttribute("aria-checked")).toBe("true");
+    expect(screen.getByRole("radio", { name: "Groceries" }).getAttribute("aria-checked")).toBe("false");
+    rerender(<Controlled disabled />);
+    fireEvent.click(screen.getByRole("radio", { name: "Groceries" }));
+    expect(screen.getByRole("radio", { name: "Salary" }).getAttribute("aria-checked")).toBe("true");
+  });
+
   it("selects multiple options without closing the option list", async () => {
     const user = userEvent.setup();
 
@@ -52,7 +70,7 @@ describe("SelectInput", () => {
         items={items}
         renderItem={(item) => <>{item.name}</>}
         value={null}
-        onSelect={() => {}}
+        onChange={() => {}}
       />,
     );
     expect(screen.getByText("From")).toBeTruthy();
@@ -65,7 +83,7 @@ describe("SelectInput", () => {
         items={items}
         renderItem={(item) => <>{item.name}</>}
         value={null}
-        onSelect={() => {}}
+        onChange={() => {}}
       />,
     );
     expect(screen.getByRole("button", { name: "From" }).getAttribute("aria-expanded")).toBe("false");
@@ -78,7 +96,7 @@ describe("SelectInput", () => {
         items={items}
         renderItem={(item) => <>{item.name}</>}
         value={null}
-        onSelect={() => {}}
+        onChange={() => {}}
         placeholder="Pick one"
       />,
     );
@@ -92,7 +110,7 @@ describe("SelectInput", () => {
         items={items}
         renderItem={(item) => <>{item.name}</>}
         value="1"
-        onSelect={() => {}}
+        onChange={() => {}}
       />,
     );
     expect(screen.getByText("Groceries")).toBeTruthy();
@@ -106,7 +124,7 @@ describe("SelectInput", () => {
         items={items}
         renderItem={(item) => <>{item.name}</>}
         value={null}
-        onSelect={() => {}}
+        onChange={() => {}}
       />,
     );
     await user.click(screen.getByTestId("select-trigger"));
@@ -114,67 +132,91 @@ describe("SelectInput", () => {
     expect(screen.getByText("Salary")).toBeTruthy();
   });
 
-  it("calls onSelect with item id on item tap", async () => {
+  it("calls onChange with item id on item tap", async () => {
     const user = userEvent.setup();
-    const onSelect = vi.fn();
+    const onChange = vi.fn();
     render(
       <SelectInput
         label="From"
         items={items}
         renderItem={(item) => <>{item.name}</>}
         value={null}
-        onSelect={onSelect}
+        onChange={onChange}
       />,
     );
     await user.click(screen.getByTestId("select-trigger"));
     await user.click(screen.getByText("Salary"));
-    expect(onSelect).toHaveBeenCalledWith("2");
+    expect(onChange).toHaveBeenCalledWith("2");
   });
 
   it("shows selected item in trigger after selection", async () => {
     const user = userEvent.setup();
-    const onSelect = vi.fn();
+    const onChange = vi.fn();
     render(
       <SelectInput
         label="From"
         items={items}
         renderItem={(item) => <>{item.name}</>}
         value={null}
-        onSelect={onSelect}
+        onChange={onChange}
       />,
     );
     await user.click(screen.getByTestId("select-trigger"));
     await user.click(screen.getByText("Salary"));
-    expect(onSelect).toHaveBeenCalledWith("2");
+    expect(onChange).toHaveBeenCalledWith("2");
   });
 
-  it("shows error message", () => {
-    render(
-      <SelectInput
+  it("validates a committed single selection", async () => {
+    function Controlled() {
+      const [value, setValue] = useState<string | null>(null);
+      return <SelectInput
         label="From"
         items={items}
         renderItem={(item) => <>{item.name}</>}
-        value={null}
-        onSelect={() => {}}
-        error="Select a source"
-      />,
-    );
+        value={value}
+        onChange={setValue}
+        validator={value => value === "1" ? "Select a source" : undefined}
+      />;
+    }
+    render(<Controlled />);
+    expect(screen.queryByRole("alert")).toBeNull();
+    await userEvent.click(screen.getByTestId("select-trigger"));
+    await userEvent.click(screen.getByText("Groceries"));
     expect(screen.getByText("Select a source")).toBeTruthy();
   });
 
-  it("does not open when disabled", async () => {
-    const user = userEvent.setup();
+  it("validates multiple selections on close, then corrects errors while open", async () => {
+    function Controlled() {
+      const [value, setValue] = useState<string[]>([]);
+      return <SelectInput multiple label="Pipes" items={items} renderItem={item => <>{item.name}</>} value={value} onChange={setValue} validator={value => value.length < 2 ? "Pick two" : undefined} />;
+    }
+    render(<Controlled />);
+    await userEvent.click(screen.getByTestId("select-trigger"));
+    await userEvent.click(screen.getByRole("checkbox", { name: "Groceries" }));
+    expect(screen.queryByRole("alert")).toBeNull();
+    await userEvent.click(screen.getByTestId("modal-backdrop"));
+    expect(screen.getByRole("alert").textContent).toBe("Pick two");
+    await userEvent.click(screen.getByTestId("select-trigger"));
+    await userEvent.click(screen.getByRole("checkbox", { name: "Salary" }));
+    expect(screen.queryByRole("alert")).toBeNull();
+    await userEvent.click(screen.getByRole("checkbox", { name: "Salary" }));
+    expect(screen.getByRole("alert").textContent).toBe("Pick two");
+    await userEvent.click(screen.getByTestId("modal-backdrop"));
+    expect(screen.getByRole("alert").textContent).toBe("Pick two");
+  });
+
+  it("does not open when disabled", () => {
     render(
       <SelectInput
         label="From"
         items={items}
         renderItem={(item) => <>{item.name}</>}
         value={null}
-        onSelect={() => {}}
+        onChange={() => {}}
         disabled
       />,
     );
-    await user.click(screen.getByTestId("select-trigger"));
+    fireEvent.click(screen.getByTestId("select-trigger"));
     expect(screen.queryByText("Groceries")).toBeNull();
   });
 });

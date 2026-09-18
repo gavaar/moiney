@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NumberInput } from "./NumberInput";
+import { useState } from "react";
 
 describe("NumberInput", () => {
   it("renders label, minus button, value, and plus button", () => {
@@ -94,7 +95,21 @@ describe("NumberInput", () => {
   });
 
   it("shows error message", () => {
-    render(<NumberInput label="Test" value={0} onChange={() => {}} error="Invalid" />);
+    render(<NumberInput label="Test" value={0} onChange={() => {}} validator={() => "Invalid"} />);
+    expect(screen.queryByText("Invalid")).toBeNull();
+    fireEvent.blur(screen.getByRole("textbox"));
     expect(screen.getByText("Invalid")).toBeTruthy();
+  });
+
+  it("validates the clamped value on blur", () => {
+    const validator = vi.fn((value: number) => value === 10 ? "Ten unavailable" : undefined);
+    function Controlled() {
+      const [value, setValue] = useState(20);
+      return <NumberInput label="Count" value={value} onChange={setValue} max={10} validator={validator} />;
+    }
+    render(<Controlled />);
+    fireEvent.blur(screen.getByRole("textbox"));
+    expect(validator).toHaveBeenCalledWith(10);
+    expect(screen.getByText("Ten unavailable")).toBeTruthy();
   });
 });

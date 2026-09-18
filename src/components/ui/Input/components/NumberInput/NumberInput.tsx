@@ -7,16 +7,18 @@ import {
 } from "react-native";
 import { cn } from "@/lib/styles";
 import { getBorderStyle } from "../../input.config";
+import { InputError, useInputValidation } from "../../useInputValidation";
 
 type Props = {
   label: string;
-  error?: string;
   disabled?: boolean;
   value: number;
-  onChange: (value: number) => void;
   min?: number;
   max?: number;
   step?: number;
+  onChange?: (value: number) => void;
+  onError?: (error?: string) => void;
+  validator?: (value: number) => string | undefined;
 };
 
 function stripNonDigits(input: string): string {
@@ -31,15 +33,17 @@ function parseDigits(input: string): number {
 
 export function NumberInput({
   label,
-  error,
+  validator,
   disabled,
   value,
   onChange,
+  onError,
   min = 0,
   max = Infinity,
   step = 1,
 }: Props) {
   const [focused, setFocused] = useState(false);
+  const { error, markAsDirty } = useInputValidation(value, validator, onError);
 
   const clamp = useCallback(
     (n: number) => Math.max(min, Math.min(max, n)),
@@ -47,25 +51,35 @@ export function NumberInput({
   );
 
   const handleIncrement = () => {
-    if (disabled) return;
+    if (disabled || !onChange) return;
     const next = clamp(value + step);
-    if (next !== value) onChange(next);
+    if (next !== value) {
+      markAsDirty();
+      onChange(next);
+    }
   };
 
   const handleDecrement = () => {
-    if (disabled) return;
+    if (disabled || !onChange) return;
     const next = clamp(value - step);
-    if (next !== value) onChange(next);
+    if (next !== value) {
+      markAsDirty();
+      onChange(next);
+    }
   };
 
   const handleChangeText = (text: string) => {
-    onChange(parseDigits(text));
+    if (disabled) return;
+    const next = parseDigits(text);
+    onChange?.(next);
   };
 
   const handleBlur = () => {
     setFocused(false);
+    if (disabled) return;
     const clamped = clamp(value);
-    if (clamped !== value) onChange(clamped);
+    markAsDirty();
+    if (clamped !== value) onChange?.(clamped);
   };
 
   const atMin = value <= min;
@@ -122,9 +136,7 @@ export function NumberInput({
           <Text className={cn("text-xl", disabled || atMax ? "text-muted" : "text-text")}>+</Text>
         </Pressable>
       </View>
-      {error ? (
-        <Text className="text-sm text-error">{error}</Text>
-      ) : null}
+      <InputError error={error} />
     </View>
   );
 }

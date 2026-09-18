@@ -20,7 +20,7 @@ export type {
   AccountingEffect,
   TransactionAccountingEffects,
 } from "./accounting";
-export { isPaidFromEligible } from "./paidFromEligibility";
+export { preparePaidFromEligibility } from "./paidFromEligibility";
 export type { PipeTopologyNode } from "./paidFromEligibility";
 export { transactionStructureFromRoles } from "./structure";
 export type { TransactionStructure } from "./structure";

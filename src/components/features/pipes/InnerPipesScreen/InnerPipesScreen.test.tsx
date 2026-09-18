@@ -34,7 +34,7 @@ vi.mock("@convex/_generated/api", () => ({
 }));
 
 vi.mock("@features/pipes/components/PipesList", () => ({
-  PipesList: ({ pipes, onSelectPipe, leading }: any) => (
+  PipesList: ({ pipes, onSelectPipe, leading, trailing, footer }: any) => (
     <div data-testid="pipes-list" data-count={pipes.length}>
       {pipes.map((pipe: any) => (
         <div key={pipe.id} data-testid="pipe-row">
@@ -45,13 +45,16 @@ vi.mock("@features/pipes/components/PipesList", () => ({
           >
             {pipe.name}
           </button>
+          {trailing?.(pipe)}
         </div>
       ))}
+      {footer}
     </div>
   ),
 }));
 
-vi.mock("@ui/Icon", () => ({
+vi.mock("@ui/Icon", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@ui/Icon")>()),
   Icon: ({ name, testID }: any) => <span data-testid={testID ?? "icon"} data-name={name} />,
 }));
 
@@ -95,6 +98,22 @@ const grandchildPipe = { id: "grand-1", name: "Sub", icon: "pipe", capacity: 100
 describe("InnerPipesScreen", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("opens child creation from the list with the current parent selected", async () => {
+    const user = userEvent.setup();
+    const parent = { ...childPipe1, id: "parent", name: "Household" };
+    mockUsePipeSelection.mockReturnValue({
+      ...baseMock,
+      selectedPipePath: [parent.id],
+      selectedPipe: parent,
+      allPipes: [parent, childPipe2],
+      childrenByParent: new Map([[parent.id, [childPipe2]]]),
+    });
+    render(<InnerPipesScreen />);
+    await user.click(within(screen.getByTestId("pipes-list")).getByRole("button", { name: "Add child pipe" }));
+    expect(screen.getByRole("heading", { name: "Household" })).toBeDefined();
+    expect(screen.getByPlaceholderText("Pipe name")).toBeDefined();
   });
 
   it("renders breadcrumb", () => {
@@ -320,9 +339,10 @@ describe("InnerPipesScreen", () => {
 
     render(<InnerPipesScreen />);
     expect(screen.getByTestId("spent-form")).toBeDefined();
+    expect(screen.queryByTestId("pipes-list")).toBeNull();
   });
 
-  it("preserves handled keyboard taps around the leaf AmountForm", () => {
+  it("lets the leaf form own its scrolling without a surrounding ScrollView", () => {
     mockUsePipeSelection.mockReturnValue({
       ...baseMock,
       selectedPipePath: ["pipe-1"],
@@ -332,11 +352,7 @@ describe("InnerPipesScreen", () => {
 
     render(<InnerPipesScreen />);
 
-    expect(
-      screen
-        .getByTestId("amount-form-scroll")
-        .getAttribute("data-keyboard-should-persist-taps"),
-    ).toBe("handled");
+    expect(screen.getByTestId("spent-form").closest('[data-testid="amount-form-scroll"]')).toBeNull();
   });
 
   it("keeps a frozen pipe visible without spend controls", () => {

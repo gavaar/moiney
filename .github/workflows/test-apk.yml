@@ -52,7 +52,7 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: test-${{ github.run_number }}
+          tag_name: ${{ steps.app-version.outputs.version }}
           name: ${{ steps.app-version.outputs.version }}
           files: apk/moiney.apk
           prerelease: true

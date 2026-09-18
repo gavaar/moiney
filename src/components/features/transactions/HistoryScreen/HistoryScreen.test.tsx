@@ -40,7 +40,7 @@ vi.mock("@ui/Input", () => ({
         <input
           aria-label={props.label}
           value={props.value}
-          onChange={(event) => props.onChangeText(event.target.value)}
+          onChange={(event) => props.onChange(event.target.value)}
         />
       );
     }

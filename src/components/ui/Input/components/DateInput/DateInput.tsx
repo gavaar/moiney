@@ -5,15 +5,17 @@ import { Icon } from "@ui/Icon";
 import { getBorderStyle } from "../../input.config";
 import { MONTH_LABELS } from "./calendar";
 import { Calendar } from "./components";
+import { InputError, useInputValidation } from "../../useInputValidation";
 
 type Props = {
   label: string;
   hideLabel?: boolean;
-  error?: string;
   disabled?: boolean;
   value: Date | null;
   placeholder?: string;
-  onChange: (date: Date) => void;
+  onChange?: (date: Date) => void;
+  onError?: (error?: string) => void;
+  validator?: (value: Date | null) => string | undefined;
 };
 
 function formatDate(date: Date): string {
@@ -28,14 +30,16 @@ function currentUtcDate(): Date {
 export function DateInput({
   label,
   hideLabel,
-  error,
+  validator,
   disabled,
   value,
   placeholder,
   onChange,
+  onError
 }: Props) {
   const [focused, setFocused] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
+  const { error, markAsDirty } = useInputValidation(value, validator, onError);
 
   const borderStyle = getBorderStyle(disabled, focused, error);
 
@@ -70,14 +74,14 @@ export function DateInput({
         </Text>
         <Icon name="calendar-outline" size={16} color={disabled ? "#9CA3AF" : "#F8F8F8"} />
       </Pressable>
-      {error ? (
-        <Text accessibilityRole="alert" accessibilityLabel={error} className="text-sm text-error">
-          {error}
-        </Text>
-      ) : null}
+      <InputError error={error} />
 
-      {showPicker ? (
-        <Calendar visible value={value ?? currentUtcDate()} onChange={onChange} onClose={handleClose} />
+      {showPicker && onChange ? (
+        <Calendar visible value={value ?? currentUtcDate()} onChange={date => {
+          if (disabled) return;
+          markAsDirty();
+          onChange(date);
+        }} onClose={handleClose} />
       ) : null}
     </View>
   );

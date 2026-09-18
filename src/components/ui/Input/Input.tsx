@@ -1,90 +1,18 @@
-import type { IconName } from "@ui/Icon";
-import type { TextInputProps } from "react-native";
-import { DateInput, DecimalInput, TextInput, NumberInput, IconInput, CheckboxInput, SelectInput, TextSelectInput } from "./components";
-import type { SelectInputProps } from "./components";
+import type { ComponentProps } from "react";
+import { DateInput, DecimalInput, TextInput, NumberInput, IconInput, CheckboxInput, SelectInput, TextSelectInput, ToggleInput } from "./components";
 
-type CheckboxProps = {
-  type: "checkbox";
-  label: string;
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-  disabled?: boolean;
-};
+export type InputProps =
+  | (ComponentProps<typeof TextInput> & { type?: "text" })
+  | (ComponentProps<typeof NumberInput> & { type: "number" })
+  | (ComponentProps<typeof DecimalInput> & { type: "decimal" })
+  | (ComponentProps<typeof DateInput> & { type: "date" })
+  | (ComponentProps<typeof IconInput> & { type: "icon" })
+  | (ComponentProps<typeof CheckboxInput> & { type: "checkbox" })
+  | (ComponentProps<typeof ToggleInput> & { type: "toggle" })
+  | (ComponentProps<typeof SelectInput> & { type: "select" })
+  | (ComponentProps<typeof TextSelectInput> & { type: "text-select" });
 
-type TextProps = TextInputProps & {
-  type?: "text";
-  label: string;
-  hideLabel?: boolean;
-  error?: string;
-  disabled?: boolean;
-  endIcon?: "eye" | "eye-off";
-  onEndIconPress?: () => void;
-  status?: "checking" | "available" | "unavailable";
-  maxLength?: number;
-};
-
-type NumberProps = {
-  type: "number";
-  label: string;
-  error?: string;
-  disabled?: boolean;
-  value: number;
-  onChange: (value: number) => void;
-  min?: number;
-  max?: number;
-  step?: number;
-};
-
-type DecimalProps = {
-  type: "decimal";
-  label: string;
-  error?: string;
-  disabled?: boolean;
-  value: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-  allowNegative?: boolean;
-};
-
-type DateProps = {
-  type: "date";
-  label: string;
-  hideLabel?: boolean;
-  error?: string;
-  disabled?: boolean;
-  value: Date | null;
-  placeholder?: string;
-  onChange: (date: Date) => void;
-};
-
-type IconProps = {
-  type: "icon";
-  label: string;
-  error?: string;
-  disabled?: boolean;
-  value: IconName | "";
-  onSelect: (name: IconName) => void;
-};
-
-type SelectProps = SelectInputProps & { type: "select" };
-
-type TextSelectProps = {
-  type: "text-select";
-  label?: string;
-  value: string;
-  onChangeText: (text: string) => void;
-  onOptionSelect: (value: string) => void;
-  options: readonly string[];
-  error?: string;
-  disabled?: boolean;
-  maxLength?: number;
-  placeholder?: string;
-  multiline?: boolean;
-};
-
-type Props = TextProps | NumberProps | DecimalProps | DateProps | IconProps | CheckboxProps | SelectProps | TextSelectProps;
-
-export function Input(props: Props) {
+export function Input(props: InputProps) {
   switch (props.type) {
     case "number":
       return <NumberInput {...props} />;
@@ -96,6 +24,8 @@ export function Input(props: Props) {
       return <IconInput {...props} />;
     case "checkbox":
       return <CheckboxInput {...props} />;
+    case "toggle":
+      return <ToggleInput {...props} />;
     case "select":
       return <SelectInput {...props} />;
     case "text-select":

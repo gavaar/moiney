@@ -50,8 +50,8 @@ vi.mock("@convex/_generated/api", () => ({
 }));
 
 vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
-  usePipeCatalog: () => ({
-    allPipes: [
+  usePipeCatalog: () => {
+    const allPipes = [
       {
         id: PIPE_ID,
         _creationTime: 0,
@@ -97,11 +97,14 @@ vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
         fed: 500,
         spent: 300,
       },
-    ],
+    ];
+    return {
+    allPipes,
     childrenByParent: new Map(),
-    pipesById: {},
+    pipesById: Object.fromEntries(allPipes.map(pipe => [pipe.id, pipe])),
     isLoading: false,
-  }),
+  };
+  },
 }));
 
 vi.mock("@features/transactions/cache/TransactionCacheContext", () => ({
@@ -113,7 +116,7 @@ vi.mock("@features/transactions/cache/TransactionCacheContext", () => ({
 }));
 
 vi.mock("@ui/Input", () => ({
-  Input: ({ label, type, value, onChangeText, onChange, disabled, placeholder, allowNegative, error, maxLength, items, onSelect, options, onOptionSelect }: any) => {
+  Input: ({ label, type, value, onChange, disabled, placeholder, allowNegative, error, maxLength, items, options }: any) => {
     if (type === "date") {
       return (
         <div data-testid={`input-${label}`}>
@@ -143,7 +146,7 @@ vi.mock("@ui/Input", () => ({
               <button
                 key={item.id}
                 data-testid={`select-item-${item.id}`}
-                onClick={() => onSelect?.(item.id)}
+                onClick={() => onChange?.(item.id)}
                 disabled={disabled}
               >
                 {item.name}
@@ -161,7 +164,7 @@ vi.mock("@ui/Input", () => ({
           <input
             data-testid={`input-${labelKey}-field`}
             value={value}
-            onChange={(e) => onChangeText?.(e.target.value)}
+            onChange={(e) => onChange?.(e.target.value)}
             disabled={disabled}
             placeholder={placeholder}
           />
@@ -171,7 +174,7 @@ vi.mock("@ui/Input", () => ({
                 <button
                   key={opt}
                   data-testid={`text-select-option-${opt}`}
-                  onClick={() => onOptionSelect?.(opt)}
+                  onClick={() => onChange?.(opt)}
                 >
                   {opt}
                 </button>
@@ -192,7 +195,7 @@ vi.mock("@ui/Input", () => ({
         <input
           data-testid={`input-${label}-field`}
           value={value}
-          onChange={(e) => (onChangeText || onChange)?.(e.target.value)}
+          onChange={(e) => onChange?.(e.target.value)}
           disabled={disabled}
           placeholder={placeholder}
           data-allow-negative={allowNegative}
@@ -216,6 +219,7 @@ vi.mock("@ui/Alert", () => ({
 
 vi.mock("@ui/Icon", () => ({
   Icon: ({ name, testID }: any) => <span data-testid={testID || "icon"} data-name={name} />,
+  safeIconName: (name: string) => name,
 }));
 
 describe("getButtonLabel", () => {
