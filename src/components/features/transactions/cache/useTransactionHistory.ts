@@ -107,11 +107,24 @@ export function useTransactionHistory(
 
   const fetchVisiblePage = useCallback(
     async (numItems: number, pageCursor: string | null): Promise<Page> => {
-      let page = await fetchPage(numItems, pageCursor);
-      while (hasActiveFilters && page.rows.length === 0 && !page.isDone) {
-        page = await fetchPage(numItems, page.continueCursor);
+      const visited = new Set<string>();
+      let nextCursor = pageCursor;
+      while (true) {
+        if (nextCursor !== null) visited.add(nextCursor);
+        const page = await fetchPage(numItems, nextCursor);
+        // Filtered server pages can be empty before later matching rows.
+        // Only follow them while pagination is making progress.
+        if (
+          page.isDone ||
+          !page.continueCursor ||
+          visited.has(page.continueCursor) ||
+          (!hasActiveFilters && page.rows.length === 0)
+        ) {
+          return { ...page, isDone: true };
+        }
+        if (page.rows.length > 0) return page;
+        nextCursor = page.continueCursor;
       }
-      return page;
     },
     [fetchPage, hasActiveFilters],
   );
@@ -192,7 +205,7 @@ export function useTransactionHistory(
   ]);
 
   const loadMore = useCallback(() => {
-    if (requestInFlight.current || !hasMore) return;
+    if (requestInFlight.current || !hasMore || error) return;
     requestInFlight.current = true;
     setError(null);
     setLoadMoreStatus("LoadingMore");
@@ -232,7 +245,7 @@ export function useTransactionHistory(
       .finally(() => {
         requestInFlight.current = false;
       });
-  }, [append, cursor, fetchVisiblePage, hasActiveFilters, hasMore]);
+  }, [append, cursor, error, fetchVisiblePage, hasActiveFilters, hasMore]);
 
   const refresh = useCallback(() => {
     if (requestInFlight.current) return;

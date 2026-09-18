@@ -48,6 +48,7 @@ vi.mock("@ui/Input", () => ({
       return (
         <button
           aria-label={props.label}
+          data-value={props.value?.toISOString() ?? ""}
           onClick={() =>
             props.onChange(
               new Date(Date.UTC(2026, props.label === "From date" ? 0 : 1, 1, 12)),
@@ -101,7 +102,10 @@ describe("HistoryScreen filters", () => {
     await user.click(screen.getByRole("button", { name: "To date" }));
     await user.click(screen.getByRole("button", { name: "Groceries" }));
 
-    expect(mocks.useTransactionHistory.mock.calls.at(-1)?.[0]).toEqual({});
+    const now = new Date();
+    expect(mocks.useTransactionHistory.mock.calls.at(-1)?.[0]).toEqual({
+      fromDate: Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
+    });
     await user.click(screen.getByRole("button", { name: "Apply filters" }));
     expect(mocks.useTransactionHistory.mock.calls.at(-1)?.[0]).toEqual({
       fromDate: Date.UTC(2026, 0, 1),
@@ -111,6 +115,22 @@ describe("HistoryScreen filters", () => {
     });
 
     await user.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect(mocks.useTransactionHistory.mock.calls.at(-1)?.[0]).toEqual({});
+  });
+
+  it("starts at the current month and keeps Clear empty when applying again", async () => {
+    const user = userEvent.setup();
+    const now = new Date();
+    const start = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
+    render(<HistoryScreen />);
+
+    expect(screen.getByRole("button", { name: "From date" }).getAttribute("data-value"))
+      .toBe(new Date(start).toISOString());
+    expect(mocks.useTransactionHistory.mock.calls.at(-1)?.[0]).toEqual({ fromDate: start });
+    await user.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect(screen.getByRole("button", { name: "From date" }).getAttribute("data-value"))
+      .toBe("");
+    await user.click(screen.getByRole("button", { name: "Apply filters" }));
     expect(mocks.useTransactionHistory.mock.calls.at(-1)?.[0]).toEqual({});
   });
 });

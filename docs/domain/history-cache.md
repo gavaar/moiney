@@ -37,7 +37,15 @@ History filters apply to complete server history, not just the snapshot. They
 may combine an inclusive date range, case-insensitive title substring, and exact
 pipe involvement across all [D003 roles](transactions.md#d003-transaction-involvement).
 Filtered pages use bounded server reads and Convex query caching but are not
-persisted snapshot scopes. Clearing all filters restores unfiltered persisted History.
+persisted snapshot scopes. History initially applies a From date of the first day
+of the current UTC month. Clearing all filters removes that default and restores
+unfiltered persisted History.
+
+Pagination completes without an error when the server reports completion, an
+unfiltered page is empty, or the continuation cursor stops advancing. Empty
+filtered pages are scanned while their cursors advance so later matches remain
+visible. Unfiltered exhaustion is persisted in the snapshot. Failed load-more
+requests do not retry automatically on scroll; explicit refresh allows recovery.
 
 ## D018: Quick Creation Ranking
 

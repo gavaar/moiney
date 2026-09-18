@@ -28,11 +28,16 @@ function emptyDraft(): FilterDraft {
 
 function HistoryFilterControls({
   onApply,
+  initialFromDate,
 }: {
   onApply: (filters: TransactionHistoryFilters) => void;
+  initialFromDate: number;
 }) {
   const { allPipes, childrenByParent } = usePipeCatalog();
-  const [draft, setDraft] = useState<FilterDraft>(emptyDraft);
+  const [draft, setDraft] = useState<FilterDraft>(() => ({
+    ...emptyDraft(),
+    fromDate: new Date(initialFromDate),
+  }));
   const [error, setError] = useState<string | null>(null);
   const leafPipes = (allPipes ?? []).filter(
     (pipe) => (childrenByParent.get(pipe.id)?.length ?? 0) === 0,
@@ -153,7 +158,13 @@ function HistoryFilterControls({
 }
 
 export function HistoryScreen() {
-  const [filters, setFilters] = useState<TransactionHistoryFilters>({});
+  const [initialFromDate] = useState(() => {
+    const now = new Date();
+    return Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
+  });
+  const [filters, setFilters] = useState<TransactionHistoryFilters>(() => ({
+    fromDate: initialFromDate,
+  }));
   const {
     transactions,
     error,
@@ -168,7 +179,7 @@ export function HistoryScreen() {
     <PipeCatalogProvider>
       <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-background">
         <AppScreenHeader title="History" />
-        <HistoryFilterControls onApply={setFilters} />
+        <HistoryFilterControls onApply={setFilters} initialFromDate={initialFromDate} />
 
         <TransactionListWithHistory
           transactions={transactions}
