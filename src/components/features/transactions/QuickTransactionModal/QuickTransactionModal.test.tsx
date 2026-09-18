@@ -1,10 +1,15 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Id } from "@convex/_generated/dataModel";
 import { QuickTransactionModal } from "./QuickTransactionModal";
 
 const onClose = vi.fn();
+const createTransaction = vi.fn().mockResolvedValue(undefined);
+vi.mock("convex/react", () => ({ useMutation: () => createTransaction, useQuery: () => [] }));
+vi.mock("@convex/_generated/api", () => ({ api: { transactions: { createTransaction: {}, listRecentTitles: {} } } }));
+vi.mock("@ui/Alert", () => ({ useAlert: () => ({ error: vi.fn() }) }));
+vi.mock("@features/transactions/cache/TransactionCacheContext", () => ({ useOptionalTransactionCache: () => null }));
 const pipe1 = {
   id: "pipe-1" as Id<"pipes">,
   name: "Groceries",
@@ -38,6 +43,7 @@ vi.mock("@features/transactions/cache/useTransactionHistory", () => ({
 vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
   usePipeCatalog: () => ({
     allPipes: [pipe1, pipe2],
+    pipesById: { [pipe1.id]: pipe1, [pipe2.id]: pipe2 },
     childrenByParent: new Map(),
     isLoading: false,
   }),
@@ -57,31 +63,15 @@ vi.mock("@ui/Icon", () => ({
   safeIconName: (name: string) => name,
 }));
 
-vi.mock("@features/components/AmountForm", () => ({
-  AmountForm: ({ pipeId, initState, onSuccess }: any) => (
-    <div
-      data-testid="amount-form"
-      data-pipe-id={pipeId}
-      data-intent={initState.intent}
-      data-title={initState.title}
-      data-value={initState.value}
-      data-spent={initState.spent}
-      data-capacity={initState.capacity}
-    >
-      <button onClick={onSuccess}>Submit</button>
-    </div>
-  ),
-}));
-
 describe("QuickTransactionModal", () => {
   beforeEach(() => {
     onClose.mockClear();
   });
 
-  it("opens an empty create form for the leaf ranked from history", () => {
+  it("selects ranked pipes, preserves the draft on Back, and submits for the newly selected pipe", async () => {
     render(<QuickTransactionModal onClose={onClose} />);
 
-    const pipeButtons = screen.getAllByLabelText(/Create transaction from/);
+    const pipeButtons = screen.getAllByRole("radio");
     expect(pipeButtons.map((button) => button.textContent)).toEqual([
       "Transport (50.00 / 200.00)",
       "Groceries (123.45 / 500.00)",
@@ -89,15 +79,16 @@ describe("QuickTransactionModal", () => {
 
     fireEvent.click(pipeButtons[0]);
 
-    const form = screen.getByTestId("amount-form");
-    expect(form.getAttribute("data-pipe-id")).toBe("pipe-2");
-    expect(form.getAttribute("data-intent")).toBe("create");
-    expect(form.getAttribute("data-title")).toBe("");
-    expect(form.getAttribute("data-value")).toBe("-");
-    expect(form.getAttribute("data-spent")).toBe("5000");
-    expect(form.getAttribute("data-capacity")).toBe("20000");
-
-    fireEvent.click(screen.getByText("Submit"));
+    expect(screen.getByRole("heading", { name: "Create: Transport (50.00 / 200.00)" })).toBeTruthy();
+    fireEvent.change(screen.getByPlaceholderText("What was this for?"), { target: { value: "Lunch" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "Value" }), { target: { value: "5.00" } });
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(screen.getByRole("radio", { name: /Transport/ }).getAttribute("aria-checked")).toBe("true");
+    fireEvent.click(screen.getByRole("radio", { name: /Groceries/ }));
+    expect(screen.getByDisplayValue("Lunch")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Create: Groceries (123.45 / 500.00)" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Add expense" }));
+    await waitFor(() => expect(createTransaction).toHaveBeenCalledWith(expect.objectContaining({ title: "Lunch", value: -500, from: pipe1.id })));
     expect(onClose).toHaveBeenCalledOnce();
   });
 });

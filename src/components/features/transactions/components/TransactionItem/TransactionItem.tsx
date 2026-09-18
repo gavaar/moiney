@@ -2,7 +2,7 @@ import { Animated, PanResponder, Pressable, Text, View } from "react-native";
 import { Icon } from "@ui/Icon";
 import { cn, colors } from "@/lib/styles";
 import { ModalShell } from "@ui/Modal";
-import { AmountForm } from '@features/components/AmountForm';
+import { TransactionForm } from '@features/transactions/TransactionForm/TransactionForm';
 import { useMemo, useRef, useState } from 'react';
 import { usePipeCatalog } from '@features/pipes/context/PipeCatalogContext';
 import { formatAmount } from "@/lib/format";
@@ -135,8 +135,7 @@ export function TransactionItem({ transaction, onShowEditHistory }: TransactionI
 
       <ModalShell visible={formIntent !== null} onClose={() => setFormIntent(null)}>
         {formIntent && model.primaryPipeId && model.formInitState ? (
-          <AmountForm
-            variant="transaction"
+          <TransactionForm
             pipeId={model.primaryPipeId}
             initState={{ ...model.formInitState, intent: formIntent }}
             onSuccess={() => setFormIntent(null)}

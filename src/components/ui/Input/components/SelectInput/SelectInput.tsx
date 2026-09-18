@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, FlatList, Pressable, ScrollView, Text, View, type StyleProp, type ViewStyle } from "react-native";
 import { cn, colors } from "@/lib/styles";
 import { ModalShell } from "@ui/Modal";
 import { InputError, useInputValidation } from "../../useInputValidation";
@@ -9,6 +9,7 @@ type CommonSelectInputProps = {
   hideLabel?: boolean;
   items: readonly ({ id: string } & Record<string, any>)[];
   renderItem: (item: CommonSelectInputProps["items"][number]) => React.ReactNode;
+  itemStyle?: (item: CommonSelectInputProps["items"][number]) => StyleProp<ViewStyle>;
   disabled?: boolean;
   placeholder?: string;
   onError?: (error?: string) => void;
@@ -32,7 +33,7 @@ export type SelectInputProps = CommonSelectInputProps &
       }
   );
 
-export function SelectInput({ label, hideLabel, items, renderItem, value, disabled, placeholder, validator, multiple, onChange, onError, presentation = "modal", loading = false }: SelectInputProps) {
+export function SelectInput({ label, hideLabel, items, renderItem, itemStyle, value, disabled, placeholder, validator, multiple, onChange, onError, presentation = "modal", loading = false }: SelectInputProps) {
   const [open, setOpen] = useState(false);
   const validateValue = useCallback((next: string | null | readonly string[]) => {
     if (multiple) return typeof next !== "string" && next !== null ? validator?.(next) : undefined;
@@ -88,7 +89,7 @@ export function SelectInput({ label, hideLabel, items, renderItem, value, disabl
                   disabled={disabled}
                   onPress={() => handleItemPress(item.id)}
                   className="rounded-xl border border-muted/30 p-3"
-                  style={{ backgroundColor: checked ? `${colors.muted}1A` : "transparent" }}
+                  style={[itemStyle?.(item), { backgroundColor: checked ? `${colors.muted}1A` : "transparent" }]}
                 >
                   {renderItem(item)}
                 </Pressable>
@@ -109,6 +110,7 @@ export function SelectInput({ label, hideLabel, items, renderItem, value, disabl
         accessibilityRole="button"
         accessibilityLabel={label}
         accessibilityState={{ disabled, expanded: open }}
+        disabled={disabled || loading}
         aria-expanded={open}
         onPress={handleTriggerPress}
         className={cn(
@@ -140,14 +142,15 @@ export function SelectInput({ label, hideLabel, items, renderItem, value, disabl
                 <Pressable
                   key={item.id}
                   accessibilityRole={multiple ? "checkbox" : "button"}
+                  disabled={disabled || loading}
                   accessibilityState={multiple ? { checked } : undefined}
                   aria-checked={multiple ? checked : undefined}
                   onPress={() => handleItemPress(item.id)}
-                  style={
+                  style={[itemStyle?.(item),
                     checked
-                      ? { backgroundColor: `${colors.success}33`, borderRadius: 8 }
+                      ? { backgroundColor: `${colors.muted}1A`, borderRadius: 8 }
                       : undefined
-                  }
+                  ]}
                   className="px-3 py-3 border-b border-border/30 last:border-b-0 active:opacity-70"
                 >
                   {renderItem(item)}

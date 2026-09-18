@@ -205,8 +205,7 @@ describe("SelectInput", () => {
     expect(screen.getByRole("alert").textContent).toBe("Pick two");
   });
 
-  it("does not open when disabled", async () => {
-    const user = userEvent.setup();
+  it("does not open when disabled", () => {
     render(
       <SelectInput
         label="From"
@@ -217,7 +216,7 @@ describe("SelectInput", () => {
         disabled
       />,
     );
-    await user.click(screen.getByTestId("select-trigger"));
+    fireEvent.click(screen.getByTestId("select-trigger"));
     expect(screen.queryByText("Groceries")).toBeNull();
   });
 });

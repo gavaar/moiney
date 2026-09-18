@@ -18,9 +18,11 @@ import {
   getIntentDate,
   transitionSpendMode,
 } from "./helpers";
-import type { AmountFormProps } from "./types";
+import type { AmountFormDraft, AmountFormProps } from "./types";
+import type { PipeModel } from "@features/pipes/data/pipes";
 
 type SpendMode = "spend" | "transfer";
+const EMPTY_PIPES_BY_ID: Readonly<Record<string, PipeModel>> = {};
 
 export function useAmountFormController(props: AmountFormProps) {
   const { pipeId, onSuccess } = props;
@@ -63,8 +65,9 @@ export function useAmountFormController(props: AmountFormProps) {
   const createTransaction = useMutation(api.transactions.createTransaction);
   const contributeToBoiler = useMutation(api.transactions.contributeToBoiler);
   const editTransaction = useMutation(api.transactions.editTransaction);
-  const { allPipes } = usePipeCatalog();
-  const recentTitles = useQuery(api.transactions.listRecentTitles, { pipeId });
+  const { allPipes, pipesById: catalogById } = usePipeCatalog();
+  const pipesById: Readonly<Record<string, PipeModel>> = catalogById ?? EMPTY_PIPES_BY_ID;
+  const recentTitles = useQuery(api.transactions.listRecentTitles, pipeId ? { pipeId } : "skip");
 
   const isFeed =
     variant === "feed" ||
@@ -97,7 +100,7 @@ export function useAmountFormController(props: AmountFormProps) {
   const currentFedChanged = parsedCurrentFed !== null && parsedCurrentFed !== currentFed;
   const boilerContributionAmount = isBoiler && isValidAmount ? parseMoney(value) : 0;
 
-  const isValid =
+  const isValid = !!pipeId &&
     (isBoiler
       ? boilerContributionAmount === 0 || title.trim() !== ""
       : title.trim() !== "") &&
@@ -126,11 +129,11 @@ export function useAmountFormController(props: AmountFormProps) {
   );
 
   const pipeItems = useMemo(
-    () => buildPipeItems(allPipes, pipeId),
+    () => pipeId ? buildPipeItems(allPipes, pipeId) : [],
     [allPipes, pipeId],
   );
   const paidFromPipeItems = useMemo(
-    () => buildPaidFromPipeItems(allPipes, pipeId, isNegative),
+    () => pipeId ? buildPaidFromPipeItems(allPipes, pipeId, isNegative) : [],
     [allPipes, isNegative, pipeId],
   );
 
@@ -143,6 +146,10 @@ export function useAmountFormController(props: AmountFormProps) {
       setPaidFromPipeId(null);
     }
   }, [allPipes, paidFromPipeId, paidFromPipeItems]);
+
+  useEffect(() => {
+    if (allPipes && sentToPipeId && !pipeItems.some(item => item.id === sentToPipeId)) setSentToPipeId(null);
+  }, [allPipes, sentToPipeId, pipeItems]);
 
   const destinationPipeName = getDestinationPipeName(allPipes, sentToPipeId);
   const actionLabel =
@@ -185,6 +192,7 @@ export function useAmountFormController(props: AmountFormProps) {
   }, [date, editTransaction, initialStructure, initialTransaction?.transactionId, onSuccess, paidFromPipeId, resetForm, sentToPipeId, spendMode, title, transactionCache, value]);
 
   const handleRepeatSubmit = useCallback(async () => {
+    if (!pipeId) return;
     const amount = parseMoney(value);
     if (isBoiler) {
       const transaction = await contributeToBoiler({
@@ -231,7 +239,24 @@ export function useAmountFormController(props: AmountFormProps) {
     }
   }, [handleEditSubmit, handleRepeatSubmit, intent, isValid, loading, showAlert]);
 
+  const draft: AmountFormDraft = {
+    sourcePipeId: pipeId, title, value, date, currentFed: currentFedValue,
+    sentTo: sentToPipeId, paidFrom: paidFromPipeId,
+  };
+
+  function updateDraft(next: Partial<AmountFormDraft>) {
+    if (next.title !== undefined) setTitle(next.title);
+    if (next.value !== undefined) setValue(next.value);
+    if (next.date !== undefined) setDate(next.date);
+    if (next.currentFed !== undefined) setCurrentFedValue(next.currentFed);
+    if (next.sentTo !== undefined) setSentToPipeId(next.sentTo ? pipesById[next.sentTo]?.id ?? null : null);
+    if (next.paidFrom !== undefined) setPaidFromPipeId(next.paidFrom ? pipesById[next.paidFrom]?.id ?? null : null);
+  }
+
   return {
+    pipesById,
+    draft,
+    updateDraft,
     action: {
       icon: buttonIcon,
       isValid,
@@ -240,37 +265,25 @@ export function useAmountFormController(props: AmountFormProps) {
       style: buttonStyle,
       submit: handleSubmit,
     },
-    boiler: isBoiler
+    boiler: props.variant === "boiler"
       ? {
           contributionAmount: boilerContributionAmount,
           currentFedChanged,
           name: props.boilerName,
-          setValue: setCurrentFedValue,
-          value: currentFedValue,
         }
       : null,
     common: {
-      date,
       loading,
       recentTitles: recentTitles ?? [],
       reset: resetForm,
-      setDate,
-      setTitle,
-      setValue,
-      title,
-      value,
     },
     isFeed,
     spend: !isFeed && (!isTransaction || intent !== "edit" || canEditStructure)
       ? {
           isNegative,
           mode: spendMode,
-          paidFromPipeId,
           paidFromPipeItems,
           pipeItems,
-          sentToPipeId,
-          setPaidFromPipeId,
-          setSentToPipeId,
           setShowPaidFrom,
           showPaidFrom,
           updateMode: handleModeChange,
@@ -285,8 +298,6 @@ export function useAmountFormController(props: AmountFormProps) {
             ? {
                 items: paidFromPipeItems,
                 label: isNegative ? "Paid from" : "Refunded to",
-                setValue: setPaidFromPipeId,
-                value: paidFromPipeId,
               }
             : null,
         }

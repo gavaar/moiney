@@ -34,6 +34,9 @@ with checked radio semantics for single selection and checkbox semantics for
 multiple selection. Selection indicators belong to Select, not the renderer.
 Optional `loading` displays a loading indicator for inline options and prevents
 selection while loading. Empty lists display an empty state.
+Optional `itemStyle(item)` styles option rows in either presentation; the
+selected background remains owned by Select. Domain-specific colors belong in
+feature renderers and style callbacks, not in Select.
 
 ## Validation
 
@@ -71,11 +74,23 @@ Its optional `header` is a JSX element, not a string.
 An optional JSX `finalAction` replaces Next on the last step, or appears below
 the fields for a single-step form. The caller owns its callback, eligibility,
 and loading state; Form does not submit or validate on its behalf.
+The optional `fill` layout fills a height-constrained parent and gives remaining
+space to the scrollable fields, keeping the header and actions outside that
+scroll area. Content-sized modal forms omit it.
 
 - `form` contains uniquely keyed definitions with `input`, optional `description`,
   and optional `step`. Validators live in `input.validator`. Input configuration
   excludes `value`, `onChange`, and `onError`; Form supplies these
   through the public Input dispatcher for every variant.
+- Descriptions accept text or JSX; text receives the standard muted styling,
+  while JSX owns its presentation. Non-input controls such as a mode toggle can
+  be composed in the JSX header slot without becoming form values.
+- Optional `reveal: { label, icon?, expanded, onReveal }` renders a muted button
+  in place of a collapsed field. The caller owns expansion and reset behavior;
+  revealing never changes the value. Disabled inputs also disable their reveal
+  button. Collapsed fields remain in emitted value records, but their input and
+  description are unmounted and their errors do not mark the step. Revealing
+  again mounts fresh input validation state.
 - `value` supplies each configured key's value. `onChange` emits all and only
   configured keys, not a patch. Define every managed key in `form`; unrelated
   keys supplied in `value` are omitted from the emitted record.
@@ -94,6 +109,11 @@ and loading state; Form does not submit or validate on its behalf.
   submit action. Dots use `muted`/`text` when unselected/selected, overridden
   by `errorDark`/`error` if any field on that step displays an error. A single step
   has no pager, navigation buttons, or dots.
+- Content-sized multi-step forms size their pager to the active step's measured
+  content, including changes from validation and revealed fields. Inactive steps
+  stay mounted to preserve input state but do not determine the modal height.
+  Tall steps remain constrained by the modal; `fill` forms keep using available
+  height rather than hugging each step's content.
 - Navigation is internal by default. Supply `activeStep` and `onStepChange`
   together to control it; values refer to configured step numbers, not page
   indexes. Buttons and swipes request step changes through the callback, while

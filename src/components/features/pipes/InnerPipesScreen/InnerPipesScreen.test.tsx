@@ -320,9 +320,10 @@ describe("InnerPipesScreen", () => {
 
     render(<InnerPipesScreen />);
     expect(screen.getByTestId("spent-form")).toBeDefined();
+    expect(screen.queryByTestId("pipes-list")).toBeNull();
   });
 
-  it("preserves handled keyboard taps around the leaf AmountForm", () => {
+  it("lets the leaf form own its scrolling without a surrounding ScrollView", () => {
     mockUsePipeSelection.mockReturnValue({
       ...baseMock,
       selectedPipePath: ["pipe-1"],
@@ -332,11 +333,7 @@ describe("InnerPipesScreen", () => {
 
     render(<InnerPipesScreen />);
 
-    expect(
-      screen
-        .getByTestId("amount-form-scroll")
-        .getAttribute("data-keyboard-should-persist-taps"),
-    ).toBe("handled");
+    expect(screen.getByTestId("spent-form").closest('[data-testid="amount-form-scroll"]')).toBeNull();
   });
 
   it("keeps a frozen pipe visible without spend controls", () => {

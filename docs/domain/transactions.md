@@ -98,6 +98,12 @@ Repeat forms use the same role controls as new transactions. A repeat may
 choose ordinary expense, transfer, or pay-by-transfer structure and must show
 every selected destination or payer before submission. Group interaction follows
 [D009](#d009-transaction-identity-and-grouping), not a group repeat form.
+Create and repeat use a pipe-selection step followed by transaction details.
+Repeat starts on details with the original pipe preselected; selecting another
+pipe preserves title, amount, and date while clearing ineligible payer or
+destination choices. Feed repeats retain feed semantics and select root
+destinations. Edit is a single-step form with the fixed original pipe in its
+header and no source-selection step.
 
 Tapping an individual transaction opens repeat. Swiping left reveals a blue
 pencil and opens edit after the swipe threshold; the action is also an
@@ -138,3 +144,8 @@ After selection, the normal expense, transfer, and pay-by-transfer form has
 empty transaction values. Create and repeat headings display the current primary
 pipe as `name (spent / capacity)` with integer-cent presentation formatting.
 Create uses a plus marker; repeat retains its repeat marker.
+Transaction pipe options use red icons and borders when `spent >= fed` and white
+otherwise, including equality as overflow. This is a presentation rule, not an
+eligibility filter. Selected rows retain the shared Select's neutral background;
+the `None` option is neutral. Owner selection in Add Pipe is independent of this
+transaction-specific styling.

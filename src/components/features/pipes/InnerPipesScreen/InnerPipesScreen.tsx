@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import type { PipeModel } from "@features/pipes/data/pipes";
@@ -101,19 +101,16 @@ export function InnerPipesScreen() {
             </Text>
           </View>
         ) : children.length === 0 && selectedPipe ? (
-          <ScrollView
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={{ flexGrow: 1 }}
-          >
-            <AmountForm pipeId={selectedPipe.id} variant="spend" />
-          </ScrollView>
+          <View style={{ flex: 1 }}>
+            <AmountForm pipeId={selectedPipe.id} variant="spend" fill />
+          </View>
         ) : null}
-        <PipesList
+        {children.length > 0 ? <PipesList
           pipes={children}
           priority={true}
           onSelectPipe={handleSelectPipe}
           leading={leading}
-        />
+        /> : null}
       </View>
     </View>
   );

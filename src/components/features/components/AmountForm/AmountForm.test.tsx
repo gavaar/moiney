@@ -50,8 +50,8 @@ vi.mock("@convex/_generated/api", () => ({
 }));
 
 vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
-  usePipeCatalog: () => ({
-    allPipes: [
+  usePipeCatalog: () => {
+    const allPipes = [
       {
         id: PIPE_ID,
         _creationTime: 0,
@@ -97,11 +97,14 @@ vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
         fed: 500,
         spent: 300,
       },
-    ],
+    ];
+    return {
+    allPipes,
     childrenByParent: new Map(),
-    pipesById: {},
+    pipesById: Object.fromEntries(allPipes.map(pipe => [pipe.id, pipe])),
     isLoading: false,
-  }),
+  };
+  },
 }));
 
 vi.mock("@features/transactions/cache/TransactionCacheContext", () => ({
@@ -216,6 +219,7 @@ vi.mock("@ui/Alert", () => ({
 
 vi.mock("@ui/Icon", () => ({
   Icon: ({ name, testID }: any) => <span data-testid={testID || "icon"} data-name={name} />,
+  safeIconName: (name: string) => name,
 }));
 
 describe("getButtonLabel", () => {

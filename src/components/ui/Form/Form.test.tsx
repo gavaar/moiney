@@ -21,6 +21,38 @@ function Controlled({ form = fields }: { form?: FormProps<Values>["form"] }) {
 }
 
 describe("Form controlled fields", () => {
+  it("reveals optional fields without changing values and clears hidden error indicators on reset", async () => {
+    const onChange = vi.fn();
+    function Example({ disabled = false }: { disabled?: boolean }) {
+      const [expanded, setExpanded] = useState(false);
+      return <>
+        <button onClick={() => setExpanded(false)}>Reset disclosure</button>
+        <Form form={[
+          { key: "name", input: { label: "Name" } },
+          { key: "optional", input: { label: "Optional", disabled, validator: () => "Invalid optional" },
+            reveal: { label: "Show optional", expanded, onReveal: () => setExpanded(true) } },
+          { key: "last", step: 1, input: { label: "Last" } },
+        ]} value={{ name: "Name", optional: "Retained", last: "" }} onChange={onChange} />
+      </>;
+    }
+    const { rerender } = render(<Example disabled />);
+    expect(screen.queryByRole("textbox", { name: "Optional" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Show optional" }));
+    expect(screen.queryByRole("textbox", { name: "Optional" })).toBeNull();
+    rerender(<Example />);
+    await userEvent.click(screen.getByRole("button", { name: "Show optional" }));
+    expect(screen.getByDisplayValue("Retained")).toBeTruthy();
+    expect(onChange).not.toHaveBeenCalled();
+    fireEvent.blur(screen.getByRole("textbox", { name: "Optional" }));
+    expect(screen.getByLabelText("Step 1 of 2, has errors")).toBeTruthy();
+    await userEvent.click(screen.getByText("Reset disclosure"));
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByLabelText("Step 1 of 2")).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Show optional" }));
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByDisplayValue("Retained")).toBeTruthy();
+  });
+
   it("renders a JSX header and description without single-step navigation", () => {
     render(<Controlled />);
     expect(screen.getByText("Custom header")).toBeTruthy();

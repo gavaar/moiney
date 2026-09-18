@@ -85,8 +85,8 @@ vi.mock("@ui/Modal", () => ({
   ModalShell: ({ children, visible }: any) => visible ? <div data-testid="modal-shell">{children}</div> : null,
 }));
 
-vi.mock("@features/components/AmountForm", () => ({
-  AmountForm: ({ initState }: any) => (
+vi.mock("@features/transactions/TransactionForm/TransactionForm", () => ({
+  TransactionForm: ({ initState }: any) => (
     <div
       data-testid="amount-form"
       data-intent={initState?.intent ?? "repeat"}

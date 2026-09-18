@@ -1,4 +1,5 @@
-import type { JSX } from "react";
+import type { JSX, ReactNode } from "react";
+import type { IconName } from "@ui/Icon";
 import type { InputProps } from "@ui/Input";
 
 export type FormValue = InputProps["value"];
@@ -13,7 +14,13 @@ type InputConfiguration<V, P = InputProps> = P extends InputProps
 export type FormField<V extends FormValue, Key extends string = string> = {
   key: Key;
   input: InputConfiguration<V>;
-  description?: string;
+  description?: ReactNode;
+  reveal?: {
+    label: string;
+    icon?: IconName;
+    expanded: boolean;
+    onReveal: () => void;
+  };
   step?: number;
   row?: string;
 };
@@ -26,6 +33,7 @@ export type FormProps<
   finalAction?: JSX.Element;
   activeStep?: number;
   onStepChange?: (step: number) => void;
+  fill?: boolean;
   form: readonly { [K in Keys]: FormField<Values[K], K> }[Keys][];
   value: Values;
   onChange: (value: Pick<Values, NoInfer<Keys>>) => void;

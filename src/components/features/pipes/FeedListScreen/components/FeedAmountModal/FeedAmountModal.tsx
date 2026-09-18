@@ -43,7 +43,7 @@ export function FeedAmountModal({
 
       <ModalShell visible={visible} onClose={() => setVisible(false)}>
         {visible ? (
-          <View className="gap-4">
+          <View className="gap-4" style={{ flexShrink: 1 }}>
             <Text className="text-lg font-semibold text-text">Feed {feedName}</Text>
             {sourceType === "boiler" ? (
               <AmountForm
