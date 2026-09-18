@@ -3,16 +3,16 @@ import { Pressable, View } from "react-native";
 import { PipeCatalogProvider } from "@features/pipes/context/PipeCatalogContext";
 import { Icon } from "@ui/Icon";
 import { colors } from "@/lib/styles";
-import { QuickTransactionModal } from "./QuickTransactionModal";
+import { CreateModal } from "./CreateModal";
 
-export function QuickTransactionTabAction() {
+export function CreateTabAction() {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
     <View className="flex-1 items-center justify-center overflow-visible">
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Create transaction"
+        accessibilityLabel="Create"
         onPress={() => setIsOpen(true)}
         className="absolute -top-3 h-14 w-14 items-center justify-center rounded-full bg-surface"
       >
@@ -20,7 +20,7 @@ export function QuickTransactionTabAction() {
       </Pressable>
       {isOpen ? (
         <PipeCatalogProvider>
-          <QuickTransactionModal onClose={() => setIsOpen(false)} />
+          <CreateModal onClose={() => setIsOpen(false)} />
         </PipeCatalogProvider>
       ) : null}
     </View>

@@ -10,9 +10,10 @@ type Props = {
   visible: boolean;
   onClose: () => void;
   children: ReactNode;
+  bottomAccessory?: ReactNode;
 };
 
-export function ModalShell({ visible, onClose, children }: Props) {
+export function ModalShell({ visible, onClose, children, bottomAccessory }: Props) {
   return (
     <RNModal
       transparent
@@ -34,6 +35,11 @@ export function ModalShell({ visible, onClose, children }: Props) {
             <View className="bg-surface rounded-xl p-4 w-[85%] max-w-[960px] max-h-[85%]" style={{ flexShrink: 1 }}>
               {children}
             </View>
+            {bottomAccessory ? (
+              <View pointerEvents="box-none" style={{ marginTop: "auto", marginBottom: 48, paddingTop: 16, width: "85%", alignItems: "center", flexShrink: 0 }}>
+                {bottomAccessory}
+              </View>
+            ) : null}
           </SafeAreaView>
         </View>
       </SafeAreaProvider>

@@ -26,7 +26,7 @@ export function AddPipeModal({ parentId, visible, onClose }: AddPipeModalProps) 
   );
 }
 
-function AddPipeForm({ parentId, onClose }: Omit<AddPipeModalProps, "visible">) {
+export function AddPipeForm({ parentId, onClose }: Omit<AddPipeModalProps, "visible">) {
   const { allPipes, childrenByParent, isLoading } = usePipeCatalog();
   const pipes = (allPipes ?? []).filter(pipe => !pipe.deletionJobId);
   const [draft, setDraft] = useState<AddPipeDraft>({
