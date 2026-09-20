@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { Id } from "@convex/_generated/dataModel";
 import type { TransactionModel } from "@features/transactions/data/transactions";
 import {
@@ -97,6 +97,33 @@ function ReconcileConsumer() {
 }
 
 describe("TransactionCacheProvider", () => {
+  it.each(["mergeHead", "append"] as const)("ignores a retired account's delayed %s write", async (operation) => {
+    auth.accountKey = "account-1";
+    let finishWrite!: () => void;
+    const cacheStorage: TransactionCacheStorage = {
+      read: async () => null,
+      write: () => new Promise<void>((resolve) => { finishWrite = resolve; }),
+      remove: async () => {},
+    };
+    function HeadConsumer() {
+      const cache = useTransactionCache();
+      return <>
+        <span data-testid="cache-account">{cache.cache?.accountKey}</span>
+        <button onClick={() => void cache[operation]("history", [], false)}>head</button>
+      </>;
+    }
+    const tree = <TransactionCacheProvider storage={cacheStorage}><HeadConsumer /></TransactionCacheProvider>;
+    const { rerender } = render(tree);
+    await waitFor(() => expect(screen.getByTestId("cache-account").textContent).toBe("account-1"));
+    fireEvent.click(screen.getByText("head"));
+    auth.accountKey = "account-2";
+    rerender(<TransactionCacheProvider storage={cacheStorage}><HeadConsumer /></TransactionCacheProvider>);
+    await waitFor(() => expect(screen.getByTestId("cache-account").textContent).toBe("account-2"));
+    await act(async () => finishWrite());
+    expect(screen.getByTestId("cache-account").textContent).toBe("account-2");
+    auth.accountKey = "account-1";
+  });
+
   it("exposes create-time cache synchronization", async () => {
     const cacheStorage = storage();
     render(

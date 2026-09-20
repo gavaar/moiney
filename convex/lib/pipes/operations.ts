@@ -8,6 +8,7 @@ import {
   type CronUnit,
 } from "../../../domain/scheduling";
 import { MAX_PIPES_PER_USER } from "../constants";
+import { ensurePipeCreationEvent } from "../pipeHistory";
 import { assertPipeNotDeleting } from "./delete";
 import { executePipeRule, reconcileAffectedPipeRoots } from "./pipes";
 
@@ -47,7 +48,7 @@ export async function addFeedOperation(
     throw new ConvexError({ code: "INVALID_INITIAL_PIPE_VALUE" });
   }
   await checkPipeLimit(ctx, userId);
-  return await ctx.db.insert("pipes", {
+  const pipeId = await ctx.db.insert("pipes", {
     userId,
     parentId: undefined,
     name: command.name,
@@ -62,6 +63,8 @@ export async function addFeedOperation(
     contributedFed,
     rule: "instant_settlement",
   });
+  await ensurePipeCreationEvent(ctx, (await ctx.db.get("pipes", pipeId))!);
+  return pipeId;
 }
 
 export type AddPipeCommand = {
@@ -112,6 +115,7 @@ export async function addPipeOperation(
     cronInterval: undefined,
   });
   await reconcileAffectedPipeRoots(ctx, [command.parentId]);
+  await ensurePipeCreationEvent(ctx, (await ctx.db.get("pipes", childId))!);
   return childId;
 }
 

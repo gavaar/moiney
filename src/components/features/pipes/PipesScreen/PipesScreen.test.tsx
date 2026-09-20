@@ -60,6 +60,9 @@ vi.mock("@features/pipes/FeedListScreen", () => ({
 vi.mock("@features/transactions/components/TransactionList", () => ({
   TransactionList: () => <div data-testid="latest-list" />,
 }));
+vi.mock("@features/transactions/history/mixed-history-feed", () => ({
+  MixedHistoryFeed: () => <div data-testid="latest-list" />,
+}));
 vi.mock("@ui/Icon", () => ({
   Icon: ({ name, testID }: any) => (
     <span data-testid={testID ?? "icon"} data-icon-name={name} />
@@ -67,6 +70,7 @@ vi.mock("@ui/Icon", () => ({
 }));
 vi.mock("@features/transactions/context/TransactionsContext", () => ({
   useTransactions: () => ({ transactions: [], isLoading: false }),
+  getSubtreePipeIds: (_children: unknown, selected: string | null) => selected ? [selected] : null,
 }));
 vi.mock("@features/transactions/cache/TransactionCacheContext", () => ({
   useTransactionCache: () => ({
@@ -101,6 +105,16 @@ vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
 import { PipesScreen } from "./PipesScreen";
 
 describe("Pipes Android back handling", () => {
+  it("opens the current ancestor path when navigating from a creation event", async () => {
+    mocks.allPipes = [
+      { id: "root", name: "Travel" },
+      { id: "child", name: "Madrid", parentId: "root" },
+    ];
+    const onPipeOpened = vi.fn();
+    render(<PipesScreen openPipeId="child" onPipeOpened={onPipeOpened} />);
+    await waitFor(() => expect(mocks.selectPipe).toHaveBeenCalledWith(["root", "child"]));
+    expect(onPipeOpened).toHaveBeenCalledOnce();
+  });
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.selectedPipePath = [];
@@ -173,41 +187,41 @@ describe("Pipes Android back handling", () => {
     expect(mocks.remove).toHaveBeenCalledTimes(2);
   });
 
-  it("collapses and expands the latest transactions section", async () => {
+  it("collapses and expands the latest history section", async () => {
     const user = userEvent.setup();
     render(<PipesScreen />);
 
     expect(screen.getByTestId("latest-list")).toBeDefined();
-    await user.click(screen.getByRole("button", { name: "Collapse latest transactions" }));
+    await user.click(screen.getByRole("button", { name: "Collapse latest history" }));
     await waitFor(() => expect(screen.queryByTestId("latest-list")).toBeNull());
-    await user.click(screen.getByRole("button", { name: "Expand latest transactions" }));
+    await user.click(screen.getByRole("button", { name: "Expand latest history" }));
     expect(screen.getByTestId("latest-list")).toBeDefined();
   });
 
-  it("minimizes the latest transactions section in tree view instead of removing it", async () => {
+  it("minimizes the latest history section in tree view instead of removing it", async () => {
     const user = userEvent.setup();
     render(<PipesScreen />);
 
     expect(screen.getByTestId("latest-list")).toBeDefined();
     expect(
-      screen.getByRole("button", { name: "Collapse latest transactions" }),
+      screen.getByRole("button", { name: "Collapse latest history" }),
     ).toBeDefined();
 
     await user.click(screen.getByTestId("mode-toggle"));
     await waitFor(() => expect(screen.queryByTestId("latest-list")).toBeNull());
     expect(
-      screen.getByRole("button", { name: "Expand latest transactions" }),
+      screen.getByRole("button", { name: "Expand latest history" }),
     ).toBeDefined();
 
     await user.click(screen.getByTestId("mode-toggle"));
     await waitFor(() => expect(screen.getByTestId("latest-list")).toBeDefined());
   });
 
-  it("renders the latest transactions control with an accessible chevron", () => {
+  it("renders the latest history control with an accessible chevron", () => {
     render(<PipesScreen />);
 
     expect(screen.getByRole("button", {
-      name: "Collapse latest transactions",
+      name: "Collapse latest history",
     })).toBeDefined();
     expect(screen.getByTestId("icon").getAttribute("data-icon-name")).toBe(
       "chevron-up",

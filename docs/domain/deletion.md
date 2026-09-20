@@ -19,6 +19,13 @@ controls orphaned transaction history:
 - Unchecked: preserve all transactions and embed deleted-role icons on them.
 - Preserved transactions are view-only.
 
+Retained [pipe creation events and archives](history-cache.md#d021-pipe-creation-and-archived-history)
+keep their ancestry and last presentation after physical pipe deletion. With the
+checkbox unchecked, the event is retained even without transactions. With it
+checked, retain an event only when involved transactions survive the deletion;
+otherwise remove it with the orphan history. Former ancestors provide archive
+visibility, not surviving monetary roles for transaction retention.
+
 Before deletion, compute the selected subtree's aggregate
 `fed + (pendingFedAdjustment ?? 0) - spent`, using the derived subtree totals,
 not only the selected pipe's local values. Credit that signed balance exactly

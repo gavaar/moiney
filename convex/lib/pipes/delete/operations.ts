@@ -7,6 +7,7 @@ import {
   type DeletionPipeState,
 } from "./transactionDisposition";
 import type { DeletionPhase, DeletionStartResult } from "./contracts";
+import { ensurePipeCreationEvent } from "../../pipeHistory";
 
 const PIPE_DELETION_TRANSACTION_BATCH_SIZE = 50;
 const DELETION_ROLES = ["from", "to", "paidFrom"] as const;
@@ -186,6 +187,27 @@ export async function processPipeDeletionOperation(
 
     const roleIndex = DELETION_ROLES.indexOf(role);
     const nextRole = DELETION_ROLES[roleIndex + 1];
+    if (!nextRole) {
+      // Finish each member's archive in this bounded batch, while all ancestors
+      // still exist. Do not backfill events only to discard them immediately.
+      const retained = job.deleteTransactions
+        ? await Promise.all(DELETION_ROLES.map((role) => roleQuery(ctx, role, pipeId).first()))
+        : [true];
+      if (retained.some(Boolean)) {
+        const pipe = await ctx.db.get("pipes", pipeId);
+        if (!pipe) throw new Error("Pipe deletion state is invalid");
+        const eventId = await ensurePipeCreationEvent(ctx, pipe);
+        const parent = pipe.parentId ? await ctx.db.get("pipes", pipe.parentId) : null;
+        await ctx.db.patch("pipeCreationEvents", eventId, {
+          name: pipe.name, icon: pipe.icon,
+          parentName: parent?.name, parentIcon: parent?.icon,
+        });
+      } else {
+        const event = await ctx.db.query("pipeCreationEvents")
+          .withIndex("by_pipeId", (q) => q.eq("pipeId", pipeId)).unique();
+        if (event) await ctx.db.delete("pipeCreationEvents", event._id);
+      }
+    }
     if (nextRole) {
       await ctx.db.patch("pipeDeletionJobs", job._id, {
         role: nextRole,
@@ -255,6 +277,11 @@ export async function processPipeDeletionOperation(
     const reconciled = recalculatePipes(remainingPipes);
 
     for (const pipeId of job.memberPipeIds) {
+      const event = await ctx.db.query("pipeCreationEvents")
+        .withIndex("by_pipeId", (q) => q.eq("pipeId", pipeId)).unique();
+      if (event) {
+        await ctx.db.patch("pipeCreationEvents", event._id, { deletedAt: Date.now() });
+      }
       await ctx.db.delete("pipes", pipeId);
     }
     for (const update of reconciled) {

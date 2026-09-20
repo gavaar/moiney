@@ -920,9 +920,12 @@ describe("addPipe", () => {
       take: vi.fn(async () =>
         indexName === "by_userId" ? [parentPipe] : [],
       ),
+      unique: vi.fn().mockResolvedValue(null),
     };
     const ctx = mockCtx();
-    ctx.db.get.mockResolvedValue(parentPipe);
+    ctx.db.get.mockImplementation(async (_table: string, id: string) => id === "child-1"
+      ? { ...parentPipe, _id: "child-1", _creationTime: 1000, parentId: "parent-1", name: "Child" }
+      : parentPipe);
     ctx.db.insert.mockResolvedValue("child-1");
     ctx.db.query.mockReturnValue(chain);
 

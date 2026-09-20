@@ -7,11 +7,8 @@ import {
   PipeCatalogProvider,
   usePipeCatalog,
 } from "@features/pipes/context/PipeCatalogContext";
-import { TransactionListWithHistory } from "@features/transactions/TransactionListWithHistory";
-import {
-  useTransactionHistory,
-  type TransactionHistoryFilters,
-} from "@features/transactions/cache/useTransactionHistory";
+import { MixedHistoryFeed } from "@features/transactions/history/mixed-history-feed";
+import type { TransactionHistoryFilters } from "@features/transactions/cache/useTransactionHistory";
 import { Button } from "@ui/Button";
 import { Input } from "@ui/Input";
 
@@ -33,15 +30,12 @@ function HistoryFilterControls({
   onApply: (filters: TransactionHistoryFilters) => void;
   initialFromDate: number;
 }) {
-  const { allPipes, childrenByParent } = usePipeCatalog();
+  const { allPipes } = usePipeCatalog();
   const [draft, setDraft] = useState<FilterDraft>(() => ({
     ...emptyDraft(),
     fromDate: new Date(initialFromDate),
   }));
   const [error, setError] = useState<string | null>(null);
-  const leafPipes = (allPipes ?? []).filter(
-    (pipe) => (childrenByParent.get(pipe.id)?.length ?? 0) === 0,
-  );
 
   const apply = () => {
     if (draft.fromDate && draft.toDate && draft.fromDate > draft.toDate) {
@@ -131,7 +125,7 @@ function HistoryFilterControls({
             multiple
             hideLabel
             label="Pipes"
-            items={leafPipes}
+            items={allPipes ?? []}
             renderItem={(pipe) => <Text className="text-text">{pipe.name}</Text>}
             value={draft.pipeIds}
             onChange={(pipeIds) =>
@@ -165,15 +159,6 @@ export function HistoryScreen() {
   const [filters, setFilters] = useState<TransactionHistoryFilters>(() => ({
     fromDate: initialFromDate,
   }));
-  const {
-    transactions,
-    error,
-    isLoading,
-    isRefreshing,
-    loadMore,
-    loadMoreStatus,
-    refresh,
-  } = useTransactionHistory(filters);
 
   return (
     <PipeCatalogProvider>
@@ -181,15 +166,7 @@ export function HistoryScreen() {
         <AppScreenHeader title="History" />
         <HistoryFilterControls onApply={setFilters} initialFromDate={initialFromDate} />
 
-        <TransactionListWithHistory
-          transactions={transactions}
-          error={error}
-          isLoading={isLoading}
-          onLoadMore={loadMore}
-          onRefresh={refresh}
-          refreshing={isRefreshing}
-          loadMoreStatus={loadMoreStatus}
-        />
+        <MixedHistoryFeed filters={filters} />
       </SafeAreaView>
     </PipeCatalogProvider>
   );

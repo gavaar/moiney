@@ -25,6 +25,7 @@ type TransactionCacheContextValue = {
   accountKey: string | null;
   isHydrating: boolean;
   cache: TransactionCache | null;
+  mutationVersion: number;
   read: (scope: string) => TransactionSnapshotRead;
   replace: (
     scope: string,
@@ -72,6 +73,7 @@ type Props = {
 
 export function TransactionCacheProvider({ children, storage = transactionCacheStorage }: Props) {
   const { accountKey } = useAuth();
+  const [mutationVersion, setMutationVersion] = useState(0);
   const previousStore = useRef<TransactionCacheStore | null>(null);
   const previousAccountKey = useRef<string | null>(null);
   const [state, setState] = useState<{
@@ -121,6 +123,7 @@ export function TransactionCacheProvider({ children, storage = transactionCacheS
     async (scope: string, transactions: TransactionModel[], hasMore: boolean) => {
       if (!state.store) return;
       const cache = await state.store.replace(scope, transactions, hasMore);
+      if (previousStore.current !== state.store) return;
       setState((current) => ({ ...current, cache }));
     },
     [state.store],
@@ -130,6 +133,7 @@ export function TransactionCacheProvider({ children, storage = transactionCacheS
     async (scope: string, transactions: TransactionModel[], hasMore: boolean) => {
       if (!state.store) return;
       const cache = await state.store.append(scope, transactions, hasMore);
+      if (previousStore.current !== state.store) return;
       setState((current) => ({ ...current, cache }));
     },
     [state.store],
@@ -139,7 +143,9 @@ export function TransactionCacheProvider({ children, storage = transactionCacheS
     async (transaction: TransactionModel) => {
       if (!state.store) return;
       const cache = await state.store.addTransaction(transaction);
+      if (previousStore.current !== state.store) return;
       setState((current) => ({ ...current, cache }));
+      setMutationVersion((version) => version + 1);
     },
     [state.store],
   );
@@ -148,7 +154,9 @@ export function TransactionCacheProvider({ children, storage = transactionCacheS
     async (transaction: TransactionModel) => {
       if (!state.store) return;
       const cache = await state.store.updateTransaction(transaction);
+      if (previousStore.current !== state.store) return;
       setState((current) => ({ ...current, cache }));
+      setMutationVersion((version) => version + 1);
     },
     [state.store],
   );
@@ -157,7 +165,9 @@ export function TransactionCacheProvider({ children, storage = transactionCacheS
     async (knownIds: readonly string[], transactions: TransactionModel[]) => {
       if (!state.store) return;
       const cache = await state.store.reconcileTransactions(knownIds, transactions);
+      if (previousStore.current !== state.store) return;
       setState((current) => ({ ...current, cache }));
+      setMutationVersion((version) => version + 1);
     },
     [state.store],
   );
@@ -166,6 +176,7 @@ export function TransactionCacheProvider({ children, storage = transactionCacheS
     async (scope: string, transactions: TransactionModel[], hasMore: boolean) => {
       if (!state.store) return;
       const cache = await state.store.mergeHead(scope, transactions, hasMore);
+      if (previousStore.current !== state.store) return;
       setState((current) => ({ ...current, cache }));
     },
     [state.store],
@@ -174,13 +185,17 @@ export function TransactionCacheProvider({ children, storage = transactionCacheS
   const clear = useCallback(async () => {
     if (!state.store) return;
     await state.store.clear();
+    if (previousStore.current !== state.store) return;
     setState((current) => ({ ...current, cache: state.store?.cache ?? null }));
+    setMutationVersion((version) => version + 1);
   }, [state.store]);
 
   const invalidateAll = useCallback(async () => {
     if (!state.store) return;
     const cache = await state.store.invalidateAll();
+    if (previousStore.current !== state.store) return;
     setState((current) => ({ ...current, cache }));
+    setMutationVersion((version) => version + 1);
   }, [state.store]);
 
   const value = useMemo(
@@ -188,6 +203,7 @@ export function TransactionCacheProvider({ children, storage = transactionCacheS
       accountKey: state.accountKey,
       isHydrating: state.isHydrating,
       cache: state.cache,
+      mutationVersion,
       read,
       replace,
       append,
@@ -202,6 +218,7 @@ export function TransactionCacheProvider({ children, storage = transactionCacheS
       state.accountKey,
       state.isHydrating,
       state.cache,
+      mutationVersion,
       read,
       replace,
       append,

@@ -19,6 +19,12 @@ vi.mock("@features/transactions/TransactionListWithHistory", () => ({
 vi.mock("@features/transactions/cache/useTransactionHistory", () => ({
   useTransactionHistory: mocks.useTransactionHistory,
 }));
+vi.mock("@features/transactions/history/mixed-history-feed", () => ({
+  MixedHistoryFeed: ({ filters }: any) => {
+    mocks.useTransactionHistory(filters);
+    return <div data-testid="history-list" />;
+  },
+}));
 vi.mock("@features/pipes/context/PipeCatalogContext", () => {
   const allPipes = [
     { id: "parent", name: "Household", icon: "home" },
@@ -92,11 +98,11 @@ describe("HistoryScreen filters", () => {
     });
   });
 
-  it("applies draft filters using only selectable leaf pipes and clears them", async () => {
+  it("offers parents for archived descendant history and applies and clears draft filters", async () => {
     const user = userEvent.setup();
     render(<HistoryScreen />);
 
-    expect(screen.queryByRole("button", { name: "Household" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Household" })).toBeTruthy();
     await user.type(screen.getByRole("textbox", { name: "Title contains" }), " Coffee ");
     await user.click(screen.getByRole("button", { name: "From date" }));
     await user.click(screen.getByRole("button", { name: "To date" }));

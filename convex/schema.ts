@@ -2,6 +2,20 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
+  pipeCreationEvents: defineTable({
+    userId: v.id("users"),
+    pipeId: v.id("pipes"),
+    ancestorIds: v.array(v.id("pipes")),
+    occurredAt: v.number(),
+    name: v.string(),
+    icon: v.string(),
+    pipeType: v.union(v.literal("feed"), v.literal("boiler"), v.literal("pipe")),
+    parentName: v.optional(v.string()),
+    parentIcon: v.optional(v.string()),
+    deletedAt: v.optional(v.number()),
+  })
+    .index("by_pipeId", ["pipeId"])
+    .index("by_userId_occurredAt", ["userId", "occurredAt"]),
   transactions: defineTable({
     title: v.string(),
     value: v.number(),

@@ -8,21 +8,37 @@ import { Icon } from "@ui/Icon";
 import { colors } from "@/lib/styles";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
-import { useTransactions } from "@features/transactions/context/TransactionsContext";
+import { getSubtreePipeIds } from "@features/transactions/context/TransactionsContext";
 import { InnerPipesScreen } from "@features/pipes/InnerPipesScreen";
 import { PipeTreeView } from "@features/pipes/PipeTreeView";
 import { FeedListScreen } from "@features/pipes/FeedListScreen";
 import { orderFeedsByTreeUsage } from "@features/pipes/FeedListScreen/feedOrdering";
-import { TransactionListWithHistory } from "@features/transactions/TransactionListWithHistory";
+import { MixedHistoryFeed } from "@features/transactions/history/mixed-history-feed";
 import { useTransactionCache } from "@features/transactions/cache/TransactionCacheContext";
 import { HISTORY_SCOPE } from "@features/transactions/cache/transactionSnapshot";
 import { useTransactionHistory } from "@features/transactions/cache/useTransactionHistory";
 
-export function PipesScreen() {
+export function PipesScreen({ openPipeId, onPipeOpened }: { openPipeId?: string; onPipeOpened?: () => void } = {}) {
   const [treeMode, setTreeMode] = useState(false);
   const [latestExpanded, setLatestExpanded] = useState(true);
   const { selectedName, selectedPipePath, selectPipe, deselectPipe } = usePipeSelection();
-  const { allPipes, feeds, isLoading } = usePipeCatalog();
+  const { allPipes, feeds, isLoading, childrenByParent } = usePipeCatalog();
+  const pipeIds = useMemo(() => getSubtreePipeIds(childrenByParent ?? new Map(), selectedPipePath.at(-1) ?? null), [childrenByParent, selectedPipePath]);
+  useEffect(() => {
+    if (!openPipeId || !allPipes) return;
+    const path: NonNullable<typeof allPipes>[number]["id"][] = [];
+    let pipe = allPipes.find((candidate) => candidate.id === openPipeId);
+    while (pipe && !path.includes(pipe.id)) {
+      path.unshift(pipe.id);
+      pipe = pipe.parentId ? allPipes.find((candidate) => candidate.id === pipe!.parentId) : undefined;
+    }
+    if (path.length > 0) {
+      selectPipe(path);
+      setTreeMode(false);
+      setLatestExpanded(true);
+    }
+    onPipeOpened?.();
+  }, [allPipes, openPipeId, onPipeOpened, selectPipe]);
   const { cache, read } = useTransactionCache();
   const historySnapshot = useMemo(() => read(HISTORY_SCOPE), [cache, read]);
   const { transactions: historyTransactions } = useTransactionHistory(
@@ -41,13 +57,6 @@ export function PipesScreen() {
       ),
     [allPipes, feeds, historySnapshot.transactions, historyTransactions],
   );
-  const {
-    transactions,
-    error: transactionError,
-    isLoading: transactionLoading,
-    pipeIds,
-    refresh: refreshTransactions,
-  } = useTransactions();
 
   useEffect(() => {
     setLatestExpanded(!treeMode);
@@ -119,15 +128,15 @@ export function PipesScreen() {
           accessibilityRole="button"
           accessibilityLabel={
             latestExpanded
-              ? "Collapse latest transactions"
-              : "Expand latest transactions"
+              ? "Collapse latest history"
+              : "Expand latest history"
           }
           accessibilityState={{ expanded: latestExpanded }}
           onPress={() => setLatestExpanded((v) => !v)}
           className="flex-row items-center justify-between bg-surface px-3 py-2 my-2 rounded-md"
         >
           <Text className="text-text font-semibold text-base">
-            Latest transactions
+            Latest history
           </Text>
           <View
             style={{
@@ -139,14 +148,7 @@ export function PipesScreen() {
         </Pressable>
         {latestExpanded ? (
           <View className="flex-1">
-            <TransactionListWithHistory
-              transactions={transactions}
-              error={transactionError}
-              isLoading={transactionLoading}
-              onRefresh={refreshTransactions}
-              refreshing={transactionLoading && transactions !== undefined}
-              visiblePipeIds={pipeIds ?? undefined}
-            />
+            <MixedHistoryFeed recent filters={pipeIds ? { pipeIds } : {}} />
           </View>
         ) : null}
       </View>

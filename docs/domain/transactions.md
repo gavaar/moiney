@@ -43,6 +43,10 @@ Groups containing preserved history can expand; repeat eligibility and
 [view-only restrictions](deletion.md#d002-pipe-deletion-and-transaction-history)
 apply to individual rows.
 
+History also contains non-accounting pipe creation events and deleted-pipe
+archives. Their membership, overlapping counts, Spent totals, and ancestry
+filtering are defined in [D021](history-cache.md#d021-pipe-creation-and-archived-history).
+
 ## D010: Pay-by-transfer Presentation Eligibility
 
 Status: Implemented
