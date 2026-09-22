@@ -115,16 +115,22 @@ function buildAccountingPatch(
 }
 
 function countDueOccurrences(pipe: Doc<"pipes">, now: number): number {
-  return pipe.rule === "cron" &&
-    pipe.cronNextDate != null &&
-    pipe.cronInterval
-    ? countDueCronOccurrences(
-        pipe.cronNextDate,
-        pipe.cronInterval.interval,
-        pipe.cronInterval.unit,
-        now,
-      )
-    : 0;
+  if (
+    pipe.rule !== "cron" ||
+    pipe.cronNextDate == null ||
+    !Number.isFinite(pipe.cronNextDate) ||
+    !pipe.cronInterval ||
+    !Number.isSafeInteger(pipe.cronInterval.interval) ||
+    pipe.cronInterval.interval <= 0
+  ) {
+    return 0;
+  }
+  return countDueCronOccurrences(
+    pipe.cronNextDate,
+    pipe.cronInterval.interval,
+    pipe.cronInterval.unit,
+    now,
+  );
 }
 
 function calculateUserCronPatches(
@@ -234,6 +240,7 @@ export async function runDueCronRulesOperation(
   ctx: MutationCtx,
   args: RunDueCronRulesArgs,
   scheduleContinuation: ScheduleCronContinuation,
+  onComplete?: (ctx: MutationCtx, now: number) => Promise<unknown>,
 ): Promise<null> {
   const now = args.now ?? Date.now();
   const { candidates, cursor } = await loadCronCandidates(ctx, args, now);
@@ -281,6 +288,8 @@ export async function runDueCronRulesOperation(
       ...(cursor !== undefined ? { cursor } : {}),
       ...(deferredPipeIds.length > 0 ? { pendingPipeIds: deferredPipeIds } : {}),
     });
+  } else {
+    await onComplete?.(ctx, now);
   }
 
   return null;

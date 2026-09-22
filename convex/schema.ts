@@ -1,5 +1,6 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { pipeRuleValidator } from "./lib/pipes/ruleConfig";
 
 export default defineSchema({
   pipeCreationEvents: defineTable({
@@ -150,13 +151,7 @@ export default defineSchema({
     ),
     contributedFed: v.optional(v.number()),
     deletionJobId: v.optional(v.id("pipeDeletionJobs")),
-    rule: v.optional(
-      v.union(
-        v.literal("spend_overflow"),
-        v.literal("instant_settlement"),
-        v.literal("cron"),
-      ),
-    ),
+    rule: v.optional(pipeRuleValidator),
     // rule options
     capUpdateValue: v.optional(v.number()),
     cronNextDate: v.optional(v.number()),

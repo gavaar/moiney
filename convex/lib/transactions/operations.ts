@@ -514,32 +514,33 @@ export async function editTransactionOperation(
     currentKind === "feed" ? "feed" : "transaction",
   );
 
-  if (structureChanged) {
-    if (currentStructure.type === "transfer") {
-      const destination = await getPipe(currentStructure.to);
-      if (!destination) throw new Error("Pipe not found");
-      if (destination.parentId) {
-        throw new ConvexError({ code: "TRANSFER_DESTINATION_NOT_ROOT" });
-      }
-      const sourceRoot = await resolveTopMostAncestor(
-        ctx,
-        currentStructure.from,
-        undefined,
-        getPipe,
-      );
-      if (sourceRoot === currentStructure.to) {
-        throw new ConvexError({ code: "TRANSFER_SAME_TREE" });
-      }
-      const sourceChildren = await ctx.db
-        .query("pipes")
-        .withIndex("by_parentId", (q) => q.eq("parentId", currentStructure.from))
-        .take(1);
-      if (sourceChildren.length > 0) {
-        throw new ConvexError({ code: "TRANSFER_SOURCE_NOT_LEAF" });
-      }
-    } else if (currentStructure.type === "payByTransfer") {
-      const paidFromPipe = await getPipe(currentStructure.paidFrom);
-      if (!paidFromPipe) throw new Error("Pipe not found");
+  const accountingChanged = structureChanged || valueDiff !== 0;
+  if (accountingChanged && currentStructure.type === "transfer") {
+    const destination = await getPipe(currentStructure.to);
+    if (!destination) throw new Error("Pipe not found");
+    if (destination.parentId) {
+      throw new ConvexError({ code: "TRANSFER_DESTINATION_NOT_ROOT" });
+    }
+    const sourceRoot = await resolveTopMostAncestor(
+      ctx,
+      currentStructure.from,
+      undefined,
+      getPipe,
+    );
+    if (sourceRoot === currentStructure.to) {
+      throw new ConvexError({ code: "TRANSFER_SAME_TREE" });
+    }
+    const sourceChildren = await ctx.db
+      .query("pipes")
+      .withIndex("by_parentId", (q) => q.eq("parentId", currentStructure.from))
+      .take(1);
+    if (sourceChildren.length > 0) {
+      throw new ConvexError({ code: "TRANSFER_SOURCE_NOT_LEAF" });
+    }
+  } else if (accountingChanged && currentStructure.type === "payByTransfer") {
+    const paidFromPipe = await getPipe(currentStructure.paidFrom);
+    if (!paidFromPipe) throw new Error("Pipe not found");
+    if (structureChanged) {
       const [sourceRoot, paidFromRoot] = await Promise.all([
         resolveTopMostAncestor(ctx, currentStructure.from, undefined, getPipe),
         resolveTopMostAncestor(
@@ -559,32 +560,34 @@ export async function editTransactionOperation(
       if (sourceChildren.length > 0) {
         throw new Error("Transaction pipe must not have children");
       }
-      if (command.value > 0) {
-        if (paidFromPipe.parentId) {
-          throw new Error(
-            "Refund destination must be a root outside the transaction tree",
-          );
-        }
-      } else {
-        const paidFromChildren = await ctx.db
-          .query("pipes")
-          .withIndex("by_parentId", (q) =>
-            q.eq("parentId", currentStructure.paidFrom),
-          )
-          .take(1);
-        if (paidFromChildren.length > 0) {
-          throw new Error("Paid from pipe must not have children");
-        }
+    }
+    if (command.value > 0) {
+      if (paidFromPipe.parentId) {
+        throw new Error(
+          "Refund destination must be a root outside the transaction tree",
+        );
+      }
+    } else {
+      const paidFromChildren = await ctx.db
+        .query("pipes")
+        .withIndex("by_parentId", (q) =>
+          q.eq("parentId", currentStructure.paidFrom),
+        )
+        .take(1);
+      if (paidFromChildren.length > 0) {
+        throw new Error("Paid from pipe must not have children");
       }
     }
+  }
 
+  if (accountingChanged) {
     const editPlan = planTransactionEdit(
       previousStructure,
       transaction.value,
       currentStructure,
       command.value,
     );
-    for (const delta of editPlan) {
+    for (const delta of editPlan.deltas) {
       const pipe = await getPipe(delta.pipeId);
       if (!pipe) throw new Error("Pipe not found");
       const patch: {
@@ -618,163 +621,9 @@ export async function editTransactionOperation(
     }
     await reconcileAffectedPipeRoots(
       ctx,
-      editPlan.map((delta) => delta.pipeId),
+      editPlan.affectedPipeIds,
       getPipe,
     );
-  } else if (valueDiff !== 0) {
-    if (transaction.from && transaction.paidFrom) {
-      const fromPipe = await getPipe(transaction.from);
-      const paidFromPipe = await getPipe(transaction.paidFrom);
-      if (!fromPipe || !paidFromPipe) throw new Error("Pipe not found");
-
-      if (command.value > 0) {
-        if (paidFromPipe.parentId) {
-          throw new Error(
-            "Refund destination must be a root outside the transaction tree",
-          );
-        }
-      } else {
-        const paidFromChildren = await ctx.db
-          .query("pipes")
-          .withIndex("by_parentId", (q) =>
-            q.eq("parentId", transaction.paidFrom!),
-          )
-          .take(1);
-        if (paidFromChildren.length > 0) {
-          throw new Error("Paid from pipe must not have children");
-        }
-      }
-
-      const { from, paidFrom } = transactionAccountingEffects(
-        { from: transaction.from, paidFrom: transaction.paidFrom },
-        valueDiff,
-      );
-      const newSpent = fromPipe.spent + from.spentDelta;
-      await ctx.db.patch("pipes", transaction.from, {
-        spent: newSpent,
-        pendingFedAdjustment:
-          (fromPipe.pendingFedAdjustment ?? 0) + from.fedDelta,
-      });
-      await ctx.db.patch("pipes", transaction.paidFrom, {
-        fed: paidFromPipe.fed + paidFrom.fedDelta,
-      });
-      if (
-        shouldTriggerPipeRule(
-          fromPipe.rule,
-          from.spentDelta,
-          newSpent,
-          fromPipe.capacity,
-        )
-      ) {
-        await executePipeRule(ctx, transaction.from);
-      }
-      await reconcileAffectedPipeRoots(
-        ctx,
-        [transaction.from, transaction.paidFrom],
-        getPipe,
-      );
-    } else if (transaction.from && transaction.to) {
-      const source = await getPipe(transaction.from);
-      const destination = await getPipe(transaction.to);
-      if (!source || !destination) throw new Error("Pipe not found");
-      if (destination.parentId) {
-        throw new ConvexError({ code: "TRANSFER_DESTINATION_NOT_ROOT" });
-      }
-      const sourceRoot = await resolveTopMostAncestor(
-        ctx,
-        transaction.from,
-        undefined,
-        getPipe,
-      );
-      if (sourceRoot === transaction.to) {
-        throw new ConvexError({ code: "TRANSFER_SAME_TREE" });
-      }
-      const sourceChildren = await ctx.db
-        .query("pipes")
-        .withIndex("by_parentId", (q) => q.eq("parentId", transaction.from!))
-        .take(1);
-      if (sourceChildren.length > 0) {
-        throw new ConvexError({ code: "TRANSFER_SOURCE_NOT_LEAF" });
-      }
-
-      const { from, to } = transactionAccountingEffects(
-        { from: transaction.from, to: transaction.to },
-        valueDiff,
-      );
-      await ctx.db.patch("pipes", transaction.from, {
-        fed: source.fed + from.fedDelta,
-      });
-      await ctx.db.patch("pipes", transaction.to, {
-        fed: destination.fed + to.fedDelta,
-        ...(destination.sourceType === "boiler"
-          ? {
-              contributedFed:
-                (destination.contributedFed ?? 0) + to.fedDelta,
-            }
-          : {}),
-      });
-      if (
-        shouldTriggerPipeRule(
-          source.rule,
-          from.spentDelta,
-          source.spent,
-          source.capacity,
-        )
-      ) {
-        await executePipeRule(ctx, transaction.from);
-      }
-      await reconcileAffectedPipeRoots(
-        ctx,
-        [transaction.from, transaction.to],
-        getPipe,
-      );
-    } else if (transaction.from) {
-      const pipe = await getPipe(transaction.from);
-      if (!pipe) throw new Error("Pipe not found");
-
-      const { from } = transactionAccountingEffects(
-        { from: transaction.from },
-        valueDiff,
-      );
-      const newSpent = pipe.spent + from.spentDelta;
-      await ctx.db.patch("pipes", transaction.from, { spent: newSpent });
-      if (
-        shouldTriggerPipeRule(
-          pipe.rule,
-          from.spentDelta,
-          newSpent,
-          pipe.capacity,
-        )
-      ) {
-        await executePipeRule(ctx, transaction.from);
-      }
-      await reconcileAffectedPipeRoots(ctx, [transaction.from], getPipe);
-    } else if (transaction.to) {
-      const pipe = await getPipe(transaction.to);
-      if (!pipe) throw new Error("Pipe not found");
-
-      const { to } = transactionAccountingEffects(
-        { to: transaction.to },
-        valueDiff,
-      );
-      await ctx.db.patch("pipes", transaction.to, {
-        fed: pipe.fed + to.fedDelta,
-        ...(pipe.sourceType === "boiler"
-          ? { contributedFed: (pipe.contributedFed ?? 0) + valueDiff }
-          : {}),
-      });
-      if (
-        shouldTriggerPipeRule(
-          pipe.rule,
-          to.spentDelta,
-          pipe.spent,
-          pipe.capacity,
-        )
-      ) {
-        await executePipeRule(ctx, transaction.to);
-      }
-      await reconcileAffectedPipeRoots(ctx, [transaction.to], getPipe);
-    }
   }
 
   const hasCorrection =

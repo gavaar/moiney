@@ -3,7 +3,7 @@
   "model": "anthropic/claude-sonnet-4-6",
   "instructions": ["AGENTS.md"],
   "skills": {
-    "paths": [".opencode/skills", ".agents/skills"]
+    "paths": [".agents/skills"]
   },
   "references": {
     "convex": {

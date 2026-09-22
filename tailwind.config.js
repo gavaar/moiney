@@ -5,7 +5,6 @@ module.exports = {
   content: [
     "./src/app/**/*.{js,jsx,ts,tsx}",
     "./src/components/**/*.{js,jsx,ts,tsx}",
-    "./src/features/**/*.{js,jsx,ts,tsx}",
     "./src/lib/**/*.{js,jsx,ts,tsx}",
   ],
   darkMode: "class",

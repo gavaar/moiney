@@ -7,6 +7,9 @@ Vitest. `package.json` owns dependency versions and available scripts.
 
 Read only the guides relevant to the task before editing; do not preload all
 references. Follow cross-links when the change touches their contracts.
+Repository instructions, installed dependency versions, and existing project
+architecture override generic skill examples. Adapt package-manager commands to
+the scripts in `package.json`.
 
 | Task | Read |
 | --- | --- |
@@ -19,7 +22,9 @@ references. Follow cross-links when the change touches their contracts.
 | Authentication, sessions, or recovery | `docs/domain/auth.md` |
 | Transaction caching, history loading, or usage ranking | `docs/domain/history-cache.md` |
 | Pipe statistics or monthly summaries | `docs/domain/reporting.md` |
+| Feature UI, forms, inputs, modals, or naming | `docs/ui.md` |
 | Input dispatcher or variant changes | `docs/input.md` |
+| Finding a canonical implementation or test seam | `docs/agents/reference-map.md` and `docs/agents/testing.md` |
 | Decision status or finding a domain contract | `docs/domain-decisions.md` |
 
 Load the relevant project skill for Convex, Expo, routing, migrations, auth, or
@@ -30,7 +35,7 @@ performance work. Skills live under `.agents/skills/`.
 - `bun start` / `bun run dev`: Expo; `bun run ios`, `bun run android`, `bun run web`: platform launch.
 - `bun run convex:dev`: backend development; `bun run convex:deploy`: verify then deploy.
 - `bun run test`: Vitest suite; do not use `bun test`.
-- `bun run typecheck`: TypeScript; `bun run verify`: full tests and type checking.
+- `bun run lint`: ESLint; `bun run typecheck`: TypeScript; `bun run verify`: lint, tests, and type checking.
 
 ## Change Safety
 
@@ -48,6 +53,7 @@ performance work. Skills live under `.agents/skills/`.
 - `src/lib/` owns cross-feature infrastructure; root `domain/` owns framework-independent calculations; `convex/` owns backend I/O and orchestration.
 - Never manually edit `convex/_generated/`.
 - Normalize backend data at feature boundaries; avoid casts scattered through rendering.
+- Feature code may call generated Convex hooks directly for simple operations. Add a feature-owned hook or adapter only when it hides normalization, orchestration, or reusable policy.
 - Keep pure calculations separate from React state and database orchestration.
 - Prefer modules that hide invariants, not pass-through wrappers; split by responsibility and state ownership, not line count.
 - Keep contexts narrow, scoped to consumers, and fail loudly outside providers. Make ownership clear rather than adding generic dumping grounds.
@@ -70,8 +76,6 @@ performance work. Skills live under `.agents/skills/`.
 - Virtualize collections that can grow materially; scope subscriptions and listeners to focus when hidden tabs should be inactive.
 - Do not add state libraries, caches, or memoization without a demonstrated bottleneck.
 - Test platform-sensitive navigation, keyboard, modals, and accessibility with native-oriented tools where practical.
-- Every modal dismisses on backdrop tap. No close buttons, close icons, or other dismissal-only controls inside modal content; domain actions remain allowed.
-- Application code uses `src/components/ui/Input/Input.tsx`, not direct variant imports. Preserve its public contract unless an approved refactor replaces it completely.
 
 ## Documentation Discipline
 

@@ -41,3 +41,4 @@ Implemented. In particular, D017 remains In progress.
 | D019 | [Feed list tree-usage ordering](domain/history-cache.md#d019-feed-list-tree-usage-ordering) | Implemented |
 | D020 | [Childless root settlement default](domain/accounting.md#d020-childless-root-settlement-default) | Implemented |
 | D021 | [Pipe creation and archived history](domain/history-cache.md#d021-pipe-creation-and-archived-history) | In progress |
+| D022 | [Self-destruct rules](domain/accounting.md#d022-self-destruct-rules) | Implemented |

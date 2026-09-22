@@ -31,6 +31,16 @@ import { RulesIcon } from "./RulesIcon";
 const pId = (id: string) => id as Id<"pipes">;
 
 describe("RulesIcon", () => {
+  it("shows a red bomb with a half-filled red countdown ring regardless of funding", () => {
+    vi.useFakeTimers();
+    const end = Date.UTC(2026, 8, 21, 5);
+    vi.setSystemTime(end - 6 * 3600000);
+    render(<RulesIcon pipeId={pId("pipe-1")} rule="self_destruct" fed={100} capacity={100}
+      cronNextDate={end} cronInterval={{ interval: 0.5, unit: "days" }} />);
+    expect(screen.getByTestId("icon").getAttribute("data-name")).toBe("bomb");
+    expect(screen.getByTestId("icon").getAttribute("data-color")).toBe("#C05959");
+    expect(lastRingProps).toMatchObject({ progress: 0.5, color: "#C05959" });
+  });
   beforeEach(() => {
     vi.clearAllMocks();
     lastRuleModalProps = undefined;
@@ -130,6 +140,26 @@ describe("RulesIcon", () => {
     expect(icon.getAttribute("data-name")).toBe("pipe");
     expect(icon.getAttribute("data-color")).toBe("#9CA3AF");
     expect(screen.queryByTestId("rule-modal")).toBeNull();
+  });
+
+  it("keeps an overdue self-destruct indicator visible but non-interactive while deletion is pending", () => {
+    const end = Date.UTC(2026, 8, 21, 5);
+    render(
+      <RulesIcon
+        pipeId={pId("pipe-1")}
+        rule="self_destruct"
+        fed={0}
+        capacity={100}
+        cronNextDate={end}
+        cronInterval={{ interval: 1, unit: "days" }}
+        now={end + 1}
+        disabled
+      />,
+    );
+
+    expect(screen.getByTestId("icon").getAttribute("data-name")).toBe("bomb");
+    expect(lastRingProps).toMatchObject({ progress: 1, color: "#C05959" });
+    expect(screen.queryByRole("button")).toBeNull();
   });
 
   it("wraps the disabled placeholder in the same-sized box as the enabled icon", () => {

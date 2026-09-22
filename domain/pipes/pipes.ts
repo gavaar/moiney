@@ -1,11 +1,12 @@
 import { computeCronNextDate, type CronUnit } from "../scheduling";
+import type { PipeRule } from "./rules";
 
 export type PipeRuleState = {
   fed: number;
   spent: number;
   pendingFedAdjustment?: number;
   capacity: number;
-  rule?: "spend_overflow" | "instant_settlement" | "cron";
+  rule?: PipeRule;
   capUpdateValue?: number;
   cronNextDate?: number;
   cronInterval?: { interval: number; unit: CronUnit };
@@ -23,6 +24,7 @@ export function calculatePipeRulePatch(
   pipe: PipeRuleState,
   opts: { now: number; capUpdateValue?: number },
 ): PipeRulePatch {
+  if (pipe.rule === "self_destruct") throw new Error("Self-destruct must use pipe deletion");
   const patch: PipeRulePatch = {
     fed: pipe.fed + (pipe.pendingFedAdjustment ?? 0) - pipe.spent,
     spent: 0,

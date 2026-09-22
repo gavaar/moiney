@@ -39,6 +39,13 @@ credits the planned balance exactly once. Title-usage cleanup remains owned by
 the existing stale-usage maintenance job. Finalization follows the
 [childless-root default](accounting.md#d020-childless-root-settlement-default).
 
+A new deletion cannot start in an accounting tree with an active deletion,
+including a frozen sibling branch: finalization may redistribute liquidity and
+invalidate another job's planned balance. Retrying the same job remains
+idempotent, and unrelated accounting trees remain independently deletable.
+Scheduled [self-destruct](accounting.md#d022-self-destruct-rules) uses this same
+deletion boundary and always preserves transaction history.
+
 The freeze blocks writes involving the selected subtree. The following
 operations remain allowed in unrelated trees, with the stated scope:
 

@@ -33,6 +33,7 @@ function mockDb() {
 function mockCtx() {
   return {
     db: mockDb(),
+    scheduler: { runAfter: vi.fn() },
     auth: { getUserIdentity: vi.fn().mockResolvedValue({ subject: "user-1" }) },
   } as any;
 }

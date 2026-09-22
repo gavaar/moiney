@@ -1,6 +1,7 @@
 import type { Doc, Id } from "@convex/_generated/dataModel";
 
-export type PipeRule = "spend_overflow" | "instant_settlement" | "cron";
+import type { PipeRule } from "@domain/pipes/rules";
+export type { PipeRule } from "@domain/pipes/rules";
 export type CronInterval = {
   interval: number;
   unit: "days" | "months" | "years";

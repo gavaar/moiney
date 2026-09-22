@@ -24,12 +24,19 @@ Status: Implemented
 This section owns execution; [D008 presentation statistics](reporting.md#d008-presentation-statistics)
 owns the derived pipe-detail display.
 
+Child-pipe creation offers owner, details, capacity, and rule steps, defaulting to
+no rule. The pipe, selected rule, and creation event are persisted atomically;
+creation and editing share rule validation and schedule/capacity calculations.
+Adding a child clears the owner's rule and all its options, including scheduled
+deletion. The creation wizard explains that rules must be added to children.
+Root creation retains the [D020 default](#d020-childless-root-settlement-default).
+
 `instant_settlement` and `spend_overflow` accept the same optional
 `capUpdateValue` as cron rules. Without it, execution consolidates
 `fed = fed + (pendingFedAdjustment ?? 0) - spent`, clears `spent` and any pending
 adjustment, and leaves `capacity` unchanged.
 
-With `capUpdateValue`, every rule kind, including cron, applies:
+With `capUpdateValue`, settlement rules, including cron, apply:
 
 - `leftoverFed = fed + (pendingFedAdjustment ?? 0) - spent`
 - `capacity = capacity - spent + capUpdateValue`
@@ -140,3 +147,40 @@ first child settles the former leaf under [D012](#d012-pay-by-transfer-liquidity
 and clears its rule and rule options. Deletion finalization restores
 `instant_settlement` when deleting the final child makes a root childless.
 Nested pipes do not receive this topology-driven default.
+
+## D022: Self-destruct Rules
+
+Status: Implemented
+
+Self-destruct is a rule for childless, non-root pipes. It tracks spending without
+automatic settlement until scheduled deletion. It has a deletion date, no
+capacity update, and no manual rule-execution action. The server normalizes the
+selected UTC date to 05:00 UTC and requires that instant to be strictly in the
+future when configuring or changing the rule.
+
+The existing schedule fields have rule-specific meanings:
+
+- For `cron`, `cronNextDate` is the next settlement occurrence and `cronInterval`
+  is the recurring schedule, configured with a positive whole-number interval.
+- For `self_destruct`, `cronNextDate` is the deletion deadline. `cronInterval`
+  stores the original countdown duration in fractional days, calculated from
+  the deadline and server time when configured. It never drives recurrence.
+
+Changing the deadline restarts the countdown. Saving an unchanged future
+deadline preserves its interval. Removing or replacing the rule clears its old
+options; adding children cancels the owner's self-destruct deadline as part of
+the normal rule reset.
+
+The rule icon is a red MaterialCommunityIcons `bomb` with a red progress ring.
+Progress is elapsed time over the stored duration, clamped to zero through one;
+it stays full while an overdue deletion is pending. One focused list clock
+updates its timed icons once per minute.
+
+The daily 06:00 UTC rule workflow processes recurring settlement before scanning
+due self-destruct deadlines through the existing rule/date index. Due pipes enter
+the [D002 deletion job](deletion.md#d002-pipe-deletion-and-transaction-history)
+with history preservation enabled. Delayed executions run after the deadline.
+Automatic deletions are serialized per account and resume after deletion
+completion, preserving planned balances without busy-retrying frozen trees.
+The retained creation event becomes the ordinary deleted-pipe archive described
+by [D021](history-cache.md#d021-pipe-creation-and-archived-history).

@@ -2,6 +2,19 @@ import { describe, expect, it } from "vitest";
 import { planTransactionEdit } from "./edit";
 
 describe("planTransactionEdit", () => {
+  it("keeps unchanged roles in the affected scope when their net delta is zero", () => {
+    expect(
+      planTransactionEdit(
+        { type: "transfer", from: "source", to: "old" },
+        -1000,
+        { type: "transfer", from: "source", to: "next" },
+        -1000,
+      ),
+    ).toMatchObject({
+      affectedPipeIds: ["source", "old", "next"],
+    });
+  });
+
   it("converts an ordinary expense to a transfer with one net delta per pipe", () => {
     expect(
       planTransactionEdit(
@@ -9,7 +22,7 @@ describe("planTransactionEdit", () => {
         -1000,
         { type: "transfer", from: "food", to: "savings" },
         -1000,
-      ),
+      ).deltas,
     ).toEqual([
       {
         pipeId: "food",
@@ -35,7 +48,7 @@ describe("planTransactionEdit", () => {
         -1000,
         { type: "payByTransfer", from: "food", paidFrom: "bank" },
         -1000,
-      ),
+      ).deltas,
     ).toEqual([
       {
         pipeId: "food",
@@ -61,7 +74,7 @@ describe("planTransactionEdit", () => {
         -1000,
         { type: "transfer", from: "source", to: "next" },
         -1000,
-      ),
+      ).deltas,
     ).toEqual([
       {
         pipeId: "old",
@@ -87,7 +100,7 @@ describe("planTransactionEdit", () => {
         -1000,
         { type: "expense", from: "food" },
         -1500,
-      ),
+      ).deltas,
     ).toEqual([
       {
         pipeId: "food",
@@ -100,7 +113,7 @@ describe("planTransactionEdit", () => {
   });
 
   it("conserves signed liquidity and pending adjustments for refunds", () => {
-    const deltas = planTransactionEdit(
+    const { deltas } = planTransactionEdit(
       { type: "expense", from: "food" },
       1000,
       { type: "payByTransfer", from: "food", paidFrom: "bank" },

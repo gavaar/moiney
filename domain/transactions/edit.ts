@@ -9,6 +9,11 @@ export type TransactionEditDelta<PipeId> = {
   contributedFedDelta: number;
 };
 
+export type TransactionEditPlan<PipeId> = {
+  deltas: TransactionEditDelta<PipeId>[];
+  affectedPipeIds: PipeId[];
+};
+
 function accountingDeltas<PipeId extends string>(
   structure: TransactionStructure<PipeId>,
   value: number,
@@ -85,8 +90,9 @@ export function planTransactionEdit<PipeId extends string>(
   previousValue: number,
   currentStructure: TransactionStructure<PipeId>,
   currentValue: number,
-): TransactionEditDelta<PipeId>[] {
+): TransactionEditPlan<PipeId> {
   const deltas = new Map<PipeId, TransactionEditDelta<PipeId>>();
+  const affectedPipeIds = new Set<PipeId>();
 
   function add(delta: TransactionEditDelta<PipeId>, multiplier: 1 | -1) {
     const existing = deltas.get(delta.pipeId) ?? {
@@ -108,18 +114,26 @@ export function planTransactionEdit<PipeId extends string>(
     });
   }
 
-  for (const delta of accountingDeltas(previousStructure, previousValue)) {
+  const previousDeltas = accountingDeltas(previousStructure, previousValue);
+  const currentDeltas = accountingDeltas(currentStructure, currentValue);
+  for (const delta of [...previousDeltas, ...currentDeltas]) {
+    affectedPipeIds.add(delta.pipeId);
+  }
+  for (const delta of previousDeltas) {
     add(delta, -1);
   }
-  for (const delta of accountingDeltas(currentStructure, currentValue)) {
+  for (const delta of currentDeltas) {
     add(delta, 1);
   }
 
-  return [...deltas.values()].filter(
-    (delta) =>
-      delta.fedDelta !== 0 ||
-      delta.spentDelta !== 0 ||
-      delta.pendingFedAdjustmentDelta !== 0 ||
-      delta.contributedFedDelta !== 0,
-  );
+  return {
+    deltas: [...deltas.values()].filter(
+      (delta) =>
+        delta.fedDelta !== 0 ||
+        delta.spentDelta !== 0 ||
+        delta.pendingFedAdjustmentDelta !== 0 ||
+        delta.contributedFedDelta !== 0,
+    ),
+    affectedPipeIds: [...affectedPipeIds],
+  };
 }

@@ -15,6 +15,7 @@ import { PipeBars } from "./components/PipeBars";
 import { RulesIcon } from "./components/RulesIcon";
 import { StatisticsRow } from "./components/StatisticsRow";
 import { AddChildPipeButton } from "./components/AddChildPipeButton";
+import { useRuleClock } from "@features/pipes/rules/use-rule-clock";
 
 export function InnerPipesScreen() {
   const { selectedPipe, selectedPipePath, selectPipe } = usePipeSelection();
@@ -32,6 +33,8 @@ export function InnerPipesScreen() {
 
   const selectedId = selectedPipePath[selectedPipePath.length - 1];
   const children = childrenByParent.get(selectedId) ?? [];
+  const ruleNow = useRuleClock(children.some((pipe) =>
+    !pipe.deletionJobId && (pipe.rule === "cron" || pipe.rule === "self_destruct")));
   const expected = selectedPipe
     ? expectedMonthlyCapacity(
         { ...selectedPipe, capacity },
@@ -55,13 +58,14 @@ export function InnerPipesScreen() {
         spent={pipe.spent}
         cronNextDate={pipe.cronNextDate}
         cronInterval={pipe.cronInterval}
+        now={ruleNow}
         disabled={
           (childrenByParent.get(pipe.id)?.length ?? 0) > 0 ||
           Boolean(pipe.deletionJobId)
         }
       />
     ),
-    [childrenByParent],
+    [childrenByParent, ruleNow],
   );
 
   return (

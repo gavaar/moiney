@@ -4,8 +4,9 @@ import { colors } from "@/lib/styles";
 import { Icon, safeIconName, type IconName } from "@ui/Icon";
 import type { FormProps } from "@ui/Form";
 import type { PipeModel } from "@features/pipes/data/pipes";
+import { buildRuleFields, createRuleDraft, type RuleDraft } from "@features/pipes/rules/rule-form";
 
-export type AddPipeDraft = {
+export type AddPipeDraft = RuleDraft & {
   ownerId: string | null;
   name: string;
   description: string;
@@ -30,7 +31,8 @@ export function validatePipeCapacity(value: string): string | undefined {
   }
 }
 
-export function buildAddPipeForm(pipes: readonly PipeModel[], disabled: boolean, loading: boolean) {
+export function buildAddPipeForm(pipes: readonly PipeModel[], disabled: boolean, loading: boolean, draft: RuleDraft & { capacity?: string } = createRuleDraft()) {
+  const capacity = draft.capacity && validatePipeCapacity(draft.capacity) === undefined ? parseMoney(draft.capacity) : 0;
   return [
     {
       key: "ownerId", step: 0,
@@ -61,5 +63,6 @@ export function buildAddPipeForm(pipes: readonly PipeModel[], disabled: boolean,
       input: { type: "decimal", label: "Initial capacity?", placeholder: "0.00", allowNegative: true, disabled, validator: validatePipeCapacity },
       description: "Capacity is this pipe's spending budget and allocation target. It does not add money; available money is allocated from its owner pipe. Leave blank for zero, or enter a negative amount to represent debt.",
     },
+    ...buildRuleFields(draft, { capacity, disabled, step: 3, now: Date.now() }),
   ] satisfies FormProps<AddPipeDraft>["form"];
 }

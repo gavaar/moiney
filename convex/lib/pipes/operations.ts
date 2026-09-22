@@ -2,11 +2,8 @@ import { ConvexError } from "convex/values";
 import type { Id } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
 import { assertAmountLimit } from "../../../domain/money";
-import {
-  countDueCronOccurrences,
-  computeCronNextDate,
-  type CronUnit,
-} from "../../../domain/scheduling";
+import type { RuleConfiguration } from "../../../domain/pipes/rules";
+import { rulePatch } from "./ruleConfig";
 import { MAX_PIPES_PER_USER } from "../constants";
 import { ensurePipeCreationEvent } from "../pipeHistory";
 import { assertPipeNotDeleting } from "./delete";
@@ -74,12 +71,14 @@ export type AddPipeCommand = {
   priority: number;
   capacity: number;
   parentId: Id<"pipes">;
+  ruleConfig?: RuleConfiguration;
 };
 
 export async function addPipeOperation(
   ctx: MutationCtx,
   userId: Id<"users">,
   command: AddPipeCommand,
+  now: number = Date.now(),
 ): Promise<Id<"pipes">> {
   const parent = await ctx.db.get("pipes", command.parentId);
   if (!parent || parent.userId !== userId) {
@@ -91,6 +90,8 @@ export async function addPipeOperation(
 
   const settledFed =
     parent.fed + (parent.pendingFedAdjustment ?? 0) - parent.spent;
+  const capacity = assertAmountLimit(command.capacity);
+  const initialRule = rulePatch({ capacity }, command.ruleConfig ?? {}, now);
   const childId = await ctx.db.insert("pipes", {
     userId,
     parentId: command.parentId,
@@ -98,10 +99,11 @@ export async function addPipeOperation(
     icon: command.icon,
     description: command.description,
     priority: command.priority,
-    capacity: assertAmountLimit(command.capacity),
+    capacity,
     fed: 0,
     spent: 0,
     pendingFedAdjustment: 0,
+    ...initialRule,
   });
 
   await ctx.db.patch("pipes", parent._id, {
@@ -119,24 +121,9 @@ export async function addPipeOperation(
   return childId;
 }
 
-export type UpdatePipeRuleCommand = {
+export type UpdatePipeRuleCommand = RuleConfiguration & {
   pipeId: Id<"pipes">;
-  rule?: "spend_overflow" | "instant_settlement" | "cron" | null;
-  interval?: number;
-  unit?: CronUnit;
-  starting?: number;
-  capUpdateValue?: number;
 };
-
-function isSameUtcDay(left: number, right: number): boolean {
-  const leftDate = new Date(left);
-  const rightDate = new Date(right);
-  return (
-    leftDate.getUTCFullYear() === rightDate.getUTCFullYear() &&
-    leftDate.getUTCMonth() === rightDate.getUTCMonth() &&
-    leftDate.getUTCDate() === rightDate.getUTCDate()
-  );
-}
 
 export async function updatePipeRuleOperation(
   ctx: MutationCtx,
@@ -150,64 +137,12 @@ export async function updatePipeRuleOperation(
   }
   assertPipeNotDeleting(pipe);
 
-  if (
-    command.rule === "cron" &&
-    pipe.rule === "cron" &&
-    command.starting !== undefined &&
-    pipe.cronNextDate !== undefined &&
-    command.capUpdateValue === pipe.capUpdateValue &&
-    command.interval === pipe.cronInterval?.interval &&
-    command.unit === pipe.cronInterval?.unit &&
-    isSameUtcDay(command.starting, pipe.cronNextDate)
-  ) {
-    return null;
+  if (command.rule === "self_destruct") {
+    const child = await ctx.db.query("pipes").withIndex("by_parentId", (q) => q.eq("parentId", pipe._id)).first();
+    if (!pipe.parentId || child) throw new ConvexError({ code: "SELF_DESTRUCT_REQUIRES_CHILD_LEAF" });
   }
-
-  const patch: Record<string, unknown> = {
-    rule: command.rule ?? undefined,
-    capUpdateValue:
-      command.rule != null && command.capUpdateValue !== undefined
-        ? assertAmountLimit(command.capUpdateValue)
-        : undefined,
-    cronNextDate: undefined,
-    cronInterval: undefined,
-  };
-
-  if (command.rule === "cron") {
-    if (
-      command.interval === undefined ||
-      command.unit === undefined ||
-      command.starting === undefined
-    ) {
-      throw new Error("Cron rule requires interval, unit, and starting");
-    }
-    patch.cronInterval = {
-      interval: command.interval,
-      unit: command.unit,
-    };
-    patch.cronNextDate = computeCronNextDate(
-      command.starting,
-      command.interval,
-      command.unit,
-      now,
-    );
-    if (command.capUpdateValue != null) {
-      const firstOccurrence = computeCronNextDate(
-        command.starting,
-        command.interval,
-        command.unit,
-        command.starting - 1,
-      );
-      const intervals = countDueCronOccurrences(
-        firstOccurrence,
-        command.interval,
-        command.unit,
-        now,
-      );
-      patch.capacity = pipe.capacity + intervals * assertAmountLimit(command.capUpdateValue);
-    }
-  }
-
+  const patch = rulePatch(pipe, command, now);
+  if (!patch) return null;
   await ctx.db.patch("pipes", command.pipeId, patch);
   await reconcileAffectedPipeRoots(ctx, [command.pipeId]);
   return null;
@@ -263,6 +198,7 @@ export async function executePipeRuleNowOperation(
   }
   assertPipeNotDeleting(pipe);
 
+  if (pipe.rule === "self_destruct") throw new ConvexError({ code: "SELF_DESTRUCT_CANNOT_RUN_MANUALLY" });
   await executePipeRule(ctx, pipeId, { pipe, now });
   await reconcileAffectedPipeRoots(ctx, [pipeId]);
   return null;

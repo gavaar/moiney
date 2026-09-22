@@ -31,6 +31,8 @@ import type * as lib_pipes_delete_transactionDisposition from "../lib/pipes/dele
 import type * as lib_pipes_index from "../lib/pipes/index.js";
 import type * as lib_pipes_operations from "../lib/pipes/operations.js";
 import type * as lib_pipes_pipes from "../lib/pipes/pipes.js";
+import type * as lib_pipes_ruleConfig from "../lib/pipes/ruleConfig.js";
+import type * as lib_pipes_selfDestruct from "../lib/pipes/selfDestruct.js";
 import type * as lib_transactions from "../lib/transactions.js";
 import type * as lib_transactions_operations from "../lib/transactions/operations.js";
 import type * as lib_usernames from "../lib/usernames.js";
@@ -71,6 +73,8 @@ declare const fullApi: ApiFromModules<{
   "lib/pipes/index": typeof lib_pipes_index;
   "lib/pipes/operations": typeof lib_pipes_operations;
   "lib/pipes/pipes": typeof lib_pipes_pipes;
+  "lib/pipes/ruleConfig": typeof lib_pipes_ruleConfig;
+  "lib/pipes/selfDestruct": typeof lib_pipes_selfDestruct;
   "lib/transactions": typeof lib_transactions;
   "lib/transactions/operations": typeof lib_transactions_operations;
   "lib/usernames": typeof lib_usernames;
