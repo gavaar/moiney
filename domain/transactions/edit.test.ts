@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { planTransactionEdit } from "./edit";
+import { planTransactionDeletion, planTransactionEdit } from "./edit";
 
 describe("planTransactionEdit", () => {
   it("keeps unchanged roles in the affected scope when their net delta is zero", () => {
@@ -122,5 +122,138 @@ describe("planTransactionEdit", () => {
 
     expect(deltas.reduce((sum, delta) => sum + delta.fedDelta + delta.pendingFedAdjustmentDelta, 0)).toBe(0);
     expect(deltas.find((delta) => delta.pipeId === "food")?.spentDelta).toBe(0);
+  });
+});
+
+describe("planTransactionDeletion", () => {
+  it.each([
+    {
+      name: "feed",
+      structure: { type: "feed", to: "income" } as const,
+      value: 1000,
+      expected: [
+        {
+          pipeId: "income",
+          fedDelta: -1000,
+          spentDelta: 0,
+          pendingFedAdjustmentDelta: 0,
+          contributedFedDelta: -1000,
+        },
+      ],
+    },
+    {
+      name: "expense",
+      structure: { type: "expense", from: "food" } as const,
+      value: -1000,
+      expected: [
+        {
+          pipeId: "food",
+          fedDelta: 0,
+          spentDelta: -1000,
+          pendingFedAdjustmentDelta: 0,
+          contributedFedDelta: 0,
+        },
+      ],
+    },
+    {
+      name: "refund",
+      structure: { type: "expense", from: "food" } as const,
+      value: 1000,
+      expected: [
+        {
+          pipeId: "food",
+          fedDelta: 0,
+          spentDelta: 1000,
+          pendingFedAdjustmentDelta: 0,
+          contributedFedDelta: 0,
+        },
+      ],
+    },
+    {
+      name: "transfer",
+      structure: { type: "transfer", from: "bank", to: "savings" } as const,
+      value: -1000,
+      expected: [
+        {
+          pipeId: "bank",
+          fedDelta: 1000,
+          spentDelta: 0,
+          pendingFedAdjustmentDelta: 0,
+          contributedFedDelta: 0,
+        },
+        {
+          pipeId: "savings",
+          fedDelta: -1000,
+          spentDelta: 0,
+          pendingFedAdjustmentDelta: 0,
+          contributedFedDelta: -1000,
+        },
+      ],
+    },
+    {
+      name: "positive transfer",
+      structure: { type: "transfer", from: "bank", to: "savings" } as const,
+      value: 1000,
+      expected: [
+        {
+          pipeId: "bank",
+          fedDelta: -1000,
+          spentDelta: 0,
+          pendingFedAdjustmentDelta: 0,
+          contributedFedDelta: 0,
+        },
+        {
+          pipeId: "savings",
+          fedDelta: 1000,
+          spentDelta: 0,
+          pendingFedAdjustmentDelta: 0,
+          contributedFedDelta: 1000,
+        },
+      ],
+    },
+    {
+      name: "pay-by-transfer expense",
+      structure: { type: "payByTransfer", from: "food", paidFrom: "bank" } as const,
+      value: -1000,
+      expected: [
+        {
+          pipeId: "food",
+          fedDelta: 0,
+          spentDelta: -1000,
+          pendingFedAdjustmentDelta: -1000,
+          contributedFedDelta: 0,
+        },
+        {
+          pipeId: "bank",
+          fedDelta: 1000,
+          spentDelta: 0,
+          pendingFedAdjustmentDelta: 0,
+          contributedFedDelta: 0,
+        },
+      ],
+    },
+    {
+      name: "pay-by-transfer refund",
+      structure: { type: "payByTransfer", from: "food", paidFrom: "bank" } as const,
+      value: 1000,
+      expected: [
+        {
+          pipeId: "food",
+          fedDelta: 0,
+          spentDelta: 1000,
+          pendingFedAdjustmentDelta: 1000,
+          contributedFedDelta: 0,
+        },
+        {
+          pipeId: "bank",
+          fedDelta: -1000,
+          spentDelta: 0,
+          pendingFedAdjustmentDelta: 0,
+          contributedFedDelta: 0,
+        },
+      ],
+    },
+  ])("reverses a $name", ({ structure, value, expected }) => {
+    expect(planTransactionDeletion(structure, value).deltas).toEqual(expected);
   });
 });

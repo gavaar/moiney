@@ -137,3 +137,10 @@ export function planTransactionEdit<PipeId extends string>(
     affectedPipeIds: [...affectedPipeIds],
   };
 }
+
+export function planTransactionDeletion<PipeId extends string>(
+  structure: TransactionStructure<PipeId>,
+  value: number,
+): TransactionEditPlan<PipeId> {
+  return planTransactionEdit(structure, value, structure, 0);
+}

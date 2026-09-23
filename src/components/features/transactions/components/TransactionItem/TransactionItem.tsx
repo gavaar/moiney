@@ -3,11 +3,17 @@ import { Icon } from "@ui/Icon";
 import { cn, colors } from "@/lib/styles";
 import { ModalShell } from "@ui/Modal";
 import { TransactionForm } from '@features/transactions/TransactionForm/TransactionForm';
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { usePipeCatalog } from '@features/pipes/context/PipeCatalogContext';
 import { formatAmount } from "@/lib/format";
 import type { TransactionModel } from "@features/transactions/data/transactions";
 import { getTransactionItemModel } from "./transactionItem.model";
+import { getTransactionDeletionWarning } from "./transactionDeletion.model";
+import { useConfirmWithModal } from "@ui/ConfirmModal";
+import { useMutation } from "convex/react";
+import { api } from "@convex/_generated/api";
+import { useOptionalTransactionCache } from "@features/transactions/cache/TransactionCacheContext";
+import { useAlert } from "@ui/Alert";
 
 type TransactionItemProps = {
   transaction: TransactionModel;
@@ -19,15 +25,20 @@ const DATE_FORMAT: Intl.DateTimeFormatOptions = {
   day: "numeric",
   year: "numeric",
 };
-const EDIT_ACTION_WIDTH = 72;
-const EDIT_SWIPE_THRESHOLD = 40;
+const ACTION_WIDTH = 72;
+const SWIPE_THRESHOLD = 40;
 
 export function TransactionItem({ transaction, onShowEditHistory }: TransactionItemProps) {
-  const { pipesById, childrenByParent, isPaidFromEligible } = usePipeCatalog();
+  const { pipesById, childrenByParent, isLoading: isPipeCatalogLoading, isPaidFromEligible } = usePipeCatalog();
+  const confirmWithModal = useConfirmWithModal();
+  const deleteTransaction = useMutation(api.transactions.deleteTransaction);
+  const transactionCache = useOptionalTransactionCache();
+  const showAlert = useAlert();
 
   const [formIntent, setFormIntent] = useState<"repeat" | "edit" | null>(null);
   const [showDisabledInfo, setShowDisabledInfo] = useState(false);
-  const translateX = useRef(new Animated.Value(0)).current;
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [translateX] = useState(() => new Animated.Value(0));
 
   const model = useMemo(
     () => getTransactionItemModel(transaction, { pipesById, childrenByParent, isPaidFromEligible }),
@@ -49,16 +60,59 @@ export function TransactionItem({ transaction, onShowEditHistory }: TransactionI
     }).start();
   }
 
+  async function confirmDelete() {
+    if (isDeleting || isPipeCatalogLoading) return;
+    const warning = getTransactionDeletionWarning(transaction, pipesById ?? {});
+    const confirmed = await confirmWithModal({
+      title: "Delete transaction?",
+      message: (
+        <View className="bg-error/10 border border-error rounded-lg p-3">
+          <Text className="text-error text-sm leading-5">{warning.message}</Text>
+        </View>
+      ),
+      confirmLabel: "Delete transaction",
+      destructive: true,
+    });
+    if (!confirmed) return;
+
+    setIsDeleting(true);
+    try {
+      await deleteTransaction({ transactionId: transaction.id });
+    } catch (error) {
+      showAlert.error(`${error}`);
+      setIsDeleting(false);
+      return;
+    }
+
+    try {
+      await transactionCache?.reconcileTransactions([transaction.id], []);
+    } catch {
+      try {
+        await transactionCache?.invalidateAll();
+      } catch {
+        // The server deletion succeeded; the next cache refresh remains authoritative.
+      }
+    }
+    showAlert.success("Transaction deleted");
+    setIsDeleting(false);
+  }
+
   const panResponder = PanResponder.create({
     onMoveShouldSetPanResponder: (_event, gesture) =>
-      !model.disabled &&
-      gesture.dx < -8 &&
-      Math.abs(gesture.dx) > Math.abs(gesture.dy),
+      Math.abs(gesture.dx) > Math.abs(gesture.dy) &&
+      ((!isPipeCatalogLoading && gesture.dx > 8) ||
+        (!model.disabled && gesture.dx < -8)),
     onPanResponderMove: (_event, gesture) => {
-      translateX.setValue(Math.max(-EDIT_ACTION_WIDTH, Math.min(0, gesture.dx)));
+      translateX.setValue(
+        Math.max(
+          model.disabled ? 0 : -ACTION_WIDTH,
+          Math.min(ACTION_WIDTH, gesture.dx),
+        ),
+      );
     },
     onPanResponderRelease: (_event, gesture) => {
-      if (gesture.dx <= -EDIT_SWIPE_THRESHOLD) openForm("edit");
+      if (gesture.dx >= SWIPE_THRESHOLD) void confirmDelete();
+      if (gesture.dx <= -SWIPE_THRESHOLD) openForm("edit");
       resetSwipe();
     },
     onPanResponderTerminate: resetSwipe,
@@ -67,6 +121,16 @@ export function TransactionItem({ transaction, onShowEditHistory }: TransactionI
   return (
     <View className="flex-row gap-1 items-center">
       <View className="relative flex-1 rounded-2xl">
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Delete ${transaction.title}`}
+          accessibilityState={{ disabled: isDeleting || isPipeCatalogLoading }}
+          disabled={isDeleting || isPipeCatalogLoading}
+          onPress={() => void confirmDelete()}
+          className="absolute inset-y-0 left-0 w-[92px] rounded-tl-2xl rounded-bl-2xl items-center justify-center bg-error"
+        >
+          <Icon name="trash-outline" size={20} color={colors.text} />
+        </Pressable>
         {!model.disabled ? (
           <Pressable
             accessibilityRole="button"

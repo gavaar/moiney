@@ -153,3 +153,29 @@ otherwise, including equality as overflow. This is a presentation rule, not an
 eligibility filter. Selected rows retain the shared Select's neutral background;
 the `None` option is neutral. Owner selection in Add Pipe is independent of this
 transaction-specific styling.
+
+## D023: Transaction Deletion
+
+Status: Implemented
+
+Swiping an individual transaction right reveals a red trash action; the action
+is also an accessible button. Deletion always requires confirmation. The
+confirmation describes every affected pipe when a transfer or pay-by-transfer
+transaction can be rolled back, not only the logical source.
+
+When every involved pipe still exists and belongs to the account, deletion
+applies the complete inverse transaction effect to the current accounting
+period, triggers rules from the inverse logical spending delta, reconciles every
+affected tree, and removes the transaction atomically. Current creation
+topology is not revalidated: topology may legitimately have changed since the
+transaction was recorded. An active deletion freeze in any affected tree blocks
+the rollback.
+
+If any `from`, `to`, or `paidFrom` pipe no longer exists, deletion removes
+history only. It does not partially roll back surviving roles, because doing so
+could create or destroy money. Active
+deletion freezes still block history-only removal when a surviving involved
+tree is frozen. The confirmation explicitly warns that the transaction's
+expenditure, refund, feed, or transfer will not be rolled back. Linked edit
+corrections are removed afterward in bounded scheduled batches. Captured monthly
+summaries remain immutable under the reporting contract.

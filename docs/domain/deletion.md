@@ -17,7 +17,9 @@ controls orphaned transaction history:
 - A pay-by-transfer expense is orphaned when neither `from` nor `paidFrom` survives.
 - A transfer is orphaned when neither `from` nor `to` survives.
 - Unchecked: preserve all transactions and embed deleted-role icons on them.
-- Preserved transactions are view-only.
+- Preserved transactions cannot be repeated or edited. They may be physically
+  deleted through [transaction deletion](transactions.md#d023-transaction-deletion),
+  which performs no accounting rollback when an involved pipe is missing.
 
 Retained [pipe creation events and archives](history-cache.md#d021-pipe-creation-and-archived-history)
 keep their ancestry and last presentation after physical pipe deletion. With the

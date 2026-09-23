@@ -23,7 +23,9 @@ entity map in place. Creation updates only loaded history, recent, and
 selected-pipe snapshots relevant to any `from`, `to`, or `paidFrom` role; it does
 not create unseen partial snapshots. Editing updates and reorders every loaded
 snapshot containing the ID. See [D017](transactions.md#d017-transaction-structural-editing)
-for the in-progress structural-edit invalidation contract.
+for the in-progress structural-edit invalidation contract. Successful direct
+transaction deletion removes its ID from the entity map and every loaded
+snapshot and refreshes mounted mixed-history views.
 
 After asynchronous pipe deletion completes, one bounded request reconciles
 currently cached IDs, updates surviving rows, and removes absent IDs from the

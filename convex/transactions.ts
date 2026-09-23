@@ -15,6 +15,7 @@ import {
 import {
   correctBoilerCurrentFedOperation,
   createTransactionOperation,
+  deleteTransactionOperation,
   editTransactionOperation,
 } from "./lib/transactions/operations";
 import { MAX_PIPES_PER_USER } from "./lib/constants";
@@ -251,6 +252,51 @@ export const editTransaction = mutation({
   handler: async (ctx, args) => {
     const userId = await requireAuth(ctx);
     return await editTransactionOperation(ctx, userId, args, Date.now());
+  },
+});
+
+export const deleteTransaction = mutation({
+  args: {
+    transactionId: v.id("transactions"),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const userId = await requireAuth(ctx);
+    await deleteTransactionOperation(ctx, userId, args);
+    await ctx.scheduler.runAfter(
+      0,
+      internal.transactions.deleteTransactionCorrectionsBatch,
+      { transactionId: args.transactionId },
+    );
+    return null;
+  },
+});
+
+export const deleteTransactionCorrectionsBatch = internalMutation({
+  args: {
+    transactionId: v.id("transactions"),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const corrections = await ctx.db
+      .query("transactionCorrections")
+      .withIndex("by_transactionId", (q) =>
+        q.eq("transactionId", args.transactionId),
+      )
+      .take(100);
+    await Promise.all(
+      corrections.map((correction) =>
+        ctx.db.delete("transactionCorrections", correction._id),
+      ),
+    );
+    if (corrections.length === 100) {
+      await ctx.scheduler.runAfter(
+        0,
+        internal.transactions.deleteTransactionCorrectionsBatch,
+        args,
+      );
+    }
+    return null;
   },
 });
 

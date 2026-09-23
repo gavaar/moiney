@@ -96,6 +96,35 @@ function ReconcileConsumer() {
   );
 }
 
+function ReconcileFailureConsumer() {
+  const cache = useTransactionCache();
+  const transaction: TransactionModel = {
+    id: "tx-failure" as Id<"transactions">,
+    createdAt: 1,
+    title: "remove me",
+    value: -100,
+    date: 1,
+    kind: "expense",
+    from: "pipe-1" as Id<"pipes">,
+  };
+  return (
+    <>
+      <button onClick={() => void cache.replace("history", [transaction], false)}>
+        seed failure
+      </button>
+      <button onClick={() => {
+        void cache.reconcileTransactions([transaction.id], []).catch(() => {});
+      }}>
+        reconcile failure
+      </button>
+      <span data-testid="failure-entity">
+        {cache.cache?.entities[transaction.id] ? "present" : "missing"}
+      </span>
+      <span data-testid="failure-version">{cache.mutationVersion}</span>
+    </>
+  );
+}
+
 describe("TransactionCacheProvider", () => {
   it.each(["mergeHead", "append"] as const)("ignores a retired account's delayed %s write", async (operation) => {
     auth.accountKey = "account-1";
@@ -175,6 +204,37 @@ describe("TransactionCacheProvider", () => {
       const parsed = JSON.parse(cacheStorage.value!);
       expect(parsed.entities["tx-4"].transaction.title).toBe("survives");
       expect(parsed.entities.deleted).toBeUndefined();
+    });
+  });
+
+  it("publishes deletion reconciliation when cache persistence fails", async () => {
+    let failWrites = false;
+    const cacheStorage: TransactionCacheStorage = {
+      read: async () => null,
+      write: async () => {
+        if (failWrites) throw new Error("storage failed");
+      },
+      remove: async () => {},
+    };
+    render(
+      <TransactionCacheProvider storage={cacheStorage}>
+        <ReconcileFailureConsumer />
+      </TransactionCacheProvider>,
+    );
+
+    await waitFor(() => expect(screen.getByText("seed failure")).toBeDefined());
+    fireEvent.click(screen.getByText("seed failure"));
+    await waitFor(() =>
+      expect(screen.getByTestId("failure-entity").textContent).toBe("present")
+    );
+    const previousVersion = Number(screen.getByTestId("failure-version").textContent);
+    failWrites = true;
+    fireEvent.click(screen.getByText("reconcile failure"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("failure-entity").textContent).toBe("missing");
+      expect(Number(screen.getByTestId("failure-version").textContent))
+        .toBe(previousVersion + 1);
     });
   });
 

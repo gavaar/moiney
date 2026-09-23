@@ -4,9 +4,11 @@ import type { MutationCtx } from "../../_generated/server";
 import {
   canonicalizeTransactionTitle,
   deriveTransactionKind,
+  planTransactionDeletion,
   planTransactionEdit,
   transactionAccountingEffects,
   transactionStructureFromRoles,
+  type TransactionEditPlan,
   type TransactionStructure,
 } from "../../../domain/transactions";
 import {
@@ -42,6 +44,10 @@ export type EditTransactionCommand = {
     | { type: "expense" }
     | { type: "transfer"; to: Id<"pipes"> }
     | { type: "payByTransfer"; paidFrom: Id<"pipes"> };
+};
+
+export type DeleteTransactionCommand = {
+  transactionId: Id<"transactions">;
 };
 
 export type TransactionWriteResult = {
@@ -97,6 +103,65 @@ function createCachedPipeReader(ctx: MutationCtx) {
     }
     return await pipe;
   };
+}
+
+async function applyTransactionAccountingPlan(
+  ctx: MutationCtx,
+  plan: TransactionEditPlan<Id<"pipes">>,
+  getPipe: ReturnType<typeof createCachedPipeReader>,
+) {
+  for (const delta of plan.deltas) {
+    const pipe = await getPipe(delta.pipeId);
+    if (!pipe) throw new Error("Pipe not found");
+    const patch: {
+      fed?: number;
+      spent?: number;
+      pendingFedAdjustment?: number;
+      contributedFed?: number;
+    } = {};
+    if (delta.fedDelta !== 0) patch.fed = pipe.fed + delta.fedDelta;
+    if (delta.spentDelta !== 0) patch.spent = pipe.spent + delta.spentDelta;
+    if (delta.pendingFedAdjustmentDelta !== 0) {
+      patch.pendingFedAdjustment =
+        (pipe.pendingFedAdjustment ?? 0) + delta.pendingFedAdjustmentDelta;
+    }
+    if (delta.contributedFedDelta !== 0 && pipe.sourceType === "boiler") {
+      patch.contributedFed =
+        (pipe.contributedFed ?? 0) + delta.contributedFedDelta;
+    }
+    await ctx.db.patch("pipes", delta.pipeId, patch);
+    const newSpent = patch.spent ?? pipe.spent;
+    if (
+      shouldTriggerPipeRule(
+        pipe.rule,
+        delta.spentDelta,
+        newSpent,
+        pipe.capacity,
+      )
+    ) {
+      await executePipeRule(ctx, delta.pipeId);
+    }
+  }
+  await reconcileAffectedPipeRoots(ctx, plan.affectedPipeIds, getPipe);
+}
+
+async function assertPipeTreesNotFrozen(
+  ctx: MutationCtx,
+  pipes: Doc<"pipes">[],
+  getPipe: ReturnType<typeof createCachedPipeReader>,
+) {
+  const rootIds = new Set<Id<"pipes">>();
+  for (const pipe of pipes) {
+    rootIds.add(await resolveTopMostAncestor(ctx, pipe._id, undefined, getPipe));
+  }
+  for (const rootId of rootIds) {
+    const root = await ctx.db.get("pipes", rootId);
+    if (!root) continue;
+    const tree = [root, ...(await collectChildSubtree(ctx, rootId))];
+    if (tree.some((pipe) => pipe.deletionJobId)) {
+      throw new Error("Pipe is being deleted");
+    }
+  }
 }
 
 async function localFedForAggregate(
@@ -587,43 +652,7 @@ export async function editTransactionOperation(
       currentStructure,
       command.value,
     );
-    for (const delta of editPlan.deltas) {
-      const pipe = await getPipe(delta.pipeId);
-      if (!pipe) throw new Error("Pipe not found");
-      const patch: {
-        fed?: number;
-        spent?: number;
-        pendingFedAdjustment?: number;
-        contributedFed?: number;
-      } = {};
-      if (delta.fedDelta !== 0) patch.fed = pipe.fed + delta.fedDelta;
-      if (delta.spentDelta !== 0) patch.spent = pipe.spent + delta.spentDelta;
-      if (delta.pendingFedAdjustmentDelta !== 0) {
-        patch.pendingFedAdjustment =
-          (pipe.pendingFedAdjustment ?? 0) + delta.pendingFedAdjustmentDelta;
-      }
-      if (delta.contributedFedDelta !== 0 && pipe.sourceType === "boiler") {
-        patch.contributedFed =
-          (pipe.contributedFed ?? 0) + delta.contributedFedDelta;
-      }
-      await ctx.db.patch("pipes", delta.pipeId, patch);
-      const newSpent = patch.spent ?? pipe.spent;
-      if (
-        shouldTriggerPipeRule(
-          pipe.rule,
-          delta.spentDelta,
-          newSpent,
-          pipe.capacity,
-        )
-      ) {
-        await executePipeRule(ctx, delta.pipeId);
-      }
-    }
-    await reconcileAffectedPipeRoots(
-      ctx,
-      editPlan.affectedPipeIds,
-      getPipe,
-    );
+    await applyTransactionAccountingPlan(ctx, editPlan, getPipe);
   }
 
   const hasCorrection =
@@ -684,4 +713,46 @@ export async function editTransactionOperation(
     paidFromIcon: transaction.paidFromIcon,
     editedAt: editedAt ?? transaction.editedAt,
   });
+}
+
+export async function deleteTransactionOperation(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  command: DeleteTransactionCommand,
+): Promise<void> {
+  const transaction = await ctx.db.get("transactions", command.transactionId);
+  if (!transaction || transaction.userId !== userId) {
+    throw new ConvexError({ code: "TRANSACTION_NOT_FOUND" });
+  }
+
+  const getPipe = createCachedPipeReader(ctx);
+  const pipeIds = [...new Set([
+    transaction.from,
+    transaction.to,
+    transaction.paidFrom,
+  ].filter((pipeId): pipeId is Id<"pipes"> => pipeId !== undefined))];
+  const pipes = await Promise.all(pipeIds.map((pipeId) => getPipe(pipeId)));
+  const structure = transactionStructureFromRoles(transaction);
+  const allRolesAvailable = pipes.every(
+    (pipe) => pipe !== null && pipe.userId === userId,
+  );
+  const canRollback = allRolesAvailable;
+
+  if (canRollback) {
+    for (const pipe of pipes) {
+      if (pipe?.deletionJobId) throw new Error("Pipe is being deleted");
+    }
+    await applyTransactionAccountingPlan(
+      ctx,
+      planTransactionDeletion(structure, transaction.value),
+      getPipe,
+    );
+  } else {
+    const survivingOwnedPipes = pipes.filter(
+      (pipe): pipe is Doc<"pipes"> => pipe !== null && pipe.userId === userId,
+    );
+    await assertPipeTreesNotFrozen(ctx, survivingOwnedPipes, getPipe);
+  }
+
+  await ctx.db.delete("transactions", command.transactionId);
 }

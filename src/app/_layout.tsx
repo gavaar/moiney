@@ -7,6 +7,7 @@ import { ErrorBoundary } from "@ui/ErrorBoundary";
 import { AlertProvider } from "@ui/Alert";
 import { AuthProvider, getConvexClient } from "@/lib/auth";
 import { TransactionCacheProvider } from "@features/transactions/cache/TransactionCacheContext";
+import { ConfirmModalProvider } from "@ui/ConfirmModal";
 
 export default function RootLayout() {
   const convexClient = getConvexClient();
@@ -18,11 +19,13 @@ export default function RootLayout() {
           <TransactionCacheProvider>
             <SafeAreaProvider>
               <AlertProvider>
-                <StatusBar style="light" />
-                <Stack screenOptions={{
-                  headerShown: false,
-                  contentStyle: { backgroundColor: "#111111" },
-                }} />
+                <ConfirmModalProvider>
+                  <StatusBar style="light" />
+                  <Stack screenOptions={{
+                    headerShown: false,
+                    contentStyle: { backgroundColor: "#111111" },
+                  }} />
+                </ConfirmModalProvider>
               </AlertProvider>
             </SafeAreaProvider>
           </TransactionCacheProvider>

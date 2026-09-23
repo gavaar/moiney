@@ -164,7 +164,17 @@ export function TransactionCacheProvider({ children, storage = transactionCacheS
   const reconcileTransactions = useCallback(
     async (knownIds: readonly string[], transactions: TransactionModel[]) => {
       if (!state.store) return;
-      const cache = await state.store.reconcileTransactions(knownIds, transactions);
+      const store = state.store;
+      let cache: TransactionCache;
+      try {
+        cache = await store.reconcileTransactions(knownIds, transactions);
+      } catch (error) {
+        if (previousStore.current === store) {
+          setState((current) => ({ ...current, cache: store.cache }));
+          setMutationVersion((version) => version + 1);
+        }
+        throw error;
+      }
       if (previousStore.current !== state.store) return;
       setState((current) => ({ ...current, cache }));
       setMutationVersion((version) => version + 1);

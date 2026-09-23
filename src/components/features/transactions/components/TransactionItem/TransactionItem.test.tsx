@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { TransactionItem } from "./TransactionItem";
 import type { Id } from "@convex/_generated/dataModel";
 import { colors } from "@/lib/styles";
@@ -66,6 +66,32 @@ const feedTx = {
 };
 
 const mockUsePipeSelection = vi.fn();
+const deleteMocks = vi.hoisted(() => ({
+  confirm: vi.fn(),
+  deleteTransaction: vi.fn(),
+  reconcileTransactions: vi.fn(),
+  invalidateAll: vi.fn(),
+  showError: vi.fn(),
+  showSuccess: vi.fn(),
+}));
+vi.mock("convex/react", () => ({
+  useMutation: () => deleteMocks.deleteTransaction,
+}));
+vi.mock("@ui/ConfirmModal", () => ({
+  useConfirmWithModal: () => deleteMocks.confirm,
+}));
+vi.mock("@ui/Alert", () => ({
+  useAlert: () => ({
+    error: deleteMocks.showError,
+    success: deleteMocks.showSuccess,
+  }),
+}));
+vi.mock("@features/transactions/cache/TransactionCacheContext", () => ({
+  useOptionalTransactionCache: () => ({
+    reconcileTransactions: deleteMocks.reconcileTransactions,
+    invalidateAll: deleteMocks.invalidateAll,
+  }),
+}));
 vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
   usePipeCatalog: () => {
     const catalog = mockUsePipeSelection();
@@ -104,6 +130,10 @@ vi.mock("@features/transactions/TransactionForm/TransactionForm", () => ({
 describe("TransactionItem", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    deleteMocks.confirm.mockResolvedValue(false);
+    deleteMocks.deleteTransaction.mockResolvedValue(null);
+    deleteMocks.reconcileTransactions.mockResolvedValue(undefined);
+    deleteMocks.invalidateAll.mockResolvedValue(undefined);
     mockUsePipeSelection.mockReturnValue({
       pipesById: { [pipeInfo.id]: pipeInfo },
       childrenByParent: new Map(),
@@ -172,6 +202,71 @@ describe("TransactionItem", () => {
       .toBe("edit");
   });
 
+  it("opens a destructive confirmation from the accessible delete action", async () => {
+    render(<TransactionItem transaction={baseTx} />);
+
+    fireEvent.click(screen.getByLabelText("Delete shopping mall"));
+
+    await waitFor(() => expect(deleteMocks.confirm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Delete transaction?",
+        confirmLabel: "Delete transaction",
+        destructive: true,
+      }),
+    ));
+    expect(deleteMocks.deleteTransaction).not.toHaveBeenCalled();
+  });
+
+  it("waits for the pipe catalog before offering deletion", () => {
+    mockUsePipeSelection.mockReturnValue({
+      pipesById: {},
+      childrenByParent: new Map(),
+      isLoading: true,
+    });
+    render(<TransactionItem transaction={baseTx} />);
+
+    const action = screen.getByLabelText("Delete shopping mall");
+    expect(action.getAttribute("aria-disabled")).toBe("true");
+    fireEvent.click(action);
+    expect(deleteMocks.confirm).not.toHaveBeenCalled();
+  });
+
+  it("deletes and removes a confirmed transaction from the cache", async () => {
+    deleteMocks.confirm.mockResolvedValue(true);
+    render(<TransactionItem transaction={baseTx} />);
+
+    fireEvent.click(screen.getByLabelText("Delete shopping mall"));
+
+    await waitFor(() => expect(deleteMocks.deleteTransaction).toHaveBeenCalledWith({
+      transactionId: baseTx.id,
+    }));
+    expect(deleteMocks.reconcileTransactions).toHaveBeenCalledWith([baseTx.id], []);
+    expect(deleteMocks.showSuccess).toHaveBeenCalledWith("Transaction deleted");
+  });
+
+  it("keeps the cached transaction and reports deletion failures", async () => {
+    deleteMocks.confirm.mockResolvedValue(true);
+    deleteMocks.deleteTransaction.mockRejectedValue(new Error("blocked"));
+    render(<TransactionItem transaction={baseTx} />);
+
+    fireEvent.click(screen.getByLabelText("Delete shopping mall"));
+
+    await waitFor(() => expect(deleteMocks.showError).toHaveBeenCalledWith("Error: blocked"));
+    expect(deleteMocks.reconcileTransactions).not.toHaveBeenCalled();
+  });
+
+  it("invalidates stale cache data when persistence fails after server deletion", async () => {
+    deleteMocks.confirm.mockResolvedValue(true);
+    deleteMocks.reconcileTransactions.mockRejectedValue(new Error("storage failed"));
+    render(<TransactionItem transaction={baseTx} />);
+
+    fireEvent.click(screen.getByLabelText("Delete shopping mall"));
+
+    await waitFor(() => expect(deleteMocks.invalidateAll).toHaveBeenCalledOnce());
+    expect(deleteMocks.showSuccess).toHaveBeenCalledWith("Transaction deleted");
+    expect(deleteMocks.showError).not.toHaveBeenCalled();
+  });
+
   it("opens edit history from the Edited control", () => {
     const onShowEditHistory = vi.fn();
     const transaction = { ...baseTx, editedAt: Date.now() };
@@ -220,7 +315,9 @@ describe("TransactionItem", () => {
     });
 
     render(<TransactionItem transaction={baseTx} />);
-    expect(screen.getByTestId("mock-icon")).toMatchObject({
+    expect(screen.getAllByTestId("mock-icon").find(
+      (icon) => icon.dataset.name === "pipe-disconnected",
+    )).toMatchObject({
       dataset: { name: "pipe-disconnected", color: colors.surface },
     });
     expect(screen.queryByText("Cannot repeat transaction")).toBeNull();
@@ -241,11 +338,14 @@ describe("TransactionItem", () => {
 
     render(<TransactionItem transaction={transaction} />);
 
-    expect(screen.getByTestId("mock-icon").getAttribute("data-name")).toBe("cart-outline");
+    expect(screen.getAllByTestId("mock-icon").map((icon) => icon.getAttribute("data-name")))
+      .toContain("cart-outline");
     expect(screen.queryByText(/Preserved history is view-only/)).toBeNull();
     fireEvent.click(screen.getByText("Shopping mall"));
     expect(screen.getByText(/Preserved history is view-only/)).toBeDefined();
     expect(screen.queryByTestId("amount-form")).toBeNull();
+    expect(screen.getByLabelText("Delete shopping mall")).toBeDefined();
+    expect(screen.queryByLabelText("Edit shopping mall")).toBeNull();
   });
 
   it("shows disabled info modal when pipe has children", () => {
@@ -395,7 +495,7 @@ describe("TransactionItem pay-by-transfer variant", () => {
     render(<TransactionItem transaction={tx} />);
 
     expect(screen.getAllByTestId("mock-icon").map((icon) => icon.getAttribute("data-name")))
-      .toEqual(["pencil-outline", "cash-outline", "ray-start-arrow", "home-outline"]);
+      .toEqual(["trash-outline", "pencil-outline", "cash-outline", "ray-start-arrow", "home-outline"]);
   });
 
   it("opens repeat with the individual paidFrom provenance", () => {
