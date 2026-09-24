@@ -45,7 +45,7 @@ export function HistoryList({ items, filters, isLoading, isRefreshing, error, ha
         continue;
       }
       result.push({ key: `pipe:${item.event.id}`, kind: "pipe", event: item.event });
-      if (!expanded.has(item.event.id)) continue;
+      if (!expanded.has(item.event.id) || archives[item.event.id]?.summary?.count === 0) continue;
       const archive = archives[item.event.id];
       const nested = groupTransactions(archive?.transactions ?? [], [item.event.pipeId]);
       const nestedExpanded = new Set([...expanded].filter((key) => key.startsWith(`${item.event.id}:`)).map((key) => key.slice(item.event.id.length + 1)));

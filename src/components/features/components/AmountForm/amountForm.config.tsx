@@ -49,7 +49,7 @@ export function buildAmountForm(form: AmountFormConfiguration, sourcePicker?: So
       items: transactionPipeItems(paidFrom?.items ?? spend?.paidFromPipeItems ?? [], pipesById),
       renderItem: renderTransactionPipe,
       itemStyle: transactionPipeStyle,
-      placeholder: "None", disabled: common.loading || !!paidFrom,
+       placeholder: "None", disabled: common.loading,
     },
     ...(!paidFrom && spend ? { reveal: {
       label: "Paid from another pipe?", icon: "wallet-outline" as const,

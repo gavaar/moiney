@@ -326,7 +326,7 @@ describe("TransactionItem", () => {
     expect(screen.queryByTestId("amount-form")).toBeNull();
   });
 
-  it("renders preserved history from a deleted pipe as view-only", () => {
+  it("offers edit for preserved history while keeping repeat unavailable", () => {
     mockUsePipeSelection.mockReturnValue({
       pipesById: {},
       childrenByParent: new Map(),
@@ -342,10 +342,23 @@ describe("TransactionItem", () => {
       .toContain("cart-outline");
     expect(screen.queryByText(/Preserved history is view-only/)).toBeNull();
     fireEvent.click(screen.getByText("Shopping mall"));
-    expect(screen.getByText(/Preserved history is view-only/)).toBeDefined();
+    expect(screen.getByText(/Select valid pipes to edit it/)).toBeDefined();
     expect(screen.queryByTestId("amount-form")).toBeNull();
     expect(screen.getByLabelText("Delete shopping mall")).toBeDefined();
-    expect(screen.queryByLabelText("Edit shopping mall")).toBeNull();
+    fireEvent.click(screen.getByLabelText("Edit shopping mall"));
+    expect(screen.getByTestId("amount-form").getAttribute("data-intent")).toBe("edit");
+  });
+
+  it("allows editing a transfer with a deleted destination to select a replacement", () => {
+    mockUsePipeSelection.mockReturnValue({
+      pipesById: { [salaryPipe.id]: salaryPipe },
+      childrenByParent: new Map(),
+    });
+    render(<TransactionItem transaction={{ ...transferTx, toIcon: "home-outline" }} />);
+    fireEvent.click(screen.getByLabelText("Edit send to rent"));
+    expect(screen.getByTestId("amount-form").getAttribute("data-intent")).toBe("edit");
+    fireEvent.click(screen.getByText("Send to rent"));
+    expect(screen.getByText("Cannot repeat transaction")).toBeDefined();
   });
 
   it("shows disabled info modal when pipe has children", () => {
@@ -364,7 +377,7 @@ describe("TransactionItem", () => {
     expect(screen.getByText("Cannot repeat transaction")).toBeDefined();
     expect(screen.getByText(/cannot accept transactions anymore/)).toBeDefined();
     expect(screen.queryByTestId("amount-form")).toBeNull();
-    expect(screen.queryByLabelText("Edit shopping mall")).toBeNull();
+    expect(screen.getByLabelText("Edit shopping mall")).toBeDefined();
   });
 
   it("shows disabled info when the source pipe is being deleted", () => {

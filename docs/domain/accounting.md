@@ -86,8 +86,10 @@ When a leaf becomes a parent, settle its balance as
 `fed + (pendingFedAdjustment ?? 0) - spent`, then clear `spent` and
 `pendingFedAdjustment` before child allocation. Editing a legacy pay-by-transfer
 transaction applies only its value difference under this model, preserving its
-pre-edit logical balance while making the new adjustment explicit. See
-[D017](transactions.md#d017-transaction-structural-editing) for structural-edit restrictions.
+pre-edit logical balance while making the new adjustment explicit. Reassigning
+roles follows the user-directed current-period corrections in
+[D017](transactions.md#d017-transaction-structural-editing); historical
+settlement cannot be reconstructed from transaction history.
 
 Convex client mutation retries and atomic cron schedule advancement provide
 transport-level idempotency. No operation identifiers are persisted for separate

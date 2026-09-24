@@ -2,6 +2,53 @@ import { describe, expect, it } from "vitest";
 import { planTransactionDeletion, planTransactionEdit } from "./edit";
 
 describe("planTransactionEdit", () => {
+  it("moves a live expense between pipes with one reversal and one application", () => {
+    expect(planTransactionEdit(
+      { type: "expense", from: "old" }, -2000,
+      { type: "expense", from: "new" }, -1000,
+    ).deltas).toMatchObject([
+      { pipeId: "old", spentDelta: -2000 },
+      { pipeId: "new", spentDelta: 1000 },
+    ]);
+  });
+
+  it("updates a surviving payer by the amount difference and optionally applies the replacement source", () => {
+    const old = { type: "payByTransfer", from: "deleted", paidFrom: "bank" } as const;
+    const next = { type: "payByTransfer", from: "food", paidFrom: "bank" } as const;
+    expect(planTransactionEdit(old, -2000, next, -1000, {
+      invalidPreviousPipeIds: ["deleted"], applyReplacementEffects: false,
+    }).deltas).toEqual([
+      { pipeId: "bank", fedDelta: 1000, spentDelta: 0, pendingFedAdjustmentDelta: 0, contributedFedDelta: 0 },
+    ]);
+    expect(planTransactionEdit(old, -2000, next, -1000, {
+      invalidPreviousPipeIds: ["deleted"], applyReplacementEffects: true,
+    }).deltas).toEqual([
+      { pipeId: "bank", fedDelta: 1000, spentDelta: 0, pendingFedAdjustmentDelta: 0, contributedFedDelta: 0 },
+      { pipeId: "food", fedDelta: 0, spentDelta: 1000, pendingFedAdjustmentDelta: 1000, contributedFedDelta: 0 },
+    ]);
+  });
+
+  it("skips both invalid old roles and applies both replacements together", () => {
+    const old = { type: "transfer", from: "deleted-source", to: "deleted-destination" } as const;
+    const next = { type: "transfer", from: "source", to: "destination" } as const;
+    expect(planTransactionEdit(old, -2000, next, -1000, {
+      invalidPreviousPipeIds: ["deleted-source", "deleted-destination"], applyReplacementEffects: false,
+    }).deltas).toEqual([]);
+    expect(planTransactionEdit(old, -2000, next, -1000, {
+      invalidPreviousPipeIds: ["deleted-source", "deleted-destination"], applyReplacementEffects: true,
+    }).deltas).toMatchObject([
+      { pipeId: "source", fedDelta: -1000 },
+      { pipeId: "destination", fedDelta: 1000, contributedFedDelta: 1000 },
+    ]);
+  });
+
+  it("does not apply a newly added destination when an invalid source replacement is declined", () => {
+    expect(planTransactionEdit(
+      { type: "expense", from: "deleted" }, -1000,
+      { type: "transfer", from: "new", to: "bank" }, -1000,
+      { invalidPreviousPipeIds: ["deleted"], applyReplacementEffects: false },
+    ).deltas).toEqual([]);
+  });
   it("keeps unchanged roles in the affected scope when their net delta is zero", () => {
     expect(
       planTransactionEdit(

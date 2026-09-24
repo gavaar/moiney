@@ -237,6 +237,8 @@ export const editTransaction = mutation({
     title: v.string(),
     value: v.number(),
     date: v.number(),
+    primaryPipeId: v.optional(v.id("pipes")),
+    applyReplacementEffects: v.optional(v.boolean()),
     target: v.optional(
       v.union(
         v.object({ type: v.literal("expense") }),

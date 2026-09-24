@@ -43,7 +43,7 @@ export function TransactionItem({ transaction, onShowEditHistory }: TransactionI
   );
 
   function openForm(intent: "repeat" | "edit") {
-    if (model.disabled) {
+    if (isPipeCatalogLoading || (intent === "edit" ? !model.canEdit : model.disabled)) {
       setShowDisabledInfo(true);
     } else {
       setFormIntent(intent);
@@ -97,7 +97,7 @@ export function TransactionItem({ transaction, onShowEditHistory }: TransactionI
           disabled: isDeleting || isPipeCatalogLoading,
           onActivate: () => void confirmDelete(),
         }}
-        rightAction={!model.disabled ? {
+        rightAction={model.canEdit && !isPipeCatalogLoading ? {
           accessibilityLabel: `Edit ${transaction.title}`,
           content: <Icon name="pencil-outline" size={20} color={colors.text} />,
           backgroundClassName: "bg-secondary",
@@ -150,7 +150,7 @@ export function TransactionItem({ transaction, onShowEditHistory }: TransactionI
       ) : null}
 
       <ModalShell visible={formIntent !== null} onClose={() => setFormIntent(null)}>
-        {formIntent && model.primaryPipeId && model.formInitState ? (
+        {formIntent && model.formInitState ? (
           <TransactionForm
             pipeId={model.primaryPipeId}
             initState={{ ...model.formInitState, intent: formIntent }}
@@ -164,7 +164,7 @@ export function TransactionItem({ transaction, onShowEditHistory }: TransactionI
           <Text className="text-text font-bold text-lg mb-2">Cannot repeat transaction</Text>
           <Text className="text-muted text-sm leading-5">
             {model.viewOnly
-              ? "This is preserved history from a deleted pipe. Preserved history is view-only."
+              ? "This is preserved history from a deleted pipe. Select valid pipes to edit it."
               : "This transaction was from a pipe that does not exist or cannot accept transactions anymore (probably due to now having children pipes)."}
           </Text>
         </View>

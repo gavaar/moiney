@@ -1647,7 +1647,7 @@ describe("Convex boundaries: deletion and freeze", () => {
     expect(state.corrections).toEqual([]);
   });
 
-  it("rejects editing a transfer whose destination is not a root", async () => {
+  it("requires a replacement when a transfer destination is no longer a root", async () => {
     const t = convexTest(schema, modules);
     const { userId, sourceId, destinationId, transactionId } = await t.run(
       async (ctx) => {
@@ -1708,7 +1708,7 @@ describe("Convex boundaries: deletion and freeze", () => {
         },
       ),
     ).rejects.toMatchObject({
-      data: { code: "TRANSFER_DESTINATION_NOT_ROOT" },
+       data: { code: "TRANSACTION_PIPE_REPLACEMENT_REQUIRED" },
     });
 
     const state = await t.run(async (ctx) => ({
@@ -1723,7 +1723,7 @@ describe("Convex boundaries: deletion and freeze", () => {
     expect(state.corrections).toEqual([]);
   });
 
-  it("rejects editing a transfer whose source has children", async () => {
+  it("requires a replacement when a transfer source has children", async () => {
     const t = convexTest(schema, modules);
     const { userId, sourceId, destinationId, transactionId } = await t.run(
       async (ctx) => {
@@ -1783,7 +1783,7 @@ describe("Convex boundaries: deletion and freeze", () => {
           date: 100,
         },
       ),
-    ).rejects.toMatchObject({ data: { code: "TRANSFER_SOURCE_NOT_LEAF" } });
+    ).rejects.toMatchObject({ data: { code: "TRANSACTION_PIPE_REPLACEMENT_REQUIRED" } });
 
     const state = await t.run(async (ctx) => ({
       source: await ctx.db.get("pipes", sourceId),

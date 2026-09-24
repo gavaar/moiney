@@ -51,16 +51,35 @@ describe("transaction forms", () => {
     expect(create.mock.calls[0][0]).not.toHaveProperty("paidFrom");
   });
 
-  it("edits in one step with the source and existing payer locked and the edit marker visible", async () => {
-    render(<TransactionForm pipeId={source.id} initState={{ ...initial, intent: "edit" }} />);
+  it("opens edit on details and preserves the draft when changing the primary pipe", async () => {
+    render(<TransactionForm pipeId={source.id} initState={{ ...initial, intent: "edit", structure: { type: "expense", from: source.id } }} />);
     expect(screen.getByRole("heading", { name: "Edit: Food Lunch" })).toBeTruthy();
     expect(screen.getByText("edit")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Back" })).toBeNull();
-    expect(screen.queryByTestId("form-pager")).toBeNull();
-    expect(history).not.toHaveBeenCalled();
-    expect(screen.getByRole("button", { name: "Paid from" }).getAttribute("aria-disabled")).toBe("true");
+    fireEvent.change(screen.getByPlaceholderText("What was this for?"), { target: { value: "Dinner" } });
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    fireEvent.click(screen.getByRole("radio", { name: /Wallet/ }));
+    expect(screen.getByDisplayValue("Dinner")).toBeTruthy();
+    expect(screen.getByText(/Food: spent/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Update transaction" }));
-    await waitFor(() => expect(edit).toHaveBeenCalledWith({ transactionId: initial.transactionId, title: "Lunch", value: -500, date: initial.date }));
+    await waitFor(() => expect(edit).toHaveBeenCalledWith(expect.objectContaining({ transactionId: initial.transactionId, primaryPipeId: other.id, title: "Dinner", value: -500, date: initial.date })));
+  });
+
+  it("requires selection and an accounting choice when the old primary pipe is missing", async () => {
+    render(<TransactionForm pipeId={undefined} initState={{ ...initial, intent: "edit", pipeName: "Deleted", structure: { type: "expense", from: "deleted" as Id<"pipes"> } }} />);
+    expect(screen.getByRole("heading", { name: "Select pipe" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("radio", { name: /Food/ }));
+    expect(screen.getByText(/replacement/)).toBeTruthy();
+    expect(screen.getByText(/no accounting update/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Update transaction" }));
+    await waitFor(() => expect(edit).toHaveBeenCalledWith(expect.objectContaining({ primaryPipeId: source.id, applyReplacementEffects: false })));
+  });
+
+  it("shows the accounting effect on a replacement pipe when toggled on", () => {
+    render(<TransactionForm pipeId={undefined} initState={{ ...initial, intent: "edit", structure: { type: "expense", from: "deleted" as Id<"pipes"> } }} />);
+    fireEvent.click(screen.getByRole("radio", { name: /Food/ }));
+    fireEvent.click(screen.getByRole("switch", { name: "Apply accounting to replacement pipes" }));
+    expect(screen.getByText(/Food: spent \+5.00/)).toBeTruthy();
+    expect(screen.getByText(/Replacement pipes receive the transaction effect/)).toBeTruthy();
   });
 
   it("renders embedded spending without a pipe header and resets disclosure through mode changes and Clear", () => {

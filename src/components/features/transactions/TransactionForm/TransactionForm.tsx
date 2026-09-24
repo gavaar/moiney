@@ -7,14 +7,11 @@ import { useTransactionHistory } from "@features/transactions/cache/useTransacti
 import { getFrequentlyUsedSourcePipeIds, getQuickTransactionPipes } from "../QuickTransactionModal/helpers";
 
 type Props = { onSuccess?: () => void } & (
-  | { pipeId: Id<"pipes">; initState: TransactionInitialState }
+  | { pipeId?: Id<"pipes">; initState: TransactionInitialState }
   | { pipeId?: never; initState?: never }
 );
 
 export function TransactionForm(props: Props) {
-  if (props.pipeId && props.initState?.intent === "edit") {
-    return <AmountForm variant="transaction" pipeId={props.pipeId} initState={props.initState} onSuccess={props.onSuccess} />;
-  }
   return <SelectableTransactionForm {...props} />;
 }
 

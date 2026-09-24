@@ -40,6 +40,8 @@ export type EditTransactionCommand = {
   title: string;
   value: number;
   date: number;
+  primaryPipeId?: Id<"pipes">;
+  applyReplacementEffects?: boolean;
   target?:
     | { type: "expense" }
     | { type: "transfer"; to: Id<"pipes"> }
@@ -503,37 +505,33 @@ export async function editTransactionOperation(
   const getPipe = createCachedPipeReader(ctx);
 
   const title = canonicalizeTransactionTitle(command.title);
-  if (
-    transaction.fromIcon !== undefined ||
-    transaction.toIcon !== undefined ||
-    transaction.paidFromIcon !== undefined
-  ) {
-    throw new Error("Transaction is view-only");
-  }
-
   const previousStructure = transactionStructureFromRoles(transaction);
   let currentStructure: TransactionStructure<Id<"pipes">> = previousStructure;
   if (command.target) {
     if (previousStructure.type === "feed") {
       throw new Error("Feed transaction structure cannot be changed");
     }
-    if (previousStructure.type === "payByTransfer") {
+    if (previousStructure.type === "payByTransfer" && command.target.type !== "payByTransfer") {
       throw new Error("Pay-by-transfer structure cannot be changed");
     }
     currentStructure =
       command.target.type === "expense"
-        ? { type: "expense", from: previousStructure.from }
+        ? { type: "expense", from: command.primaryPipeId ?? previousStructure.from }
         : command.target.type === "transfer"
           ? {
               type: "transfer",
-              from: previousStructure.from,
+              from: command.primaryPipeId ?? previousStructure.from,
               to: command.target.to,
             }
           : {
               type: "payByTransfer",
-              from: previousStructure.from,
+              from: command.primaryPipeId ?? previousStructure.from,
               paidFrom: command.target.paidFrom,
             };
+  } else if (command.primaryPipeId) {
+    currentStructure = previousStructure.type === "feed"
+      ? { type: "feed", to: command.primaryPipeId }
+      : { ...previousStructure, from: command.primaryPipeId };
   }
   const currentKind =
     currentStructure.type === "feed"
@@ -557,10 +555,42 @@ export async function editTransactionOperation(
     currentTo !== transaction.to ||
     currentPaidFrom !== transaction.paidFrom;
 
+  const oldRoles = {
+    from: transaction.from,
+    to: transaction.to,
+    paidFrom: transaction.paidFrom,
+  };
+  const newRoles = { from: currentFrom, to: currentTo, paidFrom: currentPaidFrom };
+  const invalidPreviousPipeIds: Id<"pipes">[] = [];
+  const ownedOldPipes: Doc<"pipes">[] = [];
+  for (const role of ["from", "to", "paidFrom"] as const) {
+    const oldId = oldRoles[role];
+    if (!oldId) continue;
+    const pipe = await getPipe(oldId);
+    if (pipe && pipe.userId !== userId) throw new ConvexError({ code: "TRANSACTION_PIPE_NOT_FOUND" });
+    if (pipe) ownedOldPipes.push(pipe);
+    if (pipe?.deletionJobId) throw new Error("Pipe is being deleted");
+    const hasChildren = pipe && (role === "from" || (role === "paidFrom" && transaction.value < 0))
+      ? (await ctx.db.query("pipes").withIndex("by_parentId", q => q.eq("parentId", oldId)).take(1)).length > 0
+      : false;
+    const invalid = !pipe || transaction[`${role}Icon`] !== undefined || hasChildren ||
+      (role === "to" && !!pipe.parentId) ||
+      (role === "paidFrom" && transaction.value > 0 && !!pipe.parentId);
+    if (invalid) {
+      invalidPreviousPipeIds.push(oldId);
+      if (!newRoles[role] || newRoles[role] === oldId) {
+        throw new ConvexError({ code: "TRANSACTION_PIPE_REPLACEMENT_REQUIRED" });
+      }
+    }
+  }
+  if (invalidPreviousPipeIds.length > 0 && command.applyReplacementEffects === undefined) {
+    throw new ConvexError({ code: "TRANSACTION_REPLACEMENT_CHOICE_REQUIRED" });
+  }
+  if (invalidPreviousPipeIds.length === 0 && command.applyReplacementEffects !== undefined) {
+    throw new ConvexError({ code: "TRANSACTION_REPLACEMENT_CHOICE_UNAVAILABLE" });
+  }
+  const newPipes: Doc<"pipes">[] = [];
   for (const pipeId of new Set([
-    transaction.from,
-    transaction.to,
-    transaction.paidFrom,
     currentFrom,
     currentTo,
     currentPaidFrom,
@@ -571,7 +601,9 @@ export async function editTransactionOperation(
       throw new ConvexError({ code: "TRANSACTION_PIPE_NOT_FOUND" });
     }
     if (pipe.deletionJobId) throw new Error("Pipe is being deleted");
+    newPipes.push(pipe);
   }
+  await assertPipeTreesNotFrozen(ctx, [...ownedOldPipes, ...newPipes], getPipe);
 
   const valueDiff = command.value - transaction.value;
   validateTransactionAmount(
@@ -580,6 +612,16 @@ export async function editTransactionOperation(
   );
 
   const accountingChanged = structureChanged || valueDiff !== 0;
+  if (currentStructure.type === "expense" || currentStructure.type === "payByTransfer" || currentStructure.type === "feed") {
+    const sourceId = currentStructure.type === "feed" ? currentStructure.to : currentStructure.from;
+    const source = await getPipe(sourceId);
+    if (currentStructure.type === "feed") {
+      if (source?.parentId) throw new ConvexError({ code: "FEED_DESTINATION_NOT_ROOT" });
+    } else {
+      const children = await ctx.db.query("pipes").withIndex("by_parentId", q => q.eq("parentId", sourceId)).take(1);
+      if (children.length > 0) throw new ConvexError({ code: "SOURCE_HAS_CHILDREN" });
+    }
+  }
   if (accountingChanged && currentStructure.type === "transfer") {
     const destination = await getPipe(currentStructure.to);
     if (!destination) throw new Error("Pipe not found");
@@ -605,7 +647,7 @@ export async function editTransactionOperation(
   } else if (accountingChanged && currentStructure.type === "payByTransfer") {
     const paidFromPipe = await getPipe(currentStructure.paidFrom);
     if (!paidFromPipe) throw new Error("Pipe not found");
-    if (structureChanged) {
+    if (accountingChanged) {
       const [sourceRoot, paidFromRoot] = await Promise.all([
         resolveTopMostAncestor(ctx, currentStructure.from, undefined, getPipe),
         resolveTopMostAncestor(
@@ -651,8 +693,9 @@ export async function editTransactionOperation(
       transaction.value,
       currentStructure,
       command.value,
+      { invalidPreviousPipeIds, applyReplacementEffects: command.applyReplacementEffects },
     );
-    await applyTransactionAccountingPlan(ctx, editPlan, getPipe);
+    if (editPlan.affectedPipeIds.length > 0) await applyTransactionAccountingPlan(ctx, editPlan, getPipe);
   }
 
   const hasCorrection =
@@ -698,6 +741,9 @@ export async function editTransactionOperation(
     from: currentFrom,
     to: currentTo,
     paidFrom: currentPaidFrom,
+    fromIcon: undefined,
+    toIcon: undefined,
+    paidFromIcon: undefined,
     ...(editedAt !== undefined ? { editedAt } : {}),
   });
   return buildTransactionWriteResult(command.transactionId, transaction._creationTime, {
@@ -708,9 +754,6 @@ export async function editTransactionOperation(
     from: currentFrom,
     to: currentTo,
     paidFrom: currentPaidFrom,
-    fromIcon: transaction.fromIcon,
-    toIcon: transaction.toIcon,
-    paidFromIcon: transaction.paidFromIcon,
     editedAt: editedAt ?? transaction.editedAt,
   });
 }

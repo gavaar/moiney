@@ -66,4 +66,34 @@ describe("mixed History interaction", () => {
     expect(mocks.navigate).toHaveBeenCalledWith({ pathname: "/(main)/(tabs)/pipes", params: { pipeId: trip.pipeId } });
     expect(mocks.query).not.toHaveBeenCalled();
   });
+
+  it("does not fetch archive pages or offer expansion when a deleted pipe has no transactions", async () => {
+    mocks.query.mockResolvedValue({ transactions: [], count: 0, spent: 0, oldestDate: null, latestDate: null, isDone: true, cursor: null });
+    render(<HistoryList {...props} items={[{ kind: "pipe", date: trip.occurredAt, event: { ...trip, deletedAt: Date.UTC(2026, 8, 22) } }]} />);
+    await waitFor(() => expect(screen.getByText("Sep 22, 2026")).toBeTruthy());
+    expect(screen.getByText("Deleted")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Expand Madrid history" })).toBeNull();
+    expect(mocks.query).toHaveBeenCalled();
+    expect(mocks.query.mock.calls.every(([, args]) => args.summaryOnly)).toBe(true);
+  });
+
+  it("hides pending expansion when an archive summary resolves empty", async () => {
+    let resolveSummary!: (value: { transactions: []; count: number; spent: number; oldestDate: null; latestDate: null; isDone: true; cursor: null }) => void;
+    let firstSummary = true;
+    mocks.query.mockImplementation((_ref, args) => {
+      if (args.summaryOnly && firstSummary) {
+        firstSummary = false;
+        return new Promise(resolve => { resolveSummary = resolve; });
+      }
+      return args.summaryOnly
+        ? Promise.resolve({ transactions: [], count: 0, spent: 0, oldestDate: null, latestDate: null, isDone: true, cursor: null })
+        : new Promise(() => {});
+    });
+    render(<HistoryList {...props} items={[{ kind: "pipe", date: trip.occurredAt, event: { ...trip, deletedAt: Date.UTC(2026, 8, 22) } }]} />);
+    await userEvent.click(screen.getByRole("button", { name: "Expand Madrid history" }));
+    resolveSummary({ transactions: [], count: 0, spent: 0, oldestDate: null, latestDate: null, isDone: true, cursor: null });
+    await waitFor(() => expect(screen.getByText("Sep 22, 2026")).toBeTruthy());
+    expect(screen.queryByRole("button", { name: "Load more Madrid history" })).toBeNull();
+    expect(screen.queryByLabelText("Loading Madrid history")).toBeNull();
+  });
 });

@@ -5,8 +5,9 @@ import { describe, expect, it, vi } from "vitest";
 import type { Id } from "@convex/_generated/dataModel";
 import { PipeHistoryRow } from "./pipe-history-row";
 import type { PipeHistoryEvent } from "./history-data";
+import { colors } from "@/lib/styles";
 
-vi.mock("@ui/Icon", () => ({ Icon: () => null, safeIconName: (name: string) => name }));
+vi.mock("@ui/Icon", () => ({ Icon: ({ name, color }: { name: string; color: string }) => <span data-testid={name} data-color={color} />, safeIconName: (name: string) => name }));
 
 const event: PipeHistoryEvent = {
   id: "event" as Id<"pipeCreationEvents">, pipeId: "trip" as Id<"pipes">,
@@ -37,6 +38,19 @@ describe("pipe history rows", () => {
     render(<PipeHistoryRow event={{ ...event, deletedAt: 123 }} expanded={false} onPress={() => {}} />);
     expect(screen.getByText("Loading totals…")).toBeTruthy();
     expect(screen.queryByText(/Spent:/)).toBeNull();
+    expect(screen.queryByText("x0")).toBeNull();
+  });
+  it("keeps an empty archive as a dated deletion record without an expandable control", () => {
+    const onPress = vi.fn();
+    render(<PipeHistoryRow event={{ ...event, deletedAt: Date.UTC(2026, 8, 22) }} expanded={false} onPress={onPress}
+      summary={{ count: 0, spent: 0, oldestDate: null, latestDate: null }} />);
+    expect(screen.getByText("Deleted")).toBeTruthy();
+    expect(screen.getByText("Sep 22, 2026")).toBeTruthy();
+    expect(screen.queryByText("Sep 1, 2026")).toBeNull();
+    expect(screen.getByTestId("airplane").getAttribute("data-color")).toBe(colors.muted);
+    expect(screen.queryByText("No retained transactions")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Expand Madrid history" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Madrid archived history" })).toBeNull();
     expect(screen.queryByText("x0")).toBeNull();
   });
 });

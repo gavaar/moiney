@@ -99,7 +99,9 @@ and capacities are not event fields and are not reconstructed from transactions.
 
 Deletion preserves the last pipe and parent presentation and marks retained
 events deleted. A deleted event expands into its retained transactions instead
-of navigating. Every `from`, `to`, and `paidFrom` involvement belongs to that
+of navigating. When an archive has no matching transactions, it remains a
+non-expandable muted deletion record showing the deletion date. Every `from`,
+`to`, and `paidFrom` involvement belongs to that
 pipe's archive; a transaction appears once within an archive and may appear in
 multiple archives. Shared transactions with surviving involved pipes also remain
 in ordinary history. Orphaned legacy transactions without recoverable creation

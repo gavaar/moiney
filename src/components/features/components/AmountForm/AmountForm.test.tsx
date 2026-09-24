@@ -1540,7 +1540,7 @@ describe("AmountForm", () => {
         expect(submitBtn).toBeTruthy();
       });
 
-      it("disables the paid-from selector while updating a transaction", () => {
+       it("allows choosing an eligible payer while updating a transaction", () => {
         render(
           <AmountForm
             pipeId={"child-1" as Id<"pipes">}
@@ -1563,7 +1563,7 @@ describe("AmountForm", () => {
         );
 
         expect(screen.getByTestId("input-Paid from").getAttribute("data-disabled"))
-          .toBe("true");
+           .toBeNull();
       });
 
       it("calls editTransaction with form values when submitted", async () => {
