@@ -109,6 +109,15 @@ destination choices. Feed repeats retain feed semantics and select root
 destinations. Edit uses the same two-step picker, starting on details when the
 original primary pipe is eligible and on selection otherwise. Returning to the
 picker preserves the entered details; edit may select a pipe in another tree.
+Transaction selectors with descendant candidates group eligible leaves under
+their root, showing root icon, name, and candidate count. A root header expands
+independently without selecting a pipe. Candidate ranking is preserved within
+roots; roots are ordered by their highest-ranked candidate, except repeat and
+edit place the original root first. Create opens its first root; repeat/edit
+open the original root when resolvable and otherwise start collapsed. Negative
+pay-by-transfer payer choices use the same grouping, opening the current payer's
+root or the first eligible root. Root-only feed, transfer destination, and
+refund choices remain flat.
 
 Tapping an individual transaction opens repeat. Swiping left reveals a blue
 pencil and opens edit after the swipe threshold; the action is also an

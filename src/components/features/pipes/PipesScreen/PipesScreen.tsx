@@ -146,11 +146,9 @@ export function PipesScreen({ openPipeId, onPipeOpened }: { openPipeId?: string;
             <Icon name="chevron-up" size={18} color={colors.text} />
           </View>
         </Pressable>
-        {latestExpanded ? (
-          <View className="flex-1">
-            <MixedHistoryFeed recent filters={pipeIds ? { pipeIds } : {}} />
-          </View>
-        ) : null}
+        <View className="flex-1" style={{ display: latestExpanded ? "flex" : "none" }}>
+          <MixedHistoryFeed recent filters={pipeIds ? { pipeIds } : {}} />
+        </View>
       </View>
     </SafeAreaView>
   );

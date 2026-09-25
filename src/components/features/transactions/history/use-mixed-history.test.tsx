@@ -60,6 +60,7 @@ describe("mixed History loading", () => {
     act(() => result.current.refresh());
     expect(result.current.items).toEqual([item]);
     expect(result.current.isLoading).toBe(true);
+    expect(result.current.isRefreshing).toBe(false);
   });
 
   it("fills latest history across compressed archive page boundaries", async () => {

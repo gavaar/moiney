@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { useEffect } from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -20,6 +21,7 @@ const mocks = vi.hoisted(() => ({
     updatedAt: 1,
   },
   historyOptions: undefined as any,
+  historyMounts: vi.fn(),
 }));
 
 vi.mock("react-native", async (importOriginal) => ({
@@ -61,7 +63,10 @@ vi.mock("@features/transactions/components/TransactionList", () => ({
   TransactionList: () => <div data-testid="latest-list" />,
 }));
 vi.mock("@features/transactions/history/mixed-history-feed", () => ({
-  MixedHistoryFeed: () => <div data-testid="latest-list" />,
+  MixedHistoryFeed: () => {
+    useEffect(() => { mocks.historyMounts(); }, []);
+    return <div data-testid="latest-list" />;
+  },
 }));
 vi.mock("@ui/Icon", () => ({
   Icon: ({ name, testID }: any) => (
@@ -192,10 +197,12 @@ describe("Pipes Android back handling", () => {
     render(<PipesScreen />);
 
     expect(screen.getByTestId("latest-list")).toBeDefined();
+    expect(mocks.historyMounts).toHaveBeenCalledTimes(1);
     await user.click(screen.getByRole("button", { name: "Collapse latest history" }));
-    await waitFor(() => expect(screen.queryByTestId("latest-list")).toBeNull());
+    await waitFor(() => expect(screen.getByTestId("latest-list").parentElement?.style.display).toBe("none"));
     await user.click(screen.getByRole("button", { name: "Expand latest history" }));
-    expect(screen.getByTestId("latest-list")).toBeDefined();
+    expect(screen.getByTestId("latest-list").parentElement?.style.display).toBe("flex");
+    expect(mocks.historyMounts).toHaveBeenCalledTimes(1);
   });
 
   it("minimizes the latest history section in tree view instead of removing it", async () => {
@@ -208,13 +215,14 @@ describe("Pipes Android back handling", () => {
     ).toBeDefined();
 
     await user.click(screen.getByTestId("mode-toggle"));
-    await waitFor(() => expect(screen.queryByTestId("latest-list")).toBeNull());
+    await waitFor(() => expect(screen.getByTestId("latest-list").parentElement?.style.display).toBe("none"));
     expect(
       screen.getByRole("button", { name: "Expand latest history" }),
     ).toBeDefined();
 
     await user.click(screen.getByTestId("mode-toggle"));
-    await waitFor(() => expect(screen.getByTestId("latest-list")).toBeDefined());
+    await waitFor(() => expect(screen.getByTestId("latest-list").parentElement?.style.display).toBe("flex"));
+    expect(mocks.historyMounts).toHaveBeenCalledTimes(1);
   });
 
   it("renders the latest history control with an accessible chevron", () => {

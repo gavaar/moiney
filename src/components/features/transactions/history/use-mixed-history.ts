@@ -21,8 +21,8 @@ export function useMixedHistory(filters: TransactionHistoryFilters = {}, options
   const [revision, setRevision] = useState(0);
   const [state, setState] = useState<{
     accountKey: string | null; filterKey: string; items: HistoryItem[]; isLoading: boolean;
-    isRefreshing: boolean; hasMore: boolean; error: string | null;
-  }>({ accountKey, filterKey, items: [], isLoading: true, isRefreshing: false, hasMore: false, error: null });
+    hasMore: boolean; error: string | null;
+  }>({ accountKey, filterKey, items: [], isLoading: true, hasMore: false, error: null });
   const enabled = focused && !isHydrating && (options.enabled ?? true) && accountKey !== null;
 
   useEffect(() => {
@@ -37,7 +37,7 @@ export function useMixedHistory(filters: TransactionHistoryFilters = {}, options
     setState((current) => ({
       accountKey, filterKey,
       items: current.accountKey === accountKey && current.filterKey === filterKey ? current.items : [],
-      isLoading: true, isRefreshing: true, hasMore: false, error: null,
+       isLoading: true, hasMore: false, error: null,
     }));
     const loadInitial = async () => {
       const items: HistoryItem[] = [];
@@ -47,12 +47,12 @@ export function useMixedHistory(filters: TransactionHistoryFilters = {}, options
         if (request.current !== reader) return;
         items.push(...page.items);
         const keepFilling = Boolean(options.recent && !page.isDone && items.length < target);
-        setState({ accountKey, filterKey, items: [...items], hasMore: !page.isDone, isLoading: keepFilling, isRefreshing: false, error: null });
+         setState({ accountKey, filterKey, items: [...items], hasMore: !page.isDone, isLoading: keepFilling, error: null });
         if (!keepFilling) return;
       }
     };
     void loadInitial().catch(() => {
-      if (request.current === reader) setState((current) => ({ ...current, isLoading: false, isRefreshing: false, error: "Unable to load history." }));
+       if (request.current === reader) setState((current) => ({ ...current, isLoading: false, error: "Unable to load history." }));
     }).finally(() => { if (request.current === reader) busy.current = false; });
     return () => {
       reader.cancel();
@@ -78,7 +78,7 @@ export function useMixedHistory(filters: TransactionHistoryFilters = {}, options
     items: belongsToScope ? state.items : [],
     error: belongsToScope ? state.error : null,
     isLoading: !belongsToScope || state.isLoading,
-    isRefreshing: belongsToScope && state.isRefreshing,
+     isRefreshing: false,
     hasMore: !options.recent && state.hasMore,
     loadMore, refresh,
     // Reset expanded archive pages and summaries when the main feed is refreshed.
