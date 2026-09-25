@@ -3,9 +3,11 @@ import { formatAmount } from "@/lib/format";
 import type { FormProps } from "@ui/Form";
 import type { AmountFormDraft, SourcePicker } from "./types";
 import type { PipeModel } from "@features/pipes/data/pipes";
+import type { InputProps } from "@ui/Input";
 import { renderTransactionPipe, transactionPipeItems, transactionPipeStyle } from "./pipeOptions";
 
 type PipeOption = { id: string; name: string; icon: string };
+type PipeGroups = NonNullable<Extract<InputProps, { type: "select" }>["groups"]>;
 type AmountFormConfiguration = {
   isFeed: boolean;
   pipesById: Readonly<Record<string, PipeModel>>;
@@ -15,10 +17,11 @@ type AmountFormConfiguration = {
     isNegative: boolean;
     pipeItems: readonly PipeOption[];
     paidFromPipeItems: readonly PipeOption[];
+    paidFromGroups: PipeGroups;
     showPaidFrom: boolean;
     setShowPaidFrom: (show: boolean) => void;
   } | null;
-  transaction: { paidFrom: { label: string; items: readonly PipeOption[] } | null } | null;
+   transaction: { paidFrom: { label: string; items: readonly PipeOption[]; groups: PipeGroups } | null } | null;
   boiler: { name: string; contributionAmount: number; currentFedChanged: boolean } | null;
 };
 
@@ -29,7 +32,8 @@ export function buildAmountForm(form: AmountFormConfiguration, sourcePicker?: So
     key: "sourcePipeId", step: 0,
     input: {
       type: "select", presentation: "inline", label: "Transaction pipe", hideLabel: true,
-      items: transactionPipeItems(sourcePicker.pipes, pipesById, true),
+       items: transactionPipeItems(sourcePicker.pipes, pipesById, true),
+       groups: sourcePicker.groups,
       renderItem: renderTransactionPipe,
       itemStyle: transactionPipeStyle,
       loading: sourcePicker.loading, disabled: common.loading,
@@ -46,10 +50,11 @@ export function buildAmountForm(form: AmountFormConfiguration, sourcePicker?: So
     key: "paidFrom", step,
     input: {
       type: "select", label: paidFrom?.label ?? (spend?.isNegative ? "Paid from" : "Refunded to"),
-      items: transactionPipeItems(paidFrom?.items ?? spend?.paidFromPipeItems ?? [], pipesById),
+       items: transactionPipeItems(paidFrom?.items ?? spend?.paidFromPipeItems ?? [], pipesById),
+       groups: paidFrom?.groups ?? spend?.paidFromGroups,
       renderItem: renderTransactionPipe,
       itemStyle: transactionPipeStyle,
-      placeholder: "None", disabled: common.loading || !!paidFrom,
+       placeholder: "None", disabled: common.loading,
     },
     ...(!paidFrom && spend ? { reveal: {
       label: "Paid from another pipe?", icon: "wallet-outline" as const,

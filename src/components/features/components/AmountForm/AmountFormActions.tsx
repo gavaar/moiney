@@ -12,13 +12,12 @@ type Props = {
     submit: () => void;
   };
   onReset: () => void;
-  alongsideNavigation: boolean;
 };
 
-export function AmountFormActions({ action, onReset, alongsideNavigation }: Props) {
+export function AmountFormActions({ action, onReset }: Props) {
   const disabled = !action.isValid || action.loading;
   return (
-    <View className="flex-row items-center justify-between gap-3 pt-2" style={alongsideNavigation ? { flex: 1 } : undefined}>
+    <View className="flex-row items-center justify-between gap-3 pt-2">
       <TouchableOpacity testID="eraser-button" accessibilityRole="button" accessibilityLabel="Clear form"
         accessibilityState={{ disabled: action.loading }} onPress={onReset} disabled={action.loading}
         className={cn("p-3 border border-muted rounded-full", action.loading && "opacity-50")}>

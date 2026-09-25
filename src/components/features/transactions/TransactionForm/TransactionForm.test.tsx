@@ -10,6 +10,8 @@ import { TransactionForm } from "./TransactionForm";
 const root: PipeModel = { id: "root" as Id<"pipes">, name: "Budget", icon: "pipe", fed: 10000, spent: 0, capacity: 0, priority: 0 };
 const source: PipeModel = { ...root, id: "source" as Id<"pipes">, parentId: root.id, name: "Food", fed: 1000, spent: 1000, capacity: 2000 };
 const other: PipeModel = { ...root, id: "other" as Id<"pipes">, name: "Wallet", fed: 2000, spent: 500, capacity: 2000 };
+const investment: PipeModel = { ...root, id: "investment" as Id<"pipes">, name: "Investment" };
+const investmentLeaf: PipeModel = { ...investment, id: "investment-leaf" as Id<"pipes">, parentId: investment.id, name: "Savings" };
 const create = vi.fn().mockResolvedValue(undefined);
 const edit = vi.fn().mockResolvedValue(undefined);
 const history = vi.fn(() => ({ transactions: [], isLoading: false }));
@@ -19,8 +21,8 @@ vi.mock("@ui/Alert", () => ({ useAlert: () => ({ error: vi.fn() }) }));
 vi.mock("@features/transactions/cache/TransactionCacheContext", () => ({ useOptionalTransactionCache: () => null }));
 vi.mock("@features/transactions/cache/useTransactionHistory", () => ({ useTransactionHistory: () => history() }));
 vi.mock("@features/pipes/context/PipeCatalogContext", () => ({ usePipeCatalog: () => ({
-  allPipes: [root, source, other], childrenByParent: new Map([[root.id, [source]]]), isLoading: false,
-  pipesById: { [root.id]: root, [source.id]: source, [other.id]: other },
+  allPipes: [root, source, other, investment, investmentLeaf], childrenByParent: new Map([[root.id, [source]], [investment.id, [investmentLeaf]]]), isLoading: false,
+  pipesById: { [root.id]: root, [source.id]: source, [other.id]: other, [investment.id]: investment, [investmentLeaf.id]: investmentLeaf },
 }) }));
 
 const initial = {
@@ -43,6 +45,9 @@ describe("transaction forms", () => {
     const expected = document.createElement("div");
     expected.style.color = colors.error;
     expect(getComputedStyle(selected).borderTopColor).toBe(expected.style.color);
+    expect(screen.getByRole("button", { name: "Collapse Budget" })).toBeTruthy();
+    expect(screen.queryByRole("radio", { name: /Wallet/ })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Expand Wallet" }));
     fireEvent.click(screen.getByRole("radio", { name: /Wallet/ }));
     expect(screen.getByDisplayValue("Lunch")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Paid from" }).textContent).toBe("None");
@@ -51,16 +56,63 @@ describe("transaction forms", () => {
     expect(create.mock.calls[0][0]).not.toHaveProperty("paidFrom");
   });
 
-  it("edits in one step with the source and existing payer locked and the edit marker visible", async () => {
-    render(<TransactionForm pipeId={source.id} initState={{ ...initial, intent: "edit" }} />);
+  it("opens edit on details and preserves the draft when changing the primary pipe", async () => {
+    render(<TransactionForm pipeId={source.id} initState={{ ...initial, intent: "edit", structure: { type: "expense", from: source.id } }} />);
     expect(screen.getByRole("heading", { name: "Edit: Food Lunch" })).toBeTruthy();
     expect(screen.getByText("edit")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Back" })).toBeNull();
-    expect(screen.queryByTestId("form-pager")).toBeNull();
-    expect(history).not.toHaveBeenCalled();
-    expect(screen.getByRole("button", { name: "Paid from" }).getAttribute("aria-disabled")).toBe("true");
+    fireEvent.change(screen.getByPlaceholderText("What was this for?"), { target: { value: "Dinner" } });
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    fireEvent.click(screen.getByRole("button", { name: "Expand Wallet" }));
+    fireEvent.click(screen.getByRole("radio", { name: /Wallet/ }));
+    expect(screen.getByDisplayValue("Dinner")).toBeTruthy();
+    expect(screen.getByText(/Food: spent/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Update transaction" }));
-    await waitFor(() => expect(edit).toHaveBeenCalledWith({ transactionId: initial.transactionId, title: "Lunch", value: -500, date: initial.date }));
+    await waitFor(() => expect(edit).toHaveBeenCalledWith(expect.objectContaining({ transactionId: initial.transactionId, primaryPipeId: other.id, title: "Dinner", value: -500, date: initial.date })));
+  });
+
+  it("requires selection and an accounting choice when the old primary pipe is missing", async () => {
+    render(<TransactionForm pipeId={undefined} initState={{ ...initial, intent: "edit", pipeName: "Deleted", structure: { type: "expense", from: "deleted" as Id<"pipes"> } }} />);
+    expect(screen.getByRole("heading", { name: "Select pipe" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Expand Budget" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Expand Wallet" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Expand Budget" }));
+    fireEvent.click(screen.getByRole("radio", { name: /Food/ }));
+    expect(screen.getByText(/replacement/)).toBeTruthy();
+    expect(screen.getByText(/no accounting update/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Update transaction" }));
+    await waitFor(() => expect(edit).toHaveBeenCalledWith(expect.objectContaining({ primaryPipeId: source.id, applyReplacementEffects: false })));
+  });
+
+  it("shows the accounting effect on a replacement pipe when toggled on", () => {
+    render(<TransactionForm pipeId={undefined} initState={{ ...initial, intent: "edit", structure: { type: "expense", from: "deleted" as Id<"pipes"> } }} />);
+    fireEvent.click(screen.getByRole("button", { name: "Expand Budget" }));
+    fireEvent.click(screen.getByRole("radio", { name: /Food/ }));
+    fireEvent.click(screen.getByRole("switch", { name: "Apply accounting to replacement pipes" }));
+    expect(screen.getByText(/Food: spent \+5.00/)).toBeTruthy();
+    expect(screen.getByText(/Replacement pipes receive the transaction effect/)).toBeTruthy();
+  });
+
+  it("expands the highest ranked root on create while leaving others collapsed", () => {
+    render(<TransactionForm />);
+    expect(screen.getByRole("button", { name: "Collapse Budget" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Expand Wallet" })).toBeTruthy();
+    expect(screen.getByRole("radio", { name: /Food/ })).toBeTruthy();
+    expect(screen.queryByRole("radio", { name: /Wallet/ })).toBeNull();
+  });
+
+  it("groups eligible leaf payers while leaving refund destinations flat", () => {
+    const { unmount } = render(<TransactionForm pipeId={source.id} initState={{ ...initial, intent: "repeat" }} />);
+    fireEvent.click(screen.getByRole("button", { name: "Paid from" }));
+    expect(screen.getByRole("button", { name: "Collapse Wallet" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Expand Investment" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Expand Investment" }));
+    fireEvent.click(screen.getByRole("button", { name: /Savings/ }));
+    expect(screen.getByRole("button", { name: "Paid from" }).textContent).toContain("Savings");
+    unmount();
+
+    render(<TransactionForm pipeId={source.id} initState={{ ...initial, value: "5.00", intent: "repeat" }} />);
+    fireEvent.click(screen.getByRole("button", { name: "Refunded to" }));
+    expect(screen.queryByRole("button", { name: "Expand Investment" })).toBeNull();
   });
 
   it("renders embedded spending without a pipe header and resets disclosure through mode changes and Clear", () => {
@@ -84,6 +136,7 @@ describe("transaction forms", () => {
     render(<TransactionForm pipeId={other.id} initState={{ ...initial, pipeName: other.name, value: "5.00", structure: { type: "feed", to: other.id }, intent: "repeat" }} />);
     expect(screen.queryByRole("radio", { name: "Spend" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(screen.queryByRole("button", { name: "Expand Budget" })).toBeNull();
     expect(screen.queryByRole("radio", { name: /Food/ })).toBeNull();
     fireEvent.click(screen.getByRole("radio", { name: /Budget/ }));
     fireEvent.click(screen.getByRole("button", { name: "Feed" }));

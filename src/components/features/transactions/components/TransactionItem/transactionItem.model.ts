@@ -1,7 +1,7 @@
 import { resolveTransactionKind, type TransactionKind, transactionStructureFromRoles } from "@domain/transactions";
 import type { TransactionModel } from "../../data/transactions";
 import { colors } from "@/lib/styles";
-import { formatAmount } from "@/lib/format";
+import { formatMoneyInput } from "@domain/money";
 import { safeIconName } from "@ui/Icon/icons";
 import type { PipeModel } from "@features/pipes/data/pipes";
 import type { PipeCatalogContextValue } from "@features/pipes/context/PipeCatalogContext";
@@ -105,24 +105,26 @@ export const getTransactionItemModel = (
   const uiIcons = getTransactionIcons(kind, transaction, fromPipe, toPipe, paidFromPipe);
 
   const primaryPipe = kind === "feed" ? toPipe : fromPipe;
-  const formInitState = primaryPipe && !viewOnly ? {
-    pipeIcon: primaryPipe.icon,
-    pipeName: primaryPipe.name,
-    spent: primaryPipe.spent,
-    capacity: primaryPipe.capacity,
+  const canRepeat = !viewOnly && (!transaction.from || fromValid) && (!transaction.to || toValid) && (!transaction.paidFrom || paidFromValid);
+  const formInitState = {
+    pipeIcon: primaryPipe?.icon ?? (kind === "feed" ? transaction.toIcon : transaction.fromIcon) ?? "pipe-disconnected",
+    pipeName: primaryPipe?.name ?? "Deleted pipe",
+    spent: primaryPipe?.spent,
+    capacity: primaryPipe?.capacity,
     title: transaction.title,
-    value: formatAmount(transaction.value),
+    value: formatMoneyInput(transaction.value),
     structure: transactionStructureFromRoles(transaction),
     transactionId: transaction.id,
     date: transaction.date,
-  } : undefined;
+  };
 
   return {
     viewOnly,
     formInitState,
     uiIcons,
-    disabled: viewOnly || (!!transaction.from && !fromValid) || (!!transaction.to && !toValid) || (!!transaction.paidFrom && !paidFromValid),
+    disabled: !canRepeat,
+    canEdit: ![fromPipe, toPipe, paidFromPipe].some(pipe => pipe?.deletionJobId),
     bgClass: getBackgroundClass(kind, transaction),
-    primaryPipeId: primaryPipe?.id,
+    primaryPipeId: kind === "feed" ? (toValid ? primaryPipe?.id : undefined) : (fromValid ? primaryPipe?.id : undefined),
   };
 };

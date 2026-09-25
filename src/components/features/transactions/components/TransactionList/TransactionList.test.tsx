@@ -46,6 +46,18 @@ function tx(
 }
 
 const mockUsePipeSelection = vi.fn();
+vi.mock("convex/react", () => ({
+  useMutation: () => vi.fn(),
+}));
+vi.mock("@ui/ConfirmModal", () => ({
+  useConfirmWithModal: () => vi.fn(),
+}));
+vi.mock("@ui/Alert", () => ({
+  useAlert: () => ({ error: vi.fn(), success: vi.fn() }),
+}));
+vi.mock("@features/transactions/cache/TransactionCacheContext", () => ({
+  useOptionalTransactionCache: () => null,
+}));
 vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
   usePipeCatalog: () => mockUsePipeSelection(),
 }));

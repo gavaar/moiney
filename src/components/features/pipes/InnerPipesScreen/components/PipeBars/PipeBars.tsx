@@ -1,6 +1,7 @@
 import { DimensionValue, Text, View } from "react-native";
 import { formatAmount } from "@/lib/format";
 import { colors } from "@/lib/styles";
+import type { PipeRule } from "@domain/pipes/rules";
 
 type PipeBarsProps = {
   fed: number;
@@ -8,7 +9,7 @@ type PipeBarsProps = {
   capacity: number;
   expected: number;
   pendingFedAdjustment?: number;
-  rule?: "spend_overflow" | "instant_settlement" | "cron";
+  rule?: PipeRule;
   sourceType?: "feed" | "boiler";
 };
 

@@ -1,4 +1,4 @@
-import type { Id } from "../../../_generated/dataModel";
+import type { Doc, Id } from "../../../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../../../_generated/server";
 import { planPipeDeletion } from "./plan";
 import { computePipeTree, recalculatePipes } from "../../../../domain/pipes";
@@ -7,6 +7,8 @@ import {
   type DeletionPipeState,
 } from "./transactionDisposition";
 import type { DeletionPhase, DeletionStartResult } from "./contracts";
+import { ensurePipeCreationEvent } from "../../pipeHistory";
+import { resolveTopMostAncestor } from "../pipes";
 
 const PIPE_DELETION_TRANSACTION_BATCH_SIZE = 50;
 const DELETION_ROLES = ["from", "to", "paidFrom"] as const;
@@ -39,11 +41,11 @@ function roleQuery(ctx: MutationCtx, role: DeletionRole, pipeId: Id<"pipes">) {
 
 async function loadPipeStates(
   ctx: MutationCtx,
-  transactions: Array<{
+  transactions: {
     from?: Id<"pipes">;
     to?: Id<"pipes">;
     paidFrom?: Id<"pipes">;
-  }>,
+  }[],
 ): Promise<Record<string, DeletionPipeState>> {
   const ids = new Set<Id<"pipes">>();
   for (const transaction of transactions) {
@@ -71,8 +73,9 @@ export async function startPipeDeletionOperation(
     deleteTransactions: boolean;
   },
   scheduleNext: ScheduleDeletion,
+  knownPipes?: Doc<"pipes">[],
 ): Promise<DeletionStartResult> {
-  const root = await ctx.db.get("pipes", args.pipeId);
+  const root = knownPipes ? knownPipes.find((pipe) => pipe._id === args.pipeId) : await ctx.db.get("pipes", args.pipeId);
   if (!root || root.userId !== userId) throw new Error("Pipe not found");
 
   if (root.deletionJobId) {
@@ -83,7 +86,7 @@ export async function startPipeDeletionOperation(
     throw new Error("Pipe deletion state is invalid");
   }
 
-  const allPipes = await ctx.db
+  const allPipes = knownPipes ?? await ctx.db
     .query("pipes")
     .withIndex("by_userId", (q) => q.eq("userId", userId))
     .collect();
@@ -93,6 +96,17 @@ export async function startPipeDeletionOperation(
   );
   if (plan.memberIds.some((pipeId) => frozenPipeIds.has(pipeId))) {
     throw new Error("Pipe is being deleted");
+  }
+  if (frozenPipeIds.size > 0) {
+    const byId = new Map(allPipes.map((pipe) => [pipe._id, pipe]));
+    const roots = new Map<Id<"pipes">, Id<"pipes">>();
+    const getKnownPipe = async (id: Id<"pipes">) => byId.get(id) ?? null;
+    const accountingRoot = await resolveTopMostAncestor(ctx, root._id, roots, getKnownPipe);
+    for (const frozenId of frozenPipeIds) {
+      if (await resolveTopMostAncestor(ctx, frozenId, roots, getKnownPipe) === accountingRoot) {
+        throw new Error("Pipe is being deleted");
+      }
+    }
   }
   const phase: DeletionPhase = "processingTransactions";
   const jobId = await ctx.db.insert("pipeDeletionJobs", {
@@ -135,6 +149,7 @@ export async function processPipeDeletionOperation(
   ctx: MutationCtx,
   jobId: Id<"pipeDeletionJobs">,
   scheduleNext: ScheduleDeletion,
+  onComplete?: (ctx: MutationCtx, userId: Id<"users">) => Promise<unknown>,
 ): Promise<null> {
   const job = await ctx.db.get("pipeDeletionJobs", jobId);
   if (!job || job.phase === "complete") return null;
@@ -186,6 +201,27 @@ export async function processPipeDeletionOperation(
 
     const roleIndex = DELETION_ROLES.indexOf(role);
     const nextRole = DELETION_ROLES[roleIndex + 1];
+    if (!nextRole) {
+      // Finish each member's archive in this bounded batch, while all ancestors
+      // still exist. Do not backfill events only to discard them immediately.
+      const retained = job.deleteTransactions
+        ? await Promise.all(DELETION_ROLES.map((role) => roleQuery(ctx, role, pipeId).first()))
+        : [true];
+      if (retained.some(Boolean)) {
+        const pipe = await ctx.db.get("pipes", pipeId);
+        if (!pipe) throw new Error("Pipe deletion state is invalid");
+        const eventId = await ensurePipeCreationEvent(ctx, pipe);
+        const parent = pipe.parentId ? await ctx.db.get("pipes", pipe.parentId) : null;
+        await ctx.db.patch("pipeCreationEvents", eventId, {
+          name: pipe.name, icon: pipe.icon,
+          parentName: parent?.name, parentIcon: parent?.icon,
+        });
+      } else {
+        const event = await ctx.db.query("pipeCreationEvents")
+          .withIndex("by_pipeId", (q) => q.eq("pipeId", pipeId)).unique();
+        if (event) await ctx.db.delete("pipeCreationEvents", event._id);
+      }
+    }
     if (nextRole) {
       await ctx.db.patch("pipeDeletionJobs", job._id, {
         role: nextRole,
@@ -255,6 +291,11 @@ export async function processPipeDeletionOperation(
     const reconciled = recalculatePipes(remainingPipes);
 
     for (const pipeId of job.memberPipeIds) {
+      const event = await ctx.db.query("pipeCreationEvents")
+        .withIndex("by_pipeId", (q) => q.eq("pipeId", pipeId)).unique();
+      if (event) {
+        await ctx.db.patch("pipeCreationEvents", event._id, { deletedAt: Date.now() });
+      }
       await ctx.db.delete("pipes", pipeId);
     }
     for (const update of reconciled) {
@@ -278,6 +319,7 @@ export async function processPipeDeletionOperation(
     await ctx.db.patch("pipeDeletionJobs", job._id, {
       phase: "complete",
     });
+    await onComplete?.(ctx, job.userId);
   }
   return null;
 }

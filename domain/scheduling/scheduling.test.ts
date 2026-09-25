@@ -34,4 +34,26 @@ describe("countDueCronOccurrences", () => {
       ),
     ).toBe(0);
   });
+
+  it("does not count a clamped monthly occurrence before its calendar day", () => {
+    expect(
+      countDueCronOccurrences(
+        Date.UTC(2026, 0, 31, 5),
+        1,
+        "months",
+        Date.UTC(2026, 1, 1, 5),
+      ),
+    ).toBe(1);
+  });
+
+  it("counts a clamped monthly occurrence on its calendar day", () => {
+    expect(
+      countDueCronOccurrences(
+        Date.UTC(2026, 0, 31, 5),
+        1,
+        "months",
+        Date.UTC(2026, 1, 28, 5),
+      ),
+    ).toBe(2);
+  });
 });

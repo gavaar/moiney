@@ -1,4 +1,4 @@
-import { View } from "react-native";
+import { Switch, Text, View } from "react-native";
 import { Form } from "@ui/Form";
 import type { AmountFormDraft, AmountFormProps } from "./types";
 import { useAmountFormController } from "./useAmountFormController";
@@ -31,7 +31,21 @@ export function AmountForm(props: AmountFormProps) {
           <AmountFormHeader transaction={form.transaction} sourceSelected={props.pipeId !== null}
             spend={form.spend} showMode={!picker || picker.activeStep === 1} loading={form.common.loading} />
         ) : undefined}
-        finalAction={<AmountFormActions action={form.action} onReset={form.common.reset} alongsideNavigation={!!picker} />}
+        finalAction={<View className={picker ? "gap-2 flex-1" : "gap-2"}>
+          {form.replacementChoice ? (
+            <View className="flex-row items-center justify-between gap-2">
+              <Text className="flex-1 text-sm text-text">Apply transaction accounting to replacement pipes</Text>
+              <Switch accessibilityLabel="Apply accounting to replacement pipes" value={form.replacementChoice.value}
+                onValueChange={form.replacementChoice.onChange} disabled={form.common.loading} />
+            </View>
+          ) : null}
+          {form.editWarning ? (
+            <View accessibilityRole="alert" className="rounded-lg border border-muted p-2">
+              {form.editWarning.map((line, index) => <Text key={index} className="text-sm text-muted">{line}</Text>)}
+            </View>
+          ) : null}
+          <AmountFormActions action={form.action} onReset={form.common.reset} />
+        </View>}
       />
     </View>
   );

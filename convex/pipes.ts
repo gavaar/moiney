@@ -8,6 +8,8 @@ import {
 import { internal } from "./_generated/api";
 import type { Id, Doc } from "./_generated/dataModel";
 import { requireAuth } from "./lib/auth";
+import { ruleConfigurationFields } from "./lib/pipes/ruleConfig";
+import { startNextSelfDestruct } from "./lib/pipes/selfDestruct";
 import { computePipeTree } from "../domain/pipes";
 import {
   addFeedOperation,
@@ -71,11 +73,12 @@ export const getPipeDeletionStatus = query({
 export const processPipeDeletion = internalMutation({
   args: { jobId: v.id("pipeDeletionJobs") },
   returns: v.null(),
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<null> => {
     return await processPipeDeletionOperation(
       ctx,
       args.jobId,
       schedulePipeDeletion,
+      (ctx, userId) => ctx.scheduler.runAfter(0, internal.pipes.processDueSelfDestructForUser, { userId }),
     );
   },
 });
@@ -106,11 +109,12 @@ export const addPipe = mutation({
     priority: v.number(),
     capacity: v.number(),
     parentId: v.id("pipes"),
+    ruleConfig: v.optional(v.object(ruleConfigurationFields)),
   },
   returns: v.id("pipes"),
   handler: async (ctx, args) => {
     const userId = await requireAuth(ctx);
-    return await addPipeOperation(ctx, userId, args);
+    return await addPipeOperation(ctx, userId, args, Date.now());
   },
 });
 
@@ -133,20 +137,7 @@ export const updatePipe = mutation({
 export const updatePipeRule = mutation({
   args: {
     pipeId: v.id("pipes"),
-    rule: v.optional(
-      v.union(
-        v.null(),
-        v.literal("spend_overflow"),
-        v.literal("instant_settlement"),
-        v.literal("cron"),
-      ),
-    ),
-    interval: v.optional(v.number()),
-    unit: v.optional(
-      v.union(v.literal("days"), v.literal("months"), v.literal("years")),
-    ),
-    starting: v.optional(v.number()),
-    capUpdateValue: v.optional(v.number()),
+    ...ruleConfigurationFields,
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -179,8 +170,32 @@ export const runDueCronRules = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args): Promise<null> => {
-    return runDueCronRulesOperation(ctx, args, scheduleDueCronRules);
+    return runDueCronRulesOperation(ctx, args, scheduleDueCronRules,
+      (ctx, now) => ctx.scheduler.runAfter(0, internal.pipes.runDueSelfDestructRules, { now }));
   },
+});
+
+export const runDueSelfDestructRules = internalMutation({
+  args: { now: v.number(), cursor: v.optional(v.string()) },
+  returns: v.null(),
+  handler: async (ctx, args): Promise<null> => {
+    const page = await ctx.db.query("pipes")
+      .withIndex("by_rule_cronNextDate", (q) => q.eq("rule", "self_destruct").lte("cronNextDate", args.now))
+      .paginate({ numItems: 100, cursor: args.cursor ?? null });
+    for (const userId of new Set(page.page.map((pipe) => pipe.userId))) {
+      await ctx.scheduler.runAfter(0, internal.pipes.processDueSelfDestructForUser, { userId, now: args.now });
+    }
+    if (!page.isDone) await ctx.scheduler.runAfter(0, internal.pipes.runDueSelfDestructRules, {
+      now: args.now, cursor: page.continueCursor,
+    });
+    return null;
+  },
+});
+
+export const processDueSelfDestructForUser = internalMutation({
+  args: { userId: v.id("users"), now: v.optional(v.number()) },
+  returns: v.null(),
+  handler: (ctx, args) => startNextSelfDestruct(ctx, args.userId, args.now ?? Date.now(), schedulePipeDeletion),
 });
 
 export const getPipes = query({

@@ -270,7 +270,7 @@ describe("useTransactionHistory", () => {
     mockQuery.mockImplementation((_query, args) =>
       Promise.resolve(
         args.paginationOpts.numItems === 100
-          ? { page: [], continueCursor: "cursor-2", isDone: false }
+          ? { page: [cachedTransaction], continueCursor: "cursor-2", isDone: false }
           : { page: [], continueCursor: "done", isDone: true },
       ),
     );
@@ -299,6 +299,81 @@ describe("useTransactionHistory", () => {
       expect.anything(),
       { paginationOpts: { numItems: 100, cursor: null } },
     ));
+  });
+
+  it("persists exhaustion after an empty load-more page and ignores further requests", async () => {
+    mockQuery
+      .mockResolvedValueOnce({ page: [cachedTransaction], continueCursor: "next", isDone: false })
+      .mockResolvedValueOnce({ page: [], continueCursor: "end", isDone: false });
+    render(<Consumer />);
+    fireEvent.click(screen.getByText("load more"));
+    await waitFor(() => expect(screen.getByTestId("status").textContent).toBe("Exhausted"));
+    expect(mockCache().append).toHaveBeenLastCalledWith("history", [], false);
+    expect(screen.getByTestId("count").textContent).toBe("1");
+    expect(screen.getByTestId("error").textContent).toBe("none");
+    fireEvent.click(screen.getByText("load more"));
+    fireEvent.click(screen.getByText("load more"));
+    expect(mockQuery).toHaveBeenCalledTimes(2);
+
+    mockQuery.mockResolvedValueOnce({ page: [cachedTransaction], continueCursor: "new", isDone: false });
+    fireEvent.click(screen.getByText("refresh"));
+    await waitFor(() => expect(screen.getByTestId("status").textContent).toBe("CanLoadMore"));
+  });
+
+  it("stops when reseeding cached history returns no rows", async () => {
+    mockQuery.mockResolvedValueOnce({ page: [], continueCursor: "end", isDone: false });
+    render(<Consumer />);
+    fireEvent.click(screen.getByText("load more"));
+    await waitFor(() => expect(screen.getByTestId("status").textContent).toBe("Exhausted"));
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("error").textContent).toBe("none");
+  });
+
+  it.each(["one", "two"])("stops a repeated filtered cursor (%s) without an error", async (repeatedCursor) => {
+    mockQuery
+      .mockResolvedValueOnce({ page: [cachedTransaction], continueCursor: "one", isDone: false })
+      .mockResolvedValueOnce({ page: [], continueCursor: "two", isDone: false })
+      .mockResolvedValueOnce({ page: [], continueCursor: repeatedCursor, isDone: false });
+    render(<Consumer filters={{ title: "cached" }} />);
+    await waitFor(() => expect(screen.getByTestId("status").textContent).toBe("CanLoadMore"));
+    fireEvent.click(screen.getByText("load more"));
+    await waitFor(() => expect(screen.getByTestId("status").textContent).toBe("Exhausted"));
+    expect(screen.getByTestId("count").textContent).toBe("1");
+    expect(screen.getByTestId("error").textContent).toBe("none");
+    fireEvent.click(screen.getByText("load more"));
+    expect(mockQuery).toHaveBeenCalledTimes(3);
+  });
+
+  it("preserves later filtered matches across empty load-more pages", async () => {
+    const later = { ...cachedTransaction, id: "later" as Id<"transactions">, date: 1 };
+    mockQuery
+      .mockResolvedValueOnce({ page: [cachedTransaction], continueCursor: "one", isDone: false })
+      .mockResolvedValueOnce({ page: [], continueCursor: "two", isDone: false })
+      .mockResolvedValueOnce({ page: [later], continueCursor: "three", isDone: false })
+      .mockResolvedValueOnce({ page: [], continueCursor: "end", isDone: true });
+    render(<Consumer filters={{ title: "cached" }} />);
+    await waitFor(() => expect(screen.getByTestId("status").textContent).toBe("CanLoadMore"));
+    fireEvent.click(screen.getByText("load more"));
+    await waitFor(() => expect(screen.getByTestId("count").textContent).toBe("2"));
+    expect(screen.getByTestId("status").textContent).toBe("CanLoadMore");
+    fireEvent.click(screen.getByText("load more"));
+    await waitFor(() => expect(screen.getByTestId("status").textContent).toBe("Exhausted"));
+    fireEvent.click(screen.getByText("load more"));
+    expect(mockQuery).toHaveBeenCalledTimes(4);
+    expect(screen.getByTestId("error").textContent).toBe("none");
+  });
+
+  it("does not automatically retry failed load-more requests and allows refresh recovery", async () => {
+    mockQuery.mockRejectedValueOnce(new Error("network failure"));
+    render(<Consumer />);
+    fireEvent.click(screen.getByText("load more"));
+    await waitFor(() => expect(screen.getByTestId("error").textContent).toBe("Unable to load transaction history."));
+    fireEvent.click(screen.getByText("load more"));
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+    mockQuery.mockResolvedValueOnce({ page: [cachedTransaction], continueCursor: "end", isDone: true });
+    fireEvent.click(screen.getByText("refresh"));
+    await waitFor(() => expect(screen.getByTestId("status").textContent).toBe("Exhausted"));
+    expect(screen.getByTestId("error").textContent).toBe("none");
   });
 
   it("does not let an earlier refresh overwrite newly filtered rows", async () => {

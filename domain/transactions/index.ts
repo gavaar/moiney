@@ -24,5 +24,5 @@ export { preparePaidFromEligibility } from "./paidFromEligibility";
 export type { PipeTopologyNode } from "./paidFromEligibility";
 export { transactionStructureFromRoles } from "./structure";
 export type { TransactionStructure } from "./structure";
-export { planTransactionEdit } from "./edit";
-export type { TransactionEditDelta } from "./edit";
+export { planTransactionDeletion, planTransactionEdit } from "./edit";
+export type { TransactionEditDelta, TransactionEditPlan } from "./edit";

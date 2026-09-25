@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { Id } from "@convex/_generated/dataModel";
 import type { TransactionModel } from "@features/transactions/data/transactions";
 import {
@@ -96,7 +96,63 @@ function ReconcileConsumer() {
   );
 }
 
+function ReconcileFailureConsumer() {
+  const cache = useTransactionCache();
+  const transaction: TransactionModel = {
+    id: "tx-failure" as Id<"transactions">,
+    createdAt: 1,
+    title: "remove me",
+    value: -100,
+    date: 1,
+    kind: "expense",
+    from: "pipe-1" as Id<"pipes">,
+  };
+  return (
+    <>
+      <button onClick={() => void cache.replace("history", [transaction], false)}>
+        seed failure
+      </button>
+      <button onClick={() => {
+        void cache.reconcileTransactions([transaction.id], []).catch(() => {});
+      }}>
+        reconcile failure
+      </button>
+      <span data-testid="failure-entity">
+        {cache.cache?.entities[transaction.id] ? "present" : "missing"}
+      </span>
+      <span data-testid="failure-version">{cache.mutationVersion}</span>
+    </>
+  );
+}
+
 describe("TransactionCacheProvider", () => {
+  it.each(["mergeHead", "append"] as const)("ignores a retired account's delayed %s write", async (operation) => {
+    auth.accountKey = "account-1";
+    let finishWrite!: () => void;
+    const cacheStorage: TransactionCacheStorage = {
+      read: async () => null,
+      write: () => new Promise<void>((resolve) => { finishWrite = resolve; }),
+      remove: async () => {},
+    };
+    function HeadConsumer() {
+      const cache = useTransactionCache();
+      return <>
+        <span data-testid="cache-account">{cache.cache?.accountKey}</span>
+        <button onClick={() => void cache[operation]("history", [], false)}>head</button>
+      </>;
+    }
+    const tree = <TransactionCacheProvider storage={cacheStorage}><HeadConsumer /></TransactionCacheProvider>;
+    const { rerender } = render(tree);
+    await waitFor(() => expect(screen.getByTestId("cache-account").textContent).toBe("account-1"));
+    fireEvent.click(screen.getByText("head"));
+    auth.accountKey = "account-2";
+    rerender(<TransactionCacheProvider storage={cacheStorage}><HeadConsumer /></TransactionCacheProvider>);
+    await waitFor(() => expect(screen.getByTestId("cache-account").textContent).toBe("account-2"));
+    await act(async () => finishWrite());
+    expect(screen.getByTestId("cache-account").textContent).toBe("account-2");
+    auth.accountKey = "account-1";
+  });
+
   it("exposes create-time cache synchronization", async () => {
     const cacheStorage = storage();
     render(
@@ -148,6 +204,37 @@ describe("TransactionCacheProvider", () => {
       const parsed = JSON.parse(cacheStorage.value!);
       expect(parsed.entities["tx-4"].transaction.title).toBe("survives");
       expect(parsed.entities.deleted).toBeUndefined();
+    });
+  });
+
+  it("publishes deletion reconciliation when cache persistence fails", async () => {
+    let failWrites = false;
+    const cacheStorage: TransactionCacheStorage = {
+      read: async () => null,
+      write: async () => {
+        if (failWrites) throw new Error("storage failed");
+      },
+      remove: async () => {},
+    };
+    render(
+      <TransactionCacheProvider storage={cacheStorage}>
+        <ReconcileFailureConsumer />
+      </TransactionCacheProvider>,
+    );
+
+    await waitFor(() => expect(screen.getByText("seed failure")).toBeDefined());
+    fireEvent.click(screen.getByText("seed failure"));
+    await waitFor(() =>
+      expect(screen.getByTestId("failure-entity").textContent).toBe("present")
+    );
+    const previousVersion = Number(screen.getByTestId("failure-version").textContent);
+    failWrites = true;
+    fireEvent.click(screen.getByText("reconcile failure"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("failure-entity").textContent).toBe("missing");
+      expect(Number(screen.getByTestId("failure-version").textContent))
+        .toBe(previousVersion + 1);
     });
   });
 

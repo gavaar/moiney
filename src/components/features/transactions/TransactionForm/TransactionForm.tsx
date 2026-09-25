@@ -5,16 +5,14 @@ import type { TransactionInitialState } from "@features/components/AmountForm/ty
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import { useTransactionHistory } from "@features/transactions/cache/useTransactionHistory";
 import { getFrequentlyUsedSourcePipeIds, getQuickTransactionPipes } from "../QuickTransactionModal/helpers";
+import { groupPipesByRoot } from "@features/components/AmountForm/pipeGroups";
 
 type Props = { onSuccess?: () => void } & (
-  | { pipeId: Id<"pipes">; initState: TransactionInitialState }
+  | { pipeId?: Id<"pipes">; initState: TransactionInitialState }
   | { pipeId?: never; initState?: never }
 );
 
 export function TransactionForm(props: Props) {
-  if (props.pipeId && props.initState?.intent === "edit") {
-    return <AmountForm variant="transaction" pipeId={props.pipeId} initState={props.initState} onSuccess={props.onSuccess} />;
-  }
   return <SelectableTransactionForm {...props} />;
 }
 
@@ -27,6 +25,10 @@ function SelectableTransactionForm({ pipeId, initState, onSuccess }: Props) {
   const pipes = isFeed
     ? (allPipes ?? []).filter(pipe => !pipe.parentId && !pipe.deletionJobId)
     : getQuickTransactionPipes(allPipes ?? [], childrenByParent, getFrequentlyUsedSourcePipeIds(transactions ?? []));
+  const groups = isFeed ? [] : groupPipesByRoot(pipes, allPipes ?? [], {
+    ...(pipeId ? { preferredPipeId: pipeId } : {}),
+    expandFirst: !initState || initState.intent === "create",
+  });
   const selected = pipes.find(pipe => pipe.id === selectedId);
   const initial: TransactionInitialState = initState ? {
     ...initState,
@@ -40,7 +42,7 @@ function SelectableTransactionForm({ pipeId, initState, onSuccess }: Props) {
   };
 
   return <AmountForm variant="transaction" pipeId={selected?.id ?? null} initState={initial} onSuccess={onSuccess}
-    sourcePicker={{ pipes, loading: isLoading || historyLoading, activeStep, onStepChange: setActiveStep,
+    sourcePicker={{ pipes, groups, loading: isLoading || historyLoading, activeStep, onStepChange: setActiveStep,
       onSelect: id => { setSelectedId(id); setActiveStep(1); },
     }} />;
 }

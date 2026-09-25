@@ -34,6 +34,8 @@ type EditTransactionCommand = {
   title: string;
   value: number;
   date: number;
+  primaryPipeId?: PipeModel["id"];
+  applyReplacementEffects?: boolean;
   target?:
     | { type: "expense" }
     | { type: "transfer"; to: PipeModel["id"] }
@@ -45,6 +47,9 @@ type EditTransactionInput = {
   title: string;
   amount: number;
   date: number;
+  primaryPipeId?: PipeModel["id"] | null;
+  originalPrimaryPipeId?: PipeModel["id"];
+  applyReplacementEffects?: boolean;
   initialStructure?: TransactionStructure<PipeModel["id"]>;
   spendMode?: SpendMode;
   sentToPipeId?: PipeModel["id"] | null;
@@ -98,6 +103,9 @@ export function buildEditTransactionCommand({
   title,
   amount,
   date,
+  primaryPipeId,
+  originalPrimaryPipeId,
+  applyReplacementEffects,
   initialStructure,
   spendMode,
   sentToPipeId,
@@ -128,6 +136,8 @@ export function buildEditTransactionCommand({
     title,
     value: amount,
     date,
+    ...(primaryPipeId && primaryPipeId !== originalPrimaryPipeId ? { primaryPipeId } : {}),
+    ...(applyReplacementEffects !== undefined ? { applyReplacementEffects } : {}),
     ...(target ? { target } : {}),
   };
 }
@@ -222,7 +232,7 @@ export function getButtonLabel(
 export function buildPipeItems(
   allPipes: readonly PipeReference[] | null | undefined,
   pipeId: PipeModel["id"],
-): Array<{ id: string; name: string; icon: string }> {
+): { id: string; name: string; icon: string }[] {
   const pipes = allPipes ?? [];
 
   const ancestorIds = new Set<PipeModel["id"]>();
@@ -247,7 +257,7 @@ export function buildPaidFromPipeItems(
   allPipes: readonly PipeReference[] | null | undefined,
   pipeId: PipeModel["id"],
   isNegative: boolean,
-): Array<{ id: string; name: string; icon: string }> {
+): { id: string; name: string; icon: string }[] {
   const pipes = allPipes ?? [];
   const value = isNegative ? -1 : 1;
   const isPaidFromEligible = preparePaidFromPipeEligibility(pipes);
@@ -264,7 +274,7 @@ export function buildPaidFromPipeItems(
 
 export function getDestinationPipeName(
   allPipes:
-    | Array<Pick<PipeModel, "id" | "name">>
+    | Pick<PipeModel, "id" | "name">[]
     | null
     | undefined,
   sentToPipeId: PipeModel["id"] | null,

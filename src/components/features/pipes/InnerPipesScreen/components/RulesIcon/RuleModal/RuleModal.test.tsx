@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, render, screen, fireEvent } from "@testing-library/react";
 import { type Id } from "@convex/_generated/dataModel";
 import { computeElapsedIntervals } from "@domain/scheduling";
@@ -58,10 +58,55 @@ async function clickAndFlush(element: HTMLElement) {
 }
 
 describe("RuleModal", () => {
+  it("edits and cancels self-destruct without offering manual settlement or cap updates", async () => {
+    const pipe = basePipe({ parentId: pId("parent"), rule: "self_destruct", cronNextDate: Date.UTC(2099, 0, 21, 5), cronInterval: { interval: 0.5, unit: "days" } });
+    const onClose = vi.fn();
+    const { unmount } = renderModal(pipe, onClose);
+    expect(screen.queryByText("Run now")).toBeNull();
+    expect(screen.queryByText("Cap update")).toBeNull();
+    expect(screen.getByRole("button", { name: "Save rule" }).getAttribute("aria-disabled")).toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: "Deletion date" }));
+    fireEvent.click(screen.getByTestId("day-22"));
+    await clickAndFlush(screen.getByText("Save rule"));
+    expect(h.updatePipeRule).toHaveBeenCalledWith({ pipeId: pId("pipe-1"), rule: "self_destruct", starting: Date.UTC(2099, 0, 22, 5) });
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(h.executePipeRuleNow).not.toHaveBeenCalled();
+    unmount();
+    renderModal(pipe);
+    fireEvent.click(screen.getByTestId("select-trigger"));
+    fireEvent.click(screen.getByText("No rule"));
+    await clickAndFlush(screen.getByText("Save rule"));
+    expect(h.updatePipeRule).toHaveBeenLastCalledWith({ pipeId: pId("pipe-1"), rule: undefined });
+  });
   beforeEach(() => {
     vi.clearAllMocks();
     h.updatePipeRule.mockResolvedValue(undefined);
     h.executePipeRuleNow.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("does not save a self-destruct deadline that passed while the modal was open", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(Date.UTC(2099, 0, 21, 5));
+    renderModal(
+      basePipe({
+        parentId: pId("parent"),
+        rule: "self_destruct",
+        cronNextDate: Date.UTC(2099, 0, 21, 5),
+        cronInterval: { interval: 1, unit: "days" },
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Deletion date" }));
+    fireEvent.click(screen.getByTestId("day-22"));
+
+    vi.setSystemTime(Date.UTC(2099, 0, 22, 7));
+    await clickAndFlush(screen.getByText("Save rule"));
+
+    expect(h.updatePipeRule).not.toHaveBeenCalled();
+    expect(h.showAlert.error).toHaveBeenCalled();
   });
 
   it("renders pipe name and the four rule options", () => {

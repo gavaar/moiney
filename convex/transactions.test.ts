@@ -793,7 +793,7 @@ describe("editTransaction", () => {
       });
     });
 
-    it("rejects editing a transaction with an embedded deleted-role icon", async () => {
+    it("requires replacing the deleted role before editing preserved history", async () => {
       const ctx = mockCtx();
       const tx = { ...BASE_TX, fromIcon: "pipe-disconnected" };
       ctx.db.get.mockResolvedValue(tx);
@@ -805,7 +805,7 @@ describe("editTransaction", () => {
           value: -80,
           date: 3000,
         }),
-      ).rejects.toThrow("Transaction is view-only");
+       ).rejects.toThrow("TRANSACTION_PIPE_REPLACEMENT_REQUIRED");
     });
   });
 

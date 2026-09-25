@@ -19,6 +19,12 @@ vi.mock("@features/transactions/TransactionListWithHistory", () => ({
 vi.mock("@features/transactions/cache/useTransactionHistory", () => ({
   useTransactionHistory: mocks.useTransactionHistory,
 }));
+vi.mock("@features/transactions/history/mixed-history-feed", () => ({
+  MixedHistoryFeed: ({ filters }: any) => {
+    mocks.useTransactionHistory(filters);
+    return <div data-testid="history-list" />;
+  },
+}));
 vi.mock("@features/pipes/context/PipeCatalogContext", () => {
   const allPipes = [
     { id: "parent", name: "Household", icon: "home" },
@@ -48,6 +54,7 @@ vi.mock("@ui/Input", () => ({
       return (
         <button
           aria-label={props.label}
+          data-value={props.value?.toISOString() ?? ""}
           onClick={() =>
             props.onChange(
               new Date(Date.UTC(2026, props.label === "From date" ? 0 : 1, 1, 12)),
@@ -91,17 +98,20 @@ describe("HistoryScreen filters", () => {
     });
   });
 
-  it("applies draft filters using only selectable leaf pipes and clears them", async () => {
+  it("offers parents for archived descendant history and applies and clears draft filters", async () => {
     const user = userEvent.setup();
     render(<HistoryScreen />);
 
-    expect(screen.queryByRole("button", { name: "Household" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Household" })).toBeTruthy();
     await user.type(screen.getByRole("textbox", { name: "Title contains" }), " Coffee ");
     await user.click(screen.getByRole("button", { name: "From date" }));
     await user.click(screen.getByRole("button", { name: "To date" }));
     await user.click(screen.getByRole("button", { name: "Groceries" }));
 
-    expect(mocks.useTransactionHistory.mock.calls.at(-1)?.[0]).toEqual({});
+    const now = new Date();
+    expect(mocks.useTransactionHistory.mock.calls.at(-1)?.[0]).toEqual({
+      fromDate: Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
+    });
     await user.click(screen.getByRole("button", { name: "Apply filters" }));
     expect(mocks.useTransactionHistory.mock.calls.at(-1)?.[0]).toEqual({
       fromDate: Date.UTC(2026, 0, 1),
@@ -111,6 +121,22 @@ describe("HistoryScreen filters", () => {
     });
 
     await user.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect(mocks.useTransactionHistory.mock.calls.at(-1)?.[0]).toEqual({});
+  });
+
+  it("starts at the current month and keeps Clear empty when applying again", async () => {
+    const user = userEvent.setup();
+    const now = new Date();
+    const start = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
+    render(<HistoryScreen />);
+
+    expect(screen.getByRole("button", { name: "From date" }).getAttribute("data-value"))
+      .toBe(new Date(start).toISOString());
+    expect(mocks.useTransactionHistory.mock.calls.at(-1)?.[0]).toEqual({ fromDate: start });
+    await user.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect(screen.getByRole("button", { name: "From date" }).getAttribute("data-value"))
+      .toBe("");
+    await user.click(screen.getByRole("button", { name: "Apply filters" }));
     expect(mocks.useTransactionHistory.mock.calls.at(-1)?.[0]).toEqual({});
   });
 });

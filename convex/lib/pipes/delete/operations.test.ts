@@ -137,6 +137,7 @@ describe("processPipeDeletionOperation finalization", () => {
         query: vi.fn(() => ({
           withIndex: vi.fn(() => ({
             collect: vi.fn().mockResolvedValue(allPipes),
+            unique: vi.fn().mockResolvedValue(null),
           })),
         })),
         delete: vi.fn(),
@@ -188,7 +189,7 @@ describe("processPipeDeletionOperation finalization", () => {
       db: {
         get: vi.fn().mockResolvedValue(job),
         query: vi.fn(() => ({
-          withIndex: vi.fn(() => ({ collect })),
+          withIndex: vi.fn(() => ({ collect, unique: vi.fn().mockResolvedValue(null) })),
         })),
         delete: vi.fn(),
         patch: vi.fn(),
@@ -245,6 +246,7 @@ describe("processPipeDeletionOperation finalization", () => {
         query: vi.fn(() => ({
           withIndex: vi.fn(() => ({
             collect: vi.fn().mockResolvedValue(allPipes),
+            unique: vi.fn().mockResolvedValue(null),
           })),
         })),
         delete: vi.fn(),
@@ -335,6 +337,7 @@ describe("processPipeDeletionOperation finalization", () => {
         query: vi.fn(() => ({
           withIndex: vi.fn(() => ({
             collect: vi.fn().mockResolvedValue(allPipes),
+            unique: vi.fn().mockResolvedValue(null),
           })),
         })),
         delete: vi.fn(),

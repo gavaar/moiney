@@ -9,6 +9,11 @@ export type TransactionEditDelta<PipeId> = {
   contributedFedDelta: number;
 };
 
+export type TransactionEditPlan<PipeId> = {
+  deltas: TransactionEditDelta<PipeId>[];
+  affectedPipeIds: PipeId[];
+};
+
 function accountingDeltas<PipeId extends string>(
   structure: TransactionStructure<PipeId>,
   value: number,
@@ -85,8 +90,11 @@ export function planTransactionEdit<PipeId extends string>(
   previousValue: number,
   currentStructure: TransactionStructure<PipeId>,
   currentValue: number,
-): TransactionEditDelta<PipeId>[] {
+  options: { invalidPreviousPipeIds?: readonly PipeId[]; applyReplacementEffects?: boolean } = {},
+): TransactionEditPlan<PipeId> {
   const deltas = new Map<PipeId, TransactionEditDelta<PipeId>>();
+  const affectedPipeIds = new Set<PipeId>();
+  const invalidIds = new Set(options.invalidPreviousPipeIds ?? []);
 
   function add(delta: TransactionEditDelta<PipeId>, multiplier: 1 | -1) {
     const existing = deltas.get(delta.pipeId) ?? {
@@ -108,18 +116,49 @@ export function planTransactionEdit<PipeId extends string>(
     });
   }
 
-  for (const delta of accountingDeltas(previousStructure, previousValue)) {
+  const previousDeltas = accountingDeltas(previousStructure, previousValue);
+  const currentDeltas = accountingDeltas(currentStructure, currentValue);
+  const previousRoles = previousStructure as { from?: PipeId; to?: PipeId; paidFrom?: PipeId };
+  const currentRoles = currentStructure as { from?: PipeId; to?: PipeId; paidFrom?: PipeId };
+  const skippedReplacementIds = new Set<PipeId>();
+  if (!options.applyReplacementEffects) {
+    for (const role of ["from", "to", "paidFrom"] as const) {
+      if (currentRoles[role] && (
+        (previousRoles[role] !== undefined && invalidIds.has(previousRoles[role])) ||
+        (invalidIds.size > 0 && previousRoles[role] === undefined)
+      )) {
+        skippedReplacementIds.add(currentRoles[role]);
+      }
+    }
+  }
+  for (const delta of [...previousDeltas, ...currentDeltas]) {
+    if (invalidIds.has(delta.pipeId) || skippedReplacementIds.has(delta.pipeId)) continue;
+    affectedPipeIds.add(delta.pipeId);
+  }
+  for (const delta of previousDeltas) {
+    if (invalidIds.has(delta.pipeId)) continue;
     add(delta, -1);
   }
-  for (const delta of accountingDeltas(currentStructure, currentValue)) {
+  for (const delta of currentDeltas) {
+    if (skippedReplacementIds.has(delta.pipeId)) continue;
     add(delta, 1);
   }
 
-  return [...deltas.values()].filter(
-    (delta) =>
-      delta.fedDelta !== 0 ||
-      delta.spentDelta !== 0 ||
-      delta.pendingFedAdjustmentDelta !== 0 ||
-      delta.contributedFedDelta !== 0,
-  );
+  return {
+    deltas: [...deltas.values()].filter(
+      (delta) =>
+        delta.fedDelta !== 0 ||
+        delta.spentDelta !== 0 ||
+        delta.pendingFedAdjustmentDelta !== 0 ||
+        delta.contributedFedDelta !== 0,
+    ),
+    affectedPipeIds: [...affectedPipeIds],
+  };
+}
+
+export function planTransactionDeletion<PipeId extends string>(
+  structure: TransactionStructure<PipeId>,
+  value: number,
+): TransactionEditPlan<PipeId> {
+  return planTransactionEdit(structure, value, structure, 0);
 }

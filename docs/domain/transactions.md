@@ -43,6 +43,10 @@ Groups containing preserved history can expand; repeat eligibility and
 [view-only restrictions](deletion.md#d002-pipe-deletion-and-transaction-history)
 apply to individual rows.
 
+History also contains non-accounting pipe creation events and deleted-pipe
+archives. Their membership, overlapping counts, Spent totals, and ancestry
+filtering are defined in [D021](history-cache.md#d021-pipe-creation-and-archived-history).
+
 ## D010: Pay-by-transfer Presentation Eligibility
 
 Status: Implemented
@@ -102,8 +106,18 @@ Create and repeat use a pipe-selection step followed by transaction details.
 Repeat starts on details with the original pipe preselected; selecting another
 pipe preserves title, amount, and date while clearing ineligible payer or
 destination choices. Feed repeats retain feed semantics and select root
-destinations. Edit is a single-step form with the fixed original pipe in its
-header and no source-selection step.
+destinations. Edit uses the same two-step picker, starting on details when the
+original primary pipe is eligible and on selection otherwise. Returning to the
+picker preserves the entered details; edit may select a pipe in another tree.
+Transaction selectors with descendant candidates group eligible leaves under
+their root, showing root icon, name, and candidate count. A root header expands
+independently without selecting a pipe. Candidate ranking is preserved within
+roots; roots are ordered by their highest-ranked candidate, except repeat and
+edit place the original root first. Create opens its first root; repeat/edit
+open the original root when resolvable and otherwise start collapsed. Negative
+pay-by-transfer payer choices use the same grouping, opening the current payer's
+root or the first eligible root. Root-only feed, transfer destination, and
+refund choices remain flat.
 
 Tapping an individual transaction opens repeat. Swiping left reveals a blue
 pencil and opens edit after the swipe threshold; the action is also an
@@ -111,19 +125,30 @@ accessible button. Repeat identifies the pipe by icon and name. Edit uses a
 centered `Edit:` title with pipe icon, pipe name, and transaction title. See
 [D018](#d018-quick-transaction-creation) for create/repeat heading values.
 
-Structural editing fixes the original logical source. Feeds remain structurally
-fixed. Existing pay-by-transfer transactions may edit title, value, and date,
-but not logical source or payer: legacy accounting cannot reliably be reversed
-across the [D012 compatibility boundary](accounting.md#d012-pay-by-transfer-liquidity-and-logical-spending)
-and rule-execution boundaries.
+Feeds remain structurally fixed but may change their root destination. A
+pay-by-transfer expense may change its logical source and payer, but does not
+silently become an ordinary expense when a payer becomes ineligible. A
+transaction edit must replace any missing, deleted, or no-longer-eligible role;
+in particular an expense or transfer source that acquired children cannot be
+selected again. An active deletion freeze blocks editing until it completes.
 
 Ordinary expenses and transfers may convert among ordinary expense, transfer,
 and pay-by-transfer structures. Structural edits apply the complete old-to-new
 accounting transition to the current period, without restating historical
 periods or [captured monthly summaries](reporting.md#d016-monthly-spending-statistics).
 One net plan applies at most one accounting patch per pipe, triggers rules once
-from net logical spending, and reconciles the union of old and new affected
-roots once.
+from net logical spending, and reconciles affected roots once. When all old
+roles remain eligible, old effects are reversed and new effects applied. When
+one or more old roles became invalid, those roles are not reversed and a single
+off-by-default choice determines whether the submitted transaction's effects
+are applied to their replacements. Surviving roles still receive their normal
+old-to-new deltas, including amount differences, regardless of that choice.
+The edit warning presents the direct signed changes to `fed`, `spent`,
+`pendingFedAdjustment`, and boiler principal as applicable. It does not predict
+balances after rules and reconciliation. Historical settlement is not replayed;
+the user directs the correction against current balances. Once reassigned, the
+transaction's new roles are treated as ordinary roles by subsequent edits and
+deletion, regardless of the earlier choice to apply replacement effects.
 
 Correction history records previous and current structure. Loaded
 [transaction caches](history-cache.md#d014-transaction-snapshot-cache) update
@@ -149,3 +174,29 @@ otherwise, including equality as overflow. This is a presentation rule, not an
 eligibility filter. Selected rows retain the shared Select's neutral background;
 the `None` option is neutral. Owner selection in Add Pipe is independent of this
 transaction-specific styling.
+
+## D023: Transaction Deletion
+
+Status: Implemented
+
+Swiping an individual transaction right reveals a red trash action; the action
+is also an accessible button. Deletion always requires confirmation. The
+confirmation describes every affected pipe when a transfer or pay-by-transfer
+transaction can be rolled back, not only the logical source.
+
+When every involved pipe still exists and belongs to the account, deletion
+applies the complete inverse transaction effect to the current accounting
+period, triggers rules from the inverse logical spending delta, reconciles every
+affected tree, and removes the transaction atomically. Current creation
+topology is not revalidated: topology may legitimately have changed since the
+transaction was recorded. An active deletion freeze in any affected tree blocks
+the rollback.
+
+If any `from`, `to`, or `paidFrom` pipe no longer exists, deletion removes
+history only. It does not partially roll back surviving roles, because doing so
+could create or destroy money. Active
+deletion freezes still block history-only removal when a surviving involved
+tree is frozen. The confirmation explicitly warns that the transaction's
+expenditure, refund, feed, or transfer will not be rolled back. Linked edit
+corrections are removed afterward in bounded scheduled batches. Captured monthly
+summaries remain immutable under the reporting contract.

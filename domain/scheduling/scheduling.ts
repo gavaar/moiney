@@ -98,15 +98,16 @@ export function countDueCronOccurrences(
     return Math.floor((now - nextDate) / step) + 1;
   }
 
-  let count = 0;
-  let occurrence = nextDate;
-  while (occurrence <= now) {
-    count += 1;
-    const next = computeCronNextDate(occurrence, interval, unit, occurrence);
-    if (next <= occurrence) break;
-    occurrence = next;
-  }
-  return count;
+  const next = new Date(nextDate);
+  const anchor: CronAnchor = {
+    year: next.getUTCFullYear(),
+    month: next.getUTCMonth(),
+    day: next.getUTCDate(),
+  };
+  const monthsPerStep = unit === "years" ? interval * 12 : interval;
+  let elapsed = computeElapsedIntervals(nextDate, interval, unit, now);
+  if (occurrenceAt(anchor, monthsPerStep, elapsed) > now) elapsed -= 1;
+  return Math.max(0, elapsed + 1);
 }
 
 export function computeCronIntervalProgress(

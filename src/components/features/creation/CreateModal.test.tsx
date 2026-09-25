@@ -98,6 +98,7 @@ describe("CreateModal", () => {
     expect(screen.getByRole("textbox", { name: "Name" }).getAttribute("value")).toBe("Snacks");
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
     fireEvent.change(screen.getByRole("textbox", { name: "Initial capacity?" }), { target: { value: "12.34" } });
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
     fireEvent.click(screen.getByRole("button", { name: "Submit" }));
     await waitFor(() => expect(addPipe).toHaveBeenCalledWith(expect.objectContaining({ parentId: pipe1.id, name: "Snacks", capacity: 1234 })));
     expect(onClose).toHaveBeenCalledOnce();

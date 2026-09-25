@@ -11,6 +11,41 @@ const items = [
 ] as const;
 
 describe("SelectInput", () => {
+  it("groups inline options with independently collapsible accessible headers", async () => {
+    const onChange = vi.fn();
+    render(<SelectInput presentation="inline" label="Source" value={null} onChange={onChange}
+      items={[{ id: "none", name: "None" }, ...items]}
+      groups={[
+        { id: "bank", name: "Bank", itemIds: ["1"], initiallyExpanded: true },
+        { id: "wallet", name: "Wallet", itemIds: ["2"] },
+      ]}
+      renderItem={item => <>{item.name}</>} />);
+    expect(screen.getByRole("radio", { name: "None" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Collapse Bank" }).getAttribute("aria-expanded")).toBe("true");
+    expect(screen.queryByRole("radio", { name: "Salary" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Expand Wallet" }));
+    expect(screen.getByRole("radio", { name: "Salary" })).toBeTruthy();
+    expect(screen.getByRole("radio", { name: "Groceries" })).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Collapse Bank" }));
+    expect(screen.queryByRole("radio", { name: "Groceries" })).toBeNull();
+    await userEvent.click(screen.getByRole("radio", { name: "Salary" }));
+    expect(onChange).toHaveBeenCalledWith("2");
+  });
+
+  it("expands modal groups and keeps the selected label in the trigger", async () => {
+    function Controlled() {
+      const [value, setValue] = useState<string | null>(null);
+      return <SelectInput label="Payer" value={value} onChange={setValue} items={items}
+        groups={[{ id: "bank", name: "Bank", itemIds: ["1"] }, { id: "wallet", name: "Wallet", itemIds: ["2"], initiallyExpanded: true }]}
+        renderItem={item => <>{item.name}</>} />;
+    }
+    render(<Controlled />);
+    await userEvent.click(screen.getByRole("button", { name: "Payer" }));
+    expect(screen.queryByRole("button", { name: "Groceries" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Expand Bank" }));
+    await userEvent.click(screen.getByRole("button", { name: "Groceries" }));
+    expect(screen.getByRole("button", { name: "Payer" }).textContent).toBe("Groceries");
+  });
   it("renders inline custom items and exposes the controlled selection without a picker modal", async () => {
     function Controlled({ disabled = false }: { disabled?: boolean }) {
       const [value, setValue] = useState<string | null>("1");

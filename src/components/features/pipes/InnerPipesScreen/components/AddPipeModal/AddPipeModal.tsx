@@ -11,6 +11,7 @@ import { Icon, safeIconName } from "@ui/Icon";
 import { ModalShell } from "@ui/Modal";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import { buildAddPipeForm, validatePipeCapacity, validatePipeName, type AddPipeDraft } from "./addPipeForm.config";
+import { createRuleDraft, mergeRuleDraft, ruleConfigurationFromDraft, validateRuleDraft } from "@features/pipes/rules/rule-form";
 
 type AddPipeModalProps = {
   parentId?: Id<"pipes">;
@@ -29,9 +30,10 @@ export function AddPipeModal({ parentId, visible, onClose }: AddPipeModalProps) 
 export function AddPipeForm({ parentId, onClose }: Omit<AddPipeModalProps, "visible">) {
   const { allPipes, childrenByParent, isLoading } = usePipeCatalog();
   const pipes = (allPipes ?? []).filter(pipe => !pipe.deletionJobId);
-  const [draft, setDraft] = useState<AddPipeDraft>({
+  const [draft, setDraft] = useState<AddPipeDraft>(() => ({
+    ...createRuleDraft(),
     ownerId: parentId ?? null, name: "", description: "", icon: "pipe", priority: 0, capacity: "",
-  });
+  }));
   const [activeStep, setActiveStep] = useState(parentId ? 1 : 0);
   const [loading, setLoading] = useState(false);
   const [submitError, setSubmitError] = useState<string>();
@@ -39,10 +41,12 @@ export function AddPipeForm({ parentId, onClose }: Omit<AddPipeModalProps, "visi
   const owner = pipes.find(pipe => pipe.id === draft.ownerId);
   const hasChildren = owner ? (childrenByParent.get(owner.id)?.length ?? 0) > 0 : false;
   const willRemoveSpentCapValues = owner && !hasChildren && (owner.capacity > 0 || owner.spent > 0);
-  const valid = !!owner && validatePipeName(draft.name) === undefined && validatePipeCapacity(draft.capacity) === undefined;
+  const valid = !!owner && validatePipeName(draft.name) === undefined && validatePipeCapacity(draft.capacity) === undefined && validateRuleDraft(draft, Date.now()) === undefined;
 
   async function handleSubmit() {
     if (!valid || !owner || loading) return;
+    const ruleError = validateRuleDraft(draft, Date.now());
+    if (ruleError) { setSubmitError(ruleError); return; }
     setLoading(true);
     setSubmitError(undefined);
     try {
@@ -53,6 +57,7 @@ export function AddPipeForm({ parentId, onClose }: Omit<AddPipeModalProps, "visi
         icon: draft.icon || "pipe",
         priority: draft.priority,
         capacity: draft.capacity ? parseMoney(draft.capacity) : 0,
+        ...(draft.selectedRule === "none" ? {} : { ruleConfig: ruleConfigurationFromDraft(draft) }),
       });
       onClose();
     } catch (error) {
@@ -65,10 +70,10 @@ export function AddPipeForm({ parentId, onClose }: Omit<AddPipeModalProps, "visi
   return (
     <View className="gap-4" style={{ flexShrink: 1 }}>
       <Form
-        form={buildAddPipeForm(pipes, loading, isLoading)}
+        form={buildAddPipeForm(pipes, loading, isLoading, draft)}
         value={draft}
         onChange={next => {
-          setDraft(next);
+          setDraft((previous) => mergeRuleDraft(previous, next));
           // This is an interaction, not an effect: Back must stay on the owner step.
           if (activeStep === 0 && pipes.some(pipe => pipe.id === next.ownerId)) setActiveStep(1);
         }}
@@ -96,6 +101,13 @@ export function AddPipeForm({ parentId, onClose }: Omit<AddPipeModalProps, "visi
             <View className="bg-warning/10 border border-warning/30 rounded-xl px-4 py-3">
               <Text className="text-warning text-sm">
                 Adding a pipe removes the ability to add transactions from this pipe. All transactions should happen from a childless pipe.
+              </Text>
+            </View>
+          ) : null}
+          {owner.rule ? (
+            <View className="bg-warning/10 border border-warning/30 rounded-xl px-4 py-3">
+              <Text className="text-warning text-sm">
+                The owner pipe's current rule will be removed. Add rules directly to its children instead.
               </Text>
             </View>
           ) : null}
