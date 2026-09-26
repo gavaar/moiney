@@ -10,6 +10,16 @@ const toRgb = (hex: string) => {
 };
 
 describe("PipeBars", () => {
+  it("shows fed before expected and spent without displaying or scaling by capacity", () => {
+    const { container } = render(
+      <PipeBars fed={5000} spent={1000} capacity={100000} expected={10000} />,
+    );
+
+    expect(container.textContent).toMatch(/fed.*expected.*spent/);
+    expect(screen.queryByText("capacity")).toBeNull();
+    expect(screen.getByTestId("bar-fed-fill").style.width).toBe("50%");
+  });
+
   it("renders labels and values", () => {
     render(
       <PipeBars
@@ -21,28 +31,25 @@ describe("PipeBars", () => {
     );
     expect(screen.getByText("fed")).toBeDefined();
     expect(screen.getByText("spent")).toBeDefined();
-    expect(screen.getByText("capacity")).toBeDefined();
+    expect(screen.queryByText("capacity")).toBeNull();
     expect(screen.getByText("expected")).toBeDefined();
     expect(screen.getByText("1,500.00")).toBeDefined();
     expect(screen.getByText("1,200.00")).toBeDefined();
-    expect(screen.getByText("2,000.00")).toBeDefined();
+    expect(screen.queryByText("2,000.00")).toBeNull();
     expect(screen.getByText("1,800.00")).toBeDefined();
   });
 
-  it.each([
-    ["capacity", 0, 10000, "bar-capacity-fill"],
-    ["expected", 10000, 0, "bar-expected-fill"],
-  ])("hides the %s bar when its value is zero", (_label, capacity, expected, hiddenTestId) => {
+  it("hides the expected bar when its value is zero", () => {
     render(
       <PipeBars
         fed={5000}
         spent={1000}
-        capacity={capacity}
-        expected={expected}
+        capacity={10000}
+        expected={0}
       />,
     );
 
-    expect(screen.queryByTestId(hiddenTestId)).toBeNull();
+    expect(screen.queryByTestId("bar-expected-fill")).toBeNull();
   });
 
   it("renders fed bar with green fill", () => {
@@ -57,7 +64,7 @@ describe("PipeBars", () => {
     expect(screen.getByTestId("bar-fed-fill")).toBeDefined();
   });
 
-  it("renders expected as a red dashed row above fed", () => {
+  it("renders expected as a red dashed row below fed", () => {
     render(
       <PipeBars
         fed={10000}
@@ -70,7 +77,7 @@ describe("PipeBars", () => {
     const expected = screen.getByTestId("bar-expected-fill");
     expect(expected.style.borderTopStyle).toBe("dashed");
     expect(expected.style.borderTopColor).toBe(toRgb(colors.error));
-    expect(expected.style.width).toBe("80%");
+    expect(expected.style.width).toBe("100%");
   });
 
   it("overlays a positive external adjustment at the beginning of the fed bar", () => {
@@ -134,16 +141,17 @@ describe("PipeBars", () => {
     expect(fill.style.backgroundColor).toBe(toRgb(colors.primary));
   });
 
-  it("renders capacity bar with a dashed line", () => {
+  it("renders boiler contributions with a dashed line", () => {
     render(
       <PipeBars
         fed={150000}
         spent={120000}
         capacity={200000}
         expected={200000}
+        sourceType="boiler"
       />,
     );
-    expect(screen.getByTestId("bar-capacity-fill").style.borderTopStyle).toBe(
+    expect(screen.getByTestId("bar-contributed-fill").style.borderTopStyle).toBe(
       "dashed",
     );
   });
@@ -161,7 +169,7 @@ describe("PipeBars", () => {
     expect(screen.queryByText("spent")).toBeNull();
     expect(screen.queryByTestId("bar-spent-fill")).toBeNull();
     expect(screen.getByTestId("bar-fed-fill")).toBeDefined();
-    expect(screen.getByTestId("bar-capacity-fill")).toBeDefined();
+    expect(screen.queryByTestId("bar-capacity-fill")).toBeNull();
   });
 
   it("shows the spent bar when rule is spend_overflow", () => {
@@ -178,7 +186,7 @@ describe("PipeBars", () => {
   });
 
   it("labels boiler contributions without hiding spending by source type", () => {
-    render(
+    const { container } = render(
       <PipeBars
         fed={10000}
         spent={100000}
@@ -189,6 +197,7 @@ describe("PipeBars", () => {
     );
 
     expect(screen.getByText("contributed")).toBeDefined();
+    expect(container.textContent).toMatch(/fed.*expected.*contributed.*spent/);
     expect(screen.queryByText("capacity")).toBeNull();
     expect(screen.getByTestId("bar-spent-fill")).toBeDefined();
     expect(screen.getByTestId("bar-fed-fill").style.width).toBe("10%");

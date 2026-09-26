@@ -145,7 +145,7 @@ describe("InnerPipesScreen", () => {
     render(<InnerPipesScreen />);
     expect(screen.getByTestId("bar-fed-fill")).toBeDefined();
     expect(screen.getByTestId("bar-spent-fill")).toBeDefined();
-    expect(screen.getByTestId("bar-capacity-fill")).toBeDefined();
+    expect(screen.queryByTestId("bar-capacity-fill")).toBeNull();
   });
 
   it("uses boiler contributions for detail bars and growth", () => {
@@ -231,7 +231,7 @@ describe("InnerPipesScreen", () => {
     render(<InnerPipesScreen />);
     expect(screen.queryByTestId("bar-spent-fill")).toBeNull();
     expect(screen.getByTestId("bar-fed-fill")).toBeDefined();
-    expect(screen.getByTestId("bar-capacity-fill")).toBeDefined();
+    expect(screen.queryByTestId("bar-capacity-fill")).toBeNull();
   });
 
   it("renders statistics row", () => {
@@ -242,7 +242,7 @@ describe("InnerPipesScreen", () => {
     });
     render(<InnerPipesScreen />);
     expect(
-      screen.getByRole("button", { name: "Left to spend, 0.00" }),
+      screen.getByRole("button", { name: "Remaining expected, 0.00" }),
     ).toBeDefined();
   });
 

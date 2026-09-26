@@ -129,21 +129,17 @@ export function PipeBars({
   const maxAbs = Math.max(
     1,
     Math.abs(fed),
-    Math.abs(capacity),
+    sourceType === "boiler" ? Math.abs(capacity) : 0,
     showSpent ? Math.abs(spent) : 0,
     Math.abs(expected),
   );
   return (
     <View className="gap-1 pb-3">
-      {capacity !== 0 ? (
-        <BarRow
-          label={sourceType === "boiler" ? "contributed" : "capacity"}
-          value={capacity}
-          maxAbs={maxAbs}
-          color={capacity < 0 ? colors.errorDark : colors.primary}
-          dashed
-        />
-      ) : null}
+      <FedBarRow
+        fed={fed}
+        pendingFedAdjustment={pendingFedAdjustment}
+        maxAbs={maxAbs}
+      />
       {expected !== 0 ? (
         <BarRow
           label="expected"
@@ -153,11 +149,15 @@ export function PipeBars({
           dashed
         />
       ) : null}
-      <FedBarRow
-        fed={fed}
-        pendingFedAdjustment={pendingFedAdjustment}
-        maxAbs={maxAbs}
-      />
+      {sourceType === "boiler" && capacity !== 0 ? (
+        <BarRow
+          label="contributed"
+          value={capacity}
+          maxAbs={maxAbs}
+          color={capacity < 0 ? colors.errorDark : colors.primary}
+          dashed
+        />
+      ) : null}
       {showSpent ? (
         <BarRow
           label="spent"
