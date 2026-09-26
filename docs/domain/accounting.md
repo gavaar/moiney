@@ -69,9 +69,11 @@ changes by `value`.
   negative, while increasing receiving-pipe liquidity.
 - Settlement and capacity updates follow [D008](#d008-rule-execution-and-cap-update),
   using logical spending rather than the pending adjustment for capacity.
-- Current-cycle L2S is `fed - spent`, intentionally excluding the pending
+- Current-cycle liquidity is `fed - spent`, intentionally excluding the pending
   adjustment. Nonzero pending adjustment appears separately in detail statistics
-  as an external settlement indicator, not extra current-cycle spending capacity.
+  as an external settlement indicator, not extra current-cycle liquidity. The
+  pipe-detail "Remaining expected" statistic instead follows
+  [D008 presentation](reporting.md#d008-presentation-statistics).
 - Pipe-tree projections aggregate pending adjustments;
   [deletion balances](deletion.md#d002-pipe-deletion-and-transaction-history) use them.
 
@@ -126,7 +128,7 @@ Growth is `(fed - contributedFed) / contributedFed * 100`: zero and positive
 growth are blue, negative growth is red, and growth is unavailable when
 principal is zero. Liquidity bars use principal as their baseline without
 modifying capacity; detail bars label it `contributed`. Boiler detail statistics
-omit left to spend, an exception to [D008 presentation](reporting.md#d008-presentation-statistics).
+omit "Remaining expected", an exception to [D008 presentation](reporting.md#d008-presentation-statistics).
 Spent-bar visibility follows the rule, not source type; childless boilers omit
 it through their automatic `instant_settlement` rule.
 

@@ -21,8 +21,9 @@ kind. Refunds retain their kind and reverse monetary polarity. Persisted `kind`
 is required; there is no deprecated `type` field or legacy fallback.
 
 Expense grouping ignores `paidFrom`; matching ordinary and pay-by-transfer
-expenses group together across dates. Expenses and transfers share a title-based
-group; feeds retain their structural feed identity. In the currently visible
+expenses group together within the same UTC calendar month. Expenses and
+transfers share a title-based group within that month; feeds retain their
+structural feed identity and likewise group only within a month. In the currently visible
 pipe scope, an expense contributes its value when its logical `from` or
 `paidFrom` is visible. A transfer contributes zero because its value duplicates
 corresponding expense activity. Transactions with no visible logical pipe are

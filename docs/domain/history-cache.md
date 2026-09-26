@@ -111,7 +111,8 @@ The archive's `xN` counts all matching transactions. Its **Spent** total is net
 expense spending, including either logical source or payer involvement once per
 transaction; refunds subtract from spending. Feeds and transfers contribute zero.
 Archive totals and counts overlap and must not be added to calculate global
-totals. Title grouping remains available within each expanded archive.
+totals. Title grouping remains available within each expanded archive and follows
+the [same-month grouping rule](transactions.md#d009-transaction-identity-and-grouping).
 
 Archives match their own pipe or any preserved ancestor in pipe filters, including
 the selected pipe's Latest history. Title and date filters apply to the archived
@@ -120,6 +121,11 @@ latest-date ordering, even when creation occurred outside the filter period.
 An archive with no retained transactions matches by creation date and pipe name.
 Live creation events likewise match by creation date and current name. History's
 pipe picker includes live parents as well as leaves.
+
+Mixed History and Latest show UTC month headings for top-level rows and separate
+month headings inside expanded archives. An archive belongs to the month of its
+latest matching transaction for ordering and headings; an archive with no retained
+transactions uses its event date. Expanded rows are indented by nesting depth.
 
 Mixed History merges independently paginated event and transaction streams without
 discarding unconsumed rows. Latest history contains at most 30 mixed entries;

@@ -38,10 +38,11 @@ function compareTransactions(
 type PipeId = NonNullable<TransactionModel["from"]>;
 
 function groupKey(transaction: TransactionModel): string {
+  const month = new Date(transaction.date).toISOString().slice(0, 7);
   if (resolveTransactionKind(transaction) === "feed") {
-    return transactionGroupId(transaction);
+    return JSON.stringify([transactionGroupId(transaction), month]);
   }
-  return JSON.stringify(["expense", transaction.title]);
+  return JSON.stringify([JSON.stringify(["expense", transaction.title]), month]);
 }
 
 function participatingPipeIds(

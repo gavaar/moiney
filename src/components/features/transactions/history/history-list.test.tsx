@@ -11,6 +11,7 @@ const client = { query: mocks.query };
 vi.mock("convex/react", () => ({ useConvex: () => client }));
 vi.mock("expo-router", () => ({ useRouter: () => ({ navigate: mocks.navigate }) }));
 vi.mock("expo-router/react-navigation", () => ({ useIsFocused: () => true }));
+vi.mock("@features/pipes/context/PipeCatalogContext", () => ({ usePipeCatalog: () => ({ pipesById: {} }) }));
 vi.mock("@ui/Icon", () => ({ Icon: () => null, safeIconName: (name: string) => name }));
 vi.mock("../components/TransactionItem", () => ({
   TransactionItem: ({ transaction }: { transaction: { title: string } }) => <span>{transaction.title}</span>,
@@ -95,5 +96,44 @@ describe("mixed History interaction", () => {
     await waitFor(() => expect(screen.getByText("Sep 22, 2026")).toBeTruthy());
     expect(screen.queryByRole("button", { name: "Load more Madrid history" })).toBeNull();
     expect(screen.queryByLabelText("Loading Madrid history")).toBeNull();
+  });
+
+  it("shows UTC month headings for top-level transactions and pipe events", () => {
+    const march = Date.UTC(2026, 2, 1);
+    const february = Date.UTC(2026, 1, 28, 23, 59);
+    render(<HistoryList {...props} items={[
+      { kind: "transaction", date: march, transaction: { ...expense, id: "march" as Id<"transactions">, date: march } },
+      { kind: "pipe", date: february, event: { ...trip, deletedAt: undefined, occurredAt: february } },
+    ]} />);
+
+    expect(screen.getByText("March 2026")).toBeTruthy();
+    expect(screen.getByText("February 2026")).toBeTruthy();
+  });
+
+  it("shows month boundaries inside an archive and keeps same-title groups within a month", async () => {
+    const march = Date.UTC(2026, 2, 1);
+    const february = Date.UTC(2026, 1, 28);
+    const january = Date.UTC(2026, 0, 31);
+    const archived = [
+      { ...expense, id: "feb-1" as Id<"transactions">, date: february },
+      { ...expense, id: "feb-2" as Id<"transactions">, date: february - 1000 },
+      { ...expense, id: "jan-1" as Id<"transactions">, date: january },
+      { ...expense, id: "jan-2" as Id<"transactions">, date: january - 1000 },
+    ];
+    mocks.query.mockImplementation(async (_ref, args) => ({
+      transactions: args.summaryOnly || args.role !== "from" ? [] : archived,
+      count: args.role === "from" ? archived.length : 0,
+      spent: args.role === "from" ? 24000 : 0,
+      oldestDate: args.role === "from" ? january - 1000 : null,
+      latestDate: args.role === "from" ? february : null,
+      isDone: true, cursor: null,
+    }));
+    render(<HistoryList {...props} items={[{ kind: "pipe", date: march, event: trip }]} />);
+    await userEvent.click(screen.getByRole("button", { name: "Expand Madrid history" }));
+
+    await waitFor(() => expect(screen.getAllByRole("button", { name: "Expand 2 transactions" })).toHaveLength(2));
+    expect(screen.getByText("March 2026")).toBeTruthy();
+    expect(screen.getByText("February 2026")).toBeTruthy();
+    expect(screen.getByText("January 2026")).toBeTruthy();
   });
 });

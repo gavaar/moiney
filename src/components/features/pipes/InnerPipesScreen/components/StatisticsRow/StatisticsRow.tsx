@@ -24,7 +24,6 @@ type StatItem = {
 type Props = {
   fed: number;
   spent: number;
-  capacity: number;
   expected: number;
   pendingFedAdjustment?: number;
   sourceType?: "feed" | "boiler";
@@ -45,7 +44,6 @@ function formatGrowthPercentage(value: number): string {
 export function StatisticsRow({
   fed,
   spent,
-  capacity,
   expected,
   pendingFedAdjustment = 0,
   sourceType,
@@ -67,7 +65,7 @@ export function StatisticsRow({
   const [selectedStatTitle, setSelectedStatTitle] = useState<string | null>(
     null,
   );
-  const l2sRef = useRef<View>(null);
+  const remainingExpectedRef = useRef<View>(null);
   const stmpdRef = useRef<View>(null);
   const astmRef = useRef<View>(null);
   const cronRef = useRef<View>(null);
@@ -92,11 +90,11 @@ export function StatisticsRow({
       ...(sourceType !== "boiler"
         ? [
             {
-              displayValue: formatAmount(capacity - spent),
-              title: "Left to spend",
-              description: `You have ${formatAmount(capacity - spent)} left to spend from this pipe at the moment.`,
+              displayValue: formatAmount(expected - spent),
+              title: "Remaining expected",
+              description: `The monthly expected amount is ${formatAmount(expected)}. After ${formatAmount(spent)} in currently tracked spending, ${formatAmount(expected - spent)} remains. Spending before the last settlement is not included; this is not your available balance or carried-forward capacity.`,
               icon: "circle-half-full" as IconName,
-              ref: l2sRef,
+              ref: remainingExpectedRef,
             },
           ]
         : []),
@@ -169,7 +167,6 @@ export function StatisticsRow({
     ],
     [
       accumulatedSpend,
-      capacity,
       currentDay,
       dailyExpected,
       daysLeft,

@@ -86,7 +86,6 @@ export function InnerPipesScreen() {
             <StatisticsRow
               fed={fed}
               spent={spent}
-              capacity={capacity}
               expected={expected}
               pendingFedAdjustment={pendingFedAdjustment}
               sourceType={selectedPipe?.sourceType}

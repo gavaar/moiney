@@ -40,7 +40,6 @@ vi.mock("@ui/Icon", () => ({
 const baseProps = {
   fed: 100000,
   spent: 40000,
-  capacity: 100000,
   expected: 90000,
 };
 
@@ -62,18 +61,23 @@ describe("StatisticsRow", () => {
     vi.useRealTimers();
   });
 
-  it("calculates L2S from operational capacity and explains the amount", async () => {
+  it("shows remaining expected spending instead of carried-forward capacity", async () => {
     const user = userEvent.setup();
-    renderStatistics({ capacity: 200000 });
+    renderStatistics({ fed: 200000, expected: 90000, spent: 40000 });
 
     await user.click(
-      screen.getByRole("button", { name: "Left to spend, 1,600.00" }),
+      screen.getByRole("button", { name: "Remaining expected, 500.00" }),
     );
     expect(
       screen.getByText(
-        "You have 1,600.00 left to spend from this pipe at the moment.",
+        "The monthly expected amount is 900.00. After 400.00 in currently tracked spending, 500.00 remains. Spending before the last settlement is not included; this is not your available balance or carried-forward capacity.",
       ),
     ).toBeDefined();
+  });
+
+  it("shows a negative remaining expected amount after exceeding the target", () => {
+    renderStatistics({ spent: 100000 });
+    expect(screen.getByRole("button", { name: "Remaining expected, -100.00" })).toBeDefined();
   });
 
   it("calculates StMpD over elapsed days and explains its denominator", () => {
@@ -147,7 +151,7 @@ describe("StatisticsRow", () => {
     renderStatistics();
 
     expect(
-      screen.getByRole("button", { name: "Left to spend, 600.00" }),
+      screen.getByRole("button", { name: "Remaining expected, 500.00" }),
     ).toBeDefined();
     expect(
       screen.getByRole("button", {
@@ -157,17 +161,16 @@ describe("StatisticsRow", () => {
     expect(screen.queryByText(/L2S:|StM:|StMpD:/)).toBeNull();
   });
 
-  it("hides boiler L2S and presents growth as a statistic", () => {
+  it("hides boiler remaining expected and presents growth as a statistic", () => {
     renderStatistics({
       fed: 150000,
       spent: 0,
-      capacity: 0,
       expected: 0,
       sourceType: "boiler",
       contributedFed: 100000,
     });
 
-    expect(screen.queryByRole("button", { name: /Left to spend/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Remaining expected/ })).toBeNull();
     expect(screen.getByRole("button", { name: "Growth, +50%" })).toBeDefined();
     expect(screen.getByTestId("boiler-growth-chip").textContent).toBe("+50%");
   });
@@ -186,13 +189,13 @@ describe("StatisticsRow", () => {
       "This refund reduces this pipe's spending, but another pipe received it. The next rule run will subtract 250.00 from this pipe's fed balance.",
     ],
   ])(
-    "keeps an external adjustment of %s out of L2S and explains it",
+    "keeps an external adjustment of %s out of remaining expected and explains it",
     async (pendingFedAdjustment, displayValue, title, description) => {
       const user = userEvent.setup();
       renderStatistics({ pendingFedAdjustment });
 
       expect(
-        screen.getByRole("button", { name: "Left to spend, 600.00" }),
+        screen.getByRole("button", { name: "Remaining expected, 500.00" }),
       ).toBeDefined();
       expect(screen.getByText(displayValue)).toBeDefined();
       await user.click(screen.getByTestId("external-adjustment-chip"));
@@ -243,11 +246,11 @@ describe("StatisticsRow", () => {
     const user = userEvent.setup();
     renderStatistics();
     await user.click(
-      screen.getByRole("button", { name: "Left to spend, 600.00" }),
+      screen.getByRole("button", { name: "Remaining expected, 500.00" }),
     );
-    expect(screen.getByText(/Left to spend:/)).toBeDefined();
+    expect(screen.getByText(/Remaining expected:/)).toBeDefined();
     await user.click(screen.getByTestId("popover-backdrop"));
-    expect(screen.queryByText(/Left to spend:/)).toBeNull();
+    expect(screen.queryByText(/Remaining expected:/)).toBeNull();
   });
 
   it("renders days left for cron pipes and clamps past dates to zero", () => {

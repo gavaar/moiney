@@ -18,8 +18,14 @@ with children sums each immediate child's normalized `capUpdateValue` or
 fallback capacity. This does not calculate post-rule capacity or include prior
 cycle leftover fed.
 
-Left to spend is `capacity - spent`, except for the
-[boiler omission](accounting.md#d015-boiler-feed-pipes). Average daily spending
+Pipe detail bars show fed, expected when nonzero, contributed principal for
+boilers when nonzero, and spent unless the rule settles instantly. Operational
+capacity is not shown as a bar. The non-boiler "Remaining expected" statistic
+is `expected - spent`: it compares the monthly target to spending tracked since
+the last settlement, not to available liquidity or historical carry-over
+capacity. Pipes without a cap update still use current capacity as their
+expected fallback. Boilers omit this statistic under the
+[boiler exception](accounting.md#d015-boiler-feed-pipes). Average daily spending
 divides current-month spending by current day-of-month. Accumulated spendable
 value through today is `expected / daysInMonth * currentDay - spent`, rounded
 only at the integer-cent formatting boundary. If negative and daily expected is
