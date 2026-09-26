@@ -12,7 +12,7 @@
     "convex:deploy": "bun run verify && bunx convex deploy",
     "benchmark:performance": "bun run benchmarks/update15-performance.ts",
     "lint": "expo lint",
-    "test": "vitest run",
+    "test": "BUN_JSC_useFTLJIT=false vitest run",
     "typecheck": "tsc --noEmit --incremental false",
     "verify": "bun run lint && bun run test && bun run typecheck"
   },

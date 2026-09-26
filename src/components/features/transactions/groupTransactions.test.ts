@@ -116,9 +116,23 @@ describe("groupTransactions", () => {
     expect(group).toMatchObject({
       count: 2,
       kind: "expense",
-      id: JSON.stringify(["expense", "coffee"]),
+      id: JSON.stringify([JSON.stringify(["expense", "coffee"]), "1970-01"]),
       paidFrom: "salary",
     });
+  });
+
+  it("groups matching titles within UTC months without combining adjacent months or years", () => {
+    const january = tx({ id: "jan" as Id<"transactions">, date: Date.UTC(2026, 0, 1), value: -10 });
+    const december = tx({ id: "dec" as Id<"transactions">, date: Date.UTC(2025, 11, 31, 23, 59), value: -20 });
+    const otherJanuary = tx({ id: "jan-2" as Id<"transactions">, date: Date.UTC(2026, 0, 2), value: -30 });
+    const priorJanuary = tx({ id: "old-jan" as Id<"transactions">, date: Date.UTC(2025, 0, 2), value: -40 });
+
+    const result = groupTransactions([january, december, otherJanuary, priorJanuary]);
+
+    expect(result).toHaveLength(3);
+    expect(result[0]).toMatchObject({ count: 2, totalValue: -40, transactions: [otherJanuary, january] });
+    expect(result[1]).toBe(december);
+    expect(result[2]).toBe(priorJanuary);
   });
 
   it("returns separate groups for different titles", () => {
