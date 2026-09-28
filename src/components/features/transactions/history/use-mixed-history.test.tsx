@@ -35,6 +35,7 @@ describe("mixed History loading", () => {
     const { result, rerender } = renderHook(() => useMixedHistory());
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(mocks.query).toHaveBeenCalledTimes(2);
+    expect(mocks.query.mock.calls.every(([, args]) => args.limit === 100)).toBe(true);
     mocks.cache = { snapshotRead: true };
     rerender();
     expect(mocks.query).toHaveBeenCalledTimes(2);
@@ -63,7 +64,7 @@ describe("mixed History loading", () => {
     expect(result.current.isRefreshing).toBe(false);
   });
 
-  it("fills latest history across compressed archive page boundaries", async () => {
+  it("fills latest transactions across compressed archive page boundaries", async () => {
     const older = { ...item, date: 900, transaction: { ...transaction, id: "older", date: 900 } };
     mocks.query.mockImplementation(async (_ref, args) => {
       if (args.source === "events") return { items: [], cursor: null, isDone: true };
@@ -75,6 +76,26 @@ describe("mixed History loading", () => {
     await waitFor(() => expect(result.current.items).toHaveLength(2));
     expect(result.current.hasMore).toBe(false);
     expect(mocks.append).toHaveBeenCalledWith("history", [older.transaction], false);
+    expect(mocks.query.mock.calls.every(([, args]) => args.limit === 30)).toBe(true);
+  });
+
+  it("pauses latest transactions reads while collapsed and resumes on expansion", async () => {
+    const { rerender, result } = renderHook(({ enabled }) => useMixedHistory({}, { recent: true, enabled }), {
+      initialProps: { enabled: false },
+    });
+    expect(mocks.query).not.toHaveBeenCalled();
+
+    rerender({ enabled: true });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(mocks.query).toHaveBeenCalledTimes(2);
+
+    rerender({ enabled: false });
+    mocks.mutationVersion += 1;
+    rerender({ enabled: false });
+    expect(mocks.query).toHaveBeenCalledTimes(2);
+
+    rerender({ enabled: true });
+    await waitFor(() => expect(mocks.query).toHaveBeenCalledTimes(4));
   });
 
   it("does not read in hidden tabs and never displays another account's results", async () => {

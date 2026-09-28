@@ -2,17 +2,34 @@ import { v } from "convex/values";
 import {
   summarizeMonthlySpending,
   summarizeRootFeedSnapshot,
+  monthlyPipeSpending,
+  mergeMonthlySpending,
+  mergePipeSpending,
+  monthlyTitleSpending,
+  mergeTitleSpending,
+  mostRepeatedTransaction,
+  rankMonthlyOffenders,
   type MonthlySpendingSummary,
+  type PipeSpending,
+  type TitleSpending,
 } from "../domain/statistics/monthlySpending";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { internalMutation, query, type MutationCtx } from "./_generated/server";
+import { paginationOptsValidator } from "convex/server";
 import { requireAuth } from "./lib/auth";
 import { MAX_PIPES_PER_USER } from "./lib/constants";
 
 const USER_PAGE_SIZE = 50;
 const TRANSACTION_PAGE_SIZE = 100;
 const MAX_MONTHLY_REPORTS = 24;
+const pipeSpendingValidator = v.object({ pipeId: v.string(), netSpendingCents: v.number() });
+const titleSpendingValidator = v.object({ title: v.string(), count: v.number(), netSpendingCents: v.number() });
+const largestSpendingTransactionValidator = v.object({ title: v.string(), amountCents: v.number() });
+const offenderValidator = v.object({
+  pipeId: v.string(), name: v.string(), netSpendingCents: v.number(),
+  capacityCents: v.number(), overageCents: v.number(),
+});
 
 const summaryValidator = v.object({
   totalIncomeCents: v.optional(v.number()),
@@ -21,6 +38,8 @@ const summaryValidator = v.object({
   spendingTransactionCount: v.number(),
   refundTransactionCount: v.number(),
   largestSpendingTransactionCents: v.number(),
+  nextLargestSpendingCents: v.optional(v.array(v.number())),
+  largestSpendingTransactions: v.optional(v.array(largestSpendingTransactionValidator)),
 });
 
 const monthlySpendingStatValidator = v.object({
@@ -31,8 +50,12 @@ const monthlySpendingStatValidator = v.object({
   spendingTransactionCount: v.number(),
   refundTransactionCount: v.number(),
   largestSpendingTransactionCents: v.number(),
+  nextLargestSpendingCents: v.optional(v.array(v.number())),
+  largestSpendingTransactions: v.optional(v.array(largestSpendingTransactionValidator)),
+  mostRepeatedTransaction: v.optional(v.union(v.null(), titleSpendingValidator)),
   volumeCents: v.optional(v.number()),
   producedCents: v.optional(v.number()),
+  offenders: v.optional(v.array(offenderValidator)),
 });
 
 function toPublicStat(stat: Doc<"monthlySpendingStats">) {
@@ -46,10 +69,14 @@ function toPublicStat(stat: Doc<"monthlySpendingStats">) {
     spendingTransactionCount: stat.spendingTransactionCount,
     refundTransactionCount: stat.refundTransactionCount,
     largestSpendingTransactionCents: stat.largestSpendingTransactionCents,
+    ...(stat.nextLargestSpendingCents !== undefined ? { nextLargestSpendingCents: stat.nextLargestSpendingCents } : {}),
+    ...(stat.largestSpendingTransactions !== undefined ? { largestSpendingTransactions: stat.largestSpendingTransactions } : {}),
+    ...(stat.mostRepeatedTransaction !== undefined ? { mostRepeatedTransaction: stat.mostRepeatedTransaction } : {}),
     ...(stat.volumeCents !== undefined ? { volumeCents: stat.volumeCents } : {}),
     ...(stat.producedCents !== undefined
       ? { producedCents: stat.producedCents }
       : {}),
+    ...(stat.offenders !== undefined ? { offenders: stat.offenders } : {}),
   };
 }
 
@@ -64,6 +91,46 @@ export const listMine = query({
       .order("desc")
       .take(MAX_MONTHLY_REPORTS);
     return stats.map(toPublicStat);
+  },
+});
+
+export const monthPage = query({
+  args: { periodStart: v.number(), paginationOpts: paginationOptsValidator },
+  returns: v.object({
+    page: v.array(v.object({
+      summary: summaryValidator,
+      pipeSpending: v.array(pipeSpendingValidator),
+      titleSpending: v.array(titleSpendingValidator),
+    })),
+    isDone: v.boolean(),
+    continueCursor: v.string(),
+  }),
+  handler: async (ctx, args) => {
+    const userId = await requireAuth(ctx);
+    const period = new Date(args.periodStart);
+    if (
+      !Number.isSafeInteger(args.periodStart) ||
+      period.getTime() !== args.periodStart ||
+      period.getUTCDate() !== 1 ||
+      period.getUTCHours() !== 0 ||
+      period.getUTCMinutes() !== 0 ||
+      period.getUTCSeconds() !== 0 ||
+      period.getUTCMilliseconds() !== 0
+    ) {
+      throw new Error("Invalid period start");
+    }
+    if (!Number.isInteger(args.paginationOpts.numItems) || args.paginationOpts.numItems < 1 || args.paginationOpts.numItems > TRANSACTION_PAGE_SIZE) {
+      throw new Error("Invalid page size");
+    }
+    const end = Date.UTC(period.getUTCFullYear(), period.getUTCMonth() + 1, 1);
+    const transactions = await ctx.db.query("transactions")
+      .withIndex("by_userId_date", (q) => q.eq("userId", userId).gte("date", args.periodStart).lt("date", end))
+      .paginate(args.paginationOpts);
+    return {
+      page: [{ summary: summarizeMonthlySpending(transactions.page), pipeSpending: monthlyPipeSpending(transactions.page), titleSpending: monthlyTitleSpending(transactions.page) }],
+      isDone: transactions.isDone,
+      continueCursor: transactions.continueCursor,
+    };
   },
 });
 
@@ -112,6 +179,8 @@ function scheduleUserCapture(
     periodEnd: number;
     cursor?: string;
     summary?: MonthlySpendingSummary;
+    pipeSpending?: PipeSpending[];
+    titleSpending?: TitleSpending[];
   },
 ) {
   return ctx.scheduler.runAfter(
@@ -160,6 +229,8 @@ export const captureUserMonth = internalMutation({
     periodEnd: v.number(),
     cursor: v.optional(v.string()),
     summary: v.optional(summaryValidator),
+    pipeSpending: v.optional(v.array(pipeSpendingValidator)),
+    titleSpending: v.optional(v.array(titleSpendingValidator)),
   },
   returns: v.null(),
   handler: async (ctx, args): Promise<null> => {
@@ -193,22 +264,12 @@ export const captureUserMonth = internalMutation({
       spendingTransactionCount: 0,
       refundTransactionCount: 0,
       largestSpendingTransactionCents: 0,
+      nextLargestSpendingCents: [],
+      largestSpendingTransactions: [],
     };
-    const summary = {
-      totalIncomeCents:
-        (previous.totalIncomeCents ?? 0) + pageSummary.totalIncomeCents,
-      grossSpendingCents:
-        previous.grossSpendingCents + pageSummary.grossSpendingCents,
-      refundCents: previous.refundCents + pageSummary.refundCents,
-      spendingTransactionCount:
-        previous.spendingTransactionCount + pageSummary.spendingTransactionCount,
-      refundTransactionCount:
-        previous.refundTransactionCount + pageSummary.refundTransactionCount,
-      largestSpendingTransactionCents: Math.max(
-        previous.largestSpendingTransactionCents,
-        pageSummary.largestSpendingTransactionCents,
-      ),
-    };
+    const summary = mergeMonthlySpending({ ...previous, totalIncomeCents: previous.totalIncomeCents ?? 0 }, pageSummary);
+    const pipeSpending = mergePipeSpending(args.pipeSpending ?? [], monthlyPipeSpending(transactions.page));
+    const titleSpending = mergeTitleSpending(args.titleSpending ?? [], monthlyTitleSpending(transactions.page));
 
     if (!transactions.isDone) {
       await scheduleUserCapture(ctx, {
@@ -217,6 +278,8 @@ export const captureUserMonth = internalMutation({
         periodEnd: args.periodEnd,
         cursor: transactions.continueCursor,
         summary,
+        pipeSpending,
+        titleSpending,
       });
       return null;
     }
@@ -234,7 +297,11 @@ export const captureUserMonth = internalMutation({
       userId: args.userId,
       periodStart: args.periodStart,
       ...summary,
+      mostRepeatedTransaction: mostRepeatedTransaction(titleSpending),
       ...feedSnapshot,
+      offenders: rankMonthlyOffenders(pipes.map((pipe) => ({
+        id: pipe._id, parentId: pipe.parentId, name: pipe.name, capacity: pipe.capacity,
+      })), pipeSpending),
     });
     return null;
   },

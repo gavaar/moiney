@@ -1,18 +1,12 @@
 import { api } from "@convex/_generated/api";
 import { AppScreenHeader } from "@features/app/AppScreenHeader";
-import {
-  formatMonthYear,
-  netSpendingCents,
-  type MonthlySpendingStat,
-} from "@features/statistics/data/monthlySpending";
-import { Icon } from "@ui/Icon";
-import { formatAmount } from "@/lib/format";
+import { type MonthlySpendingStat } from "@features/statistics/data/monthlySpending";
+import { MonthlyStatisticsCard } from "@features/statistics/MonthlyStatisticsCard";
 import { colors } from "@/lib/styles";
 import { useQuery } from "convex/react";
 import {
   ActivityIndicator,
   FlatList,
-  Pressable,
   Text,
   View,
 } from "react-native";
@@ -24,6 +18,7 @@ type Props = {
 
 export function StatisticsScreen({ onSelectPeriod }: Props) {
   const reports = useQuery(api.monthlySpendingStats.listMine, {});
+  const pipes = useQuery(api.pipes.getPipes, reports?.some((report) => report.offenders?.length) ? {} : "skip");
 
   return (
     <SafeAreaView
@@ -50,36 +45,7 @@ export function StatisticsScreen({ onSelectPeriod }: Props) {
           keyExtractor={(item) => String(item.periodStart)}
           contentInsetAdjustmentBehavior="automatic"
           contentContainerClassName="gap-3 px-4 pb-4"
-          renderItem={({ item }) => {
-            const month = formatMonthYear(item.periodStart);
-            return (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`Open ${month} spending report`}
-                className="gap-3 rounded-2xl border border-border bg-surface p-4 active:opacity-80"
-                onPress={() => onSelectPeriod(item.periodStart)}
-              >
-                <View className="flex-row items-center justify-between">
-                  <Text className="text-lg font-bold text-text">{month}</Text>
-                  <Icon name="chevron-forward" size={20} color={colors.muted} />
-                </View>
-                <View>
-                  <Text className="text-sm text-muted">Total outcome</Text>
-                  <Text className="text-2xl font-bold text-text">
-                    {formatAmount(netSpendingCents(item))}
-                  </Text>
-                </View>
-                <View className="flex-row gap-4">
-                  <Text className="text-sm text-muted">
-                    Gross {formatAmount(item.grossSpendingCents)}
-                  </Text>
-                  <Text className="text-sm text-muted">
-                    Refunds {formatAmount(item.refundCents)}
-                  </Text>
-                </View>
-              </Pressable>
-            );
-          }}
+          renderItem={({ item }) => <MonthlyStatisticsCard report={item} offenderIcon={pipes?.find((pipe) => pipe._id === item.offenders?.[0]?.pipeId)?.icon} onPress={() => onSelectPeriod(item.periodStart)} />}
         />
       )}
     </SafeAreaView>

@@ -15,7 +15,7 @@ export function useMixedHistory(filters: TransactionHistoryFilters = {}, options
   // Accounting balance changes do not change archive membership or presentation.
   const catalogKey = allPipes?.map((pipe) => [pipe.id, pipe.name, pipe.icon, pipe.deletionJobId].join(":" )).join("|");
   const filterKey = JSON.stringify(filters);
-  const stableFilters = useMemo(() => filters, [filterKey]);
+  const stableFilters = useMemo(() => JSON.parse(filterKey) as TransactionHistoryFilters, [filterKey]);
   const request = useRef<ReturnType<typeof createHistoryReader> | null>(null);
   const busy = useRef(false);
   const [revision, setRevision] = useState(0);
@@ -31,7 +31,7 @@ export function useMixedHistory(filters: TransactionHistoryFilters = {}, options
       if (request.current !== reader) return;
       const write = isHead ? mergeHead : append;
       void write(HISTORY_SCOPE, page.transactions, page.hasMore).catch(() => undefined);
-    });
+    }, options.recent ? 30 : 100);
     request.current = reader;
     busy.current = true;
     setState((current) => ({

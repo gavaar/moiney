@@ -6,8 +6,12 @@ export type MonthlySpendingStat = {
   spendingTransactionCount: number;
   refundTransactionCount: number;
   largestSpendingTransactionCents: number;
+  nextLargestSpendingCents?: number[];
+  largestSpendingTransactions?: { title: string; amountCents: number }[];
+  mostRepeatedTransaction?: { title: string; count: number; netSpendingCents: number } | null;
   volumeCents?: number;
   producedCents?: number;
+  offenders?: { pipeId: string; name: string; netSpendingCents: number; capacityCents: number; overageCents: number }[];
 };
 
 export function formatMonthYear(periodStart: number): string {

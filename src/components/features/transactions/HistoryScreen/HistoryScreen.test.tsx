@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("react-native-safe-area-context", () => ({
   SafeAreaView: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
+vi.mock("expo-router/react-navigation", () => ({ useIsFocused: () => true }));
 vi.mock("@features/app/AppScreenHeader", () => ({
   AppScreenHeader: ({ title }: { title: string }) => <h1>{title}</h1>,
 }));
@@ -138,5 +139,58 @@ describe("HistoryScreen filters", () => {
       .toBe("");
     await user.click(screen.getByRole("button", { name: "Apply filters" }));
     expect(mocks.useTransactionHistory.mock.calls.at(-1)?.[0]).toEqual({});
+  });
+
+  it("advances the untouched default filter and date control across UTC month rollover", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(Date.UTC(2026, 0, 31, 23, 59));
+    try {
+      render(<HistoryScreen />);
+      expect(mocks.useTransactionHistory.mock.calls.at(-1)?.[0]).toEqual({ fromDate: Date.UTC(2026, 0, 1) });
+
+      act(() => vi.advanceTimersByTime(2 * 60 * 1000));
+
+      expect(mocks.useTransactionHistory.mock.calls.at(-1)?.[0]).toEqual({ fromDate: Date.UTC(2026, 1, 1) });
+      expect(screen.getByRole("button", { name: "From date" }).getAttribute("data-value"))
+        .toBe(new Date(Date.UTC(2026, 1, 1)).toISOString());
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not restore the default filter after Clear when UTC month rolls over", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(Date.UTC(2026, 0, 31, 23, 59));
+    try {
+      render(<HistoryScreen />);
+      fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+
+      act(() => vi.advanceTimersByTime(2 * 60 * 1000));
+
+      expect(mocks.useTransactionHistory.mock.calls.at(-1)?.[0]).toEqual({});
+      expect(screen.getByRole("button", { name: "From date" }).getAttribute("data-value")).toBe("");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("preserves explicitly applied filters when the UTC month changes", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(Date.UTC(2026, 0, 31, 23, 59));
+    try {
+      render(<HistoryScreen />);
+      fireEvent.change(screen.getByRole("textbox", { name: "Title contains" }), { target: { value: "Coffee" } });
+      fireEvent.click(screen.getByRole("button", { name: "Apply filters" }));
+
+      act(() => vi.advanceTimersByTime(2 * 60 * 1000));
+
+      expect(mocks.useTransactionHistory.mock.calls.at(-1)?.[0]).toEqual({
+        fromDate: Date.UTC(2026, 0, 1), title: "coffee",
+      });
+      expect(screen.getByRole("button", { name: "From date" }).getAttribute("data-value"))
+        .toBe(new Date(Date.UTC(2026, 0, 1)).toISOString());
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
