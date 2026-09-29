@@ -19,7 +19,8 @@ export function ToggleInput({ value, onChange, onError, options, validator, disa
   const { error, markAsDirty } = useInputValidation(value, validator, onError);
   return (
     <View className="gap-1">
-      <View className="flex-row items-center gap-2">
+      <View className="flex-row items-center justify-between gap-2">
+        <Text className={cn("text-lg font-medium text-text", disabled && "opacity-50")}>{options[value ? 1 : 0].label}</Text>
         <SlideToggle
           options={[
             { ...options[0], value: "false" },
@@ -34,7 +35,6 @@ export function ToggleInput({ value, onChange, onError, options, validator, disa
           }}
           disabled={disabled}
         />
-        <Text className={cn("text-sm font-medium text-text", disabled && "opacity-50")}>{options[value ? 1 : 0].label}</Text>
       </View>
       <InputError error={error} />
     </View>

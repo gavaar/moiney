@@ -66,7 +66,7 @@ export function RuleModal({ visible, onClose, pipeId }: Props) {
       </View>}
       form={buildRuleFields(draft, { capacity: pipe?.capacity ?? 0, disabled: isBusy, allowSelfDestruct: Boolean(pipe?.parentId), now: Date.now() })}
       value={draft} onChange={(next) => setDraft((previous) => mergeRuleDraft(previous, next))}
-      finalAction={<Button title={action.title} variant={action.variant} icon={action.icon}
+      actions={<Button title={action.title} variant={action.variant} icon={action.icon}
         disabled={action.disabled || !valid} loading={isBusy} onPress={handleAction} />}
     />
   </ModalShell>;

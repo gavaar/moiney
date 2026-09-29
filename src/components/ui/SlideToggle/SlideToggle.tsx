@@ -31,7 +31,7 @@ export function SlideToggle({ options, value, onChange, disabled }: Props) {
             disabled={disabled}
             onPress={() => !disabled && onChange(option.value)}
             className={cn(
-              "flex-row items-center justify-center py-1 px-2",
+              "flex-row items-center justify-center p-1",
               index === 0 && "rounded-l-[7px]",
               index === options.length - 1 && "rounded-r-[7px]",
               isActive ? "bg-primary" : "",

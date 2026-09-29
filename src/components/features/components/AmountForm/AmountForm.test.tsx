@@ -117,6 +117,13 @@ vi.mock("@features/transactions/cache/TransactionCacheContext", () => ({
 
 vi.mock("@ui/Input", () => ({
   Input: ({ label, type, value, onChange, disabled, placeholder, allowNegative, error, maxLength, items, options }: any) => {
+    if (type === "toggle") {
+      return <div data-testid="input-transaction-mode">
+        <span>{options[value ? 1 : 0].label}</span>
+        <button aria-label="Transaction" data-testid="slide-toggle-spend" disabled={disabled} onClick={() => onChange?.(false)} />
+        <button aria-label="Transfer" data-testid="slide-toggle-transfer" disabled={disabled} onClick={() => onChange?.(true)} />
+      </div>;
+    }
     if (type === "date") {
       return (
         <div data-testid={`input-${label}`}>
@@ -868,10 +875,13 @@ describe("AmountForm", () => {
       expect(screen.getByTestId("slide-toggle-transfer")).toBeTruthy();
     });
 
-    it("defaults to Add transaction header", () => {
+    it("shows transaction mode in the form and switches its fields to transfer", () => {
       render(<AmountForm pipeId={PIPE_ID} variant="spend" />);
-      expect(screen.getByText("Add transaction")).toBeTruthy();
-      expect(screen.queryByText("Transfer")).toBeNull();
+      expect(screen.getByTestId("input-transaction-mode").textContent).toBe("Transaction");
+      expect(screen.queryByTestId("input-Transfer to")).toBeNull();
+      fireEvent.click(screen.getByTestId("slide-toggle-transfer"));
+      expect(screen.getByTestId("input-transaction-mode").textContent).toBe("Transfer");
+      expect(screen.getByTestId("input-Transfer to")).toBeTruthy();
     });
 
     it("preserves the sign emitted by the value input", () => {
@@ -1133,19 +1143,22 @@ describe("AmountForm", () => {
       expect(screen.queryByTestId("select-item-child-1")).toBeNull();
     });
 
-    it("toggling to transfer changes header text", () => {
+    it("toggling to transfer changes the form mode label", () => {
       render(<AmountForm pipeId={PIPE_ID} variant="spend" />);
-      expect(screen.getByText("Add transaction")).toBeTruthy();
+      expect(screen.getByText("Transaction")).toBeTruthy();
       fireEvent.click(screen.getByTestId("slide-toggle-transfer"));
       expect(screen.getByText("Transfer")).toBeTruthy();
     });
 
-    it("toggling back to spend hides transfer to field", () => {
+    it("returning to transaction clears the transfer destination", () => {
       render(<AmountForm pipeId={PIPE_ID} variant="spend" />);
       fireEvent.click(screen.getByTestId("slide-toggle-transfer"));
       expect(screen.getByTestId("input-Transfer to")).toBeTruthy();
+      fireEvent.click(screen.getByTestId("select-item-feed-1"));
       fireEvent.click(screen.getByTestId("slide-toggle-spend"));
       expect(screen.queryByTestId("input-Transfer to")).toBeNull();
+      fireEvent.click(screen.getByTestId("slide-toggle-transfer"));
+      expect(screen.getByTestId("select-value-Transfer to").textContent).toBe("None");
     });
 
     it("shows Send to {name} when transfer destination selected", () => {
@@ -1234,12 +1247,12 @@ describe("AmountForm", () => {
       expect((screen.getByTestId("input-Value-field") as HTMLInputElement).value).toBe("-");
     });
 
-    it("eraser resets mode back to spend", () => {
+    it("eraser resets mode back to transaction", () => {
       render(<AmountForm pipeId={PIPE_ID} variant="spend" />);
       fireEvent.click(screen.getByTestId("slide-toggle-transfer"));
       expect(screen.getByText("Transfer")).toBeTruthy();
       fireEvent.click(screen.getByTestId("eraser-button"));
-      expect(screen.getByText("Add transaction")).toBeTruthy();
+      expect(screen.getByText("Transaction")).toBeTruthy();
     });
   });
 

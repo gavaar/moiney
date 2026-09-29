@@ -102,7 +102,7 @@ export function SelectInput({ label, hideLabel, items, groups, renderItem, itemS
       aria-checked={inline || multiple ? checked : undefined}
       disabled={disabled || loading}
       onPress={() => handleItemPress(item.id)}
-      className={inline ? "rounded-xl border border-muted/30 px-2 py-2" : "px-2 py-2 border-b border-border/30 last:border-b-0 active:opacity-70"}
+      className={inline ? "rounded-xl border border-muted/30 px-2 py-1" : "px-2 py-2 border-b border-border/30 last:border-b-0 active:opacity-70"}
       style={[itemStyle?.(item), checked
         ? { backgroundColor: `${colors.muted}1A`, ...(inline ? {} : { borderRadius: 8 }) }
         : inline ? { backgroundColor: "transparent" } : undefined]}
@@ -118,7 +118,7 @@ export function SelectInput({ label, hideLabel, items, groups, renderItem, itemS
     return <Pressable accessibilityRole="button" accessibilityLabel={`${expanded ? "Collapse" : "Expand"} ${group.name}`}
       accessibilityState={{ expanded, disabled }} aria-expanded={expanded} disabled={disabled || loading}
       onPress={() => setExpandedOverrides(previous => ({ ...previous, [group.id]: !expanded }))}
-      className="flex-row items-center gap-1.5 rounded-lg border border-border bg-surface px-2 py-1.5">
+      className="flex-row items-center gap-1.5 rounded-lg border border-border bg-surface px-2 py-2">
       {group.icon ? <Icon name={safeIconName(group.icon)} size={16} color={colors.muted} /> : null}
       <Text className="text-text font-semibold flex-1" numberOfLines={1}>{group.name}</Text>
       <Text className="text-muted text-xs">{group.itemIds.length}</Text>

@@ -30,7 +30,8 @@ export type FormProps<
   Keys extends keyof Values & string = keyof Values & string,
 > = {
   header?: JSX.Element;
-  finalAction?: JSX.Element;
+  warnings?: JSX.Element;
+  actions?: JSX.Element;
   activeStep?: number;
   onStepChange?: (step: number) => void;
   fill?: boolean;

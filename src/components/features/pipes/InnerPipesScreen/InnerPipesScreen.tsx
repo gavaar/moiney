@@ -108,7 +108,7 @@ export function InnerPipesScreen() {
           </View>
         ) : children.length === 0 && selectedPipe ? (
           <View style={{ flex: 1 }}>
-            <AmountForm pipeId={selectedPipe.id} variant="spend" fill />
+            <AmountForm pipeId={selectedPipe.id} variant="spend" />
           </View>
         ) : null}
         {children.length > 0 ? <PipesList

@@ -4,6 +4,7 @@ import type { PipeModel } from "@features/pipes/data/pipes";
 import type { InputProps } from "@ui/Input";
 
 export type AmountFormDraft = {
+  modeTransfer: boolean;
   sourcePipeId: string | null;
   title: string;
   value: string;

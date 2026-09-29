@@ -18,6 +18,7 @@ const modes = [
 export function CreateModal({ onClose }: Props) {
   const [mode, setMode] = useState<CreateMode>("transaction");
   const rootForm = useAddFeedForm(onClose);
+  const { resetVersion, ...rootFormProps } = rootForm;
   return <ModalShell visible onClose={onClose} bottomAccessory={
     <PillGroup options={modes} value={mode} accessibilityLabel="Create" onChange={next => {
       Keyboard.dismiss();
@@ -31,7 +32,7 @@ export function CreateModal({ onClose }: Props) {
       <AddPipeForm onClose={onClose} />
     </View>
     <View style={{ display: mode === "root" ? "flex" : "none", flexShrink: 1 }}>
-      <Form {...rootForm} />
+      <Form key={resetVersion} {...rootFormProps} />
     </View>
   </ModalShell>;
 }

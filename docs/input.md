@@ -71,9 +71,13 @@ select validators receive readonly string arrays. Only `undefined` means valid.
 `FormProps`, `FormField`, and `FormValue` types. Form renders content only;
 callers own modal visibility, backdrop dismissal, submission, and value state.
 Its optional `header` is a JSX element, not a string.
-An optional JSX `finalAction` replaces Next on the last step, or appears below
-the fields for a single-step form. The caller owns its callback, eligibility,
-and loading state; Form does not submit or validate on its behalf.
+An optional JSX `actions` renders below the fields on every step, including
+single-step forms. The caller owns its callbacks, eligibility, and loading
+state; Form does not submit or infer submit readiness from displayed errors.
+An optional JSX `warnings` renders between the pannable fields and actions.
+The caller decides when to show it and owns its content. On multi-step forms,
+only the fields are flanked by chevrons; warnings, actions, and step indicators
+sit below them at full form width with space between each section.
 The optional `fill` layout fills a height-constrained parent and gives remaining
 space to the scrollable fields, keeping the header and actions outside that
 scroll area. Content-sized modal forms omit it.
@@ -105,10 +109,11 @@ scroll area. Content-sized modal forms omit it.
   and errors stay in their field's column. Fields without `row` occupy their
   own full-width row. An intervening field with a different or absent `row`
   starts a new row; identifiers never group fields across steps or reorder them.
-- Multiple steps support horizontal paging and Next/Back, with no implicit
-  submit action. Dots use `muted`/`text` when unselected/selected, overridden
-  by `errorDark`/`error` if any field on that step displays an error. A single step
-  has no pager, navigation buttons, or dots.
+- Multiple steps support horizontal paging and full-height side chevrons,
+  absent at the first/last step respectively, with no implicit submit action.
+  Dots use `muted`/`text` when unselected/selected, overridden by
+  `errorDark`/`error` if any field on that step displays an error. A single step
+  has no pager, navigation chevrons, or dots.
 - Content-sized multi-step forms size their pager to the active step's measured
   content, including changes from validation and revealed fields. Inactive steps
   stay mounted to preserve input state but do not determine the modal height.
@@ -116,7 +121,7 @@ scroll area. Content-sized modal forms omit it.
   height rather than hugging each step's content.
 - Navigation is internal by default. Supply `activeStep` and `onStepChange`
   together to control it; values refer to configured step numbers, not page
-  indexes. Buttons and swipes request step changes through the callback, while
+  indexes. Chevrons and swipes request step changes through the callback, while
   external `activeStep` changes align the pager. An unavailable step displays
   the first page. Auto-advance belongs in the caller's selection handler, not
   an effect that would also fire when navigating Back.

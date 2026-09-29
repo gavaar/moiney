@@ -9,6 +9,7 @@ import { useAddFeedForm } from "./useAddFeedForm";
 export function AddFeedButton() {
   const [visible, setVisible] = useState(false);
   const form = useAddFeedForm(() => setVisible(false));
+  const { resetVersion, ...formProps } = form;
 
   return (
     <>
@@ -29,7 +30,7 @@ export function AddFeedButton() {
         </View>
       </TouchableOpacity>
       <ModalShell visible={visible} onClose={() => setVisible(false)}>
-        {visible ? <Form {...form} /> : null}
+        {visible ? <Form key={resetVersion} {...formProps} /> : null}
       </ModalShell>
     </>
   );

@@ -40,6 +40,17 @@ export function buildAmountForm(form: AmountFormConfiguration, sourcePicker?: So
     },
   });
   const step = sourcePicker ? 1 : 0;
+  if (spend) fields.push({
+    key: "modeTransfer", step,
+    input: {
+      type: "toggle",
+      options: [
+        { label: "Transaction", icon: "upload" },
+        { label: "Transfer", icon: "repeat" },
+      ],
+      disabled: common.loading,
+    },
+  });
   fields.push(
     { key: "title", step, input: { type: "text-select", options: common.recentTitles, maxLength: 140, multiline: true, placeholder: "What was this for?", disabled: common.loading } },
     { key: "value", step, row: "amount-date", input: { type: "decimal", label: form.isFeed ? "Amount" : "Value", placeholder: "0.00", allowNegative: !form.isFeed, disabled: common.loading } },
