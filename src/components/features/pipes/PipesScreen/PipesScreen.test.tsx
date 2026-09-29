@@ -8,6 +8,9 @@ const mocks = vi.hoisted(() => ({
   addEventListener: vi.fn(),
   remove: vi.fn(),
   selectPipe: vi.fn(),
+  deselectPipe: vi.fn(),
+  addTabListener: vi.fn(),
+  removeTabListener: vi.fn(),
   selectedPipePath: [] as string[],
   selectedName: null as string | null,
   useFocusEffect: vi.fn(),
@@ -39,6 +42,12 @@ vi.mock("react-native-safe-area-context", () => ({
 vi.mock("expo-router/react-navigation", () => ({
   useFocusEffect: mocks.useFocusEffect,
   useIsFocused: () => true,
+}));
+vi.mock("expo-router", () => ({
+  useNavigation: () => ({ getParent: () => ({
+    addListener: mocks.addTabListener,
+    getState: () => ({ routes: [{ name: "pipes", key: "pipes-key" }, { name: "history", key: "history-key" }] }),
+  }) }),
 }));
 
 vi.mock("@features/app/AppScreenHeader", () => ({
@@ -114,7 +123,7 @@ vi.mock("@features/pipes/context/PipeSelectionContext", () => ({
     selectedName: mocks.selectedName,
     selectedPipePath: mocks.selectedPipePath,
     selectPipe: mocks.selectPipe,
-    deselectPipe: vi.fn(),
+    deselectPipe: mocks.deselectPipe,
   }),
 }));
 vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
@@ -146,6 +155,26 @@ describe("Pipes Android back handling", () => {
     await waitFor(() => expect(mocks.selectPipe).toHaveBeenCalledWith(["root", "child"]));
     expect(onPipeOpened).toHaveBeenCalledOnce();
   });
+  it("resets collapsed history and tree mode when a deep link opens a pipe", async () => {
+    const user = userEvent.setup();
+    mocks.allPipes = [{ id: "root", name: "Travel" }, { id: "other", name: "Savings" }];
+    mocks.selectedPipePath = ["root"];
+    mocks.selectedName = "Travel";
+    const { rerender } = render(<PipesScreen />);
+
+    await user.click(screen.getByRole("button", { name: "Collapse latest transactions" }));
+    rerender(<PipesScreen openPipeId="root" />);
+    expect(screen.getByRole("button", { name: "Collapse latest transactions" })).toBeDefined();
+
+    await user.click(screen.getByTestId("mode-toggle"));
+    expect(screen.queryByText("Latest transactions")).toBeNull();
+    mocks.allPipes = [{ id: "root", name: "Travel" }];
+    rerender(<PipesScreen openPipeId="other" />);
+    expect(screen.queryByText("Latest transactions")).toBeNull();
+    mocks.allPipes = [{ id: "root", name: "Travel" }, { id: "other", name: "Savings" }];
+    rerender(<PipesScreen openPipeId="other" />);
+    expect(screen.getByRole("button", { name: "Collapse latest transactions" })).toBeDefined();
+  });
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.selectedPipePath = [];
@@ -161,6 +190,7 @@ describe("Pipes Android back handling", () => {
     };
     mocks.historyOptions = undefined;
     mocks.addEventListener.mockReturnValue({ remove: mocks.remove });
+    mocks.addTabListener.mockReturnValue(mocks.removeTabListener);
     mocks.useFocusEffect.mockImplementation((effect) => {
       mocks.focusEffect = effect;
     });
@@ -217,6 +247,25 @@ describe("Pipes Android back handling", () => {
 
     removeRootListener?.();
     expect(mocks.remove).toHaveBeenCalledTimes(2);
+  });
+
+  it("clears selection when reselecting the focused Pipes tab without blocking tab navigation", () => {
+    mocks.selectedPipePath = ["root"];
+    mocks.selectedName = "Travel";
+    render(<PipesScreen />);
+    const cleanup = mocks.focusEffect?.();
+    const tabPress = mocks.addTabListener.mock.calls.find(([event]) => event === "tabPress")?.[1];
+    expect(tabPress).toBeDefined();
+
+    const preventDefault = vi.fn();
+    tabPress({ target: "history-key", preventDefault });
+    expect(mocks.deselectPipe).not.toHaveBeenCalled();
+    tabPress({ target: "pipes-key", preventDefault });
+    expect(mocks.deselectPipe).toHaveBeenCalledOnce();
+    expect(preventDefault).not.toHaveBeenCalled();
+
+    cleanup?.();
+    expect(mocks.removeTabListener).toHaveBeenCalledOnce();
   });
 
   it("shows the live report above feeds and opens detail without Latest transactions", async () => {

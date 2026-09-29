@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, BackHandler, Pressable, Text, View } from "react-native";
 import { useFocusEffect } from "expo-router/react-navigation";
+import { useNavigation } from "expo-router";
+import type { ParamListBase } from "expo-router/react-navigation";
+import type { BottomTabNavigationProp } from "expo-router/tabs";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AppScreenHeader } from "@features/app/AppScreenHeader";
 import { SlideToggle } from "@ui/SlideToggle";
@@ -21,10 +24,20 @@ import { getSubtreePipeIds } from "@features/transactions/context/TransactionsCo
 import { MixedHistoryFeed } from "@features/transactions/history/mixed-history-feed";
 
 export function PipesScreen({ openPipeId, onPipeOpened, onOpenCurrentReport }: { openPipeId?: string; onPipeOpened?: () => void; onOpenCurrentReport?: () => void } = {}) {
+  const navigation = useNavigation();
   const [treeMode, setTreeMode] = useState(false);
   const [latestExpanded, setLatestExpanded] = useState(true);
   const { selectedName, selectedPipePath, selectPipe, deselectPipe } = usePipeSelection();
   const { allPipes, childrenByParent, feeds, isLoading } = usePipeCatalog();
+  const resolvedOpenPipeId = openPipeId && allPipes?.some((pipe) => pipe.id === openPipeId) ? openPipeId : undefined;
+  const [lastOpenPipeId, setLastOpenPipeId] = useState(resolvedOpenPipeId);
+  if (lastOpenPipeId !== resolvedOpenPipeId) {
+    setLastOpenPipeId(resolvedOpenPipeId);
+    if (resolvedOpenPipeId) {
+      setTreeMode(false);
+      setLatestExpanded(true);
+    }
+  }
   const { report } = useCurrentMonthReportContext();
   useEffect(() => {
     if (!openPipeId || !allPipes) return;
@@ -36,13 +49,11 @@ export function PipesScreen({ openPipeId, onPipeOpened, onOpenCurrentReport }: {
     }
     if (path.length > 0) {
       selectPipe(path);
-      setTreeMode(false);
-      setLatestExpanded(true);
     }
     onPipeOpened?.();
   }, [allPipes, openPipeId, onPipeOpened, selectPipe]);
-  const { cache, read } = useTransactionCache();
-  const historySnapshot = useMemo(() => read(HISTORY_SCOPE), [cache, read]);
+  const { read } = useTransactionCache();
+  const historySnapshot = useMemo(() => read(HISTORY_SCOPE), [read]);
   const { transactions: historyTransactions } = useTransactionHistory(
     undefined,
     {
@@ -73,8 +84,16 @@ export function PipesScreen({ openPipeId, onPipeOpened, onOpenCurrentReport }: {
         "hardwareBackPress",
         onBackPress,
       );
-      return () => subscription.remove();
-    }, [selectedPipePath, selectPipe]),
+      const tabs = navigation.getParent<BottomTabNavigationProp<ParamListBase>>();
+      const pipesTabKey = tabs?.getState().routes.find((route) => route.name === "pipes")?.key;
+      const removeTabListener = tabs?.addListener("tabPress", (event) => {
+        if (event.target === pipesTabKey) deselectPipe();
+      });
+      return () => {
+        subscription.remove();
+        removeTabListener?.();
+      };
+    }, [deselectPipe, navigation, selectedPipePath, selectPipe]),
   );
 
   return (
