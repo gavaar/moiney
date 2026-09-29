@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { Text, View } from "react-native";
 import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
@@ -13,11 +13,13 @@ import { Breadcrumb } from "./components/Breadcrumb";
 import { OptionsButton } from "./components/OptionsButton";
 import { PipeBars } from "./components/PipeBars";
 import { RulesIcon } from "./components/RulesIcon";
+import { RuleModal } from "./components/RulesIcon/RuleModal";
 import { StatisticsRow } from "./components/StatisticsRow";
 import { AddChildPipeButton } from "./components/AddChildPipeButton";
 import { useRuleClock } from "@features/pipes/rules/use-rule-clock";
 
 export function InnerPipesScreen() {
+  const [compactRulePipeId, setCompactRulePipeId] = useState<PipeModel["id"] | null>(null);
   const { selectedPipe, selectedPipePath, selectPipe } = usePipeSelection();
   const { childrenByParent } = usePipeCatalog();
 
@@ -106,17 +108,29 @@ export function InnerPipesScreen() {
           </View>
         ) : children.length === 0 && selectedPipe ? (
           <View style={{ flex: 1 }}>
-            <AmountForm pipeId={selectedPipe.id} variant="spend" fill />
+            <AmountForm pipeId={selectedPipe.id} variant="spend" />
           </View>
         ) : null}
         {children.length > 0 ? <PipesList
           pipes={children}
           priority={true}
           onSelectPipe={handleSelectPipe}
+          compactAction={{
+            label: (pipe) => (childrenByParent.get(pipe.id)?.length ?? 0) > 0 || pipe.deletionJobId
+              ? null : "Rule settings",
+            onPress: (pipe) => setCompactRulePipeId(pipe.id),
+          }}
            trailing={trailing}
            footer={!isDeleting && selectedId ? <AddChildPipeButton key={selectedId} parentId={selectedId} /> : null}
         /> : null}
       </View>
+      {compactRulePipeId && (
+        <RuleModal
+          visible
+          pipeId={compactRulePipeId}
+          onClose={() => setCompactRulePipeId(null)}
+        />
+      )}
     </View>
   );
 }

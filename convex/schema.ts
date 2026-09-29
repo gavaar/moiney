@@ -78,9 +78,21 @@ export default defineSchema({
     spendingTransactionCount: v.number(),
     refundTransactionCount: v.number(),
     largestSpendingTransactionCents: v.number(),
+    nextLargestSpendingCents: v.optional(v.array(v.number())),
+    largestSpendingTransactions: v.optional(v.array(v.object({ title: v.string(), amountCents: v.number() }))),
+    mostRepeatedTransaction: v.optional(v.union(v.null(), v.object({
+      title: v.string(), count: v.number(), netSpendingCents: v.number(),
+    }))),
     totalIncomeCents: v.optional(v.number()),
     volumeCents: v.optional(v.number()),
     producedCents: v.optional(v.number()),
+    offenders: v.optional(v.array(v.object({
+      pipeId: v.string(),
+      name: v.string(),
+      netSpendingCents: v.number(),
+      capacityCents: v.number(),
+      overageCents: v.number(),
+    }))),
   }).index("by_userId_periodStart", ["userId", "periodStart"]),
   users: defineTable({
     username: v.string(),

@@ -11,7 +11,7 @@ type FormRow = { key: string; id?: string; content: JSX.Element[] };
 export function Form<
   Values extends Record<string, FormValue>,
   Keys extends keyof Values & string,
->({ header, finalAction, form, value, onChange, activeStep, onStepChange, fill = false }: FormProps<Values, Keys>) {
+>({ header, warnings, actions, form, value, onChange, activeStep, onStepChange, fill = false }: FormProps<Values, Keys>) {
   const [errors, setErrors] = useState<Partial<Record<Keys, string>>>({});
   const pages = useMemo(() => {
     const mappedPages: Record<number, { key: number; rows: FormRow[]; hasError: boolean; scrollable: boolean }> = {};
@@ -82,7 +82,8 @@ export function Form<
       {header}
       <FormPager
         pages={pages}
-        finalAction={finalAction}
+        warnings={warnings}
+        actions={actions}
         activeStep={activeStep}
         onStepChange={onStepChange}
         fill={fill}

@@ -55,24 +55,40 @@ describe("AddFeedButton", () => {
     }
   });
 
-  it("places identity and type explanation first and the final action only on the money step", async () => {
+  it("places identity and type explanation first and keeps actions on both steps", async () => {
     const user = await openModal();
     expect(screen.getByRole("heading", { name: "Create Feed" })).toBeDefined();
     expect(screen.getByText("A feed is a source for money entering your budget. Accounts, cash, and wallets are all feeds.")).toBeDefined();
-    expect(screen.queryByTestId("add-feed-submit")).toBeNull();
+    expect(screen.getByTestId("add-feed-submit").getAttribute("aria-disabled")).toBe("true");
     expect(screen.queryByRole("textbox", { name: "Initial amount" })).toBeNull();
     await user.click(screen.getByRole("radio", { name: "Boiler" }));
     expect(screen.getByRole("heading", { name: "Create Boiler" })).toBeDefined();
     expect(screen.getByText("A boiler tracks an asset's current value and contributed principal separately. Think of investment accounts.")).toBeDefined();
-    await user.click(screen.getByText("Next"));
-    expect(screen.queryByText("Next")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Next step" }));
+    expect(screen.queryByRole("button", { name: "Next step" })).toBeNull();
     expect(screen.getByRole("textbox", { name: "Initial amount" })).toBeDefined();
     expect(screen.getByRole("textbox", { name: "Contributed amount" })).toBeDefined();
     expect(screen.getByText("The asset's current value, including any gains or losses. Leave blank to start at zero.")).toBeDefined();
     expect(screen.getByText("The total principal you have put into this asset, excluding gains or losses. Leave blank to start at zero.")).toBeDefined();
     expect(screen.getByTestId("add-feed-submit").getAttribute("aria-disabled")).toBe("true");
-    await user.click(screen.getByText("Back"));
-    expect(screen.queryByTestId("add-feed-submit")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Previous step" }));
+    expect(screen.getByTestId("add-feed-submit").getAttribute("aria-disabled")).toBe("true");
+  });
+
+  it("clears the draft, resets navigation and validation, and stays open", async () => {
+    const user = await openModal();
+    await user.click(screen.getByRole("radio", { name: "Boiler" }));
+    await user.type(screen.getByPlaceholderText("Boiler name"), "Savings");
+    await user.tab();
+    await user.click(screen.getByRole("button", { name: "Next step" }));
+    await user.type(screen.getByRole("textbox", { name: "Initial amount" }), "12.34");
+    await user.click(screen.getByRole("button", { name: "Clear form" }));
+    expect(screen.getByRole("heading", { name: "Create Feed" })).toBeTruthy();
+    expect(screen.getByPlaceholderText("Feed name").getAttribute("value")).toBe("");
+    expect(screen.getByLabelText("Step 1 of 2").getAttribute("aria-selected")).toBe("true");
+    expect(screen.queryByText("Name is required")).toBeNull();
+    expect(screen.getByTestId("modal-backdrop")).toBeTruthy();
+    expect(mockAddFeed).not.toHaveBeenCalled();
   });
 
   it("validates name on blur, corrects errors live, and blocks invalid submission", async () => {
@@ -86,13 +102,13 @@ describe("AddFeedButton", () => {
     await user.clear(name);
     expect(screen.getByText("Name is required")).toBeDefined();
     expect(screen.getByLabelText("Step 1 of 2, has errors")).toBeDefined();
-    await user.click(screen.getByText("Next"));
+    await user.click(screen.getByRole("button", { name: "Next step" }));
     expect(screen.getByTestId("add-feed-submit").getAttribute("aria-disabled")).toBe("true");
-    await user.click(screen.getByText("Back"));
+    await user.click(screen.getByRole("button", { name: "Previous step" }));
     await user.type(name, "Food");
     expect(screen.queryByText("Name is required")).toBeNull();
     expect(screen.getByLabelText("Step 1 of 2")).toBeDefined();
-    await user.click(screen.getByText("Next"));
+    await user.click(screen.getByRole("button", { name: "Next step" }));
     expect(screen.getByTestId("add-feed-submit").getAttribute("aria-disabled")).toBe("true");
     expect(mockAddFeed).not.toHaveBeenCalled();
   });
@@ -110,7 +126,7 @@ describe("AddFeedButton", () => {
     if (isBoiler) await user.click(screen.getByRole("radio", { name: "Boiler" }));
     await fillIdentity(user);
     await user.type(screen.getByPlaceholderText("Optional description"), "Opening balance");
-    await user.click(screen.getByText("Next"));
+    await user.click(screen.getByRole("button", { name: "Next step" }));
     if (!isBoiler) expect(screen.getByText("The money currently available in this feed. Leave blank to start at zero.")).toBeDefined();
     if (amount) await user.type(screen.getByLabelText("Initial amount"), amount);
     if (contributed) await user.type(screen.getByLabelText("Contributed amount"), contributed);
@@ -127,21 +143,21 @@ describe("AddFeedButton", () => {
     const user = await openModal();
     await user.click(screen.getByRole("radio", { name: "Boiler" }));
     await fillIdentity(user);
-    await user.click(screen.getByText("Next"));
+    await user.click(screen.getByRole("button", { name: "Next step" }));
     await user.type(screen.getByLabelText("Contributed amount"), "1.234");
     fireEvent.blur(screen.getByLabelText("Contributed amount"));
     expect(screen.getByText("Enter a valid contribution")).toBeDefined();
     expect(screen.getByLabelText("Step 2 of 2, has errors")).toBeDefined();
     expect(screen.getByTestId("add-feed-submit").getAttribute("aria-disabled")).toBe("true");
-    await user.click(screen.getByText("Back"));
+    await user.click(screen.getByRole("button", { name: "Previous step" }));
     await user.click(screen.getByRole("radio", { name: "Feed" }));
     await user.type(screen.getByPlaceholderText("Optional description"), "Retained");
     await user.click(screen.getByRole("radio", { name: "Boiler" }));
-    await user.click(screen.getByText("Next"));
+    await user.click(screen.getByRole("button", { name: "Next step" }));
     expect((screen.getByLabelText("Contributed amount") as HTMLInputElement).value).toBe("1.234");
-    await user.click(screen.getByText("Back"));
+    await user.click(screen.getByRole("button", { name: "Previous step" }));
     await user.click(screen.getByRole("radio", { name: "Feed" }));
-    await user.click(screen.getByText("Next"));
+    await user.click(screen.getByRole("button", { name: "Next step" }));
     expect(screen.queryByLabelText("Contributed amount")).toBeNull();
     expect(screen.getByLabelText("Step 2 of 2")).toBeDefined();
     expect(screen.getByTestId("add-feed-submit").getAttribute("aria-disabled")).toBeNull();
@@ -152,7 +168,7 @@ describe("AddFeedButton", () => {
   it("rejects invalid current precision and clears the error on correction", async () => {
     const user = await openModal();
     await fillIdentity(user);
-    await user.click(screen.getByText("Next"));
+    await user.click(screen.getByRole("button", { name: "Next step" }));
     await user.type(screen.getByLabelText("Initial amount"), "1.234");
     fireEvent.blur(screen.getByLabelText("Initial amount"));
     expect(screen.getByText("Enter a valid amount")).toBeDefined();
@@ -165,14 +181,14 @@ describe("AddFeedButton", () => {
   it("preserves draft on backdrop dismissal but restarts navigation and edit validation", async () => {
     const user = await openModal();
     await user.type(screen.getByPlaceholderText("Feed name"), "a");
-    await user.click(screen.getByText("Next"));
+    await user.click(screen.getByRole("button", { name: "Next step" }));
     await user.click(screen.getByTestId("modal-backdrop"));
     finishAnimations();
     await user.click(screen.getByText("Add new Feed"));
     finishAnimations();
     expect((screen.getByPlaceholderText("Feed name") as HTMLInputElement).value).toBe("a");
     expect(screen.queryByText("Name must be at least 2 characters")).toBeNull();
-    expect(screen.queryByTestId("add-feed-submit")).toBeNull();
+    expect(screen.getByTestId("add-feed-submit").getAttribute("aria-disabled")).toBe("true");
     expect(screen.getByLabelText("Step 1 of 2").getAttribute("aria-selected")).toBe("true");
   });
 
@@ -181,7 +197,7 @@ describe("AddFeedButton", () => {
     const user = await openModal();
     await user.click(screen.getByRole("radio", { name: "Boiler" }));
     await fillIdentity(user);
-    await user.click(screen.getByText("Next"));
+    await user.click(screen.getByRole("button", { name: "Next step" }));
     await user.type(screen.getByLabelText("Initial amount"), "12.34");
     await user.click(screen.getByTestId("add-feed-submit"));
     expect(mockShowAlert.error).toHaveBeenCalledWith("Server error");
@@ -194,8 +210,8 @@ describe("AddFeedButton", () => {
     expect(screen.getByRole("heading", { name: "Create Feed" })).toBeDefined();
     expect((screen.getByPlaceholderText("Feed name") as HTMLInputElement).value).toBe("");
     expect(screen.queryByText("wallet-outline")).toBeNull();
-    expect(screen.queryByTestId("add-feed-submit")).toBeNull();
-    await user.click(screen.getByText("Next"));
+    expect(screen.getByTestId("add-feed-submit").getAttribute("aria-disabled")).toBe("true");
+    await user.click(screen.getByRole("button", { name: "Next step" }));
     expect((screen.getByLabelText("Initial amount") as HTMLInputElement).value).toBe("");
     expect(screen.getByTestId("add-feed-submit").getAttribute("aria-disabled")).toBe("true");
   });
@@ -205,11 +221,12 @@ describe("AddFeedButton", () => {
     mockAddFeed.mockReturnValueOnce(new Promise<void>((done) => { resolve = done; }));
     const user = await openModal();
     await fillIdentity(user);
-    await user.click(screen.getByText("Next"));
+    await user.click(screen.getByRole("button", { name: "Next step" }));
     await user.dblClick(screen.getByTestId("add-feed-submit"));
     expect(mockAddFeed).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("button", { name: "Clear form" }).getAttribute("aria-disabled")).toBe("true");
     expect((screen.getByLabelText("Initial amount") as HTMLInputElement).readOnly).toBe(true);
-    await user.click(screen.getByText("Back"));
+    await user.click(screen.getByRole("button", { name: "Previous step" }));
     expect((screen.getByPlaceholderText("Feed name") as HTMLInputElement).readOnly).toBe(true);
     expect(screen.getByRole("radio", { name: "Boiler" }).getAttribute("aria-disabled")).toBe("true");
     await act(async () => resolve());
@@ -220,7 +237,7 @@ describe("AddFeedButton", () => {
     mockAddFeed.mockReturnValueOnce(new Promise<void>((_resolve, fail) => { reject = fail; }));
     const user = await openModal();
     await fillIdentity(user);
-    await user.click(screen.getByText("Next"));
+    await user.click(screen.getByRole("button", { name: "Next step" }));
     await user.click(screen.getByTestId("add-feed-submit"));
     await user.click(screen.getByTestId("modal-backdrop"));
     finishAnimations();
@@ -229,7 +246,7 @@ describe("AddFeedButton", () => {
     const name = screen.getByRole("textbox", { name: "Name" }) as HTMLInputElement;
     expect(name.value).toBe("Savings");
     expect(name.readOnly).toBe(true);
-    await user.click(screen.getByText("Next"));
+    await user.click(screen.getByRole("button", { name: "Next step" }));
     expect(screen.getByTestId("add-feed-submit").getAttribute("aria-disabled")).toBe("true");
     await act(async () => reject(new Error("Connection lost")));
     expect(mockShowAlert.error).toHaveBeenCalledWith("Connection lost");

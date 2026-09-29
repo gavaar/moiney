@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useIsFocused } from "expo-router/react-navigation";
 import { ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { Id } from "@convex/_generated/dataModel";
@@ -11,6 +12,7 @@ import { MixedHistoryFeed } from "@features/transactions/history/mixed-history-f
 import type { TransactionHistoryFilters } from "@features/transactions/cache/useTransactionHistory";
 import { Button } from "@ui/Button";
 import { Input } from "@ui/Input";
+import { useUtcMonthStart } from "@/lib/useUtcMonthStart";
 
 type FilterDraft = {
   fromDate: Date | null;
@@ -35,6 +37,18 @@ function HistoryFilterControls({
     ...emptyDraft(),
     fromDate: new Date(initialFromDate),
   }));
+  const previousDefault = useRef(initialFromDate);
+  useEffect(() => {
+    if (previousDefault.current === initialFromDate) return;
+    const oldDefault = previousDefault.current;
+    previousDefault.current = initialFromDate;
+    setDraft((current) =>
+      current.fromDate?.getTime() === oldDefault &&
+      current.toDate === null && current.pipeIds.length === 0 && !current.title
+        ? { ...current, fromDate: new Date(initialFromDate) }
+        : current,
+    );
+  }, [initialFromDate]);
   const [error, setError] = useState<string | null>(null);
 
   const apply = () => {
@@ -152,19 +166,15 @@ function HistoryFilterControls({
 }
 
 export function HistoryScreen() {
-  const [initialFromDate] = useState(() => {
-    const now = new Date();
-    return Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
-  });
-  const [filters, setFilters] = useState<TransactionHistoryFilters>(() => ({
-    fromDate: initialFromDate,
-  }));
+  const initialFromDate = useUtcMonthStart(useIsFocused());
+  const [customFilters, setCustomFilters] = useState<TransactionHistoryFilters | null>(null);
+  const filters = useMemo(() => customFilters ?? { fromDate: initialFromDate }, [customFilters, initialFromDate]);
 
   return (
     <PipeCatalogProvider>
       <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-background">
         <AppScreenHeader title="History" />
-        <HistoryFilterControls onApply={setFilters} initialFromDate={initialFromDate} />
+        <HistoryFilterControls onApply={setCustomFilters} initialFromDate={initialFromDate} />
 
         <MixedHistoryFeed filters={filters} />
       </SafeAreaView>

@@ -6,7 +6,7 @@ import type { Id } from "@convex/_generated/dataModel";
 import { parseMoney } from "@domain/money";
 import { colors } from "@/lib/styles";
 import { Button } from "@ui/Button";
-import { Form } from "@ui/Form";
+import { Form, FormActionRow } from "@ui/Form";
 import { Icon, safeIconName } from "@ui/Icon";
 import { ModalShell } from "@ui/Modal";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
@@ -34,6 +34,7 @@ export function AddPipeForm({ parentId, onClose }: Omit<AddPipeModalProps, "visi
     ...createRuleDraft(),
     ownerId: parentId ?? null, name: "", description: "", icon: "pipe", priority: 0, capacity: "",
   }));
+  const [formVersion, setFormVersion] = useState(0);
   const [activeStep, setActiveStep] = useState(parentId ? 1 : 0);
   const [loading, setLoading] = useState(false);
   const [submitError, setSubmitError] = useState<string>();
@@ -67,9 +68,21 @@ export function AddPipeForm({ parentId, onClose }: Omit<AddPipeModalProps, "visi
     }
   }
 
+  function handleClear() {
+    if (loading) return;
+    setDraft({
+      ...createRuleDraft(),
+      ownerId: draft.ownerId, name: "", description: "", icon: "pipe", priority: 0, capacity: "",
+    });
+    setActiveStep(draft.ownerId ? 1 : 0);
+    setSubmitError(undefined);
+    setFormVersion(version => version + 1);
+  }
+
   return (
     <View className="gap-4" style={{ flexShrink: 1 }}>
       <Form
+        key={formVersion}
         form={buildAddPipeForm(pipes, loading, isLoading, draft)}
         value={draft}
         onChange={next => {
@@ -88,32 +101,34 @@ export function AddPipeForm({ parentId, onClose }: Omit<AddPipeModalProps, "visi
             </Text>
           </View>
         }
-        finalAction={<Button title="Submit" onPress={handleSubmit} loading={loading} disabled={!valid} />}
+        warnings={owner || submitError ? <View className="gap-1">
+          {owner ? <>
+            {willRemoveSpentCapValues ? (
+              <View className="bg-warning/10 border border-warning/30 rounded-xl px-3 py-1">
+                <Text className="text-warning text-sm">Creating a child will remove current capacity and spent values.</Text>
+              </View>
+            ) : null}
+            {!hasChildren ? (
+              <View className="bg-warning/10 border border-warning/30 rounded-xl px-3 py-1">
+                <Text className="text-warning text-sm">
+                  Adding a pipe removes the ability to add transactions from this pipe. All transactions should happen from a childless pipe.
+                </Text>
+              </View>
+            ) : null}
+            {owner.rule ? (
+              <View className="bg-warning/10 border border-warning/30 rounded-xl px-3 py-1">
+                <Text className="text-warning text-sm">
+                  The owner pipe's current rule will be removed. Add rules directly to its children instead.
+                </Text>
+              </View>
+            ) : null}
+          </> : null}
+          {submitError ? <Text accessibilityRole="alert" className="text-sm text-error">{submitError}</Text> : null}
+        </View> : undefined}
+        actions={<FormActionRow onClear={handleClear} clearDisabled={loading}>
+          <Button title="Submit" icon="add" variant="outline" onPress={handleSubmit} loading={loading} disabled={!valid} />
+        </FormActionRow>}
       />
-      {activeStep === 2 && owner ? (
-        <View className="gap-2">
-          {willRemoveSpentCapValues ? (
-            <View className="bg-warning/10 border border-warning/30 rounded-xl px-4 py-3">
-              <Text className="text-warning text-sm">Creating a child will remove current capacity and spent values.</Text>
-            </View>
-          ) : null}
-          {!hasChildren ? (
-            <View className="bg-warning/10 border border-warning/30 rounded-xl px-4 py-3">
-              <Text className="text-warning text-sm">
-                Adding a pipe removes the ability to add transactions from this pipe. All transactions should happen from a childless pipe.
-              </Text>
-            </View>
-          ) : null}
-          {owner.rule ? (
-            <View className="bg-warning/10 border border-warning/30 rounded-xl px-4 py-3">
-              <Text className="text-warning text-sm">
-                The owner pipe's current rule will be removed. Add rules directly to its children instead.
-              </Text>
-            </View>
-          ) : null}
-        </View>
-      ) : null}
-      {submitError ? <Text accessibilityRole="alert" className="text-sm text-error">{submitError}</Text> : null}
     </View>
   );
 }

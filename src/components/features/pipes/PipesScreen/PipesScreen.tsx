@@ -1,29 +1,44 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { BackHandler, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, BackHandler, Pressable, Text, View } from "react-native";
 import { useFocusEffect } from "expo-router/react-navigation";
+import { useNavigation } from "expo-router";
+import type { ParamListBase } from "expo-router/react-navigation";
+import type { BottomTabNavigationProp } from "expo-router/tabs";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AppScreenHeader } from "@features/app/AppScreenHeader";
 import { SlideToggle } from "@ui/SlideToggle";
 import { Icon } from "@ui/Icon";
+import { MonthlyStatisticsCard } from "@features/statistics/MonthlyStatisticsCard";
+import { useCurrentMonthReportContext } from "@features/statistics/CurrentMonthReportContext";
 import { colors } from "@/lib/styles";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
-import { getSubtreePipeIds } from "@features/transactions/context/TransactionsContext";
 import { InnerPipesScreen } from "@features/pipes/InnerPipesScreen";
 import { PipeTreeView } from "@features/pipes/PipeTreeView";
 import { FeedListScreen } from "@features/pipes/FeedListScreen";
 import { orderFeedsByTreeUsage } from "@features/pipes/FeedListScreen/feedOrdering";
-import { MixedHistoryFeed } from "@features/transactions/history/mixed-history-feed";
 import { useTransactionCache } from "@features/transactions/cache/TransactionCacheContext";
 import { HISTORY_SCOPE } from "@features/transactions/cache/transactionSnapshot";
 import { useTransactionHistory } from "@features/transactions/cache/useTransactionHistory";
+import { getSubtreePipeIds } from "@features/transactions/context/TransactionsContext";
+import { MixedHistoryFeed } from "@features/transactions/history/mixed-history-feed";
 
-export function PipesScreen({ openPipeId, onPipeOpened }: { openPipeId?: string; onPipeOpened?: () => void } = {}) {
+export function PipesScreen({ openPipeId, onPipeOpened, onOpenCurrentReport }: { openPipeId?: string; onPipeOpened?: () => void; onOpenCurrentReport?: () => void } = {}) {
+  const navigation = useNavigation();
   const [treeMode, setTreeMode] = useState(false);
   const [latestExpanded, setLatestExpanded] = useState(true);
   const { selectedName, selectedPipePath, selectPipe, deselectPipe } = usePipeSelection();
-  const { allPipes, feeds, isLoading, childrenByParent } = usePipeCatalog();
-  const pipeIds = useMemo(() => getSubtreePipeIds(childrenByParent ?? new Map(), selectedPipePath.at(-1) ?? null), [childrenByParent, selectedPipePath]);
+  const { allPipes, childrenByParent, feeds, isLoading } = usePipeCatalog();
+  const resolvedOpenPipeId = openPipeId && allPipes?.some((pipe) => pipe.id === openPipeId) ? openPipeId : undefined;
+  const [lastOpenPipeId, setLastOpenPipeId] = useState(resolvedOpenPipeId);
+  if (lastOpenPipeId !== resolvedOpenPipeId) {
+    setLastOpenPipeId(resolvedOpenPipeId);
+    if (resolvedOpenPipeId) {
+      setTreeMode(false);
+      setLatestExpanded(true);
+    }
+  }
+  const { report } = useCurrentMonthReportContext();
   useEffect(() => {
     if (!openPipeId || !allPipes) return;
     const path: NonNullable<typeof allPipes>[number]["id"][] = [];
@@ -34,13 +49,11 @@ export function PipesScreen({ openPipeId, onPipeOpened }: { openPipeId?: string;
     }
     if (path.length > 0) {
       selectPipe(path);
-      setTreeMode(false);
-      setLatestExpanded(true);
     }
     onPipeOpened?.();
   }, [allPipes, openPipeId, onPipeOpened, selectPipe]);
-  const { cache, read } = useTransactionCache();
-  const historySnapshot = useMemo(() => read(HISTORY_SCOPE), [cache, read]);
+  const { read } = useTransactionCache();
+  const historySnapshot = useMemo(() => read(HISTORY_SCOPE), [read]);
   const { transactions: historyTransactions } = useTransactionHistory(
     undefined,
     {
@@ -58,10 +71,6 @@ export function PipesScreen({ openPipeId, onPipeOpened }: { openPipeId?: string;
     [allPipes, feeds, historySnapshot.transactions, historyTransactions],
   );
 
-  useEffect(() => {
-    setLatestExpanded(!treeMode);
-  }, [treeMode]);
-
   useFocusEffect(
     useCallback(() => {
       const onBackPress = () => {
@@ -75,8 +84,16 @@ export function PipesScreen({ openPipeId, onPipeOpened }: { openPipeId?: string;
         "hardwareBackPress",
         onBackPress,
       );
-      return () => subscription.remove();
-    }, [selectedPipePath, selectPipe]),
+      const tabs = navigation.getParent<BottomTabNavigationProp<ParamListBase>>();
+      const pipesTabKey = tabs?.getState().routes.find((route) => route.name === "pipes")?.key;
+      const removeTabListener = tabs?.addListener("tabPress", (event) => {
+        if (event.target === pipesTabKey) deselectPipe();
+      });
+      return () => {
+        subscription.remove();
+        removeTabListener?.();
+      };
+    }, [deselectPipe, navigation, selectedPipePath, selectPipe]),
   );
 
   return (
@@ -92,16 +109,23 @@ export function PipesScreen({ openPipeId, onPipeOpened }: { openPipeId?: string;
             value={treeMode ? "tree" : "bar"}
             onChange={(v) => {
               setTreeMode(v === "tree");
+              setLatestExpanded(true);
               if (v === "tree") deselectPipe();
             }}
           />
         }
       />
 
-      <View
-        className="px-4"
-        style={{ flex: 3 }}
-      >
+      {!treeMode && !selectedName ? (
+        <View className="px-4 pb-3">
+          {report ? (
+            <MonthlyStatisticsCard report={report} live offenderIcon={allPipes?.find((pipe) => pipe.id === report.offenders?.[0]?.pipeId)?.icon} onPress={() => onOpenCurrentReport?.()} />
+          ) : (
+            <ActivityIndicator accessibilityLabel="Loading current month summary" color={colors.primary} />
+          )}
+        </View>
+      ) : null}
+      <View className="flex-1 px-2">
         {treeMode ? (
           <PipeTreeView
             onSelectPipe={(path) => {
@@ -110,7 +134,32 @@ export function PipesScreen({ openPipeId, onPipeOpened }: { openPipeId?: string;
             }}
           />
         ) : selectedName ? (
-          <InnerPipesScreen />
+          <View className="flex-1">
+            <View style={{ flex: latestExpanded ? 3 : 1 }}>
+              <InnerPipesScreen />
+            </View>
+            {allPipes && selectedPipePath.length > 0 ? (
+              <View className="overflow-hidden" style={{ flex: latestExpanded ? 2 : 0 }}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`${latestExpanded ? "Collapse" : "Expand"} latest transactions`}
+                  accessibilityState={{ expanded: latestExpanded }}
+                  onPress={() => setLatestExpanded((expanded) => !expanded)}
+                  className="my-2 flex-row items-center justify-between rounded-md bg-surface px-3 py-2"
+                >
+                  <Text className="text-base font-semibold text-text">Latest transactions</Text>
+                  <Icon name={latestExpanded ? "chevron-down" : "chevron-up"} size={18} color={colors.text} />
+                </Pressable>
+                <View className="flex-1" style={{ display: latestExpanded ? "flex" : "none" }}>
+                  <MixedHistoryFeed
+                    recent
+                    enabled={latestExpanded}
+                    filters={{ pipeIds: getSubtreePipeIds(childrenByParent, selectedPipePath[selectedPipePath.length - 1]) ?? [] }}
+                  />
+                </View>
+              </View>
+            ) : null}
+          </View>
         ) : (
           <FeedListScreen
             isLoading={isLoading}
@@ -120,36 +169,6 @@ export function PipesScreen({ openPipeId, onPipeOpened }: { openPipeId?: string;
         )}
       </View>
 
-      <View
-        className="px-4 overflow-hidden"
-        style={{ flex: latestExpanded ? 2 : 0 }}
-      >
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={
-            latestExpanded
-              ? "Collapse latest history"
-              : "Expand latest history"
-          }
-          accessibilityState={{ expanded: latestExpanded }}
-          onPress={() => setLatestExpanded((v) => !v)}
-          className="flex-row items-center justify-between bg-surface px-3 py-2 my-2 rounded-md"
-        >
-          <Text className="text-text font-semibold text-base">
-            Latest history
-          </Text>
-          <View
-            style={{
-              transform: [{ rotate: latestExpanded ? "180deg" : "0deg" }],
-            }}
-          >
-            <Icon name="chevron-up" size={18} color={colors.text} />
-          </View>
-        </Pressable>
-        <View className="flex-1" style={{ display: latestExpanded ? "flex" : "none" }}>
-          <MixedHistoryFeed recent filters={pipeIds ? { pipeIds } : {}} />
-        </View>
-      </View>
     </SafeAreaView>
   );
 }

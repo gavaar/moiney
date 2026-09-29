@@ -307,17 +307,21 @@ export function useAmountFormController(props: AmountFormProps) {
   }, [handleEditSubmit, handleRepeatSubmit, intent, isValid, loading, showAlert]);
 
   const draft: AmountFormDraft = {
-    sourcePipeId: pipeId, title, value, date, currentFed: currentFedValue,
+    modeTransfer: spendMode === "transfer", sourcePipeId: pipeId, title, value, date, currentFed: currentFedValue,
     sentTo: sentToPipeId, paidFrom: paidFromPipeId,
   };
 
   function updateDraft(next: Partial<AmountFormDraft>) {
+    const modeChanged = next.modeTransfer !== undefined && next.modeTransfer !== (spendMode === "transfer");
+    if (modeChanged) {
+      handleModeChange(next.modeTransfer ? "transfer" : "spend");
+    }
     if (next.title !== undefined) setTitle(next.title);
     if (next.value !== undefined) setValue(next.value);
     if (next.date !== undefined) setDate(next.date);
     if (next.currentFed !== undefined) setCurrentFedValue(next.currentFed);
-    if (next.sentTo !== undefined) setSentToPipeId(next.sentTo ? pipesById[next.sentTo]?.id ?? null : null);
-    if (next.paidFrom !== undefined) setPaidFromPipeId(next.paidFrom ? pipesById[next.paidFrom]?.id ?? null : null);
+    if (!modeChanged && next.sentTo !== undefined) setSentToPipeId(next.sentTo ? pipesById[next.sentTo]?.id ?? null : null);
+    if (!modeChanged && next.paidFrom !== undefined) setPaidFromPipeId(next.paidFrom ? pipesById[next.paidFrom]?.id ?? null : null);
   }
 
   return {
@@ -358,7 +362,6 @@ export function useAmountFormController(props: AmountFormProps) {
           pipeItems,
           setShowPaidFrom,
           showPaidFrom,
-          updateMode: handleModeChange,
         }
       : null,
     transaction: initialTransaction

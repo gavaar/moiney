@@ -43,6 +43,15 @@ At 05:00 UTC on each month's first day, a bounded scheduled job captures one
 frozen summary per user for the previous UTC calendar month, with inclusive
 start and exclusive end. Users without qualifying activity receive zero-valued
 rows so retries cannot change an originally empty snapshot.
+The Pipes root bar view displays a live, unsaved report for the current UTC
+month; Statistics lists only captured months. Both use the same transaction
+summary calculation. Live Volume and Produced reflect current root balances;
+captured values reflect balances at capture time. At 00:00 UTC the live report
+switches months; the closed month appears in Statistics only after capture.
+The live report subscription remains mounted above the tabs so navigation among
+Pipes, History, and the full live report does not restart pagination. It remains
+reactive to relevant transaction and pipe changes while the signed-in tabs are
+mounted, including when another tab is visible.
 
 Negative expenses contribute their absolute value to gross spending; positive
 expenses contribute to refunds. Pay-by-transfer counts once through its logical
@@ -52,6 +61,30 @@ not. Summaries store total income, gross spending, refunds, spending and refund
 transaction counts, and the largest spending transaction in integer cents.
 Total outcome is gross spending minus refunds. Averages and comparisons are
 derived when read, not persisted.
+New reports also freeze the titles and amounts of the three largest individual
+expenses (ties count as separate transactions). Older reports without titles
+retain their amount-only ranking. The live and captured cards and details show
+the most repeated expense title in the UTC month, counting refunds as occurrences and
+subtracting them from that title's total spent. Titles use the canonical
+trimmed lowercase identity across pipes; at least two occurrences are needed.
+Count wins ties, then net spending, then title. A month with no repeats shows
+none; older captures without this metric show it as unavailable. Older captures
+without second and third expense values show only the largest amount.
+
+Both live and captured reports rank up to three biggest offenders account-wide:
+existing non-root leaves whose monthly net logical-source expense exceeds their
+expenditure ceiling `max(capacity, 0)` in cents. Negative capacity represents
+debt, not extra overspending; a debt pipe uses a zero ceiling. Net expense
+includes refunds, counts a pay-by-transfer expense once against its `from` pipe
+(not `paidFrom`), and excludes feeds and
+transfers. The excess is net expense minus that ceiling at calculation time;
+`capUpdateValue` and cron normalization do not set this ceiling. Rank by excess,
+then net expense, then name and pipe ID. The summary card shows the first entry;
+detail shows up to three with net expense, capacity, and excess. Cards and detail
+show the current pipe icon only while that pipe still exists. When no leaf
+exceeds its ceiling, report no offenders. Deleted leaves cannot rank at capture;
+the capture freezes offender names, amounts, and ranks. Historical snapshots
+without offender data retain an unavailable ranking rather than being rebuilt.
 
 Each new summary freezes two account-wide root values at capture time. Volume
 is the sum of `fed - spent` across root feeds and boilers. Produced is the sum of

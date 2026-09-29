@@ -8,7 +8,11 @@ const mocks = vi.hoisted(() => ({
   addEventListener: vi.fn(),
   remove: vi.fn(),
   selectPipe: vi.fn(),
+  deselectPipe: vi.fn(),
+  addTabListener: vi.fn(),
+  removeTabListener: vi.fn(),
   selectedPipePath: [] as string[],
+  selectedName: null as string | null,
   useFocusEffect: vi.fn(),
   focusEffect: undefined as undefined | (() => void | (() => void)),
   feeds: [] as any[],
@@ -37,6 +41,13 @@ vi.mock("react-native-safe-area-context", () => ({
 
 vi.mock("expo-router/react-navigation", () => ({
   useFocusEffect: mocks.useFocusEffect,
+  useIsFocused: () => true,
+}));
+vi.mock("expo-router", () => ({
+  useNavigation: () => ({ getParent: () => ({
+    addListener: mocks.addTabListener,
+    getState: () => ({ routes: [{ name: "pipes", key: "pipes-key" }, { name: "history", key: "history-key" }] }),
+  }) }),
 }));
 
 vi.mock("@features/app/AppScreenHeader", () => ({
@@ -63,19 +74,35 @@ vi.mock("@features/transactions/components/TransactionList", () => ({
   TransactionList: () => <div data-testid="latest-list" />,
 }));
 vi.mock("@features/transactions/history/mixed-history-feed", () => ({
-  MixedHistoryFeed: () => {
+  MixedHistoryFeed: ({ filters, recent, enabled }: { filters?: { pipeIds?: string[] }; recent?: boolean; enabled?: boolean }) => {
     useEffect(() => { mocks.historyMounts(); }, []);
-    return <div data-testid="latest-list" />;
+    return <div data-testid="latest-list" data-pipe-ids={filters?.pipeIds?.join(",")} data-recent={String(recent)} data-enabled={String(enabled)} />;
   },
+}));
+vi.mock("@features/statistics/CurrentMonthReportContext", () => ({
+  useCurrentMonthReportContext: () => ({ report: {
+      periodStart: Date.UTC(2026, 5, 1), grossSpendingCents: 600, refundCents: 0,
+      offenders: [{ pipeId: "leaf", name: "Groceries", netSpendingCents: 600, capacityCents: 400, overageCents: 200 }],
+    } }),
 }));
 vi.mock("@ui/Icon", () => ({
   Icon: ({ name, testID }: any) => (
     <span data-testid={testID ?? "icon"} data-icon-name={name} />
   ),
+  safeIconName: (name: string) => name,
 }));
 vi.mock("@features/transactions/context/TransactionsContext", () => ({
   useTransactions: () => ({ transactions: [], isLoading: false }),
-  getSubtreePipeIds: (_children: unknown, selected: string | null) => selected ? [selected] : null,
+  getSubtreePipeIds: (children: Map<string, { id: string }[]>, selected: string | null) => {
+    if (!selected) return null;
+    const ids: string[] = [];
+    const visit = (id: string) => {
+      ids.push(id);
+      children.get(id)?.forEach((child) => visit(child.id));
+    };
+    visit(selected);
+    return ids;
+  },
 }));
 vi.mock("@features/transactions/cache/TransactionCacheContext", () => ({
   useTransactionCache: () => ({
@@ -93,16 +120,24 @@ vi.mock("@features/pipes/context/PipeSelectionContext", () => ({
   usePipeSelection: () => ({
     feeds: [],
     isLoading: false,
-    selectedName: null,
+    selectedName: mocks.selectedName,
     selectedPipePath: mocks.selectedPipePath,
     selectPipe: mocks.selectPipe,
-    deselectPipe: vi.fn(),
+    deselectPipe: mocks.deselectPipe,
   }),
 }));
 vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
   usePipeCatalog: () => ({
     feeds: mocks.feeds,
     allPipes: mocks.allPipes,
+    childrenByParent: new Map(mocks.allPipes.reduce((entries: [string, any[]][], pipe: any) => {
+      if (pipe.parentId) {
+        const entry = entries.find(([id]) => id === pipe.parentId);
+        if (entry) entry[1].push(pipe);
+        else entries.push([pipe.parentId, [pipe]]);
+      }
+      return entries;
+    }, [])),
     isLoading: false,
   }),
 }));
@@ -120,9 +155,30 @@ describe("Pipes Android back handling", () => {
     await waitFor(() => expect(mocks.selectPipe).toHaveBeenCalledWith(["root", "child"]));
     expect(onPipeOpened).toHaveBeenCalledOnce();
   });
+  it("resets collapsed history and tree mode when a deep link opens a pipe", async () => {
+    const user = userEvent.setup();
+    mocks.allPipes = [{ id: "root", name: "Travel" }, { id: "other", name: "Savings" }];
+    mocks.selectedPipePath = ["root"];
+    mocks.selectedName = "Travel";
+    const { rerender } = render(<PipesScreen />);
+
+    await user.click(screen.getByRole("button", { name: "Collapse latest transactions" }));
+    rerender(<PipesScreen openPipeId="root" />);
+    expect(screen.getByRole("button", { name: "Collapse latest transactions" })).toBeDefined();
+
+    await user.click(screen.getByTestId("mode-toggle"));
+    expect(screen.queryByText("Latest transactions")).toBeNull();
+    mocks.allPipes = [{ id: "root", name: "Travel" }];
+    rerender(<PipesScreen openPipeId="other" />);
+    expect(screen.queryByText("Latest transactions")).toBeNull();
+    mocks.allPipes = [{ id: "root", name: "Travel" }, { id: "other", name: "Savings" }];
+    rerender(<PipesScreen openPipeId="other" />);
+    expect(screen.getByRole("button", { name: "Collapse latest transactions" })).toBeDefined();
+  });
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.selectedPipePath = [];
+    mocks.selectedName = null;
     mocks.feeds = [];
     mocks.allPipes = [];
     mocks.historyTransactions = [];
@@ -134,6 +190,7 @@ describe("Pipes Android back handling", () => {
     };
     mocks.historyOptions = undefined;
     mocks.addEventListener.mockReturnValue({ remove: mocks.remove });
+    mocks.addTabListener.mockReturnValue(mocks.removeTabListener);
     mocks.useFocusEffect.mockImplementation((effect) => {
       mocks.focusEffect = effect;
     });
@@ -192,47 +249,83 @@ describe("Pipes Android back handling", () => {
     expect(mocks.remove).toHaveBeenCalledTimes(2);
   });
 
-  it("collapses and expands the latest history section", async () => {
-    const user = userEvent.setup();
+  it("clears selection when reselecting the focused Pipes tab without blocking tab navigation", () => {
+    mocks.selectedPipePath = ["root"];
+    mocks.selectedName = "Travel";
     render(<PipesScreen />);
+    const cleanup = mocks.focusEffect?.();
+    const tabPress = mocks.addTabListener.mock.calls.find(([event]) => event === "tabPress")?.[1];
+    expect(tabPress).toBeDefined();
 
-    expect(screen.getByTestId("latest-list")).toBeDefined();
-    expect(mocks.historyMounts).toHaveBeenCalledTimes(1);
-    await user.click(screen.getByRole("button", { name: "Collapse latest history" }));
-    await waitFor(() => expect(screen.getByTestId("latest-list").parentElement?.style.display).toBe("none"));
-    await user.click(screen.getByRole("button", { name: "Expand latest history" }));
-    expect(screen.getByTestId("latest-list").parentElement?.style.display).toBe("flex");
-    expect(mocks.historyMounts).toHaveBeenCalledTimes(1);
+    const preventDefault = vi.fn();
+    tabPress({ target: "history-key", preventDefault });
+    expect(mocks.deselectPipe).not.toHaveBeenCalled();
+    tabPress({ target: "pipes-key", preventDefault });
+    expect(mocks.deselectPipe).toHaveBeenCalledOnce();
+    expect(preventDefault).not.toHaveBeenCalled();
+
+    cleanup?.();
+    expect(mocks.removeTabListener).toHaveBeenCalledOnce();
   });
 
-  it("minimizes the latest history section in tree view instead of removing it", async () => {
+  it("shows the live report above feeds and opens detail without Latest transactions", async () => {
     const user = userEvent.setup();
-    render(<PipesScreen />);
-
-    expect(screen.getByTestId("latest-list")).toBeDefined();
-    expect(
-      screen.getByRole("button", { name: "Collapse latest history" }),
-    ).toBeDefined();
-
-    await user.click(screen.getByTestId("mode-toggle"));
-    await waitFor(() => expect(screen.getByTestId("latest-list").parentElement?.style.display).toBe("none"));
-    expect(
-      screen.getByRole("button", { name: "Expand latest history" }),
-    ).toBeDefined();
-
-    await user.click(screen.getByTestId("mode-toggle"));
-    await waitFor(() => expect(screen.getByTestId("latest-list").parentElement?.style.display).toBe("flex"));
-    expect(mocks.historyMounts).toHaveBeenCalledTimes(1);
+    const onOpenCurrentReport = vi.fn();
+    mocks.allPipes = [{ id: "leaf", name: "Groceries", icon: "cart" }];
+    const { rerender } = render(<PipesScreen onOpenCurrentReport={onOpenCurrentReport} />);
+    expect(screen.getByRole("button", { name: "Open June 2026 live spending report" })).toBeDefined();
+    expect(screen.getByTestId("offender-pipe-icon").getAttribute("data-icon-name")).toBe("cart");
+    mocks.allPipes = [];
+    rerender(<PipesScreen onOpenCurrentReport={onOpenCurrentReport} />);
+    expect(screen.queryByTestId("offender-pipe-icon")).toBeNull();
+    expect(screen.getByTestId("feed-order")).toBeDefined();
+    expect(screen.queryByText("Latest transactions")).toBeNull();
+    expect(mocks.historyMounts).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Open June 2026 live spending report" }));
+    expect(onOpenCurrentReport).toHaveBeenCalledOnce();
   });
 
-  it("renders the latest history control with an accessible chevron", () => {
-    render(<PipesScreen />);
+  it("shows collapsible recent subtree history after selecting a pipe, but not on the main view", async () => {
+    const user = userEvent.setup();
+    mocks.allPipes = [
+      { id: "root", name: "Travel" },
+      { id: "child", name: "Madrid", parentId: "root" },
+    ];
+    const { rerender } = render(<PipesScreen />);
+    expect(screen.queryByText("Latest transactions")).toBeNull();
+    expect(screen.queryByTestId("latest-list")).toBeNull();
 
-    expect(screen.getByRole("button", {
-      name: "Collapse latest history",
-    })).toBeDefined();
-    expect(screen.getByTestId("icon").getAttribute("data-icon-name")).toBe(
-      "chevron-up",
-    );
+    mocks.selectedPipePath = ["root"];
+    mocks.selectedName = "Travel";
+    rerender(<PipesScreen />);
+    expect(screen.getByText("Latest transactions")).toBeDefined();
+    expect(screen.getByTestId("latest-list").getAttribute("data-pipe-ids")).toBe("root,child");
+    expect(screen.getByTestId("latest-list").getAttribute("data-recent")).toBe("true");
+    expect(screen.getByTestId("latest-list").getAttribute("data-enabled")).toBe("true");
+    await user.click(screen.getByRole("button", { name: "Collapse latest transactions" }));
+    expect(screen.getByRole("button", { name: "Expand latest transactions" })).toBeDefined();
+    expect(screen.getByTestId("latest-list").parentElement?.style.display).toBe("none");
+    expect(screen.getByTestId("latest-list").getAttribute("data-enabled")).toBe("false");
+    await user.click(screen.getByRole("button", { name: "Expand latest transactions" }));
+    expect(screen.getByRole("button", { name: "Collapse latest transactions" })).toBeDefined();
+    expect(screen.getByTestId("latest-list")).toBeDefined();
+    expect(screen.getByTestId("latest-list").getAttribute("data-enabled")).toBe("true");
+    expect(mocks.historyMounts).toHaveBeenCalledOnce();
+
+    mocks.selectedPipePath = [];
+    mocks.selectedName = null;
+    rerender(<PipesScreen />);
+    expect(screen.queryByText("Latest transactions")).toBeNull();
+    expect(screen.queryByTestId("latest-list")).toBeNull();
+  });
+
+  it("hides the report card in tree view without resetting the shared report", async () => {
+    const user = userEvent.setup();
+    render(<PipesScreen />);
+    expect(screen.getByRole("button", { name: "Open June 2026 live spending report" })).toBeDefined();
+    await user.click(screen.getByTestId("mode-toggle"));
+    expect(screen.queryByRole("button", { name: "Open June 2026 live spending report" })).toBeNull();
+    await user.click(screen.getByTestId("mode-toggle"));
+    expect(screen.getByRole("button", { name: "Open June 2026 live spending report" })).toBeDefined();
   });
 });

@@ -11,6 +11,9 @@ type Props = {
   feedName: string;
   sourceType?: "feed" | "boiler";
   fed?: number;
+  visible?: boolean;
+  onClose?: () => void;
+  hideTrigger?: boolean;
 };
 
 export function FeedAmountModal({
@@ -18,20 +21,25 @@ export function FeedAmountModal({
   feedName,
   sourceType,
   fed = 0,
+  visible: controlledVisible,
+  onClose,
+  hideTrigger = false,
 }: Props) {
-  const [visible, setVisible] = useState(false);
+  const [localVisible, setVisible] = useState(false);
+  const visible = controlledVisible ?? localVisible;
+  const close = () => { setVisible(false); onClose?.(); };
   const showAlert = useAlert();
 
   function handleSuccess() {
     showAlert.success(
       sourceType === "boiler" ? "Boiler updated" : "Feed added",
     );
-    setVisible(false);
+    close();
   }
 
   return (
     <>
-      <Pressable
+      {!hideTrigger && <Pressable
         className="p-2 rounded-full"
         accessibilityRole="button"
         accessibilityLabel={`Add money to ${feedName}`}
@@ -39,9 +47,9 @@ export function FeedAmountModal({
         testID="feed-amount-trigger"
       >
         <Icon name="add-circle-outline" size={24} color="white" />
-      </Pressable>
+      </Pressable>}
 
-      <ModalShell visible={visible} onClose={() => setVisible(false)}>
+      <ModalShell visible={visible} onClose={close}>
         {visible ? (
           <View className="gap-4" style={{ flexShrink: 1 }}>
             <Text className="text-lg font-semibold text-text">Feed {feedName}</Text>

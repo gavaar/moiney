@@ -16,13 +16,21 @@ type PipeBoxProps = Pick<PipeModel, 'name'|'icon'|'priority'|'fed'|'capacity'|'s
   showPriority: boolean;
   children?: ChildSnapshot[];
   onPress?: () => void;
+  onLongPress?: () => void;
 };
 
-export function PipeBox({ name, icon, priority, capacity, fed, spent, showPriority, children, onPress }: PipeBoxProps) {
+export function PipeBox({ name, icon, priority, capacity, fed, spent, showPriority, children, onPress, onLongPress }: PipeBoxProps) {
   return (
     <View className="flex-1">
       <TouchableOpacity
         onPress={onPress}
+        onLongPress={onLongPress}
+        accessibilityRole="button"
+        accessibilityLabel={name}
+        accessibilityActions={[{ name: "longpress", label: `Options for ${name}` }]}
+        onAccessibilityAction={(event) => {
+          if (event.nativeEvent.actionName === "longpress") onLongPress?.();
+        }}
         activeOpacity={0.7}
         className="flex-row rounded-md overflow-hidden min-h-12"
       >

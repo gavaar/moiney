@@ -39,7 +39,7 @@ describe("transaction forms", () => {
     expect(screen.getByText("repeat")).toBeTruthy();
     expect(screen.getByDisplayValue("Lunch")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Paid from" })).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    fireEvent.click(screen.getByRole("button", { name: "Previous step" }));
     const selected = screen.getByRole("radio", { name: /Food/ });
     expect(selected.getAttribute("aria-checked")).toBe("true");
     const expected = document.createElement("div");
@@ -61,7 +61,7 @@ describe("transaction forms", () => {
     expect(screen.getByRole("heading", { name: "Edit: Food Lunch" })).toBeTruthy();
     expect(screen.getByText("edit")).toBeTruthy();
     fireEvent.change(screen.getByPlaceholderText("What was this for?"), { target: { value: "Dinner" } });
-    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    fireEvent.click(screen.getByRole("button", { name: "Previous step" }));
     fireEvent.click(screen.getByRole("button", { name: "Expand Wallet" }));
     fireEvent.click(screen.getByRole("radio", { name: /Wallet/ }));
     expect(screen.getByDisplayValue("Dinner")).toBeTruthy();
@@ -125,7 +125,7 @@ describe("transaction forms", () => {
     fireEvent.click(screen.getByRole("radio", { name: "Transfer" }));
     expect(screen.queryByRole("button", { name: "Paid from" })).toBeNull();
     expect(screen.getByRole("button", { name: "Transfer to" })).toBeTruthy();
-    fireEvent.click(screen.getByRole("radio", { name: "Spend" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Transaction" }));
     fireEvent.click(screen.getByRole("button", { name: "Paid from another pipe?" }));
     fireEvent.click(screen.getByRole("button", { name: "Clear form" }));
     expect(screen.getByRole("button", { name: "Paid from another pipe?" })).toBeTruthy();
@@ -134,8 +134,8 @@ describe("transaction forms", () => {
 
   it("repeats a feed with root destinations and no spend/transfer toggle", async () => {
     render(<TransactionForm pipeId={other.id} initState={{ ...initial, pipeName: other.name, value: "5.00", structure: { type: "feed", to: other.id }, intent: "repeat" }} />);
-    expect(screen.queryByRole("radio", { name: "Spend" })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(screen.queryByRole("radio", { name: "Transaction" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Previous step" }));
     expect(screen.queryByRole("button", { name: "Expand Budget" })).toBeNull();
     expect(screen.queryByRole("radio", { name: /Food/ })).toBeNull();
     fireEvent.click(screen.getByRole("radio", { name: /Budget/ }));

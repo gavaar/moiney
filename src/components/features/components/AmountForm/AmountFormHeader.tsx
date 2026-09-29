@@ -2,7 +2,6 @@ import { Text, View } from "react-native";
 import { formatAmount } from "@/lib/format";
 import { colors } from "@/lib/styles";
 import { Icon, safeIconName, type IconName } from "@ui/Icon";
-import { SlideToggle } from "@ui/SlideToggle";
 import type { TransactionInitialState } from "./types";
 
 type Intent = "create" | "repeat" | "edit";
@@ -13,9 +12,6 @@ type TransactionHeading = {
 type Props = {
   transaction: TransactionHeading | null;
   sourceSelected: boolean;
-  spend: { mode: "spend" | "transfer"; updateMode: (mode: string) => void } | null;
-  showMode: boolean;
-  loading: boolean;
 };
 
 const intentIcons: Record<Intent, IconName> = {
@@ -37,7 +33,7 @@ function getHeading(transaction: TransactionHeading, selected: boolean) {
   return { title, accessibleTitle: intent === "create" ? `Create: ${title}` : title, icon };
 }
 
-export function AmountFormHeader({ transaction, sourceSelected, spend, showMode, loading }: Props) {
+export function AmountFormHeader({ transaction, sourceSelected }: Props) {
   const heading = transaction ? getHeading(transaction, sourceSelected) : null;
   return (
     <View className="gap-2">
@@ -52,15 +48,6 @@ export function AmountFormHeader({ transaction, sourceSelected, spend, showMode,
             <Text className="text-sm text-muted">{transaction.intent}</Text>
             <Icon name={intentIcons[transaction.intent]} size={18} color={colors.muted} />
           </View>
-        </View>
-      ) : null}
-      {spend && showMode ? (
-        <View className="flex-row items-center justify-between">
-          <Text className="text-sm text-text">{spend.mode === "spend" ? "Add transaction" : "Transfer"}</Text>
-          <SlideToggle options={[
-            { value: "spend", label: "Spend", icon: "upload" },
-            { value: "transfer", label: "Transfer", icon: "repeat" },
-          ]} value={spend.mode} onChange={spend.updateMode} disabled={loading} />
         </View>
       ) : null}
     </View>

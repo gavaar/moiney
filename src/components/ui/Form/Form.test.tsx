@@ -57,7 +57,7 @@ describe("Form controlled fields", () => {
     render(<Controlled />);
     expect(screen.getByText("Custom header")).toBeTruthy();
     expect(screen.getByText("Your display name")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Next" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Next step" })).toBeNull();
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
@@ -141,6 +141,20 @@ function rgb(color: string) {
 }
 
 describe("Form steps", () => {
+  it("keeps caller warnings between the current page and actions while navigating", async () => {
+    const value: Values = { name: "Ada", count: 2, accepted: true };
+    render(<Form form={steps} value={value} onChange={() => {}}
+      warnings={<Text accessibilityRole="alert">Check the effect on this pipe</Text>}
+      actions={<Button title="Submit" onPress={() => {}} />} />);
+    const warning = screen.getByRole("alert");
+    const action = screen.getByRole("button", { name: "Submit" });
+    expect(screen.getByRole("textbox", { name: "Name" }).compareDocumentPosition(warning) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(warning.compareDocumentPosition(action) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Next step" }));
+    expect(screen.getByRole("alert")).toBe(warning);
+    expect(screen.getByRole("button", { name: "Submit" })).toBe(action);
+  });
+
   it("supports caller-controlled steps, navigation buttons, and swiping", async () => {
     function ControlledStep({ initialStep }: { initialStep: number }) {
       const [activeStep, setActiveStep] = useState(initialStep);
@@ -153,9 +167,9 @@ describe("Form steps", () => {
     }
     render(<ControlledStep initialStep={3} />);
     expect(screen.getByRole("textbox", { name: "Count" })).toBeTruthy();
-    await userEvent.click(screen.getByRole("button", { name: "Back" }));
+    await userEvent.click(screen.getByRole("button", { name: "Previous step" }));
     expect(screen.getByRole("textbox", { name: "Name" })).toBeTruthy();
-    await userEvent.click(screen.getByRole("button", { name: "Next" }));
+    await userEvent.click(screen.getByRole("button", { name: "Next step" }));
     expect(screen.getByRole("textbox", { name: "Count" })).toBeTruthy();
     await userEvent.click(screen.getByText("Jump to last"));
     expect(screen.getByRole("checkbox")).toBeTruthy();
@@ -178,7 +192,7 @@ describe("Form steps", () => {
     }
     const { rerender } = render(<Example invalid={false} />);
     fireEvent.blur(screen.getByRole("textbox", { name: "First" }));
-    await userEvent.click(screen.getByRole("button", { name: "Next" }));
+    await userEvent.click(screen.getByRole("button", { name: "Next step" }));
     fireEvent.blur(screen.getByRole("textbox", { name: "Second" }));
     rerender(<Example invalid />);
     expect(screen.getByLabelText("Step 1 of 2, has errors")).toBeTruthy();
@@ -188,29 +202,33 @@ describe("Form steps", () => {
     expect(screen.getByLabelText("Step 2 of 2")).toBeTruthy();
   });
 
-  it("shows a caller-owned final action only on the last step instead of Next", async () => {
+  it("shows caller-owned actions on every step beside edge-only chevrons", async () => {
     const submit = vi.fn();
     const value: Values = { name: "Ada", count: 2, accepted: true };
-    render(<Form form={steps} value={value} onChange={() => {}} finalAction={<Button title="Create" onPress={submit} />} />);
-    expect(screen.queryByRole("button", { name: "Create" })).toBeNull();
-    await userEvent.click(screen.getByRole("button", { name: "Next" }));
-    expect(screen.queryByRole("button", { name: "Create" })).toBeNull();
-    await userEvent.click(screen.getByRole("button", { name: "Next" }));
-    expect(screen.queryByRole("button", { name: "Next" })).toBeNull();
+    render(<Form form={steps} value={value} onChange={() => {}} actions={<Button title="Create" onPress={submit} />} />);
+    expect(screen.getByRole("button", { name: "Create" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Previous step" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Next step" }));
+    expect(screen.getByRole("button", { name: "Create" })).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Next step" }));
+    expect(screen.queryByRole("button", { name: "Next step" })).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Create" }));
     expect(submit).toHaveBeenCalledOnce();
-    await userEvent.click(screen.getByRole("button", { name: "Back" }));
-    expect(screen.queryByRole("button", { name: "Create" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Next" })).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Previous step" }));
+    expect(screen.getByRole("button", { name: "Create" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Next step" })).toBeTruthy();
   });
 
-  it("renders the final action on a single step without navigation or dots", async () => {
+  it("renders warnings and actions on a single step without navigation or dots", async () => {
     const submit = vi.fn();
     const value: Values = { name: "Ada", count: 2, accepted: true };
-    render(<Form form={fields} value={value} onChange={() => {}} finalAction={<Button title="Create" onPress={submit} />} />);
-    expect(screen.queryByRole("button", { name: "Next" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Back" })).toBeNull();
+    render(<Form form={fields} value={value} onChange={() => {}}
+      warnings={<Text accessibilityRole="alert">Check your details</Text>}
+      actions={<Button title="Create" onPress={submit} />} />);
+    expect(screen.queryByRole("button", { name: "Next step" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Previous step" })).toBeNull();
     expect(screen.queryByLabelText(/Step \d+ of/)).toBeNull();
+    expect(screen.getByRole("alert").compareDocumentPosition(screen.getByRole("button", { name: "Create" })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     await userEvent.click(screen.getByRole("button", { name: "Create" }));
     expect(submit).toHaveBeenCalledOnce();
   });
@@ -219,17 +237,17 @@ describe("Form steps", () => {
     render(<Controlled form={steps} />);
     expect(screen.getByRole("textbox", { name: "Name" })).toBeTruthy();
     expect(screen.queryByRole("checkbox")).toBeNull();
-    expect(screen.getByRole("button", { name: "Back" }).getAttribute("aria-disabled")).toBe("true");
+    expect(screen.queryByRole("button", { name: "Previous step" })).toBeNull();
     fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "Ada" } });
-    await userEvent.click(screen.getByRole("button", { name: "Next" }));
+    await userEvent.click(screen.getByRole("button", { name: "Next step" }));
     expect(screen.queryByRole("textbox", { name: "Name" })).toBeNull();
     expect(screen.getByDisplayValue("2")).toBeTruthy();
     expect(dot(2).getAttribute("aria-selected")).toBe("true");
-    await userEvent.click(screen.getByRole("button", { name: "Next" }));
+    await userEvent.click(screen.getByRole("button", { name: "Next step" }));
     expect(screen.getByRole("checkbox")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Next" }).getAttribute("aria-disabled")).toBe("true");
-    await userEvent.click(screen.getByRole("button", { name: "Back" }));
-    await userEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(screen.queryByRole("button", { name: "Next step" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Previous step" }));
+    await userEvent.click(screen.getByRole("button", { name: "Previous step" }));
     expect(screen.getByRole("textbox", { name: "Name" }).getAttribute("value")).toBe("Ada");
   });
 
@@ -240,10 +258,10 @@ describe("Form steps", () => {
     fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "A" } });
     fireEvent.blur(screen.getByRole("textbox", { name: "Name" }));
     expect(background(dot(1, true))).toBe(rgb(colors.error));
-    await userEvent.click(screen.getByRole("button", { name: "Next" }));
+    await userEvent.click(screen.getByRole("button", { name: "Next step" }));
     expect(background(dot(1, true))).toBe(rgb(colors.errorDark));
     expect(background(dot(2))).toBe(rgb(colors.text));
-    await userEvent.click(screen.getByRole("button", { name: "Back" }));
+    await userEvent.click(screen.getByRole("button", { name: "Previous step" }));
     fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "Ada" } });
     expect(background(dot(1))).toBe(rgb(colors.text));
   });
@@ -264,7 +282,7 @@ describe("Form steps", () => {
     render(<Controlled form={fields.map((field) => ({ ...field, step: 4 }))} />);
     expect(screen.getByRole("textbox", { name: "Name" })).toBeTruthy();
     expect(screen.getByRole("checkbox")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Next" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Next step" })).toBeNull();
     expect(screen.queryByTestId("form-pager")).toBeNull();
   });
 
@@ -281,17 +299,17 @@ describe("Form steps", () => {
     render(<Controlled form={steps} />);
     const name = screen.getByRole("textbox", { name: "Name" });
     expect(name.closest("[inert]")).toBeNull();
-    await userEvent.click(screen.getByRole("button", { name: "Next" }));
+    await userEvent.click(screen.getByRole("button", { name: "Next step" }));
     expect(name.closest("[inert]")).not.toBeNull();
     expect(screen.getByRole("textbox", { name: "Count" }).closest("[inert]")).toBeNull();
   });
 
   it("keeps the selected step when another step is removed and falls back when it disappears", async () => {
     const { rerender } = render(<Controlled form={steps} />);
-    await userEvent.click(screen.getByRole("button", { name: "Next" }));
+    await userEvent.click(screen.getByRole("button", { name: "Next step" }));
     rerender(<Controlled form={steps.filter((field) => field.key !== "name")} />);
     expect(screen.getByRole("textbox", { name: "Count" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Back" }).getAttribute("aria-disabled")).toBe("true");
+    expect(screen.queryByRole("button", { name: "Previous step" })).toBeNull();
     rerender(<Controlled form={steps.filter((field) => field.key !== "count")} />);
     expect(screen.getByRole("textbox", { name: "Name" })).toBeTruthy();
   });

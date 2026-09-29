@@ -11,7 +11,7 @@ vi.mock("@ui/Alert", () => ({
 }));
 
 vi.mock("@features/pipes/components/PipesList", () => ({
-  PipesList: ({ pipes, onSelectPipe, footer }: any) => (
+  PipesList: ({ pipes, onSelectPipe, compactAction, footer }: any) => (
     <div data-testid="pipes-list" data-count={pipes.length}>
       <button
         data-testid="select-pipe"
@@ -19,13 +19,14 @@ vi.mock("@features/pipes/components/PipesList", () => ({
       >
         Select {pipes[0].name}
       </button>
+      {compactAction?.label(pipes[0]) && <button onClick={() => compactAction.onPress(pipes[0])}>{compactAction.label(pipes[0])}</button>}
       {footer}
     </div>
   ),
 }));
 
 vi.mock("@features/pipes/FeedListScreen/components/FeedAmountModal", () => ({
-  FeedAmountModal: () => <div data-testid="feed-amount-modal" />,
+  FeedAmountModal: ({ visible, onClose }: any) => <div data-testid="feed-amount-modal">{visible && <button onClick={onClose}>Close feed form</button>}</div>,
 }));
 
 vi.mock("@features/pipes/FeedListScreen/components/AddFeedButton", () => ({
@@ -38,6 +39,15 @@ const mockPipes = [
 ] as PipeModel[];
 
 describe("FeedListScreen", () => {
+  it("opens and closes the feed form from a minimized feed's menu action", async () => {
+    const userEvent = (await import("@testing-library/user-event")).default;
+    const user = userEvent.setup();
+    render(<FeedListScreen isLoading={false} pipes={mockPipes} onSelectFeed={vi.fn()} />);
+    await user.click(screen.getByRole("button", { name: "Add money" }));
+    expect(screen.getByRole("button", { name: "Close feed form" })).toBeDefined();
+    await user.click(screen.getByRole("button", { name: "Close feed form" }));
+    expect(screen.queryByRole("button", { name: "Close feed form" })).toBeNull();
+  });
   it("renders only the loading state while the initial query is pending", () => {
     const { container } = render(
       <FeedListScreen

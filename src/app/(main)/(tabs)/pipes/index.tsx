@@ -6,5 +6,5 @@ export default function PipesRoute() {
   const { pipeId } = useLocalSearchParams<{ pipeId?: string }>();
   const router = useRouter();
   const onPipeOpened = useCallback(() => router.setParams({ pipeId: undefined }), [router]);
-  return <PipesScreen openPipeId={pipeId} onPipeOpened={onPipeOpened} />;
+  return <PipesScreen openPipeId={pipeId} onPipeOpened={onPipeOpened} onOpenCurrentReport={() => router.push("/pipes/current")} />;
 }

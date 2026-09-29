@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PipeBox } from "./PipeBox";
 
@@ -38,6 +38,18 @@ describe("PipeBox", () => {
     render(<PipeBox {...baseProps} onPress={onPress} />);
     await user.click(screen.getByText("Groceries"));
     expect(onPress).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens options on a held pipe without selecting it", async () => {
+    const onLongPress = vi.fn();
+    const onPress = vi.fn();
+    render(<PipeBox {...baseProps} onPress={onPress} onLongPress={onLongPress} />);
+    const pipe = screen.getByRole("button", { name: "Groceries" });
+    const touch = { identifier: 1, clientX: 10, clientY: 10, pageX: 10, pageY: 10, target: pipe };
+    fireEvent.touchStart(pipe, { touches: [touch], changedTouches: [touch] });
+    await waitFor(() => expect(onLongPress).toHaveBeenCalledTimes(1), { timeout: 1200 });
+    fireEvent.touchEnd(pipe, { changedTouches: [{ identifier: 1, pageX: 10, pageY: 10 }] });
+    expect(onPress).not.toHaveBeenCalled();
   });
 
   it("renders with zero capacity, fed, and spent", () => {

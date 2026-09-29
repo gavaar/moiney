@@ -21,12 +21,13 @@ export function createHistoryReader(
   client: ConvexReactClient,
   filters: TransactionHistoryFilters,
   onTransactionPage?: (page: NonNullable<FunctionReturnType<typeof api.history.list>["transactionPage"]>, isHead: boolean) => void,
+  initialPageSize = 100,
 ) {
   const sources: Array<"transactions" | "events"> = ["transactions", "events"];
   return new OrderedPages(sources,
     async (source, cursor) => {
       const page = await client.query(api.history.list, {
-        source, cursor, limit: cursor ? 30 : 100, filters: queryFilters(filters),
+        source, cursor, limit: cursor ? 30 : initialPageSize, filters: queryFilters(filters),
       });
       if (page.transactionPage) onTransactionPage?.(page.transactionPage, cursor === undefined);
       return page;

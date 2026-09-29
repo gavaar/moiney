@@ -96,9 +96,9 @@ describe("CreateModal", () => {
     fireEvent.click(screen.getByRole("tab", { name: "root" }));
     fireEvent.click(screen.getByRole("tab", { name: "pipe" }));
     expect(screen.getByRole("textbox", { name: "Name" }).getAttribute("value")).toBe("Snacks");
-    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    fireEvent.click(screen.getByRole("button", { name: "Next step" }));
     fireEvent.change(screen.getByRole("textbox", { name: "Initial capacity?" }), { target: { value: "12.34" } });
-    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    fireEvent.click(screen.getByRole("button", { name: "Next step" }));
     fireEvent.click(screen.getByRole("button", { name: "Submit" }));
     await waitFor(() => expect(addPipe).toHaveBeenCalledWith(expect.objectContaining({ parentId: pipe1.id, name: "Snacks", capacity: 1234 })));
     expect(onClose).toHaveBeenCalledOnce();
@@ -111,7 +111,7 @@ describe("CreateModal", () => {
     fireEvent.change(screen.getByPlaceholderText(isBoiler ? "Boiler name" : "Feed name"), { target: { value: "Savings" } });
     fireEvent.click(screen.getByRole("button", { name: "Icon" }));
     fireEvent.click(screen.getByText("wallet-outline"));
-    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    fireEvent.click(screen.getByRole("button", { name: "Next step" }));
     fireEvent.change(screen.getByRole("textbox", { name: "Initial amount" }), { target: { value: "12.34" } });
     if (isBoiler) fireEvent.change(screen.getByRole("textbox", { name: "Contributed amount" }), { target: { value: "10.00" } });
     fireEvent.click(screen.getByRole("tab", { name: "pipe" }));
@@ -140,7 +140,7 @@ describe("CreateModal", () => {
     expect(screen.getByRole("heading", { name: "Create: Transport (50.00 / 200.00)" })).toBeTruthy();
     fireEvent.change(screen.getByPlaceholderText("What was this for?"), { target: { value: "Lunch" } });
     fireEvent.change(screen.getByRole("textbox", { name: "Value" }), { target: { value: "5.00" } });
-    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    fireEvent.click(screen.getByRole("button", { name: "Previous step" }));
     expect(screen.getByRole("radio", { name: /Transport/ }).getAttribute("aria-checked")).toBe("true");
     fireEvent.click(screen.getByRole("radio", { name: /Groceries/ }));
     expect(screen.getByDisplayValue("Lunch")).toBeTruthy();

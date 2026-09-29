@@ -41,8 +41,10 @@ may combine an inclusive date range, case-insensitive title substring, and exact
 pipe involvement across all [D003 roles](transactions.md#d003-transaction-involvement).
 Filtered pages use bounded server reads and Convex query caching but are not
 persisted snapshot scopes. History initially applies a From date of the first day
-of the current UTC month. Clearing all filters removes that default and restores
-unfiltered History. [D021](#d021-pipe-creation-and-archived-history) extends pipe
+of the current UTC month. An untouched default advances at UTC month rollover;
+explicitly applied or cleared filters remain unchanged. Clearing all filters
+removes that default and restores unfiltered History.
+[D021](#d021-pipe-creation-and-archived-history) extends pipe
 matching to archived ancestry and creation-event names.
 
 Pagination completes without an error when the server reports completion, an
@@ -115,7 +117,7 @@ totals. Title grouping remains available within each expanded archive and follow
 the [same-month grouping rule](transactions.md#d009-transaction-identity-and-grouping).
 
 Archives match their own pipe or any preserved ancestor in pipe filters, including
-the selected pipe's Latest history. Title and date filters apply to the archived
+the selected pipe's Latest transactions. Title and date filters apply to the archived
 transactions. The matching transactions determine the displayed date range and
 latest-date ordering, even when creation occurred outside the filter period.
 An archive with no retained transactions matches by creation date and pipe name.
@@ -128,7 +130,7 @@ latest matching transaction for ordering and headings; an archive with no retain
 transactions uses its event date. Expanded rows are indented by nesting depth.
 
 Mixed History merges independently paginated event and transaction streams without
-discarding unconsumed rows. Latest history contains at most 30 mixed entries;
+discarding unconsumed rows. Latest transactions contains at most 30 mixed entries;
 expanded archive rows do not consume that limit. Archive transactions are paged
 and virtualized. Full filtered summaries are read in bounded role-indexed pages;
 pending or failed summaries never present partial amounts as complete totals.

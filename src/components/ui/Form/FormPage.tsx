@@ -36,14 +36,14 @@ export function FormPage({ page, active, width, multiple, fill, onMeasure }: Pro
   };
 
   return page.scrollable === false ? (
-    <View {...accessibility} style={[style, { gap: 16, padding: 4 }]}
+    <View {...accessibility} style={[style, { gap: 4, padding: 4 }]}
       onLayout={event => onMeasure(page.key, event.nativeEvent.layout.height)}>
       {page.content}
     </View>
   ) : (
     <ScrollView {...accessibility} style={style}
       onContentSizeChange={(_width, height) => onMeasure(page.key, height)}
-      contentContainerStyle={{ gap: 16, padding: 4 }} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
+      contentContainerStyle={{ gap: 4, padding: 4 }} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
       {page.content}
     </ScrollView>
   );

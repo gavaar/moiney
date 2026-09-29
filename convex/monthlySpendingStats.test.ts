@@ -59,6 +59,12 @@ it("captures the previous UTC month's spending once for every user", async () =>
         spendingTransactionCount: 2,
         refundTransactionCount: 1,
         largestSpendingTransactionCents: 1_200,
+        nextLargestSpendingCents: [800],
+        largestSpendingTransactions: [
+          { title: "test transaction", amountCents: 1_200 },
+          { title: "test transaction", amountCents: 800 },
+        ],
+        mostRepeatedTransaction: { title: "test transaction", count: 3, netSpendingCents: 1_750 },
       }),
       expect.objectContaining({
         periodStart: juneStart,
@@ -68,6 +74,9 @@ it("captures the previous UTC month's spending once for every user", async () =>
         spendingTransactionCount: 0,
         refundTransactionCount: 0,
         largestSpendingTransactionCents: 0,
+        nextLargestSpendingCents: [],
+        largestSpendingTransactions: [],
+        mostRepeatedTransaction: null,
       }),
     ]),
   );
@@ -147,6 +156,34 @@ it("captures volume and produced from the user's root feeds and boilers", async 
   });
 });
 
+it("freezes the top overspending leaves by net logical expenses and capacity at capture", async () => {
+  const t = convexTest(schema, modules);
+  const juneStart = Date.UTC(2026, 5, 1);
+  const userId = await t.run(async (ctx) => {
+    const userId = await ctx.db.insert("users", { username: "offender", email: "offender@example.com", password: "hash" });
+    const root = await ctx.db.insert("pipes", { userId, name: "Root", icon: "bank", priority: 1, capacity: 0, fed: 0, spent: 0 });
+    const leaf = await ctx.db.insert("pipes", { userId, parentId: root, name: "Groceries", icon: "cash", priority: 1, capacity: 500, capUpdateValue: 10_000, fed: 0, spent: 0 });
+    const payer = await ctx.db.insert("pipes", { userId, parentId: root, name: "Payer", icon: "cash", priority: 2, capacity: 200, fed: 0, spent: 0 });
+    const debt = await ctx.db.insert("pipes", { userId, parentId: root, name: "Debt", icon: "cash", priority: 3, capacity: -1_000, fed: 0, spent: 0 });
+    for (const [value, from, paidFrom] of [[-900, leaf, payer], [200, leaf, payer], [-150, payer, undefined], [-200, debt, undefined]] as const) {
+      await ctx.db.insert("transactions", { userId, title: "Spend", kind: "expense", date: juneStart, value, from, ...(paidFrom ? { paidFrom } : {}) });
+    }
+    return { userId, leaf, debt };
+  });
+  await t.mutation(internal.monthlySpendingStats.capturePreviousMonth, { now: Date.UTC(2026, 6, 1, 5) });
+  vi.useFakeTimers();
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  vi.useRealTimers();
+  const report = await t.withIdentity({ subject: userId.userId }).query(api.monthlySpendingStats.getMine, { periodStart: juneStart });
+  expect(report?.offenders).toEqual([
+    { pipeId: userId.leaf, name: "Groceries", netSpendingCents: 700, capacityCents: 500, overageCents: 200 },
+    { pipeId: userId.debt, name: "Debt", netSpendingCents: 200, capacityCents: 0, overageCents: 200 },
+  ]);
+  await t.run(async (ctx) => ctx.db.patch("pipes", userId.leaf, { name: "Renamed", capacity: 10_000 }));
+  const frozen = await t.withIdentity({ subject: userId.userId }).query(api.monthlySpendingStats.getMine, { periodStart: juneStart });
+  expect(frozen?.offenders).toEqual(report?.offenders);
+});
+
 it("finishes paginated capture and preserves the frozen result on rerun", async () => {
   const t = convexTest(schema, modules);
   const now = Date.UTC(2026, 6, 1, 5);
@@ -157,13 +194,16 @@ it("finishes paginated capture and preserves the frozen result on rerun", async 
       email: "paginated@example.com",
       password: "hash",
     });
+    const root = await ctx.db.insert("pipes", { userId: id, name: "Root", icon: "bank", priority: 1, capacity: 0, fed: 0, spent: 0 });
+    const leaf = await ctx.db.insert("pipes", { userId: id, parentId: root, name: "Recurring", icon: "cash", priority: 1, capacity: 10_000, fed: 0, spent: 0 });
     for (let index = 0; index < 101; index += 1) {
       await ctx.db.insert("transactions", {
-        title: `expense ${index}`,
+        title: index === 100 ? "expense 0" : `expense ${index}`,
         value: -100,
         date: juneStart + index,
         kind: "expense",
         userId: id,
+        from: leaf,
       });
     }
     return id;
@@ -198,6 +238,14 @@ it("finishes paginated capture and preserves the frozen result on rerun", async 
     grossSpendingCents: 10_100,
     spendingTransactionCount: 101,
     largestSpendingTransactionCents: 100,
+    nextLargestSpendingCents: [100, 100],
+    largestSpendingTransactions: [
+      { title: "expense 0", amountCents: 100 },
+      { title: "expense 0", amountCents: 100 },
+      { title: "expense 1", amountCents: 100 },
+    ],
+    mostRepeatedTransaction: { title: "expense 0", count: 2, netSpendingCents: 200 },
+    offenders: [expect.objectContaining({ name: "Recurring", netSpendingCents: 10_100, overageCents: 100 })],
   });
 });
 
@@ -309,4 +357,35 @@ it("returns an exact monthly report only to its owner", async () => {
     largestSpendingTransactionCents: 1_500,
   });
   expect(hidden).toBeNull();
+});
+
+it("returns bounded live monthly aggregates for the owner without persisting a current-month row", async () => {
+  const t = convexTest(schema, modules);
+  const periodStart = Date.UTC(2026, 5, 1);
+  const userId = await t.run(async (ctx) => {
+    const userId = await ctx.db.insert("users", { username: "live", email: "live@example.com", password: "hash" });
+    const other = await ctx.db.insert("users", { username: "other-live", email: "other-live@example.com", password: "hash" });
+    for (const [value, owner] of [[-600, userId], [100, userId], [-99_000, other]] as const) {
+      await ctx.db.insert("transactions", { userId: owner, title: "Spending", kind: "expense", date: periodStart + 1, value });
+    }
+    await ctx.db.insert("transactions", { userId, title: "Previous month", kind: "expense", date: Date.UTC(2026, 4, 10), value: -250 });
+    return userId;
+  });
+  vi.useFakeTimers();
+  vi.setSystemTime(Date.UTC(2026, 5, 15));
+  try {
+    await expect(t.query(api.monthlySpendingStats.monthPage, { periodStart, paginationOpts: { numItems: 1, cursor: null } })).rejects.toThrow("Not authenticated");
+    const owner = t.withIdentity({ subject: userId });
+    const first = await owner.query(api.monthlySpendingStats.monthPage, { periodStart, paginationOpts: { numItems: 1, cursor: null } });
+    const second = await owner.query(api.monthlySpendingStats.monthPage, { periodStart, paginationOpts: { numItems: 1, cursor: first.continueCursor } });
+    expect([...first.page, ...second.page].map((entry) => entry.summary.grossSpendingCents - entry.summary.refundCents).reduce((a, b) => a + b)).toBe(500);
+    expect(second.isDone).toBe(true);
+    expect(await t.run((ctx) => ctx.db.query("monthlySpendingStats").collect())).toEqual([]);
+    vi.setSystemTime(Date.UTC(2026, 6, 15));
+    const previous = await owner.query(api.monthlySpendingStats.monthPage, { periodStart: Date.UTC(2026, 4, 1), paginationOpts: { numItems: 1, cursor: null } });
+    expect(previous.page[0].summary.grossSpendingCents).toBe(250);
+    await expect(owner.query(api.monthlySpendingStats.monthPage, { periodStart: periodStart + 1, paginationOpts: { numItems: 1, cursor: null } })).rejects.toThrow("Invalid period start");
+  } finally {
+    vi.useRealTimers();
+  }
 });
