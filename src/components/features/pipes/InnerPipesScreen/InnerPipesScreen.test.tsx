@@ -35,7 +35,7 @@ vi.mock("@convex/_generated/api", () => ({
 }));
 
 vi.mock("@features/pipes/components/PipesList", () => ({
-  PipesList: ({ pipes, onSelectPipe, leading, trailing, footer }: any) => (
+  PipesList: ({ pipes, onSelectPipe, leading, trailing, footer, compactAction }: any) => (
     <div data-testid="pipes-list" data-count={pipes.length}>
       {pipes.map((pipe: any) => (
         <div key={pipe.id} data-testid="pipe-row">
@@ -47,11 +47,15 @@ vi.mock("@features/pipes/components/PipesList", () => ({
             {pipe.name}
           </button>
           {trailing?.(pipe)}
+          {compactAction?.label(pipe) && <button onClick={() => compactAction.onPress(pipe)}>{compactAction.label(pipe)}</button>}
         </div>
       ))}
       {footer}
     </div>
   ),
+}));
+vi.mock("@features/pipes/InnerPipesScreen/components/RulesIcon/RuleModal", () => ({
+  RuleModal: ({ visible, onClose }: any) => visible ? <button onClick={onClose}>Close rule settings</button> : null,
 }));
 
 vi.mock("@ui/Icon", async (importOriginal) => ({
@@ -99,6 +103,23 @@ const grandchildPipe = { id: "grand-1", name: "Sub", icon: "pipe", capacity: 100
 describe("InnerPipesScreen", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("opens rule settings from a minimized eligible child and excludes disabled children", async () => {
+    const user = userEvent.setup();
+    const parent = { ...childPipe1, id: "parent" };
+    mockUsePipeSelection.mockReturnValue({
+      ...baseMock,
+      selectedPipePath: ["parent"],
+      selectedPipe: parent,
+      childrenByParent: new Map([["parent", [childPipe1, childPipe2]], ["child-2", [grandchildPipe]]]),
+    });
+    render(<InnerPipesScreen />);
+    expect(screen.getAllByRole("button", { name: "Rule settings" })).toHaveLength(1);
+    await user.click(screen.getByRole("button", { name: "Rule settings" }));
+    expect(screen.getByRole("button", { name: "Close rule settings" })).toBeDefined();
+    await user.click(screen.getByRole("button", { name: "Close rule settings" }));
+    expect(screen.queryByRole("button", { name: "Close rule settings" })).toBeNull();
   });
 
   it("opens child creation from the list with the current parent selected", async () => {

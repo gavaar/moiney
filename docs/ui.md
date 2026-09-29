@@ -20,6 +20,9 @@ input dispatcher's detailed public contract is in [Input](input.md).
   refactor replaces it.
 - Every modal dismisses on backdrop tap. Modal content has no close button,
   close icon, or other dismissal-only control; domain actions remain allowed.
+- Pipe list minimization is an account-scoped, device-local display preference.
+  It survives sign-out and app restarts, is not synchronized through Convex,
+  and removes saved IDs only after a complete pipe catalog load.
 
 ## Naming
 

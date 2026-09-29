@@ -32,6 +32,7 @@ export function FeedListScreen({
   onSelectFeed,
 }: FeedListScreenProps) {
   const [showFeedInfo, setShowFeedInfo] = useState(false);
+  const [compactFeed, setCompactFeed] = useState<PipeModel | null>(null);
 
   return (
     <View className="flex-1">
@@ -48,6 +49,10 @@ export function FeedListScreen({
         <PipesList
           pipes={pipes}
           onSelectPipe={onSelectFeed}
+          compactAction={{
+            label: () => "Add money",
+            onPress: (pipe) => setCompactFeed(pipes.find((feed) => feed.id === pipe.id) ?? null),
+          }}
            trailing={(pipe) => (
              <FeedAmountModal
                pipeId={pipe.id}
@@ -73,6 +78,17 @@ export function FeedListScreen({
       <ModalShell visible={showFeedInfo} onClose={() => setShowFeedInfo(false)}>
         <FeedDescription />
       </ModalShell>
+      {compactFeed && (
+        <FeedAmountModal
+          pipeId={compactFeed.id}
+          feedName={compactFeed.name}
+          sourceType={compactFeed.sourceType}
+          fed={compactFeed.fed}
+          visible
+          hideTrigger
+          onClose={() => setCompactFeed(null)}
+        />
+      )}
     </View>
   );
 }
