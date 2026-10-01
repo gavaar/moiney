@@ -25,6 +25,7 @@
     "src/**/*.ts",
     "src/**/*.tsx",
     "domain/**/*.ts",
+    "scripts/**/*.ts",
     "convex/**/*.ts",
     "convex/**/*.tsx",
     "nativewind-env.d.ts",
