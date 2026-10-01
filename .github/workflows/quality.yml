@@ -2,7 +2,7 @@ name: Quality
 
 on:
   pull_request:
-    branches: [main, test]
+    branches: [main]
   push:
     branches: [main]
 

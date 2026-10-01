@@ -1,14 +1,14 @@
-name: Build test APK
+name: Deploy and build APK
 
 on:
   push:
-    branches: [test]
+    branches: [main]
 
 permissions:
   contents: write
 
 concurrency:
-  group: test-apk-${{ github.ref }}
+  group: deploy-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -60,14 +60,3 @@ jobs:
           name: ${{ steps.app-version.outputs.version }}
           files: apk/moiney.apk
           prerelease: true
-
-  promote-main:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Fast-forward main to the released commit
-        run: bash .github/scripts/promote-main.sh
