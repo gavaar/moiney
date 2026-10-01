@@ -1,6 +1,6 @@
 {
   "name": "moiney",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
@@ -10,6 +10,7 @@
     "dev": "expo start",
     "convex:dev": "bunx convex dev",
     "convex:deploy": "bun run verify && bunx convex deploy",
+    "convex:refresh": "bash scripts/convex-refresh.sh",
     "benchmark:performance": "bun run benchmarks/update15-performance.ts",
     "lint": "expo lint",
     "test": "BUN_JSC_useFTLJIT=false vitest run",

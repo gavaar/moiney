@@ -1,14 +1,14 @@
-name: Build test APK
+name: Deploy and build APK
 
 on:
   push:
-    branches: [test]
+    branches: [main]
 
 permissions:
   contents: write
 
 concurrency:
-  group: test-apk-${{ github.ref }}
+  group: deploy-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -27,10 +27,10 @@ jobs:
       - name: Verify tests and types
         run: bun run verify
 
-      - name: Deploy Convex backend to dev deployment
-        run: bunx convex dev --once --tail-logs disable
+      - name: Deploy Convex backend to production
+        run: bunx convex deploy
         env:
-          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEV_DEPLOY_KEY }}
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_PROD_DEPLOY_KEY }}
 
       - uses: expo/expo-github-action@v8
         with:
@@ -60,14 +60,3 @@ jobs:
           name: ${{ steps.app-version.outputs.version }}
           files: apk/moiney.apk
           prerelease: true
-
-  promote-main:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Fast-forward main to the released commit
-        run: bash .github/scripts/promote-main.sh

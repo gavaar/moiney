@@ -19,6 +19,7 @@ export default defineConfig({
       "src/**/*.test.{ts,tsx}",
       "convex/**/*.test.{ts,tsx}",
       "domain/**/*.test.{ts,tsx}",
+      "scripts/**/*.test.ts",
     ],
     setupFiles: ["./vitest.setup.ts"],
   },

@@ -10,7 +10,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_CONVEX_URL": "https://giant-mosquito-763.convex.cloud"
+        "EXPO_PUBLIC_CONVEX_URL": "https://clever-pelican-365.convex.cloud"
       }
     }
   }
