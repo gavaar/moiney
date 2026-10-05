@@ -2,6 +2,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { act, render, screen, fireEvent } from "@testing-library/react";
 import { type Id } from "@convex/_generated/dataModel";
+import { DeletePipeConfirmation } from "./DeletePipeConfirmation";
 
 const pId = (id: string) => id as Id<"pipes">;
 
@@ -48,8 +49,6 @@ vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
     ]),
   }),
 }));
-
-import { DeletePipeConfirmation } from "./DeletePipeConfirmation";
 
 describe("DeletePipeConfirmation", () => {
   beforeEach(() => {

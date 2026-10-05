@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { LoginScreen } from "./LoginScreen";
 
 const login = vi.fn();
 
@@ -37,8 +38,6 @@ vi.mock("@ui/AuthScreenLayout", () => ({
 vi.mock("expo-router", () => ({
   Link: ({ children }: any) => <a>{children}</a>,
 }));
-
-import { LoginScreen } from "./LoginScreen";
 
 describe("LoginScreen", () => {
   it("submits the entered credentials through auth", async () => {

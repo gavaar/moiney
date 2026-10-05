@@ -55,7 +55,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
   const convex = useConvex();
   const { allPipes, childrenByParent } = usePipeCatalog();
   const { selectedPipePath } = usePipeSelection();
-  const { cache, isHydrating, read, replace } = useTransactionCache();
+  const { accountKey, isHydrating, read, replace } = useTransactionCache();
   const requestRef = useRef(0);
   const [transactions, setTransactions] = useState<TransactionModel[] | undefined>();
   const [error, setError] = useState<string | null>(null);
@@ -86,47 +86,61 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
       scope
         ? read(scope)
         : { transactions: [], complete: false, hasMore: false, updatedAt: 0 },
-    [read, scope, cache],
+    [read, scope],
   );
 
-  const fetchScope = useCallback(async () => {
+  const fetchScope = useCallback(() => {
     if (!scope || isHydrating) return;
     const requestId = ++requestRef.current;
-    setIsLoading(true);
-    setError(null);
-    try {
-      const rows = await convex.query(
+    const query = async () => convex.query(
         api.transactions.listTransactions,
         selectedPipeId ? { pipeIds: pipeIds ?? [] } : {},
       );
+    return query().then(async (rows) => {
       if (requestId !== requestRef.current) return;
       const normalized = rows.map(normalizeTransaction);
       setTransactions(normalized);
       setIsLoading(false);
       setError(null);
       await replace(scope, normalized, false);
-    } catch {
+    }).catch(() => {
       if (requestId === requestRef.current) {
         setIsLoading(false);
         setError(TRANSACTION_LOAD_ERROR);
       }
-    }
+    });
   }, [convex, isHydrating, pipeIds, replace, scope, selectedPipeId]);
+
+  const inputs = { accountKey, scope, cached, isHydrating };
+  const [previousInputs, setPreviousInputs] = useState<typeof inputs | null>(null);
+  if (!previousInputs || previousInputs.accountKey !== accountKey || previousInputs.scope !== scope ||
+    previousInputs.cached !== cached || previousInputs.isHydrating !== isHydrating) {
+    setPreviousInputs(inputs);
+    setError(null);
+    if (!scope || isHydrating) {
+      setTransactions(undefined);
+      setIsLoading(true);
+    } else {
+      setTransactions(cached.transactions.length > 0 ? cached.transactions : undefined);
+      setIsLoading(cached.transactions.length === 0 && !cached.complete);
+    }
+  }
 
   useEffect(() => {
     if (!scope || isHydrating) {
       requestRef.current += 1;
-      setTransactions(undefined);
-      setError(null);
-      setIsLoading(true);
       return;
     }
-
-    setTransactions(cached.transactions.length > 0 ? cached.transactions : undefined);
-    setIsLoading(cached.transactions.length === 0 && !cached.complete);
-
     if (!cached.complete) void fetchScope();
-  }, [cached, fetchScope, isHydrating, scope]);
+    return () => { requestRef.current += 1; };
+  }, [accountKey, cached, fetchScope, isHydrating, scope]);
+
+  const refresh = useCallback(() => {
+    if (!scope || isHydrating) return;
+    setIsLoading(true);
+    setError(null);
+    void fetchScope();
+  }, [fetchScope, isHydrating, scope]);
 
   return (
     <TransactionsContext.Provider
@@ -135,7 +149,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
         error,
         isLoading,
         pipeIds,
-        refresh: () => void fetchScope(),
+        refresh,
       }}
     >
       {children}

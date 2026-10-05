@@ -21,5 +21,9 @@ it("updates countdowns once per minute only while a timed pipe list is focused",
   state.focused = true;
   rerender({ enabled: false });
   expect(vi.getTimerCount()).toBe(0);
+  rerender({ enabled: true });
+  expect(result.current).toBe(1120000);
+  expect(vi.getTimerCount()).toBe(1);
   unmount();
+  expect(vi.getTimerCount()).toBe(0);
 });

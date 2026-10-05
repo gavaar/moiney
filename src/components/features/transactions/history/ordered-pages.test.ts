@@ -14,7 +14,7 @@ describe("ordered history pagination", () => {
         { items: [{ id: "creation", date: 8 }, { id: "older-creation", date: 5 }], cursor: null, isDone: true },
       ],
     };
-    const reader = new OrderedPages(Object.keys(pages) as Array<keyof typeof pages>,
+    const reader = new OrderedPages(Object.keys(pages) as (keyof typeof pages)[],
       async (source) => pages[source].shift()!, (item) => item.id);
     expect((await reader.next(2)).items.map((item) => item.id)).toEqual(["trip", "creation"]);
     const remaining: string[] = [];

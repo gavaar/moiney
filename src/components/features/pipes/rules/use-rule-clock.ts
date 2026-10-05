@@ -1,15 +1,29 @@
-import { useEffect, useState } from "react";
+import { useCallback, useState, useSyncExternalStore } from "react";
 import { useIsFocused } from "expo-router/react-navigation";
 
-/** One clock owned by the visible list, shared by all its timed rule icons. */
+function createClock() {
+  let now = Date.now();
+  return {
+    getSnapshot: () => now,
+    subscribe(onChange: () => void) {
+      const tick = () => {
+        now = Date.now();
+        onChange();
+      };
+      tick();
+      const timer = setInterval(tick, 60000);
+      return () => clearInterval(timer);
+    },
+  };
+}
+
+/** One focus-scoped clock per visible list or timed rule form. */
 export function useRuleClock(enabled: boolean) {
   const focused = useIsFocused();
-  const [now, setNow] = useState(Date.now);
-  useEffect(() => {
-    if (!focused || !enabled) return;
-    setNow(Date.now());
-    const timer = setInterval(() => setNow(Date.now()), 60000);
-    return () => clearInterval(timer);
-  }, [enabled, focused]);
-  return now;
+  const [clock] = useState(createClock);
+  const subscribe = useCallback((onChange: () => void) => {
+    if (!focused || !enabled) return () => {};
+    return clock.subscribe(onChange);
+  }, [clock, enabled, focused]);
+  return useSyncExternalStore(subscribe, clock.getSnapshot, clock.getSnapshot);
 }

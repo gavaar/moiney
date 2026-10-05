@@ -126,6 +126,27 @@ function ReconcileFailureConsumer() {
 }
 
 describe("TransactionCacheProvider", () => {
+  it("never exposes the retired account during an account change", async () => {
+    auth.accountKey = "account-1";
+    const observedAccounts = vi.fn();
+    const cacheStorage = storage();
+    function AccountConsumer() {
+      observedAccounts(useTransactionCache().accountKey);
+      return null;
+    }
+    const { rerender } = render(<TransactionCacheProvider storage={cacheStorage}><AccountConsumer /></TransactionCacheProvider>);
+    await waitFor(() => expect(observedAccounts).toHaveBeenLastCalledWith("account-1"));
+    observedAccounts.mockClear();
+
+    auth.accountKey = "account-2";
+    try {
+      await act(async () => rerender(<TransactionCacheProvider storage={cacheStorage}><AccountConsumer /></TransactionCacheProvider>));
+      expect(observedAccounts.mock.calls.map(([key]) => key)).not.toContain("account-1");
+    } finally {
+      auth.accountKey = "account-1";
+    }
+  });
+
   it.each(["mergeHead", "append"] as const)("ignores a retired account's delayed %s write", async (operation) => {
     auth.accountKey = "account-1";
     let finishWrite!: () => void;

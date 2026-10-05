@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { PipesScreen } from "./PipesScreen";
 
 const mocks = vi.hoisted(() => ({
   addEventListener: vi.fn(),
@@ -141,8 +142,6 @@ vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
     isLoading: false,
   }),
 }));
-
-import { PipesScreen } from "./PipesScreen";
 
 describe("Pipes Android back handling", () => {
   it("opens the current ancestor path when navigating from a creation event", async () => {

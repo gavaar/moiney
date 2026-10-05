@@ -71,17 +71,34 @@ type Props = {
   storage?: TransactionCacheStorage;
 };
 
+type CacheState = {
+  accountKey: string | null;
+  storage: TransactionCacheStorage;
+  store: TransactionCacheStore | null;
+  cache: TransactionCache | null;
+  isHydrating: boolean;
+};
+
+function createCacheState(accountKey: string | null, storage: TransactionCacheStorage): CacheState {
+  return {
+    accountKey,
+    storage,
+    store: accountKey ? new TransactionCacheStore(accountKey, storage) : null,
+    cache: null,
+    isHydrating: accountKey !== null,
+  };
+}
+
 export function TransactionCacheProvider({ children, storage = transactionCacheStorage }: Props) {
   const { accountKey } = useAuth();
   const [mutationVersion, setMutationVersion] = useState(0);
   const previousStore = useRef<TransactionCacheStore | null>(null);
   const previousAccountKey = useRef<string | null>(null);
-  const [state, setState] = useState<{
-    accountKey: string | null;
-    store: TransactionCacheStore | null;
-    cache: TransactionCache | null;
-    isHydrating: boolean;
-  }>({ accountKey: null, store: null, cache: null, isHydrating: false });
+  const [state, setState] = useState(() => createCacheState(accountKey, storage));
+  if (state.accountKey !== accountKey || state.storage !== storage) {
+    setState(createCacheState(accountKey, storage));
+  }
+  const store = state.store;
 
   useEffect(() => {
     const oldStore = previousStore.current;
@@ -90,26 +107,23 @@ export function TransactionCacheProvider({ children, storage = transactionCacheS
     }
     previousAccountKey.current = accountKey;
 
-    if (!accountKey) {
+    if (!store) {
       previousStore.current = null;
-      setState({ accountKey: null, store: null, cache: null, isHydrating: false });
       return;
     }
 
-    const store = new TransactionCacheStore(accountKey, storage);
     let active = true;
     previousStore.current = store;
-    setState({ accountKey, store, cache: null, isHydrating: true });
 
     void store.hydrate().then((cache) => {
       if (!active || previousStore.current !== store) return;
-      setState({ accountKey, store, cache, isHydrating: false });
+      setState((current) => ({ ...current, cache, isHydrating: false }));
     });
 
     return () => {
       active = false;
     };
-  }, [accountKey, storage]);
+  }, [accountKey, store]);
 
   const read = useCallback(
     (scope: string) =>

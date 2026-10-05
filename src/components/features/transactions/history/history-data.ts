@@ -23,7 +23,7 @@ export function createHistoryReader(
   onTransactionPage?: (page: NonNullable<FunctionReturnType<typeof api.history.list>["transactionPage"]>, isHead: boolean) => void,
   initialPageSize = 100,
 ) {
-  const sources: Array<"transactions" | "events"> = ["transactions", "events"];
+  const sources: ("transactions" | "events")[] = ["transactions", "events"];
   return new OrderedPages(sources,
     async (source, cursor) => {
       const page = await client.query(api.history.list, {

@@ -1,7 +1,7 @@
 export type OrderedPage<T> = { items: T[]; cursor: string | null; isDone: boolean };
 
 export class OrderedPages<S extends string, T extends { date: number }> {
-  private streams: Array<{ source: S; items: T[]; cursor?: string; done: boolean; visited: Set<string> }>;
+  private streams: { source: S; items: T[]; cursor?: string; done: boolean; visited: Set<string> }[];
   private seen = new Set<string>();
   private cancelled = false;
 

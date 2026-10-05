@@ -19,11 +19,25 @@ export function useMixedHistory(filters: TransactionHistoryFilters = {}, options
   const request = useRef<ReturnType<typeof createHistoryReader> | null>(null);
   const busy = useRef(false);
   const [revision, setRevision] = useState(0);
-  const [state, setState] = useState<{
-    accountKey: string | null; filterKey: string; items: HistoryItem[]; isLoading: boolean;
-    hasMore: boolean; error: string | null;
-  }>({ accountKey, filterKey, items: [], isLoading: true, hasMore: false, error: null });
   const enabled = focused && !isHydrating && (options.enabled ?? true) && accountKey !== null;
+  const generation = `${accountKey}:${filterKey}:${catalogKey}:${revision}:${mutationVersion}`;
+  const requestKey = JSON.stringify([generation, enabled, options.recent ?? false]);
+  const [state, setState] = useState<{
+    requestKey: string; accountKey: string | null; filterKey: string; items: HistoryItem[]; isLoading: boolean;
+    hasMore: boolean; error: string | null;
+  }>({ requestKey, accountKey, filterKey, items: [], isLoading: true, hasMore: false, error: null });
+
+  if (state.requestKey !== requestKey) {
+    const sameScope = state.accountKey === accountKey && state.filterKey === filterKey;
+    setState({
+      ...state,
+      requestKey,
+      ...(enabled ? {
+        accountKey, filterKey, items: sameScope ? state.items : [],
+        isLoading: true, hasMore: false, error: null,
+      } : {}),
+    });
+  }
 
   useEffect(() => {
     if (!enabled) return;
@@ -34,11 +48,6 @@ export function useMixedHistory(filters: TransactionHistoryFilters = {}, options
     }, options.recent ? 30 : 100);
     request.current = reader;
     busy.current = true;
-    setState((current) => ({
-      accountKey, filterKey,
-      items: current.accountKey === accountKey && current.filterKey === filterKey ? current.items : [],
-       isLoading: true, hasMore: false, error: null,
-    }));
     const loadInitial = async () => {
       const items: HistoryItem[] = [];
       const target = options.recent ? 30 : 100;
@@ -47,7 +56,7 @@ export function useMixedHistory(filters: TransactionHistoryFilters = {}, options
         if (request.current !== reader) return;
         items.push(...page.items);
         const keepFilling = Boolean(options.recent && !page.isDone && items.length < target);
-         setState({ accountKey, filterKey, items: [...items], hasMore: !page.isDone, isLoading: keepFilling, error: null });
+         setState({ requestKey, accountKey, filterKey, items: [...items], hasMore: !page.isDone, isLoading: keepFilling, error: null });
         if (!keepFilling) return;
       }
     };
@@ -58,7 +67,7 @@ export function useMixedHistory(filters: TransactionHistoryFilters = {}, options
       reader.cancel();
       if (request.current === reader) request.current = null;
     };
-  }, [client, enabled, accountKey, stableFilters, filterKey, catalogKey, mutationVersion, mergeHead, append, revision, options.recent]);
+  }, [client, enabled, accountKey, stableFilters, filterKey, catalogKey, mutationVersion, mergeHead, append, revision, options.recent, requestKey]);
 
   const loadMore = useCallback(() => {
     const reader = request.current;
@@ -82,6 +91,6 @@ export function useMixedHistory(filters: TransactionHistoryFilters = {}, options
     hasMore: !options.recent && state.hasMore,
     loadMore, refresh,
     // Reset expanded archive pages and summaries when the main feed is refreshed.
-    generation: `${accountKey}:${filterKey}:${catalogKey}:${revision}:${mutationVersion}`,
+    generation,
   };
 }

@@ -21,10 +21,11 @@ export function useArchiveHistory(filters: TransactionHistoryFilters) {
   const [archives, setArchives] = useState<Record<string, ArchiveState | undefined>>({});
 
   useEffect(() => {
+    const activeReaders = readers.current;
     active.current = focused;
     return () => {
       active.current = false;
-      for (const reader of readers.current.values()) reader.cancel();
+      for (const reader of activeReaders.values()) reader.cancel();
     };
   }, [focused]);
 

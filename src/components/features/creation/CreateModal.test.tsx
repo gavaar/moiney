@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Id } from "@convex/_generated/dataModel";
 import { CreateModal } from "./CreateModal";
 
+vi.mock("expo-router/react-navigation", () => ({ useIsFocused: () => true }));
+
 const onClose = vi.fn();
 const createTransaction = vi.fn().mockResolvedValue(undefined);
 const addPipe = vi.fn().mockResolvedValue(undefined);

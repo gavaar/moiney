@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { Id } from "@convex/_generated/dataModel";
 import type { TransactionModel } from "@features/transactions/data/transactions";
 import {
@@ -82,6 +82,55 @@ describe("useTransactionHistory", () => {
     expect(screen.getByTestId("loading").textContent).toBe("false");
     expect(screen.getByTestId("status").textContent).toBe("CanLoadMore");
     expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  it("hides the previous account's rows while the new account hydrates", () => {
+    const observedRows = vi.fn();
+    function Observer({ rows }: { rows: TransactionModel[] | undefined }) {
+      observedRows(rows);
+      return null;
+    }
+    function ObservingConsumer() {
+      const { transactions } = useTransactionHistory();
+      return <><Observer rows={transactions} /><Consumer /></>;
+    }
+    mockCache.mockReturnValue({
+      ...mockCache(),
+      accountKey: "account-1",
+    });
+    const { rerender } = render(<ObservingConsumer />);
+    expect(screen.getByTestId("count").textContent).toBe("1");
+    observedRows.mockClear();
+
+    mockCache.mockReturnValue({
+      ...mockCache(),
+      accountKey: "account-2",
+      isHydrating: true,
+      read: () => ({ transactions: [], complete: false, hasMore: false, updatedAt: 0 }),
+    });
+    rerender(<ObservingConsumer />);
+    expect(observedRows.mock.calls.every(([rows]) => rows === undefined)).toBe(true);
+    expect(screen.getByTestId("count").textContent).toBe("undefined");
+    expect(screen.getByTestId("loading").textContent).toBe("true");
+  });
+
+  it.each(["refresh", "load more"] as const)("ignores the previous account's delayed %s response", async (action) => {
+    let finish!: (page: { page: TransactionModel[]; continueCursor: string; isDone: boolean }) => void;
+    mockQuery.mockReturnValue(new Promise((resolve) => { finish = resolve; }));
+    mockCache.mockReturnValue({ ...mockCache(), accountKey: "account-1" });
+    const { rerender } = render(<Consumer />);
+    fireEvent.click(screen.getByRole("button", { name: action }));
+
+    mockCache.mockReturnValue({
+      ...mockCache(),
+      accountKey: "account-2",
+      isHydrating: true,
+      read: () => ({ transactions: [], complete: false, hasMore: false, updatedAt: 0 }),
+    });
+    rerender(<Consumer />);
+    await act(async () => finish({ page: [cachedTransaction], continueCursor: "done", isDone: true }));
+    expect(screen.getByTestId("count").textContent).toBe("undefined");
+    expect(screen.getByTestId("loading").textContent).toBe("true");
   });
 
   it("refreshes an existing short History snapshot to the requested minimum", async () => {

@@ -34,10 +34,8 @@ vi.mock("convex/react", async () => {
   const React = await import("react");
   return {
     useQuery: (api: string) => {
-      if (api === "getMyProfile") {
-        return React.useSyncExternalStore(mocks.subscribe, mocks.getMyProfile);
-      }
-      return undefined;
+      const profile = React.useSyncExternalStore(mocks.subscribe, mocks.getMyProfile);
+      return api === "getMyProfile" ? profile : undefined;
     },
     useMutation: (api: string) => {
       if (api === "generateProfilePictureUploadUrl") return mocks.generateUploadUrl;
