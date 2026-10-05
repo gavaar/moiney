@@ -4,6 +4,10 @@ Canonical transaction contracts. See the [decision index and status meanings](..
 [accounting](accounting.md), [deletion](deletion.md), [history cache](history-cache.md),
 and [reporting](reporting.md) for dependent contracts.
 
+The replacement [operation-centered event model](events.md) is in progress;
+the contracts below continue to govern legacy transaction readers and writers
+until cutover.
+
 ## D003: Transaction Involvement
 
 Status: Implemented

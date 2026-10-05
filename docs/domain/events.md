@@ -1,0 +1,65 @@
+# Operation-Centered History Events
+
+Status: In progress
+
+This is the domain contract for unified event history. The existing persisted
+[transaction contracts](transactions.md) remain authoritative for legacy readers
+and writers until cutover. Event entries are current history snapshots, not an
+event-sourcing log from which balances can be reconstructed.
+
+## Identity And Ownership
+
+An **operation** is one financial or pipe lifecycle action. An **event entry**
+records that action from one pipe's perspective. Each entry has its own ID,
+account owner, `pipeId`, and occurrence date. All entries in an operation share
+the canonical entry's ID as `operationId`.
+
+Feeds, ordinary expenses/refunds, creations, and deletions have one entry.
+Transfers and externally paid expenses/refunds have two. Creation and deletion
+are separate operations; archived history relates them through pipe identity,
+not a shared operation ID.
+
+The transfer's canonical entry belongs to its original structural source,
+regardless of monetary polarity. Its target remains the structural destination.
+This preserves the [boiler contribution contract](accounting.md#d015-boiler-feed-pipes)
+when a transfer reverses direction. For external expenses/refunds, the canonical
+entry belongs to the logical spender, not the payer/receiver.
+
+Full operation resolution requires the canonical entry and every counterpart.
+Partial history pages may contain only one entry and must remain independently
+readable; they are not complete operations suitable for accounting writes.
+
+## Entry Types And Financial Meaning
+
+| Type | Meaning | `targetPipeId` | Income/spending contribution |
+| --- | --- | --- | --- |
+| `feed` | External contribution to a root | Forbidden | Income |
+| `transaction` without target | Ordinary expense or refund | Absent | Logical spending/refund |
+| `transaction` with target | External payer/receiver's counterpart | Required | Neither |
+| `third_party_transaction` | Externally paid logical expense/refund | Required | Logical spending/refund |
+| `transfer` | One side of an internal transfer | Required | Neither |
+| `pipe_creation` | Non-accounting pipe creation | Forbidden | Neither |
+| `pipe_deletion` | Non-accounting pipe deletion | Forbidden | Neither |
+
+Financial values use the existing [integer-cent bounds](accounting.md#d001-monetary-representation).
+Feeds are positive. Logical expenses are negative and refunds positive; other
+financial entries are nonzero. Root refunds remain transactions, not feeds:
+financial meaning cannot depend on looking up a live pipe.
+
+Paired entries have distinct IDs, the same account, operation ID, occurrence
+date and title, reversed pipe/target identities, and opposite values. Their
+values are signed history values, **not** independent accounting deltas. The
+existing [external settlement contract](accounting.md#d012-pay-by-transfer-liquidity-and-logical-spending)
+still governs financial effects. Income/spending classification uses each
+entry's own facts and never requires a mirror lookup.
+
+## Responsibilities
+
+The backend owns authorization, eligibility, accounting, and atomic operation
+integrity. The client owns labels, operation grouping, and monthly archive
+presentation. These responsibilities do not change the existing boiler,
+settlement, correction, or captured-report accounting policies.
+
+Lifecycle entries retain pipe presentation and ancestry under the
+[archive contract](history-cache.md#d021-pipe-creation-and-archived-history).
+Lifecycle entries do not carry monetary values or transaction titles.
