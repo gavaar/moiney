@@ -23,7 +23,7 @@ import {
   resolveTopMostAncestor,
 } from "../pipes";
 import { updateOrCreateTitleUsage } from "../transactions";
-import { insertHistoryOperation } from "../events/persistence";
+import { insertFinancialOperation } from "../events/financial";
 
 export type CreateTransactionCommand = {
   title: string;
@@ -265,18 +265,15 @@ export async function createTransactionOperation(
       await executePipeRule(ctx, command.to);
     }
 
-    const operation = await insertHistoryOperation(ctx, {
-      canonicalEvent: {
-        type: "feed",
-        userId,
-        pipeId: command.to,
-        occurredAt: command.date,
-        title,
-        value,
-      },
+    const operationId = await insertFinancialOperation(ctx, {
+      userId,
+      occurredAt: command.date,
+      title,
+      value,
+      structure: { type: "feed", to: command.to },
     });
     const transactionId = await ctx.db.insert("transactions", {
-      operationId: operation.canonicalEvent.id,
+      operationId,
       title,
       value,
       date: command.date,
@@ -376,7 +373,15 @@ export async function createTransactionOperation(
       getPipe,
     );
 
+    const operationId = await insertFinancialOperation(ctx, {
+      userId,
+      occurredAt: command.date,
+      title,
+      value,
+      structure: { type: "payByTransfer", from: pipeId, paidFrom: command.paidFrom },
+    });
     const transactionId = await ctx.db.insert("transactions", {
+      operationId,
       title,
       value,
       date: command.date,
@@ -480,20 +485,17 @@ export async function createTransactionOperation(
     await reconcileAffectedPipeRoots(ctx, [pipeId], getPipe);
   }
 
-  const operation = !command.to
-    ? await insertHistoryOperation(ctx, {
-        canonicalEvent: {
-          type: "transaction",
-          userId,
-          pipeId,
-          occurredAt: command.date,
-          title,
-          value,
-        },
-      })
-    : undefined;
+  const operationId = await insertFinancialOperation(ctx, {
+    userId,
+    occurredAt: command.date,
+    title,
+    value,
+    structure: command.to
+      ? { type: "transfer", from: pipeId, to: command.to }
+      : { type: "expense", from: pipeId },
+  });
   const transactionId = await ctx.db.insert("transactions", {
-    operationId: operation?.canonicalEvent.id,
+    operationId,
     title,
     value,
     date: command.date,
