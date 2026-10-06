@@ -35,3 +35,14 @@ an index or denormalized projection for a demonstrated access pattern.
 The current-consumer/invariant requirement in `AGENTS.md` also applies to
 recovery and observability fields. Remove unused persisted structure when its
 consumer disappears, using the same migration discipline where required.
+
+## Deployment And Manual Migrations
+
+GitHub Actions deploys the backend and builds the app without running backfills.
+Deploy compatible old/new contracts first, then run migrations manually and
+verify completion before a follow-up reader cutover or legacy-code removal.
+The first deployment must support unmigrated data and installed clients.
+
+Use unique timestamp-prefixed migration names; keep function paths and meanings
+stable and never reuse a name. Remove definitions only after completion in every
+supported deployment, with no running migration still referencing them.

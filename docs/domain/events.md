@@ -86,3 +86,35 @@ Each pipe has at most one creation and one deletion operation. Both retained
 snapshots carry the final pipe and parent presentation after deletion; creation
 keeps the original occurrence date, while deletion uses the removal date.
 Lifecycle entries do not carry monetary values or transaction titles.
+
+## Backfill During Coexistence
+
+The migrations component owns pagination, resumability, and status. Run these
+internal migrations in order after deploying the dual-writers:
+
+1. `migrations:m20261006_160000_backfillLivePipeEvents` captures live creation snapshots.
+2. `migrations:m20261006_160001_backfillLifecycleEvents` copies retained lifecycle history.
+3. `migrations:m20261006_160002_backfillTransactionEvents` materializes and links legacy financial
+   operations, including ones involving deleted pipes.
+
+Use `bunx convex run <name> '{"dryRun":true}'` to check a batch before running
+`bunx convex run <name>`. A dry run rolls back all writes, including event
+insertions. It checks only one batch, not the complete dataset. Component status
+is available through `bunx convex run --component migrations lib:getStatus`.
+Use the CLI's `--prod` flag only when intentionally targeting production.
+Do not switch readers until all three migrations report completion.
+
+The passes are safe to resume or restart: lifecycle identity is per pipe/type,
+and existing transaction links are validated and retained. Invalid financial
+rows or broken links fail the batch atomically rather than being skipped or
+silently replaced. Backfill never replays accounting, resets balances or boiler
+principal, or alters correction records.
+
+For a retained snapshot whose pipe no longer exists and whose deletion date is
+missing, use the newest retained transaction date across `from`, `to`, and
+`paidFrom`, no earlier than creation; without retained transactions, use creation.
+Persist that inferred date so retries and later history edits do not move it.
+Retain known dates, final presentation, and deleted-descendant ancestry.
+
+Production backfills follow the
+[manual migration workflow](../backend.md#deployment-and-manual-migrations).
