@@ -578,6 +578,7 @@ describe("editTransaction", () => {
         },
       });
       expect(ctx.db.patch).toHaveBeenCalledWith("transactions", "tx-1", {
+        operationId: "event-1",
         title: "move money",
         value: -50,
         date: 3000,

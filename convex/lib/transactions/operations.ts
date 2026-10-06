@@ -23,7 +23,7 @@ import {
   resolveTopMostAncestor,
 } from "../pipes";
 import { updateOrCreateTitleUsage } from "../transactions";
-import { insertFinancialOperation } from "../events/financial";
+import { insertFinancialOperation, replaceFinancialOperation } from "../events/financial";
 
 export type CreateTransactionCommand = {
   title: string;
@@ -760,7 +760,20 @@ export async function editTransactionOperation(
     });
   }
 
+  let operationId = transaction.operationId;
+  if (hasCorrection) {
+    const eventInput = {
+      userId,
+      occurredAt: command.date,
+      title,
+      value: command.value,
+      structure: currentStructure,
+    };
+    if (operationId) await replaceFinancialOperation(ctx, operationId, eventInput);
+    else operationId = await insertFinancialOperation(ctx, eventInput);
+  }
   await ctx.db.patch("transactions", command.transactionId, {
+    ...(operationId !== transaction.operationId ? { operationId } : {}),
     title,
     value: command.value,
     date: command.date,

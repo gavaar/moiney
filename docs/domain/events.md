@@ -23,6 +23,13 @@ dates, or amounts, identifies the same action across both representations.
 Legacy public APIs retain transaction IDs until client cutover; the link is not
 part of their response contract.
 
+An edit keeps the canonical entry's ID and replaces the complete operation
+snapshot atomically. A retained counterpart keeps its ID; changing between
+single-entry and paired structures adds or removes the counterpart. During
+coexistence, a meaningful edit to an unlinked legacy transaction materializes
+its current event snapshot without replaying historical accounting. A broken
+existing link is rejected rather than silently creating a replacement operation.
+
 Feeds, ordinary expenses/refunds, creations, and deletions have one entry.
 Transfers and externally paid expenses/refunds have two. Creation and deletion
 are separate operations; archived history relates them through pipe identity,

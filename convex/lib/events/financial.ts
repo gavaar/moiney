@@ -1,31 +1,45 @@
 import type { Id } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
 import type { TransactionStructure } from "../../../domain/transactions";
-import { insertHistoryOperation } from "./persistence";
+import { insertHistoryOperation, replaceHistoryOperation, type OperationDraft } from "./persistence";
+
+type FinancialOperationInput = {
+  userId: Id<"users">;
+  occurredAt: number;
+  title: string;
+  value: number;
+  structure: TransactionStructure<Id<"pipes">>;
+};
 
 /** Persists history perspectives only; the authorized caller applies accounting once. */
 export async function insertFinancialOperation(
   ctx: MutationCtx,
-  input: {
-    userId: Id<"users">;
-    occurredAt: number;
-    title: string;
-    value: number;
-    structure: TransactionStructure<Id<"pipes">>;
-  },
+  input: FinancialOperationInput,
 ): Promise<Id<"events">> {
+  const operation = await insertHistoryOperation(ctx, financialOperationDraft(input));
+  return operation.canonicalEvent.id;
+}
+
+export async function replaceFinancialOperation(
+  ctx: MutationCtx,
+  operationId: Id<"events">,
+  input: FinancialOperationInput,
+): Promise<void> {
+  await replaceHistoryOperation(ctx, input.userId, operationId, financialOperationDraft(input));
+}
+
+function financialOperationDraft(input: FinancialOperationInput): OperationDraft {
   const { structure, ...fields } = input;
   if (structure.type === "feed" || structure.type === "expense") {
-    const operation = await insertHistoryOperation(ctx, {
+    return {
       canonicalEvent: structure.type === "feed"
         ? { ...fields, type: "feed", pipeId: structure.to }
         : { ...fields, type: "transaction", pipeId: structure.from },
-    });
-    return operation.canonicalEvent.id;
+    };
   }
 
   const targetPipeId = structure.type === "transfer" ? structure.to : structure.paidFrom;
-  const operation = await insertHistoryOperation(ctx, {
+  return {
     canonicalEvent: {
       ...fields,
       type: structure.type === "transfer" ? "transfer" : "third_party_transaction",
@@ -39,6 +53,5 @@ export async function insertFinancialOperation(
       targetPipeId: structure.from,
       value: -fields.value,
     },
-  });
-  return operation.canonicalEvent.id;
+  };
 }

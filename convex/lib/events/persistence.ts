@@ -4,7 +4,7 @@ import { historyOperationFromEvents, type HistoryEvent, type HistoryOperation } 
 
 type EventDraft<Event = Doc<"events">> = Event extends Doc<"events">
   ? Omit<Event, "_id" | "_creationTime" | "operationId"> : never;
-type OperationDraft = { canonicalEvent: EventDraft; counterpart?: EventDraft };
+export type OperationDraft = { canonicalEvent: EventDraft; counterpart?: EventDraft };
 type PersistedOperation = HistoryOperation<Id<"pipes">, Id<"events">>;
 
 /** Called inside an authorized mutation; eligibility/accounting remain with the caller. */
@@ -48,4 +48,38 @@ export async function readHistoryOperation(
     .withIndex("by_operationId", (q) => q.eq("operationId", entry.operationId))
     .take(3);
   return historyOperationFromEvents(entries.map(eventFromDocument));
+}
+
+/** Replaces the entire snapshot, retaining canonical and surviving counterpart IDs. */
+export async function replaceHistoryOperation(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  operationId: Id<"events">,
+  draft: OperationDraft,
+): Promise<void> {
+  if (draft.canonicalEvent.userId !== userId) throw new Error("Not authorized");
+  const operation = await readHistoryOperation(ctx, userId, operationId);
+  if (!operation || operation.canonicalEvent.id !== operationId) {
+    throw new Error("History operation not found");
+  }
+  historyOperationFromEvents([
+    { ...draft.canonicalEvent, id: operationId, operationId },
+    ...(draft.counterpart ? [{
+      ...draft.counterpart,
+      id: operation.counterpart?.id ?? "counterpart",
+      operationId,
+    }] : []),
+  ]);
+
+  await ctx.db.replace("events", operationId, { ...draft.canonicalEvent, operationId });
+  if (draft.counterpart) {
+    const counterpart = { ...draft.counterpart, operationId };
+    if (operation.counterpart) {
+      await ctx.db.replace("events", operation.counterpart.id, counterpart);
+    } else {
+      await ctx.db.insert("events", counterpart);
+    }
+  } else if (operation.counterpart) {
+    await ctx.db.delete("events", operation.counterpart.id);
+  }
 }
