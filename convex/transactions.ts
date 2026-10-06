@@ -340,10 +340,10 @@ export const listTransactions = query({
   },
   handler: async (ctx, args) => {
     const userId = await requireAuth(ctx);
-    if (args.pipeIds && args.pipeIds.length > 0) {
-      return await loadRecentTransactionsForPipes(ctx, userId, args.pipeIds);
-    }
-    return await transactionsQuery(ctx, userId).take(RECENT_TRANSACTION_LIMIT);
+    const transactions = args.pipeIds && args.pipeIds.length > 0
+      ? await loadRecentTransactionsForPipes(ctx, userId, args.pipeIds)
+      : await transactionsQuery(ctx, userId).take(RECENT_TRANSACTION_LIMIT);
+    return transactions.map(({ operationId: _operationId, ...transaction }) => transaction);
   },
 });
 

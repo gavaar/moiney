@@ -23,6 +23,7 @@ import {
   resolveTopMostAncestor,
 } from "../pipes";
 import { updateOrCreateTitleUsage } from "../transactions";
+import { insertHistoryOperation } from "../events/persistence";
 
 export type CreateTransactionCommand = {
   title: string;
@@ -264,7 +265,18 @@ export async function createTransactionOperation(
       await executePipeRule(ctx, command.to);
     }
 
+    const operation = await insertHistoryOperation(ctx, {
+      canonicalEvent: {
+        type: "feed",
+        userId,
+        pipeId: command.to,
+        occurredAt: command.date,
+        title,
+        value,
+      },
+    });
     const transactionId = await ctx.db.insert("transactions", {
+      operationId: operation.canonicalEvent.id,
       title,
       value,
       date: command.date,
@@ -468,7 +480,20 @@ export async function createTransactionOperation(
     await reconcileAffectedPipeRoots(ctx, [pipeId], getPipe);
   }
 
+  const operation = !command.to
+    ? await insertHistoryOperation(ctx, {
+        canonicalEvent: {
+          type: "transaction",
+          userId,
+          pipeId,
+          occurredAt: command.date,
+          title,
+          value,
+        },
+      })
+    : undefined;
   const transactionId = await ctx.db.insert("transactions", {
+    operationId: operation?.canonicalEvent.id,
     title,
     value,
     date: command.date,

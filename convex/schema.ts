@@ -23,6 +23,7 @@ export default defineSchema({
     .index("by_pipeId", ["pipeId"])
     .index("by_userId_occurredAt", ["userId", "occurredAt"]),
   transactions: defineTable({
+    operationId: v.optional(v.id("events")),
     title: v.string(),
     value: v.number(),
     date: v.number(),

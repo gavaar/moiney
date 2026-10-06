@@ -31,7 +31,7 @@ function mockDb() {
   return {
     get: vi.fn(),
     patch: vi.fn(),
-    insert: vi.fn().mockResolvedValue("transaction-1"),
+    insert: vi.fn(async (table: string) => table === "events" ? "event-1" : "transaction-1"),
     query: vi.fn(() => chain),
     _chain: chain,
   };
@@ -119,6 +119,7 @@ describe("createTransaction", () => {
 
       expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", { spent: 130 });
       expect(ctx.db.insert).toHaveBeenCalledWith("transactions", {
+        operationId: "event-1",
         title: "groceries",
         value: -30,
         date: 1000,
@@ -191,8 +192,9 @@ describe("createTransaction", () => {
       });
 
       expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", { fed: 1500 });
-      expect(ctx.db.patch).toHaveBeenCalledTimes(1);
+      expect(ctx.db.patch.mock.calls.filter(([table]: [string]) => table === "pipes")).toHaveLength(1);
       expect(ctx.db.insert).toHaveBeenCalledWith("transactions", {
+        operationId: "event-1",
         title: "salary",
         value: 1000,
         date: 3000,
@@ -464,7 +466,7 @@ describe("createTransaction", () => {
         from: "pipe-1",
       });
 
-      expect(ctx.db.patch).toHaveBeenCalledTimes(1);
+      expect(ctx.db.patch.mock.calls.filter(([table]: [string]) => table === "pipes")).toHaveLength(1);
       expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", { spent: 130 });
     });
 

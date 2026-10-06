@@ -17,6 +17,12 @@ insert, so the schema permits an absent `operationId` only for the initial
 insert within a mutation. Persistence fills it before committing; readers reject
 an entry missing it rather than treating incomplete identity as legacy data.
 
+While legacy transactions and events coexist, a legacy transaction's optional
+`operationId` links it to the canonical event. This link, not mutable titles,
+dates, or amounts, identifies the same action across both representations.
+Legacy public APIs retain transaction IDs until client cutover; the link is not
+part of their response contract.
+
 Feeds, ordinary expenses/refunds, creations, and deletions have one entry.
 Transfers and externally paid expenses/refunds have two. Creation and deletion
 are separate operations; archived history relates them through pipe identity,
