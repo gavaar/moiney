@@ -82,4 +82,7 @@ settlement, correction, or captured-report accounting policies.
 
 Lifecycle entries retain pipe presentation and ancestry under the
 [archive contract](history-cache.md#d021-pipe-creation-and-archived-history).
+Each pipe has at most one creation and one deletion operation. Both retained
+snapshots carry the final pipe and parent presentation after deletion; creation
+keeps the original occurrence date, while deletion uses the removal date.
 Lifecycle entries do not carry monetary values or transaction titles.

@@ -151,8 +151,13 @@ describe("scheduled self-destruct", () => {
     expect(await t.run((ctx) => ctx.db.query("transactions").collect())).toHaveLength(2);
     const events = await t.run((ctx) => ctx.db.query("pipeCreationEvents").collect());
     expect(events.filter((event) => event.deletedAt !== undefined)).toHaveLength(2);
+    const unified = await t.run(ctx => ctx.db.query("events").collect());
+    expect(unified.filter(event => event.type === "pipe_creation")).toHaveLength(3);
+    expect(unified.filter(event => event.type === "pipe_deletion").map(event => event.pipeId).sort()).toEqual([...children].sort());
+    expect(unified.filter(event => event.type === "transaction")).toHaveLength(2);
     await t.mutation(internal.pipes.runDueCronRules, { now: deadline });
     await t.finishAllScheduledFunctions(vi.runAllTimers);
     expect(await t.run((ctx) => ctx.db.get("pipes", parentId))).toMatchObject({ fed: 7000 });
+    expect(await t.run(ctx => ctx.db.query("events").collect())).toEqual(unified);
   });
 });
