@@ -11,6 +11,7 @@
 import type * as accounts from "../accounts.js";
 import type * as auth from "../auth.js";
 import type * as crons from "../crons.js";
+import type * as events from "../events.js";
 import type * as history from "../history.js";
 import type * as http from "../http.js";
 import type * as lib_auth from "../lib/auth.js";
@@ -22,6 +23,7 @@ import type * as lib_events_persistence from "../lib/events/persistence.js";
 import type * as lib_events_validators from "../lib/events/validators.js";
 import type * as lib_historyContracts from "../lib/historyContracts.js";
 import type * as lib_historyPaging from "../lib/historyPaging.js";
+import type * as lib_historyValidation from "../lib/historyValidation.js";
 import type * as lib_jwt from "../lib/jwt.js";
 import type * as lib_jwtPublic from "../lib/jwtPublic.js";
 import type * as lib_password from "../lib/password.js";
@@ -57,6 +59,7 @@ declare const fullApi: ApiFromModules<{
   accounts: typeof accounts;
   auth: typeof auth;
   crons: typeof crons;
+  events: typeof events;
   history: typeof history;
   http: typeof http;
   "lib/auth": typeof lib_auth;
@@ -68,6 +71,7 @@ declare const fullApi: ApiFromModules<{
   "lib/events/validators": typeof lib_events_validators;
   "lib/historyContracts": typeof lib_historyContracts;
   "lib/historyPaging": typeof lib_historyPaging;
+  "lib/historyValidation": typeof lib_historyValidation;
   "lib/jwt": typeof lib_jwt;
   "lib/jwtPublic": typeof lib_jwtPublic;
   "lib/password": typeof lib_password;

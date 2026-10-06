@@ -87,6 +87,29 @@ snapshots carry the final pipe and parent presentation after deletion; creation
 keeps the original occurrence date, while deletion uses the removal date.
 Lifecycle entries do not carry monetary values or transaction titles.
 
+## Retrieval
+
+`events:latest` returns at most 30 stored entries for the account or one exact
+`pipeId`, ordered by occurrence date descending and then storage creation order.
+It does not expand operations, collapse mirrors, group titles, or build archives;
+the client may display fewer rows after grouping. A cutoff can split an operation.
+
+`events:list` pages the same global or single-pipe indexed stream, with inclusive
+date bounds and a page size of 1–100 (default 30). Text matching is case-insensitive
+against financial titles or retained lifecycle names and occurs within the stored
+page, not by scanning until it fills. Empty matching pages can have a continuation
+cursor; clients must use `isDone`, not the number of returned entries, to stop.
+
+Both queries return required event/operation IDs and `createdAt` for stable
+client ordering at tied occurrence dates, but omit database metadata and account
+ownership fields. Entries are independent read snapshots: a page does not resolve
+mirrors or require live pipes. Lifecycle presentation is the retained snapshot;
+the client uses its live pipe catalog for current presentation. A single-pipe
+query selects that pipe's own perspectives, not its target roles or descendants.
+Client scope expansion and preserved lifecycle ancestry own descendant/archive
+matching; callers can page separate pipe streams without an unbounded backend
+fan-out. Legacy history APIs remain unchanged until client cutover.
+
 ## Backfill During Coexistence
 
 The migrations component owns pagination, resumability, and status. Run these

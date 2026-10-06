@@ -4,7 +4,8 @@ import type { Doc, Id } from "./_generated/dataModel";
 import type { QueryCtx } from "./_generated/server";
 import { requireAuth } from "./lib/auth";
 import { historyFilters, historyItem, historyTransaction, type HistoryItem } from "./lib/historyContracts";
-import { hasArchiveTransactions, pageLimit, transactionQuery, transactionDTO, validateFilters } from "./lib/historyPaging";
+import { hasArchiveTransactions, transactionQuery, transactionDTO, validateFilters } from "./lib/historyPaging";
+import { pageLimit } from "./lib/historyValidation";
 
 async function eventDTO(ctx: QueryCtx, event: Doc<"pipeCreationEvents">) {
   const pipe = event.deletedAt === undefined ? await ctx.db.get("pipes", event.pipeId) : null;
