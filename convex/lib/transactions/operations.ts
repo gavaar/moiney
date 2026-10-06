@@ -24,6 +24,7 @@ import {
 } from "../pipes";
 import { updateOrCreateTitleUsage } from "../transactions";
 import { insertFinancialOperation, replaceFinancialOperation } from "../events/financial";
+import { deleteHistoryOperation } from "../events/persistence";
 
 export type CreateTransactionCommand = {
   title: string;
@@ -837,5 +838,8 @@ export async function deleteTransactionOperation(
     await assertPipeTreesNotFrozen(ctx, survivingOwnedPipes, getPipe);
   }
 
+  if (transaction.operationId) {
+    await deleteHistoryOperation(ctx, userId, transaction.operationId);
+  }
   await ctx.db.delete("transactions", command.transactionId);
 }

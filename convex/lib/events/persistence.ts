@@ -83,3 +83,17 @@ export async function replaceHistoryOperation(
     await ctx.db.delete("events", operation.counterpart.id);
   }
 }
+
+/** Removes every entry in an owned, complete operation inside the caller's mutation. */
+export async function deleteHistoryOperation(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  operationId: Id<"events">,
+): Promise<void> {
+  const operation = await readHistoryOperation(ctx, userId, operationId);
+  if (!operation || operation.canonicalEvent.id !== operationId) {
+    throw new Error("History operation not found");
+  }
+  if (operation.counterpart) await ctx.db.delete("events", operation.counterpart.id);
+  await ctx.db.delete("events", operationId);
+}

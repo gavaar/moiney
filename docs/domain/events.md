@@ -29,6 +29,10 @@ single-entry and paired structures adds or removes the counterpart. During
 coexistence, a meaningful edit to an unlinked legacy transaction materializes
 its current event snapshot without replaying historical accounting. A broken
 existing link is rejected rather than silently creating a replacement operation.
+Direct transaction deletion removes the complete linked operation in the same
+mutation as the legacy transaction. The inverse financial effect is applied
+once under the [transaction deletion contract](transactions.md#d023-transaction-deletion),
+not independently for each event entry.
 
 Feeds, ordinary expenses/refunds, creations, and deletions have one entry.
 Transfers and externally paid expenses/refunds have two. Creation and deletion
