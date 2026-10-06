@@ -87,6 +87,22 @@ snapshots carry the final pipe and parent presentation after deletion; creation
 keeps the original occurrence date, while deletion uses the removal date.
 Lifecycle entries do not carry monetary values or transaction titles.
 
+## Client Grouping
+
+The client collapses loaded entries by exact `operationId` before applying the
+[same-title/UTC-month grouping rules](transactions.md#d009-transaction-identity-and-grouping).
+Counts represent loaded operations, not mirror entries; lifecycle operations
+remain separate from financial title groups. Grouped amounts follow that scoped
+presentation contract, not global reporting contributions.
+
+A mirror-only page can project the original structural source, target, and value
+for display. A payment counterpart projects its logical expense/refund, keeping
+that sign even in a payer-only scope. This is a presentation model, not an invented
+persisted canonical event or a complete operation suitable for accounting writes.
+The operation row key is its `operationId`, whether its canonical entry is loaded
+or not. Loaded canonical snapshots take precedence when both perspectives exist;
+repeated entry IDs retain the last supplied snapshot rather than adding counts.
+
 ## Retrieval
 
 `events:latest` returns at most 30 stored entries for the account or one exact
