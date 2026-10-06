@@ -1,8 +1,13 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import { pipeRuleValidator } from "./lib/pipes/ruleConfig";
+import { historyEventValidator } from "./lib/events/validators";
 
 export default defineSchema({
+  events: defineTable(historyEventValidator)
+    .index("by_operationId", ["operationId"])
+    .index("by_userId_occurredAt", ["userId", "occurredAt"])
+    .index("by_userId_pipeId_occurredAt", ["userId", "pipeId", "occurredAt"]),
   pipeCreationEvents: defineTable({
     userId: v.id("users"),
     pipeId: v.id("pipes"),

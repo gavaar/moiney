@@ -12,7 +12,10 @@ event-sourcing log from which balances can be reconstructed.
 An **operation** is one financial or pipe lifecycle action. An **event entry**
 records that action from one pipe's perspective. Each entry has its own ID,
 account owner, `pipeId`, and occurrence date. All entries in an operation share
-the canonical entry's ID as `operationId`.
+the canonical entry's ID as `operationId`. Convex assigns the canonical ID on
+insert, so the schema permits an absent `operationId` only for the initial
+insert within a mutation. Persistence fills it before committing; readers reject
+an entry missing it rather than treating incomplete identity as legacy data.
 
 Feeds, ordinary expenses/refunds, creations, and deletions have one entry.
 Transfers and externally paid expenses/refunds have two. Creation and deletion
