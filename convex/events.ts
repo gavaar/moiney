@@ -1,8 +1,8 @@
-import { v } from "convex/values";
+import { v, type Infer } from "convex/values";
 import { query, type QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import { requireAuth } from "./lib/auth";
-import { historyEventResultValidator } from "./lib/events/validators";
+import { historyEventResultValidator, pipeDeletionResultValidator } from "./lib/events/validators";
 import { pageLimit, validateDateRange } from "./lib/historyValidation";
 
 const scopeFields = {
@@ -23,6 +23,8 @@ function eventQuery(
     }).order("desc");
 }
 
+function eventResult(event: Extract<Doc<"events">, { type: "pipe_deletion" }>): Infer<typeof pipeDeletionResultValidator>;
+function eventResult(event: Doc<"events">): Infer<typeof historyEventResultValidator>;
 function eventResult(event: Doc<"events">) {
   const { _id, _creationTime, userId: _userId, operationId, ...fields } = event;
   if (!operationId) throw new Error("History event is missing its operation ID");
@@ -65,6 +67,26 @@ export const list = query({
     return {
       events: title ? entries.filter(event =>
         ("title" in event ? event.title : event.name).toLowerCase().includes(title)) : entries,
+      cursor: page.isDone ? null : page.continueCursor,
+      isDone: page.isDone,
+    };
+  },
+});
+
+/** Archive metadata must remain discoverable outside the financial date window. */
+export const deletedPipes = query({
+  args: { cursor: v.optional(v.string()), limit: v.optional(v.number()) },
+  returns: v.object({ events: v.array(pipeDeletionResultValidator), cursor: v.union(v.string(), v.null()), isDone: v.boolean() }),
+  handler: async (ctx, args) => {
+    const userId = await requireAuth(ctx);
+    const page = await ctx.db.query("events")
+      .withIndex("by_userId_type", q => q.eq("userId", userId).eq("type", "pipe_deletion"))
+      .order("desc").paginate({ cursor: args.cursor ?? null, numItems: pageLimit(args.limit) });
+    return {
+      events: page.page.map(event => {
+        if (event.type !== "pipe_deletion") throw new Error("Invalid deletion catalog entry");
+        return eventResult(event);
+      }),
       cursor: page.isDone ? null : page.continueCursor,
       isDone: page.isDone,
     };

@@ -7,17 +7,17 @@ const identity = {
   // Filled with the canonical insert's ID before the mutation commits.
   operationId: v.optional(v.id("events")),
 };
+const lifecycleFields = {
+  name: v.string(),
+  icon: v.string(),
+  pipeType: v.union(v.literal("feed"), v.literal("boiler"), v.literal("pipe")),
+  ancestorIds: v.array(v.id("pipes")),
+  parentName: v.optional(v.string()),
+  parentIcon: v.optional(v.string()),
+};
 function eventValidator<Identity extends PropertyValidators>(identityFields: Identity) {
   const financial = { ...identityFields, title: v.string(), value: v.number() };
-  const lifecycle = {
-    ...identityFields,
-    name: v.string(),
-    icon: v.string(),
-    pipeType: v.union(v.literal("feed"), v.literal("boiler"), v.literal("pipe")),
-    ancestorIds: v.array(v.id("pipes")),
-    parentName: v.optional(v.string()),
-    parentIcon: v.optional(v.string()),
-  };
+  const lifecycle = { ...identityFields, ...lifecycleFields };
 
   return v.union(
     v.object({ ...financial, type: v.literal("feed") }),
@@ -32,10 +32,13 @@ function eventValidator<Identity extends PropertyValidators>(identityFields: Ide
 export const historyEventValidator = eventValidator(identity);
 
 /** Public history entries need complete identity, not database ownership metadata. */
-export const historyEventResultValidator = eventValidator({
+const resultIdentity = {
   id: v.id("events"),
   createdAt: v.number(),
   operationId: v.id("events"),
   pipeId: v.id("pipes"),
   occurredAt: v.number(),
-});
+};
+
+export const historyEventResultValidator = eventValidator(resultIdentity);
+export const pipeDeletionResultValidator = v.object({ ...resultIdentity, ...lifecycleFields, type: v.literal("pipe_deletion") });

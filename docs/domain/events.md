@@ -126,6 +126,40 @@ Client scope expansion and preserved lifecycle ancestry own descendant/archive
 matching; callers can page separate pipe streams without an unbounded backend
 fan-out. Legacy history APIs remain unchanged until client cutover.
 
+## Monthly Event Archives
+
+Deleted-pipe entries form client archives keyed by pipe identity and UTC month,
+not one lifetime archive positioned in its newest transaction month. Each loaded
+entry belongs to its own occurrence month, including creation and deletion;
+lifecycle entries remain non-accounting rows inside their archive. Retained
+deletion snapshots supply final presentation and root-to-parent ancestry even
+when the financial date window excludes the deletion itself.
+
+`events:deletedPipes` pages that account's retained deletion catalog independently
+of financial filters, using a type index and the same 1–100 page bounds. Catalog
+records supply metadata, not extra visible rows. An archive matches its own pipe
+or any preserved ancestor; ancestry does not become a monetary role. Shared
+operations can appear in multiple deleted-pipe archives and in ordinary history
+for surviving own-pipe perspectives. Those overlapping archive totals are not
+global totals.
+
+Archive counts include financial operations once per pipe, including feeds and
+transfers. Spent is net logical expense spending, including payer-visible
+expenses/refunds with their logical sign; feeds, transfers, and lifecycle entries
+contribute zero. Summary date bounds describe matching financial operations.
+Title grouping remains inside each archive under the client grouping contract.
+
+Archives use only the entries already returned by the main history loader.
+Latest groups only its 30 stored entries; missing operation or archive members
+outside that window are not fetched. History groups all currently loaded entries,
+and its normal load-more operation grows those groups. Expanding a group or
+archive reveals loaded members without another financial query.
+
+Counts, Spent, and date bounds describe loaded matching members, not the complete
+pipe/month history. No separate archive reader, pagination, or full-summary scan
+is needed. Deletion-catalog reads supply identity and ancestry metadata only.
+The existing screens retain legacy archive behavior until client cutover.
+
 ## Backfill During Coexistence
 
 The migrations component owns pagination, resumability, and status. Run these

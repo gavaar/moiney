@@ -87,6 +87,11 @@ then uses all History rows available in the shared cache.
 
 Status: In progress
 
+The [unified event contract](events.md#monthly-event-archives) owns the target
+monthly grouping and loaded-entry-only archive behavior. Existing transaction-backed
+screens still use legacy lifetime archives until client cutover; their separate
+archive reads are not part of the event-based contract.
+
 Creation is a non-accounting event stored separately from transactions. The event
 is written atomically with a new pipe and uses its original creation timestamp.
 It stores ancestor IDs in root-to-immediate-parent order, excluding the pipe
@@ -109,31 +114,24 @@ multiple archives. Shared transactions with surviving involved pipes also remain
 in ordinary history. Orphaned legacy transactions without recoverable creation
 events remain readable without inventing creation dates or ancestry.
 
-The archive's `xN` counts all matching transactions. Its **Spent** total is net
-expense spending, including either logical source or payer involvement once per
-transaction; refunds subtract from spending. Feeds and transfers contribute zero.
-Archive totals and counts overlap and must not be added to calculate global
+Archive counts, Spent, and date bounds describe loaded matching members under the
+[event archive contract](events.md#monthly-event-archives), not complete lifetime
 totals. Title grouping remains available within each expanded archive and follows
 the [same-month grouping rule](transactions.md#d009-transaction-identity-and-grouping).
 
-Archives match their own pipe or any preserved ancestor in pipe filters, including
-the selected pipe's Latest transactions. Title and date filters apply to the archived
-transactions. The matching transactions determine the displayed date range and
-latest-date ordering, even when creation occurred outside the filter period.
-An archive with no retained transactions matches by creation date and pipe name.
-Live creation events likewise match by creation date and current name. History's
+Archive scope matching and month membership follow the event archive contract.
+Title and date filters select main-loader entries before grouping; loaded lifecycle
+entries participate in archive ordering as well as financial entries. History's
 pipe picker includes live parents as well as leaves.
 
-Mixed History and Latest show UTC month headings for top-level rows and separate
-month headings inside expanded archives. An archive belongs to the month of its
-latest matching transaction for ordering and headings; an archive with no retained
-transactions uses its event date. Expanded rows are indented by nesting depth.
+Mixed History and Latest show UTC month headings; event archives are keyed by
+deleted pipe and UTC month under the event archive contract. Expanded rows are
+indented by nesting depth.
 
-Mixed History merges independently paginated event and transaction streams without
-discarding unconsumed rows. Latest transactions contains at most 30 mixed entries;
-expanded archive rows do not consume that limit. Archive transactions are paged
-and virtualized. Full filtered summaries are read in bounded role-indexed pages;
-pending or failed summaries never present partial amounts as complete totals.
+The main history loader owns pagination without discarding unconsumed rows.
+Latest groups only its 30 stored entries, and History groups currently loaded
+entries. Expansion performs no additional financial reads; only loading more
+main History entries grows archive membership. Growing lists remain virtualized.
 
 Mixed lists use focus-scoped one-shot reads and refresh on local transaction
 writes, pipe lifecycle/presentation changes, and explicit refresh. Loaded rows

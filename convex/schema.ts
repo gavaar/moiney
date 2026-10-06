@@ -7,6 +7,7 @@ export default defineSchema({
   events: defineTable(historyEventValidator)
     .index("by_operationId", ["operationId"])
     .index("by_userId_pipeId_type", ["userId", "pipeId", "type"])
+    .index("by_userId_type", ["userId", "type"])
     .index("by_userId_occurredAt", ["userId", "occurredAt"])
     .index("by_userId_pipeId_occurredAt", ["userId", "pipeId", "occurredAt"]),
   pipeCreationEvents: defineTable({

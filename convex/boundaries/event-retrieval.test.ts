@@ -8,6 +8,7 @@ import { insertHistoryOperation } from "../lib/events/persistence";
 
 const latest = makeFunctionReference<"query">("events:latest");
 const list = makeFunctionReference<"query">("events:list");
+const deletedPipes = makeFunctionReference<"query">("events:deletedPipes");
 
 async function setup() {
   const t = convexTest(schema, modules);
@@ -23,6 +24,31 @@ async function setup() {
 }
 
 describe("Convex boundaries: event retrieval", () => {
+  it("pages retained deletion metadata independently of financial history and date filters", async () => {
+    const { t, auth, userId, otherId, root, target } = await setup();
+    await t.run(async ctx => {
+      for (const type of ["pipe_creation", "pipe_deletion"] as const) await insertHistoryOperation(ctx, { canonicalEvent: { userId, pipeId: root, type, name: "Final root", icon: "map", pipeType: "feed", ancestorIds: [], occurredAt: 9000 } });
+      await insertHistoryOperation(ctx, { canonicalEvent: { userId, pipeId: target, type: "pipe_deletion", name: "Final child", icon: "cafe", pipeType: "pipe", ancestorIds: [root], occurredAt: 8000 } });
+      await insertHistoryOperation(ctx, { canonicalEvent: { userId: otherId, pipeId: target, type: "pipe_deletion", name: "Private", icon: "map", pipeType: "pipe", ancestorIds: [], occurredAt: 10000 } });
+      await insertHistoryOperation(ctx, { canonicalEvent: { userId, pipeId: root, type: "transaction", title: "expense", value: -100, occurredAt: 1000 } });
+    });
+    const first = await auth.query(deletedPipes, { limit: 1 });
+    expect(first.events).toHaveLength(1);
+    expect(first.isDone).toBe(false);
+    const last = await auth.query(deletedPipes, { limit: 1, cursor: first.cursor });
+    const metadata = [...first.events, ...last.events];
+    expect(metadata).toHaveLength(2);
+    expect(metadata.map(item => item.name).sort()).toEqual(["Final child", "Final root"]);
+    expect(metadata.find(item => item.pipeId === target)).toMatchObject({ ancestorIds: [root] });
+    for (const item of metadata) {
+      expect(item.type).toBe("pipe_deletion");
+      expect(item).not.toHaveProperty("userId");
+    }
+    expect(last).toMatchObject({ isDone: true, cursor: null });
+    await expect(t.query(deletedPipes, {})).rejects.toThrow();
+    await expect(auth.query(deletedPipes, { limit: 101 })).rejects.toThrow("INVALID_HISTORY_LIMIT");
+  });
+
   it("returns the latest 30 stored entries, not 30 expanded or grouped operations", async () => {
     const { t, auth, userId, otherId, root, target } = await setup();
     await t.run(async ctx => {
