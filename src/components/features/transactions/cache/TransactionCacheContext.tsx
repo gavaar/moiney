@@ -20,12 +20,17 @@ import {
   type TransactionSnapshotRead,
 } from "./transactionSnapshot";
 import { transactionCacheStorage } from "./storage";
+import { EMPTY_EVENT_HISTORY, type EventHistorySnapshot } from "./EventHistoryStore";
+import type { HistoryEntry } from "../history/event-groups";
 
 type TransactionCacheContextValue = {
   accountKey: string | null;
   isHydrating: boolean;
   cache: TransactionCache | null;
   mutationVersion: number;
+  eventHistory: EventHistorySnapshot;
+  mergeEventHead: (entries: HistoryEntry[], hasMore: boolean, generation: number) => Promise<void>;
+  appendEventHistory: (entries: HistoryEntry[], hasMore: boolean, generation: number) => Promise<void>;
   read: (scope: string) => TransactionSnapshotRead;
   replace: (
     scope: string,
@@ -222,12 +227,25 @@ export function TransactionCacheProvider({ children, storage = transactionCacheS
     setMutationVersion((version) => version + 1);
   }, [state.store]);
 
+  const mergeEventHead = useCallback(async (entries: HistoryEntry[], hasMore: boolean, generation: number) => {
+    if (!state.store || state.isHydrating) return;
+    await state.store.eventHistory.mergeHead(entries, hasMore, Date.now(), generation);
+    if (previousStore.current === state.store) setState(current => ({ ...current }));
+  }, [state.store, state.isHydrating]);
+  const appendEventHistory = useCallback(async (entries: HistoryEntry[], hasMore: boolean, generation: number) => {
+    if (!state.store || state.isHydrating) return;
+    await state.store.eventHistory.append(entries, hasMore, Date.now(), generation);
+    if (previousStore.current === state.store) setState(current => ({ ...current }));
+  }, [state.store, state.isHydrating]);
+  const eventHistory = !state.isHydrating && state.store ? state.store.eventHistory.read() : EMPTY_EVENT_HISTORY;
+
   const value = useMemo(
     () => ({
       accountKey: state.accountKey,
       isHydrating: state.isHydrating,
       cache: state.cache,
       mutationVersion,
+      eventHistory, mergeEventHead, appendEventHistory,
       read,
       replace,
       append,
@@ -242,7 +260,7 @@ export function TransactionCacheProvider({ children, storage = transactionCacheS
       state.accountKey,
       state.isHydrating,
       state.cache,
-      mutationVersion,
+      mutationVersion, eventHistory, mergeEventHead, appendEventHistory,
       read,
       replace,
       append,

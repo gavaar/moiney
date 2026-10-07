@@ -6,6 +6,7 @@ import type { PipeModel } from "@features/pipes/data/pipes";
 import { AmountForm } from "@features/components/AmountForm";
 import { colors } from "@/lib/styles";
 import { TransactionForm } from "./TransactionForm";
+import type { HistoryEntry } from "../history/event-groups";
 
 const root: PipeModel = { id: "root" as Id<"pipes">, name: "Budget", icon: "pipe", fed: 10000, spent: 0, capacity: 0, priority: 0 };
 const source: PipeModel = { ...root, id: "source" as Id<"pipes">, parentId: root.id, name: "Food", fed: 1000, spent: 1000, capacity: 2000 };
@@ -14,12 +15,12 @@ const investment: PipeModel = { ...root, id: "investment" as Id<"pipes">, name: 
 const investmentLeaf: PipeModel = { ...investment, id: "investment-leaf" as Id<"pipes">, parentId: investment.id, name: "Savings" };
 const create = vi.fn().mockResolvedValue(undefined);
 const edit = vi.fn().mockResolvedValue(undefined);
-const history = vi.fn(() => ({ transactions: [], isLoading: false }));
+const eventHistory = vi.hoisted(() => ({ entries: [] as HistoryEntry[] }));
+vi.mock("@features/transactions/cache/useEventHistory", () => ({ useEventHistory: () => ({ entries: eventHistory.entries, isLoading: false }) }));
 vi.mock("convex/react", () => ({ useMutation: (api: string) => api === "edit" ? edit : create, useQuery: () => [] }));
 vi.mock("@convex/_generated/api", () => ({ api: { transactions: { createTransaction: "create", editTransaction: "edit", listRecentTitles: "titles" } } }));
 vi.mock("@ui/Alert", () => ({ useAlert: () => ({ error: vi.fn() }) }));
 vi.mock("@features/transactions/cache/TransactionCacheContext", () => ({ useOptionalTransactionCache: () => null }));
-vi.mock("@features/transactions/cache/useTransactionHistory", () => ({ useTransactionHistory: () => history() }));
 vi.mock("@features/pipes/context/PipeCatalogContext", () => ({ usePipeCatalog: () => ({
   allPipes: [root, source, other, investment, investmentLeaf], childrenByParent: new Map([[root.id, [source]], [investment.id, [investmentLeaf]]]), isLoading: false,
   pipesById: { [root.id]: root, [source.id]: source, [other.id]: other, [investment.id]: investment, [investmentLeaf.id]: investmentLeaf },
@@ -32,7 +33,18 @@ const initial = {
 };
 
 describe("transaction forms", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => { vi.clearAllMocks(); eventHistory.entries = []; });
+
+  it("orders the create picker by loaded logical event sources rather than payer mirrors", () => {
+    const base = { createdAt: 1, occurredAt: 1, title: "lunch", value: -100 };
+    eventHistory.entries = [
+      { ...base, id: "payment" as Id<"events">, operationId: "logical" as Id<"events">, type: "transaction", pipeId: source.id, targetPipeId: other.id, value: 100 },
+      { ...base, id: "ordinary" as Id<"events">, operationId: "ordinary" as Id<"events">, type: "transaction", pipeId: other.id },
+    ];
+    render(<TransactionForm />);
+    expect(screen.getByRole("button", { name: "Collapse Wallet" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Expand Budget" })).toBeTruthy();
+  });
 
   it("starts repeat on details with its payer visible, and clears an incompatible payer when changing source", async () => {
     render(<TransactionForm pipeId={source.id} initState={{ ...initial, intent: "repeat" }} />);

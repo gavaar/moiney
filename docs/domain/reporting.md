@@ -51,7 +51,7 @@ captured values reflect balances at capture time. At 00:00 UTC the live report
 switches months; the closed month appears in Statistics only after capture.
 The live report subscription remains mounted above the tabs so navigation among
 Pipes, History, and the full live report does not restart pagination. It remains
-reactive to relevant transaction and pipe changes while the signed-in tabs are
+reactive to relevant event and pipe changes while the signed-in tabs are
 mounted, including when another tab is visible.
 
 Negative expenses contribute their absolute value to gross spending; positive

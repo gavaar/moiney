@@ -15,21 +15,20 @@ vi.mock("@/lib/auth", () => ({
 }));
 
 function storage(): TransactionCacheStorage & { value: string | null } {
-  const value = { value: null as string | null };
+  const values = new Map<string, string>();
   return {
-    ...value,
-    read: vi.fn(async () => value.value),
-    write: vi.fn(async (_accountKey: string, next: string) => {
-      value.value = next;
+    read: vi.fn(async key => values.get(key) ?? null),
+    write: vi.fn(async (key: string, next: string) => {
+      values.set(key, next);
     }),
-    remove: vi.fn(async () => {
-      value.value = null;
+    remove: vi.fn(async key => {
+      values.delete(key);
     }),
     get value() {
-      return value.value;
+      return values.get("account-1") ?? null;
     },
     set value(next: string | null) {
-      value.value = next;
+      if (next === null) values.delete("account-1"); else values.set("account-1", next);
     },
   };
 }

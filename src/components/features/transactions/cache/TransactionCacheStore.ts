@@ -14,6 +14,7 @@ import {
   updateTransaction,
 } from "./transactionSnapshot";
 import type { TransactionModel } from "@features/transactions/data/transactions";
+import { EventHistoryStore } from "./EventHistoryStore";
 
 export type TransactionCacheStorage = {
   read: (accountKey: string) => Promise<string | null>;
@@ -22,6 +23,7 @@ export type TransactionCacheStorage = {
 };
 
 export class TransactionCacheStore {
+  readonly eventHistory: EventHistoryStore;
   private cacheValue: TransactionCache;
   private hydrated = false;
 
@@ -30,6 +32,7 @@ export class TransactionCacheStore {
     private readonly storage: TransactionCacheStorage,
   ) {
     this.cacheValue = createCache(accountKey);
+    this.eventHistory = new EventHistoryStore(accountKey, storage);
   }
 
   get cache(): TransactionCache {
@@ -40,7 +43,8 @@ export class TransactionCacheStore {
   }
 
   async hydrate(): Promise<TransactionCache> {
-    const serialized = await this.storage.read(this.accountKey);
+    await this.eventHistory.hydrate();
+    const serialized = await this.storage.read(this.accountKey).catch(() => null);
     this.cacheValue = serialized
       ? deserializeCache(serialized, this.accountKey) ?? createCache(this.accountKey)
       : createCache(this.accountKey);
@@ -91,7 +95,7 @@ export class TransactionCacheStore {
     now = Date.now(),
   ): Promise<TransactionCache> {
     this.cacheValue = insertTransaction(this.cache, transaction, now);
-    await this.persist();
+    await Promise.all([this.persist(), this.eventHistory.invalidate()]);
     return this.cacheValue;
   }
 
@@ -100,7 +104,7 @@ export class TransactionCacheStore {
     now = Date.now(),
   ): Promise<TransactionCache> {
     this.cacheValue = updateTransaction(this.cache, transaction, now);
-    await this.persist();
+    await Promise.all([this.persist(), this.eventHistory.invalidate()]);
     return this.cacheValue;
   }
 
@@ -115,7 +119,7 @@ export class TransactionCacheStore {
       transactions,
       now,
     );
-    await this.persist();
+    await Promise.all([this.persist(), this.eventHistory.invalidate()]);
     return this.cacheValue;
   }
 
@@ -139,12 +143,12 @@ export class TransactionCacheStore {
   async clear(): Promise<void> {
     this.cacheValue = createCache(this.accountKey);
     this.hydrated = true;
-    await this.storage.remove(this.accountKey);
+    await Promise.all([this.storage.remove(this.accountKey), this.eventHistory.clear()]);
   }
 
   async invalidateAll(now = Date.now()): Promise<TransactionCache> {
     this.cacheValue = invalidateSnapshots(this.cache, now);
-    await this.persist();
+    await Promise.all([this.persist(), this.eventHistory.invalidate()]);
     return this.cacheValue;
   }
 

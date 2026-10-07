@@ -16,10 +16,9 @@ import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
 import { InnerPipesScreen } from "@features/pipes/InnerPipesScreen";
 import { PipeTreeView } from "@features/pipes/PipeTreeView";
 import { FeedListScreen } from "@features/pipes/FeedListScreen";
-import { orderFeedsByTreeUsage } from "@features/pipes/FeedListScreen/feedOrdering";
+import { orderFeedsByEventTreeUsage } from "@features/transactions/history/event-usage";
 import { useTransactionCache } from "@features/transactions/cache/TransactionCacheContext";
-import { HISTORY_SCOPE } from "@features/transactions/cache/transactionSnapshot";
-import { useTransactionHistory } from "@features/transactions/cache/useTransactionHistory";
+import { useEventHistory } from "@features/transactions/cache/useEventHistory";
 import { getSubtreePipeIds } from "@features/transactions/context/TransactionsContext";
 import { MixedHistoryFeed } from "@features/transactions/history/mixed-history-feed";
 
@@ -52,10 +51,8 @@ export function PipesScreen({ openPipeId, onPipeOpened, onOpenCurrentReport }: {
     }
     onPipeOpened?.();
   }, [allPipes, openPipeId, onPipeOpened, selectPipe]);
-  const { read } = useTransactionCache();
-  const historySnapshot = useMemo(() => read(HISTORY_SCOPE), [read]);
-  const { transactions: historyTransactions } = useTransactionHistory(
-    undefined,
+  const { eventHistory: historySnapshot } = useTransactionCache();
+  const { entries: historyEntries } = useEventHistory(
     {
       enabled: historySnapshot.updatedAt > 0 && !treeMode && !selectedName,
       minimumCachedRows: 100,
@@ -63,12 +60,12 @@ export function PipesScreen({ openPipeId, onPipeOpened, onOpenCurrentReport }: {
   );
   const orderedFeeds = useMemo(
     () =>
-      orderFeedsByTreeUsage(
+      orderFeedsByEventTreeUsage(
         feeds,
         allPipes ?? [],
-        historyTransactions ?? historySnapshot.transactions,
+        historyEntries,
       ),
-    [allPipes, feeds, historySnapshot.transactions, historyTransactions],
+    [allPipes, feeds, historyEntries],
   );
 
   useFocusEffect(

@@ -21,7 +21,7 @@ vi.mock("convex/react", () => ({
     return { results: mocks.results, status: mocks.status, loadMore: mocks.loadMore };
   },
 }));
-vi.mock("@convex/_generated/api", () => ({ api: { monthlySpendingStats: { monthPage: "monthPage" } } }));
+vi.mock("@convex/_generated/api", () => ({ api: { monthlySpendingStats: { eventMonthPage: "eventMonthPage" } } }));
 
 beforeEach(() => {
   mocks.status = "LoadingFirstPage";

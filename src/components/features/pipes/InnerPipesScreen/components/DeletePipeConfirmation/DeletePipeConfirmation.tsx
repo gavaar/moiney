@@ -95,6 +95,8 @@ export function DeletePipeConfirmation({ visible, onClose, pipeId, onDeleted }: 
             transactionCache.reconcileTransactions(transactionIds, transactions),
           )
           .catch(() => transactionCache.invalidateAll());
+      } else if (transactionCache) {
+        void transactionCache.invalidateAll().catch(() => undefined);
       }
       onDeleted();
       onClose();

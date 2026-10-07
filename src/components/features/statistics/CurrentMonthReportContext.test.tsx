@@ -14,7 +14,7 @@ const mocks = vi.hoisted(() => ({
   allPipes: [{ id: "root", name: "Root", fed: 1_000, spent: 0, capacity: 0 }],
 }));
 
-vi.mock("@convex/_generated/api", () => ({ api: { monthlySpendingStats: { monthPage: "monthPage" } } }));
+vi.mock("@convex/_generated/api", () => ({ api: { monthlySpendingStats: { eventMonthPage: "eventMonthPage" } } }));
 vi.mock("@features/pipes/context/PipeCatalogContext", () => ({ usePipeCatalog: () => ({ allPipes: mocks.allPipes }) }));
 vi.mock("convex/react", () => ({
   usePaginatedQuery: (_query: unknown, args: unknown) => {

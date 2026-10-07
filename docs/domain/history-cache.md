@@ -8,7 +8,7 @@ for dependent contracts.
 
 Status: Implemented
 
-Transaction-only loaders and usage ranking use account-scoped persistent
+Legacy transaction-only loaders use account-scoped persistent
 snapshots as stale, read-only sources. A valid snapshot suppresses live Convex
 query subscriptions on app open. One shared entity map is keyed by transaction
 ID, with separate ordered ID snapshots for history, recent, and selected-pipe
@@ -53,35 +53,52 @@ filtered pages are scanned while their cursors advance so later matches remain
 visible. Unfiltered exhaustion is persisted in the snapshot. Failed load-more
 requests do not retry automatically on scroll; explicit refresh allows recovery.
 
+Event-based usage ranking has an account-scoped raw-entry History snapshot,
+isolated from legacy transaction snapshots. It retains distinct entry IDs even
+when entries share an operation ID; consumers collapse operations, not the cache.
+It seeds 100 stored entries and pages 30 at a time, retaining at most 300 entries
+by last refresh. Eviction cannot turn a truncated snapshot into complete server
+history. Cursors are not persisted: load-more after hydration reseeds the head
+and deduplicates overlapping entry IDs. A head refresh preserves the loaded tail
+unless the server reports the head exhausts history.
+
+Financial creation, editing, direct deletion, and completed pipe deletion
+invalidate event snapshot membership, including when no legacy transaction IDs
+are cached. Mounted enabled consumers then reload authoritative entries; no
+transaction ID is synthesized from an event ID. Logout clears both snapshots,
+and retired-account requests cannot publish or persist entries for another
+account. Device-cache failures do not prevent event data from loading.
+
 ## D018: Quick Creation Ranking
 
 Status: Implemented
 
 [Quick creation](transactions.md#d018-quick-transaction-creation) orders eligible
-pipes by source frequency across the first 100 unfiltered History rows. A valid
-cached History scope supplies them without a request; otherwise the normal
-History loader seeds it. Only logical `from` contributes, not feed destinations,
-transfer destinations, or pay-by-transfer payers. Ties retain most-recent source
-order, followed by unused pipes in catalog order.
+pipes by source frequency across the first 100 unfiltered stored event entries.
+A valid cached event History snapshot supplies them without a request; otherwise
+the event loader seeds it. [Operation collapse](events.md#reporting-and-usage-ranking)
+counts logical sources once, not feed destinations, transfer destinations, or
+pay-by-transfer payers. Ties retain most-recent source order, followed by unused
+pipes in catalog order.
 
 ## D019: Feed List Tree-Usage Ordering
 
 Status: Implemented
 
-The feed bar list orders roots by activity across every row currently available
-in the unfiltered History snapshot. A transaction involves a tree when any
-`from`, `to`, or `paidFrom` resolves to that root. Each transaction counts once
-per involved tree; cross-tree transfers and pay-by-transfer expenses count once
-for each involved root.
+The feed bar list orders roots by financial activity across every event entry
+currently available in the unfiltered event History snapshot. It collapses loaded
+entries to operations before counting tree involvement under the
+[event usage contract](events.md#reporting-and-usage-ranking). Cross-tree transfers
+and externally paid expenses count once for each involved live root.
 
-Descending transaction count determines order. Ties retain most-recent tree
+Descending operation count determines order. Ties retain most-recent tree
 involvement order; unused feeds retain catalog current-liquidity order. This
 does not change root order in the pipe tree view.
 
-A missing History snapshot causes no request and leaves feed order unchanged.
-An existing incomplete snapshot, or one with fewer than 100 rows while more
-history is available, makes the normal loader refresh its 100-row head. Ranking
-then uses all History rows available in the shared cache.
+A missing event History snapshot causes no request and leaves feed order unchanged.
+An existing invalidated snapshot, or one with fewer than 100 stored entries while
+more history is available, makes the event loader refresh its 100-entry head.
+Ranking then uses all entries available in the snapshot.
 
 ## D021: Pipe Creation And Archived History
 
