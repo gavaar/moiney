@@ -29,7 +29,7 @@ export async function insertHistoryOperation(
   ]);
 }
 
-function eventFromDocument(document: Doc<"events">): HistoryEvent<Id<"pipes">, Id<"events">> {
+export function historyEventFromDocument(document: Doc<"events">): HistoryEvent<Id<"pipes">, Id<"events">> {
   const { _id, _creationTime, operationId, ...fields } = document;
   if (!operationId) throw new Error("History event is missing its operation ID");
   return { ...fields, id: _id, operationId };
@@ -47,7 +47,7 @@ export async function readHistoryOperation(
   const entries = await ctx.db.query("events")
     .withIndex("by_operationId", (q) => q.eq("operationId", entry.operationId))
     .take(3);
-  return historyOperationFromEvents(entries.map(eventFromDocument));
+  return historyOperationFromEvents(entries.map(historyEventFromDocument));
 }
 
 /** Replaces the entire snapshot, retaining canonical and surviving counterpart IDs. */

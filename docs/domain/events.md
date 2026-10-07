@@ -73,6 +73,29 @@ existing [external settlement contract](accounting.md#d012-pay-by-transfer-liqui
 still governs financial effects. Income/spending classification uses each
 entry's own facts and never requires a mirror lookup.
 
+## Reporting And Usage Ranking
+
+Account-wide monthly reports aggregate stored entries in bounded pages over an
+inclusive-start, exclusive-end UTC month. Each entry contributes under the table
+above: only logical spending entries count as expenses/refunds, even if their
+payer counterpart is on a different page. Reporting never projects a mirror-only
+page into another financial contribution, and retained entries do not require a
+live pipe to contribute. Unlike loaded-window archive summaries, reports exhaust
+the account/month stream before presenting complete totals.
+
+The [monthly report metrics and capture policy](reporting.md#d016-monthly-spending-statistics)
+remain unchanged. Event backfills and reader cutover do not restate frozen reports
+or fill unavailable historical metrics. Legacy capture remains authoritative until
+backend cutover; event-backed reads require completed event backfills.
+
+Usage ranking collapses loaded entries by operation before applying the existing
+[source and tree usage rules](history-cache.md#d019-feed-list-ordering): a source is
+the original structural transfer source or logical spender, not a loaded payer
+counterpart. Feeds have no source usage; lifecycle entries have no usage. Each
+financial operation counts once per involved live root, including feeds and
+externally paid operations. Ties use recent operation order; unused roots retain
+their catalog order. No missing operation members are fetched for ranking.
+
 ## Responsibilities
 
 The backend owns authorization, eligibility, accounting, and atomic operation

@@ -19,6 +19,8 @@ import { internalMutation, query, type MutationCtx } from "./_generated/server";
 import { paginationOptsValidator } from "convex/server";
 import { requireAuth } from "./lib/auth";
 import { MAX_PIPES_PER_USER } from "./lib/constants";
+import { summarizeMonthlyEventSpending } from "../domain/statistics/eventSpending";
+import { historyEventFromDocument } from "./lib/events/persistence";
 
 const USER_PAGE_SIZE = 50;
 const TRANSACTION_PAGE_SIZE = 100;
@@ -130,6 +132,30 @@ export const monthPage = query({
       page: [{ summary: summarizeMonthlySpending(transactions.page), pipeSpending: monthlyPipeSpending(transactions.page), titleSpending: monthlyTitleSpending(transactions.page) }],
       isDone: transactions.isDone,
       continueCursor: transactions.continueCursor,
+    };
+  },
+});
+
+export const eventMonthPage = query({
+  args: { periodStart: v.number(), paginationOpts: paginationOptsValidator },
+  returns: v.object({
+    page: v.array(v.object({ summary: summaryValidator, pipeSpending: v.array(pipeSpendingValidator), titleSpending: v.array(titleSpendingValidator) })),
+    isDone: v.boolean(), continueCursor: v.string(),
+  }),
+  handler: async (ctx, args) => {
+    const userId = await requireAuth(ctx);
+    const period = new Date(args.periodStart);
+    if (!Number.isSafeInteger(args.periodStart) || period.getTime() !== args.periodStart ||
+      period.getUTCDate() !== 1 || period.getUTCHours() !== 0 || period.getUTCMinutes() !== 0 ||
+      period.getUTCSeconds() !== 0 || period.getUTCMilliseconds() !== 0) throw new Error("Invalid period start");
+    if (!Number.isInteger(args.paginationOpts.numItems) || args.paginationOpts.numItems < 1 || args.paginationOpts.numItems > TRANSACTION_PAGE_SIZE) throw new Error("Invalid page size");
+    const end = Date.UTC(period.getUTCFullYear(), period.getUTCMonth() + 1, 1);
+    const events = await ctx.db.query("events")
+      .withIndex("by_userId_occurredAt", q => q.eq("userId", userId).gte("occurredAt", args.periodStart).lt("occurredAt", end))
+      .paginate(args.paginationOpts);
+    return {
+      page: [summarizeMonthlyEventSpending(events.page.map(historyEventFromDocument))],
+      isDone: events.isDone, continueCursor: events.continueCursor,
     };
   },
 });

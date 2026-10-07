@@ -5,7 +5,7 @@ import type { TransactionModel } from "@features/transactions/data/transactions"
 export function orderFeedsByTreeUsage(
   feeds: readonly PipeModel[],
   allPipes: readonly PipeModel[],
-  transactions: readonly TransactionModel[],
+  transactions: readonly Pick<TransactionModel, "from" | "to" | "paidFrom">[],
 ): PipeModel[] {
   const pipesById = new Map(allPipes.map((pipe) => [pipe.id, pipe]));
   const rootByPipeId = new Map<Id<"pipes">, Id<"pipes"> | null>();
