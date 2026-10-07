@@ -2,6 +2,9 @@ import type { TransactionGroup } from "@features/transactions/groupTransactions"
 import type { PipeCatalogContextValue } from "@features/pipes/context/PipeCatalogContext";
 import { colors } from "@/lib/styles";
 import { safeIconName } from "@ui/Icon/icons";
+import type { TransactionPresentation } from "@features/transactions/data/transactions";
+
+export type StackedTransactionGroup = Pick<TransactionGroup, "title" | "count" | "totalValue" | "oldestDate" | "latestDate" | "visiblePipeIds"> & { transactions: readonly TransactionPresentation[] };
 
 const MONTH_DAY: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
 const MONTH_DAY_YEAR: Intl.DateTimeFormatOptions = {
@@ -31,7 +34,7 @@ function formatDateRange(oldestDate: number, latestDate: number): string {
   return `${oldestLabel} - ${latestLabel}`;
 }
 
-function getGroupIconColor(group: TransactionGroup): string {
+function getGroupIconColor(group: StackedTransactionGroup): string {
   if (group.visiblePipeIds.length > 1) {
     return colors.text;
   }
@@ -39,7 +42,7 @@ function getGroupIconColor(group: TransactionGroup): string {
 }
 
 function getGroupIconName(
-  group: TransactionGroup,
+  group: StackedTransactionGroup,
   pipesById: PipeCatalogContextValue["pipesById"],
 ): string {
   if (group.visiblePipeIds.length > 1) return "card-multiple";
@@ -73,7 +76,7 @@ function getBgClass(totalValue: number): string {
 }
 
 export function getStackedTransactionItemModel(
-  group: TransactionGroup,
+  group: StackedTransactionGroup,
   { pipesById }: Pick<PipeCatalogContextValue, "pipesById">,
 ) {
   return {

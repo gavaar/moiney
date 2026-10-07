@@ -34,7 +34,7 @@ export class EventHistoryStore {
 
   mergeHead(entries: HistoryEntry[], hasMore: boolean, now = Date.now(), generation = this.snapshot.generation) {
     if (generation !== this.snapshot.generation) return Promise.resolve();
-    return this.write(entries, hasMore && (!this.snapshot.complete || this.snapshot.hasMore), now, hasMore);
+    return this.write(entries, hasMore && (!this.snapshot.complete || this.snapshot.hasMore), now, hasMore && this.snapshot.complete);
   }
 
   append(entries: HistoryEntry[], hasMore: boolean, now = Date.now(), generation = this.snapshot.generation) {
@@ -60,7 +60,7 @@ export class EventHistoryStore {
     const ordered = [...byId.values()].sort((a, b) => b.refreshedAt - a.refreshedAt || compareEntries(a.entry, b.entry));
     this.entries = ordered.slice(0, 300);
     this.snapshot = {
-      entries: this.entries.map(item => item.entry).sort(compareEntries), complete: true,
+      entries: this.entries.map(item => item.entry).sort(compareEntries), complete: ordered.length <= 300 && (!preserve || this.snapshot.complete),
       hasMore: hasMore || ordered.length > 300, updatedAt: now,
       generation: this.snapshot.generation,
     };
@@ -97,7 +97,7 @@ function isCachedEntry(value: unknown): value is { entry: HistoryEntry; refreshe
       (entry.parentName === undefined || typeof entry.parentName === "string") &&
       (entry.parentIcon === undefined || typeof entry.parentIcon === "string");
   }
-  if (typeof entry.title !== "string" || !finite(entry.value)) return false;
+  if (typeof entry.title !== "string" || !finite(entry.value) || (entry.editedAt !== undefined && !finite(entry.editedAt))) return false;
   try { validateTransactionAmount(entry.value, entry.type === "feed" ? "feed" : "transaction"); } catch { return false; }
   if (entry.type === "feed") return entry.targetPipeId === undefined;
   if (entry.type === "transaction") return entry.targetPipeId === undefined || typeof entry.targetPipeId === "string";

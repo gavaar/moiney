@@ -57,6 +57,19 @@ describe("event History snapshots", () => {
     expect(store.read().hasMore).toBe(true);
   });
 
+  it("requires a fresh head after eviction so Quick Creation cannot rank an older cached window as Latest", async () => {
+    const store = new EventHistoryStore("alice", storage());
+    await store.hydrate();
+    const head = Array.from({ length: 100 }, (_, i) => entry(`head-${i}`, 1000 - i));
+    await store.mergeHead(head, true, 1);
+    await store.append(Array.from({ length: 201 }, (_, i) => entry(`tail-${i}`, 500 - i)), false, 2);
+    expect(store.read().complete).toBe(false);
+    await store.append([entry("tail-200", 300)], false, 3);
+    expect(store.read().complete).toBe(false);
+    await store.mergeHead(head, true, 4);
+    expect(store.read()).toMatchObject({ entries: head, complete: true, hasMore: true });
+  });
+
   it("invalidates persisted membership so a changed operation cannot resurrect stale counterparts", async () => {
     const disk = storage();
     const store = new EventHistoryStore("alice", disk);

@@ -57,10 +57,11 @@ Event-based usage ranking has an account-scoped raw-entry History snapshot,
 isolated from legacy transaction snapshots. It retains distinct entry IDs even
 when entries share an operation ID; consumers collapse operations, not the cache.
 It seeds 100 stored entries and pages 30 at a time, retaining at most 300 entries
-by last refresh. Eviction cannot turn a truncated snapshot into complete server
-history. Cursors are not persisted: load-more after hydration reseeds the head
-and deduplicates overlapping entry IDs. A head refresh preserves the loaded tail
-unless the server reports the head exhausts history.
+by last refresh. Eviction invalidates membership so a missing recent head cannot
+silently become an older ranking window. Cursors are not persisted: load-more
+after hydration reseeds the head and deduplicates overlapping entry IDs. A head
+refresh preserves a valid loaded tail; an invalidated snapshot or an exhausted
+server head replaces membership instead.
 
 Financial creation, editing, direct deletion, and completed pipe deletion
 invalidate event snapshot membership, including when no legacy transaction IDs
@@ -104,10 +105,8 @@ Ranking then uses all entries available in the snapshot.
 
 Status: In progress
 
-The [unified event contract](events.md#monthly-event-archives) owns the target
-monthly grouping and loaded-entry-only archive behavior. Existing transaction-backed
-screens still use legacy lifetime archives until client cutover; their separate
-archive reads are not part of the event-based contract.
+The [unified event contract](events.md#monthly-event-archives) owns monthly
+grouping and loaded-entry-only archive behavior.
 
 Creation is a non-accounting event stored separately from transactions. The event
 is written atomically with a new pipe and uses its original creation timestamp.
@@ -121,15 +120,13 @@ creation date. They navigate to the pipe. Surface backgrounds and type-colored
 borders distinguish them: blue boiler, green feed, white child. Opening balances
 and capacities are not event fields and are not reconstructed from transactions.
 
-Deletion preserves the last pipe and parent presentation and marks retained
-events deleted. A deleted event expands into its retained transactions instead
-of navigating. When an archive has no matching transactions, it remains a
-non-expandable muted deletion record showing the deletion date. Every `from`,
-`to`, and `paidFrom` involvement belongs to that
-pipe's archive; a transaction appears once within an archive and may appear in
-multiple archives. Shared transactions with surviving involved pipes also remain
-in ordinary history. Orphaned legacy transactions without recoverable creation
-events remain readable without inventing creation dates or ancestry.
+Deletion preserves the last pipe and parent presentation. An archive expands
+into its loaded members instead of navigating. When its month contains no loaded
+financial operations, it remains a non-expandable muted record dated by its
+loaded lifecycle entry. Each operation appears once per involved pipe's archive
+and may appear in multiple archives; shared operations with surviving own-pipe
+perspectives also remain in ordinary history. Missing legacy lifecycle history
+does not justify inventing creation dates or ancestry.
 
 Archive counts, Spent, and date bounds describe loaded matching members under the
 [event archive contract](events.md#monthly-event-archives), not complete lifetime
@@ -150,13 +147,15 @@ Latest groups only its 30 stored entries, and History groups currently loaded
 entries. Expansion performs no additional financial reads; only loading more
 main History entries grows archive membership. Growing lists remain virtualized.
 
-Mixed lists use focus-scoped one-shot reads and refresh on local transaction
+Mixed lists use focus-scoped one-shot event reads and refresh on local financial
 writes, pipe lifecycle/presentation changes, and explicit refresh. Loaded rows
-remain visible during a same-scope refresh. Mixed rows and archive summaries are
-mounted-view state, not persisted transaction entities. Unfiltered transaction
-source pages still populate the shared financial snapshot, preserving transaction
-ranking independently of creation events and duplicate archive appearances.
-Account/filter changes and unmounting invalidate in-flight reads.
+remain visible during a same-scope refresh. Group rows and archive summaries are
+mounted-view state, not persisted entities. Unfiltered main History pages populate
+the raw-entry snapshot used by ranking; filtered and Latest windows do not overwrite
+it. A hydrated snapshot avoids a financial head read; deletion metadata is still
+read independently. Main History retains all loaded entries even beyond the
+persistent cache's 300-entry limit. Account/filter changes and unmounting invalidate
+in-flight reads.
 
 During backfill, existing live pipes may lack creation events; their financial
 history remains available. Backfill is idempotent, uses original creation times,

@@ -31,6 +31,26 @@ function eventResult(event: Doc<"events">) {
   return { id: _id, createdAt: _creationTime, operationId, ...fields };
 }
 
+/** Preserve the shipped Edited control during transaction/event coexistence.
+ * Reads each loaded operation's exact link once; never loads additional members.
+ */
+async function financialEventResults(ctx: QueryCtx, events: Doc<"events">[]): Promise<Infer<typeof historyEventResultValidator>[]> {
+  const edits = new Map<Id<"events">, Promise<number | undefined>>();
+  return await Promise.all(events.map(async event => {
+    const result = eventResult(event);
+    if (event.type === "pipe_creation" || event.type === "pipe_deletion") return result;
+    let edit = edits.get(result.operationId);
+    if (!edit) {
+      edit = ctx.db.query("transactions")
+        .withIndex("by_userId_operationId", q => q.eq("userId", event.userId).eq("operationId", result.operationId))
+        .unique().then(transaction => transaction?.editedAt);
+      edits.set(result.operationId, edit);
+    }
+    const editedAt = await edit;
+    return editedAt === undefined ? result : { ...result, editedAt };
+  }));
+}
+
 /** A stored-entry window, not an expanded or grouped operation list. */
 export const latest = query({
   args: scopeFields,
@@ -38,7 +58,7 @@ export const latest = query({
   handler: async (ctx, args) => {
     const userId = await requireAuth(ctx);
     const entries = await eventQuery(ctx, userId, args).take(30);
-    return entries.map(eventResult);
+    return await financialEventResults(ctx, entries);
   },
 });
 
@@ -63,7 +83,7 @@ export const list = query({
     const page = await eventQuery(ctx, userId, args)
       .paginate({ numItems: limit, cursor: args.cursor ?? null });
     const title = args.title?.trim().toLowerCase() ?? "";
-    const entries = page.page.map(eventResult);
+    const entries = await financialEventResults(ctx, page.page);
     return {
       events: title ? entries.filter(event =>
         ("title" in event ? event.title : event.name).toLowerCase().includes(title)) : entries,

@@ -50,7 +50,8 @@ export default defineSchema({
     .index("by_userId_to_date", ["userId", "to", "date"])
     .index("by_userId_paidFrom_date", ["userId", "paidFrom", "date"])
     .index("by_userId", ["userId"])
-    .index("by_userId_date", ["userId", "date"]),
+    .index("by_userId_date", ["userId", "date"])
+    .index("by_userId_operationId", ["userId", "operationId"]),
   transactionCorrections: defineTable({
     transactionId: v.id("transactions"),
     userId: v.id("users"),

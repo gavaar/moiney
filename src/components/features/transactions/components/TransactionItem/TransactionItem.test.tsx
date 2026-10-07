@@ -116,6 +116,7 @@ vi.mock("@features/transactions/TransactionForm/TransactionForm", () => ({
     <div
       data-testid="amount-form"
       data-intent={initState?.intent ?? "repeat"}
+      data-transaction-id={initState?.transactionId}
       data-spent={initState?.spent}
       data-capacity={initState?.capacity}
       data-paid-from={
@@ -144,6 +145,46 @@ describe("TransactionItem", () => {
     render(<TransactionItem transaction={baseTx} />);
     expect(screen.getAllByTestId("mock-icon").map((icon) => icon.dataset.name))
       .toContain("cart-outline");
+  });
+
+  it("resolves an event presentation only on action and opens edit with the real transaction ID", async () => {
+    const { id: _id, ...presentation } = baseTx;
+    const resolveTransaction = vi.fn().mockResolvedValue(baseTx);
+    render(<TransactionItem transaction={presentation} resolveTransaction={resolveTransaction} />);
+    expect(resolveTransaction).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByLabelText("Edit shopping mall"));
+    await waitFor(() => expect(screen.getByTestId("amount-form").getAttribute("data-transaction-id")).toBe(baseTx.id));
+    expect(screen.getByTestId("amount-form").getAttribute("data-intent")).toBe("edit");
+  });
+
+  it("resolves delete and correction-history actions without inventing a transaction ID", async () => {
+    const { id: _id, ...presentation } = baseTx;
+    const resolveTransaction = vi.fn().mockResolvedValue(baseTx);
+    const history = vi.fn();
+    deleteMocks.confirm.mockResolvedValue(true);
+    render(<TransactionItem transaction={{ ...presentation, editedAt: 2 }} resolveTransaction={resolveTransaction} onShowEditHistory={history} />);
+    fireEvent.click(screen.getByLabelText("View edit history for shopping mall"));
+    await waitFor(() => expect(history).toHaveBeenCalledWith(baseTx.id));
+    fireEvent.click(screen.getByLabelText("Delete shopping mall"));
+    await waitFor(() => expect(deleteMocks.deleteTransaction).toHaveBeenCalledWith({ transactionId: baseTx.id }));
+  });
+
+  it("reports a missing action target and discards resolution after the row unmounts", async () => {
+    const { id: _id, ...presentation } = baseTx;
+    const resolveTransaction = vi.fn().mockResolvedValue(null);
+    const { unmount } = render(<TransactionItem transaction={presentation} resolveTransaction={resolveTransaction} />);
+    fireEvent.click(screen.getByText("Shopping mall"));
+    await waitFor(() => expect(deleteMocks.showError).toHaveBeenCalledWith("Transaction is no longer available. Pull to refresh."));
+    unmount();
+    let finish!: (value: typeof baseTx) => void;
+    resolveTransaction.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    const history = vi.fn();
+    const next = render(<TransactionItem transaction={{ ...presentation, editedAt: 2 }} resolveTransaction={resolveTransaction} onShowEditHistory={history} />);
+    fireEvent.click(screen.getByLabelText("View edit history for shopping mall"));
+    next.unmount();
+    finish(baseTx);
+    await Promise.resolve();
+    expect(history).not.toHaveBeenCalled();
   });
 
   it("renders the transaction title with first letter capitalized", () => {

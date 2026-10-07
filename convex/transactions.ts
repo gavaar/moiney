@@ -111,6 +111,21 @@ function toTransactionCacheItem(transaction: Doc<"transactions">) {
   return item;
 }
 
+/** Temporary action bridge while installed clients and correction APIs use transaction IDs. */
+export const forEventOperation = query({
+  args: { operationId: v.id("events") },
+  returns: v.union(v.null(), transactionCacheItem),
+  handler: async (ctx, { operationId }) => {
+    const userId = await requireAuth(ctx);
+    const event = await ctx.db.get("events", operationId);
+    if (!event || event.userId !== userId || event.operationId !== operationId ||
+      event.type === "pipe_creation" || event.type === "pipe_deletion") return null;
+    const transaction = await ctx.db.query("transactions")
+      .withIndex("by_userId_operationId", q => q.eq("userId", userId).eq("operationId", operationId)).unique();
+    return transaction ? toTransactionCacheItem(transaction) : null;
+  },
+});
+
 async function loadRecentTransactionsForRole(
   ctx: QueryCtx,
   userId: Id<"users">,

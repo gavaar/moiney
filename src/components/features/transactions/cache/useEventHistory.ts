@@ -10,6 +10,13 @@ export function useEventHistory(options: { enabled?: boolean; minimumCachedRows?
   const enabled = options.enabled ?? true;
   const minimumCachedRows = options.minimumCachedRows ?? 100;
   const [revision, setRevision] = useState(0);
+  const [membership, setMembership] = useState({ accountKey, complete: eventHistory.complete });
+  if (membership.accountKey !== accountKey || membership.complete !== eventHistory.complete) {
+    setMembership({ accountKey, complete: eventHistory.complete });
+    if (membership.accountKey === accountKey && membership.complete && !eventHistory.complete && enabled) {
+      setRevision(value => value + 1);
+    }
+  }
   const key = JSON.stringify([accountKey, isHydrating, mutationVersion, enabled, minimumCachedRows, revision]);
   const currentKey = useRef(key);
   const [state, setState] = useState({ key, isLoading: true, isRefreshing: false, error: null as string | null });

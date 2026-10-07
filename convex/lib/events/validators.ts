@@ -15,8 +15,8 @@ const lifecycleFields = {
   parentName: v.optional(v.string()),
   parentIcon: v.optional(v.string()),
 };
-function eventValidator<Identity extends PropertyValidators>(identityFields: Identity) {
-  const financial = { ...identityFields, title: v.string(), value: v.number() };
+function eventValidator<Identity extends PropertyValidators, Financial extends PropertyValidators>(identityFields: Identity, financialFields: Financial) {
+  const financial = { ...identityFields, title: v.string(), value: v.number(), ...financialFields };
   const lifecycle = { ...identityFields, ...lifecycleFields };
 
   return v.union(
@@ -29,7 +29,7 @@ function eventValidator<Identity extends PropertyValidators>(identityFields: Ide
   );
 }
 
-export const historyEventValidator = eventValidator(identity);
+export const historyEventValidator = eventValidator(identity, {});
 
 /** Public history entries need complete identity, not database ownership metadata. */
 const resultIdentity = {
@@ -40,5 +40,5 @@ const resultIdentity = {
   occurredAt: v.number(),
 };
 
-export const historyEventResultValidator = eventValidator(resultIdentity);
+export const historyEventResultValidator = eventValidator(resultIdentity, { editedAt: v.optional(v.number()) });
 export const pipeDeletionResultValidator = v.object({ ...resultIdentity, ...lifecycleFields, type: v.literal("pipe_deletion") });

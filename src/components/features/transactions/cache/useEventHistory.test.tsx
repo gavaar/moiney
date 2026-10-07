@@ -87,6 +87,25 @@ describe("unfiltered event History cache loader", () => {
     expect(mocks.query).toHaveBeenCalledTimes(1);
   });
 
+  it("reseeds a mounted ranking consumer when main History evicts its cached head", async () => {
+    const disk = storage();
+    const seed = new EventHistoryStore("alice", disk);
+    await seed.hydrate();
+    const head = Array.from({ length: 100 }, (_, i) => entry(`head-${i}`, 1000 - i));
+    await seed.mergeHead(head, true, 1);
+    mocks.query.mockResolvedValue({ events: head, cursor: "more", isDone: false });
+    const tail = Array.from({ length: 201 }, (_, i) => entry(`tail-${i}`, 500 - i));
+    const { result } = renderHook(() => {
+      const cache = useTransactionCache();
+      return { history: useEventHistory(), append: () => cache.appendEventHistory(tail, false, cache.eventHistory.generation) };
+    }, { wrapper: ({ children }) => <TransactionCacheProvider storage={disk}>{children}</TransactionCacheProvider> });
+    await waitFor(() => expect(result.current.history.entries).toEqual(head));
+    expect(mocks.query).not.toHaveBeenCalled();
+    await act(async () => { await result.current.append(); });
+    await waitFor(() => expect(result.current.history.entries).toEqual(head));
+    expect(mocks.query).toHaveBeenCalledTimes(1);
+  });
+
   it("rejects a pre-mutation read while mutation persistence is still pending", async () => {
     const disk = storage();
     let finishRead!: (page: { events: HistoryEntry[]; cursor: null; isDone: true }) => void;

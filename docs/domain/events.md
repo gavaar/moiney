@@ -126,12 +126,25 @@ The operation row key is its `operationId`, whether its canonical entry is loade
 or not. Loaded canonical snapshots take precedence when both perspectives exist;
 repeated entry IDs retain the last supplied snapshot rather than adding counts.
 
+Financial display projections contain no legacy action ID. During coexistence,
+repeat, edit, delete, and correction-history actions resolve the exact owned
+operation through `transactions:forEventOperation` before using legacy APIs. A
+missing link makes the action unavailable; equal titles or amounts never repair
+it. Rendering and expansion perform no action-resolution queries.
+
 ## Retrieval
 
 `events:latest` returns at most 30 stored entries for the account or one exact
 `pipeId`, ordered by occurrence date descending and then storage creation order.
 It does not expand operations, collapse mirrors, group titles, or build archives;
 the client may display fewer rows after grouping. A cutoff can split an operation.
+
+Unfiltered selected-pipe Latest reads one indexed window per unique scoped pipe,
+including retained deleted descendants, with bounded request concurrency. The
+client merges those windows and keeps the newest 30 stored entries overall before
+grouping; it does not scan unrelated account history to fill a sparse subtree.
+The mounted loader reuses deletion metadata across selections, invalidating it on
+account changes, pipe catalog changes, local mutations, or explicit refresh.
 
 `events:list` pages the same global or single-pipe indexed stream, with inclusive
 date bounds and a page size of 1–100 (default 30). Text matching is case-insensitive
@@ -147,7 +160,11 @@ the client uses its live pipe catalog for current presentation. A single-pipe
 query selects that pipe's own perspectives, not its target roles or descendants.
 Client scope expansion and preserved lifecycle ancestry own descendant/archive
 matching; callers can page separate pipe streams without an unbounded backend
-fan-out. Legacy history APIs remain unchanged until client cutover.
+fan-out. Legacy history APIs remain available for installed clients until backend
+cutover. During coexistence, financial responses also include optional `editedAt`
+from the exact legacy link to preserve the `Edited` correction-history control.
+This metadata lookup is bounded to the loaded page and reused per operation;
+it neither adds members nor resolves missing mirrors.
 
 ## Monthly Event Archives
 
@@ -181,7 +198,6 @@ archive reveals loaded members without another financial query.
 Counts, Spent, and date bounds describe loaded matching members, not the complete
 pipe/month history. No separate archive reader, pagination, or full-summary scan
 is needed. Deletion-catalog reads supply identity and ancestry metadata only.
-The existing screens retain legacy archive behavior until client cutover.
 
 ## Backfill During Coexistence
 

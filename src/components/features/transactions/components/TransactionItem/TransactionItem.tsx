@@ -4,11 +4,11 @@ import { cn, colors } from "@/lib/styles";
 import { ModalShell } from "@ui/Modal";
 import { SwipeActions } from "@ui/SwipeActions";
 import { TransactionForm } from '@features/transactions/TransactionForm/TransactionForm';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePipeCatalog } from '@features/pipes/context/PipeCatalogContext';
 import { formatAmount } from "@/lib/format";
-import type { TransactionModel } from "@features/transactions/data/transactions";
-import { getTransactionItemModel } from "./transactionItem.model";
+import type { TransactionModel, TransactionPresentation } from "@features/transactions/data/transactions";
+import { getTransactionItemModel, getTransactionItemPresentation } from "./transactionItem.model";
 import { getTransactionDeletionWarning } from "./transactionDeletion.model";
 import { useConfirmWithModal } from "@ui/ConfirmModal";
 import { useMutation } from "convex/react";
@@ -16,8 +16,8 @@ import { api } from "@convex/_generated/api";
 import { useOptionalTransactionCache } from "@features/transactions/cache/TransactionCacheContext";
 import { useAlert } from "@ui/Alert";
 
-type TransactionItemProps = {
-  transaction: TransactionModel;
+type TransactionItemProps = ({ transaction: TransactionModel; resolveTransaction?: never } |
+  { transaction: TransactionPresentation; resolveTransaction: () => Promise<TransactionModel | null> }) & {
   onShowEditHistory?: (transactionId: TransactionModel["id"]) => void;
 };
 
@@ -26,7 +26,7 @@ const DATE_FORMAT: Intl.DateTimeFormatOptions = {
   day: "numeric",
   year: "numeric",
 };
-export function TransactionItem({ transaction, onShowEditHistory }: TransactionItemProps) {
+export function TransactionItem({ transaction, resolveTransaction, onShowEditHistory }: TransactionItemProps) {
   const { pipesById, childrenByParent, isLoading: isPipeCatalogLoading, isPaidFromEligible } = usePipeCatalog();
   const confirmWithModal = useConfirmWithModal();
   const deleteTransaction = useMutation(api.transactions.deleteTransaction);
@@ -36,23 +36,47 @@ export function TransactionItem({ transaction, onShowEditHistory }: TransactionI
   const [formIntent, setFormIntent] = useState<"repeat" | "edit" | null>(null);
   const [showDisabledInfo, setShowDisabledInfo] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [actionTransaction, setActionTransaction] = useState<TransactionModel | null>(null);
+  const [isResolving, setIsResolving] = useState(false);
+  const pending = useRef(false);
+  const active = useRef(true);
+  useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
+  const catalog = { pipesById, childrenByParent, isPaidFromEligible };
 
   const model = useMemo(
-    () => getTransactionItemModel(transaction, { pipesById, childrenByParent, isPaidFromEligible }),
+    () => getTransactionItemPresentation(transaction, { pipesById, childrenByParent, isPaidFromEligible }),
     [transaction, pipesById, childrenByParent, isPaidFromEligible],
   );
 
-  function openForm(intent: "repeat" | "edit") {
-    if (isPipeCatalogLoading || (intent === "edit" ? !model.canEdit : model.disabled)) {
+  function withTransaction(action: (row: TransactionModel) => void | Promise<void>) {
+    if (isPipeCatalogLoading || pending.current) return;
+    if ("id" in transaction) { void action(transaction); return; }
+    if (!resolveTransaction) return;
+    pending.current = true;
+    setIsResolving(true);
+    void resolveTransaction().then(async row => {
+      if (!active.current) return;
+      if (!row) { showAlert.error("Transaction is no longer available. Pull to refresh."); return; }
+      await action(row);
+    }).catch(error => { if (active.current) showAlert.error(`${error}`); }).finally(() => {
+      pending.current = false;
+      if (active.current) setIsResolving(false);
+    });
+  }
+
+  function openForm(intent: "repeat" | "edit", row: TransactionModel) {
+    const current = getTransactionItemModel(row, catalog);
+    if (isPipeCatalogLoading || (intent === "edit" ? !current.canEdit : current.disabled)) {
       setShowDisabledInfo(true);
     } else {
+      setActionTransaction(row);
       setFormIntent(intent);
     }
   }
 
-  async function confirmDelete() {
+  async function confirmDelete(row: TransactionModel) {
     if (isDeleting || isPipeCatalogLoading) return;
-    const warning = getTransactionDeletionWarning(transaction, pipesById ?? {});
+    const warning = getTransactionDeletionWarning(row, pipesById ?? {});
     const confirmed = await confirmWithModal({
       title: "Delete transaction?",
       message: (
@@ -67,7 +91,7 @@ export function TransactionItem({ transaction, onShowEditHistory }: TransactionI
 
     setIsDeleting(true);
     try {
-      await deleteTransaction({ transactionId: transaction.id });
+      await deleteTransaction({ transactionId: row.id });
     } catch (error) {
       showAlert.error(`${error}`);
       setIsDeleting(false);
@@ -75,7 +99,7 @@ export function TransactionItem({ transaction, onShowEditHistory }: TransactionI
     }
 
     try {
-      await transactionCache?.reconcileTransactions([transaction.id], []);
+      await transactionCache?.reconcileTransactions([row.id], []);
     } catch {
       try {
         await transactionCache?.invalidateAll();
@@ -87,6 +111,8 @@ export function TransactionItem({ transaction, onShowEditHistory }: TransactionI
     setIsDeleting(false);
   }
 
+  const formModel = actionTransaction ? getTransactionItemModel(actionTransaction, catalog) : null;
+
   return (
     <View className="flex-row gap-1 items-center">
       <SwipeActions
@@ -94,14 +120,15 @@ export function TransactionItem({ transaction, onShowEditHistory }: TransactionI
           accessibilityLabel: `Delete ${transaction.title}`,
           content: <Icon name="trash-outline" size={20} color={colors.text} />,
           backgroundClassName: "bg-error",
-          disabled: isDeleting || isPipeCatalogLoading,
-          onActivate: () => void confirmDelete(),
+          disabled: isDeleting || isResolving || isPipeCatalogLoading,
+          onActivate: () => withTransaction(confirmDelete),
         }}
         rightAction={model.canEdit && !isPipeCatalogLoading ? {
           accessibilityLabel: `Edit ${transaction.title}`,
           content: <Icon name="pencil-outline" size={20} color={colors.text} />,
           backgroundClassName: "bg-secondary",
-          onActivate: () => openForm("edit"),
+          disabled: isResolving,
+          onActivate: () => withTransaction(row => openForm("edit", row)),
         } : undefined}
       >
         <Pressable
@@ -109,7 +136,8 @@ export function TransactionItem({ transaction, onShowEditHistory }: TransactionI
             "w-full flex-row gap-1 items-center rounded-2xl border border-border px-2 py-2",
             model.bgClass,
           )}
-          onPress={() => openForm("repeat")}
+          disabled={isResolving}
+          onPress={() => withTransaction(row => openForm("repeat", row))}
         >
           {model.uiIcons.map((icon, index) => (<Icon key={index} name={icon.name} size={icon.size} color={icon.color} />))}
 
@@ -136,13 +164,14 @@ export function TransactionItem({ transaction, onShowEditHistory }: TransactionI
         </Pressable>
       </SwipeActions>
 
-      {transaction.editedAt && onShowEditHistory ? (
+      {onShowEditHistory && transaction.editedAt ? (
         <Pressable
           testID="transaction-edit-history"
           className="items-center justify-center rounded-2xl border border-border bg-surface px-2"
           accessibilityRole="button"
           accessibilityLabel={`View edit history for ${transaction.title}`}
-          onPress={() => onShowEditHistory(transaction.id)}
+          disabled={isResolving}
+          onPress={() => withTransaction(row => onShowEditHistory(row.id))}
         >
           <Icon name="history" size={15} color={colors.muted} />
           <Text className="text-muted text-[10px]">Edited</Text>
@@ -150,10 +179,10 @@ export function TransactionItem({ transaction, onShowEditHistory }: TransactionI
       ) : null}
 
       <ModalShell visible={formIntent !== null} onClose={() => setFormIntent(null)}>
-        {formIntent && model.formInitState ? (
+        {formIntent && formModel ? (
           <TransactionForm
-            pipeId={model.primaryPipeId}
-            initState={{ ...model.formInitState, intent: formIntent }}
+            pipeId={formModel.primaryPipeId}
+            initState={{ ...formModel.formInitState, intent: formIntent }}
             onSuccess={() => setFormIntent(null)}
           />
         ) : null}

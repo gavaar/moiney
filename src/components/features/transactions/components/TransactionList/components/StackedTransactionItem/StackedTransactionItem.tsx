@@ -1,13 +1,12 @@
 import { Pressable, Text, View } from "react-native";
 import { Icon } from "@ui/Icon";
 import { cn, colors } from "@/lib/styles";
-import type { TransactionGroup } from "@features/transactions/groupTransactions";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import { formatAmount } from "@/lib/format";
-import { getStackedTransactionItemModel } from "./stackedTransactionItem.model";
+import { getStackedTransactionItemModel, type StackedTransactionGroup } from "./stackedTransactionItem.model";
 
 type StackedTransactionItemProps = {
-  group: TransactionGroup;
+  group: StackedTransactionGroup;
   expanded: boolean;
   onToggle: () => void;
 };
