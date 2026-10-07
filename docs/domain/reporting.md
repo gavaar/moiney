@@ -96,9 +96,11 @@ and are not backfilled. Total income is optional for the same reason on rows
 captured before its addition.
 
 The first successful capture is immutable. Subsequent transaction creation,
-editing, movement, or deletion does not restate a captured month. User and
-transaction traversal is paginated; `(userId, periodStart)` is the logical
-identity providing retry idempotency.
+editing, movement, or deletion does not restate a captured month. User and event
+traversal is paginated; `(userId, periodStart)` is the logical identity providing
+retry idempotency. During coexistence, already-scheduled transaction capture
+continuations retain their original stream; each continuation stops if another
+capture chain has already frozen that month.
 
 Authenticated users can read their newest 24 summaries and open an exact owned
 month. Reports derive net spending as gross spending minus refunds. Average

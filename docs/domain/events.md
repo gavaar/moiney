@@ -85,8 +85,11 @@ the account/month stream before presenting complete totals.
 
 The [monthly report metrics and capture policy](reporting.md#d016-monthly-spending-statistics)
 remain unchanged. Event backfills and reader cutover do not restate frozen reports
-or fill unavailable historical metrics. Legacy capture remains authoritative until
-backend cutover; event-backed reads require completed event backfills.
+or fill unavailable historical metrics. New scheduled captures aggregate events;
+event-backed reads and captures require completed event backfills. Transaction-backed
+capture continuations retain their original reader and cursor across deployment.
+Whichever chain finishes first freezes the month; every continuation checks for
+an existing capture before doing more work.
 
 Usage ranking collapses loaded entries by operation before applying the existing
 [source and tree usage rules](history-cache.md#d019-feed-list-ordering): a source is

@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import type { ObjectType } from "convex/values";
 import {
   summarizeMonthlySpending,
   summarizeRootFeedSnapshot,
@@ -9,9 +10,6 @@ import {
   mergeTitleSpending,
   mostRepeatedTransaction,
   rankMonthlyOffenders,
-  type MonthlySpendingSummary,
-  type PipeSpending,
-  type TitleSpending,
 } from "../domain/statistics/monthlySpending";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
@@ -23,7 +21,7 @@ import { summarizeMonthlyEventSpending } from "../domain/statistics/eventSpendin
 import { historyEventFromDocument } from "./lib/events/persistence";
 
 const USER_PAGE_SIZE = 50;
-const TRANSACTION_PAGE_SIZE = 100;
+const REPORT_PAGE_SIZE = 100;
 const MAX_MONTHLY_REPORTS = 24;
 const pipeSpendingValidator = v.object({ pipeId: v.string(), netSpendingCents: v.number() });
 const titleSpendingValidator = v.object({ title: v.string(), count: v.number(), netSpendingCents: v.number() });
@@ -121,7 +119,7 @@ export const monthPage = query({
     ) {
       throw new Error("Invalid period start");
     }
-    if (!Number.isInteger(args.paginationOpts.numItems) || args.paginationOpts.numItems < 1 || args.paginationOpts.numItems > TRANSACTION_PAGE_SIZE) {
+    if (!Number.isInteger(args.paginationOpts.numItems) || args.paginationOpts.numItems < 1 || args.paginationOpts.numItems > REPORT_PAGE_SIZE) {
       throw new Error("Invalid page size");
     }
     const end = Date.UTC(period.getUTCFullYear(), period.getUTCMonth() + 1, 1);
@@ -148,7 +146,7 @@ export const eventMonthPage = query({
     if (!Number.isSafeInteger(args.periodStart) || period.getTime() !== args.periodStart ||
       period.getUTCDate() !== 1 || period.getUTCHours() !== 0 || period.getUTCMinutes() !== 0 ||
       period.getUTCSeconds() !== 0 || period.getUTCMilliseconds() !== 0) throw new Error("Invalid period start");
-    if (!Number.isInteger(args.paginationOpts.numItems) || args.paginationOpts.numItems < 1 || args.paginationOpts.numItems > TRANSACTION_PAGE_SIZE) throw new Error("Invalid page size");
+    if (!Number.isInteger(args.paginationOpts.numItems) || args.paginationOpts.numItems < 1 || args.paginationOpts.numItems > REPORT_PAGE_SIZE) throw new Error("Invalid page size");
     const end = Date.UTC(period.getUTCFullYear(), period.getUTCMonth() + 1, 1);
     const events = await ctx.db.query("events")
       .withIndex("by_userId_occurredAt", q => q.eq("userId", userId).gte("occurredAt", args.periodStart).lt("occurredAt", end))
@@ -199,19 +197,12 @@ function previousUtcMonth(now: number) {
 
 function scheduleUserCapture(
   ctx: MutationCtx,
-  args: {
-    userId: Id<"users">;
-    periodStart: number;
-    periodEnd: number;
-    cursor?: string;
-    summary?: MonthlySpendingSummary;
-    pipeSpending?: PipeSpending[];
-    titleSpending?: TitleSpending[];
-  },
+  args: CaptureArgs,
+  source: "transactions" | "events",
 ) {
   return ctx.scheduler.runAfter(
     0,
-    internal.monthlySpendingStats.captureUserMonth,
+    source === "events" ? internal.monthlySpendingStats.captureUserEventMonth : internal.monthlySpendingStats.captureUserMonth,
     args,
   );
 }
@@ -232,7 +223,7 @@ export const capturePreviousMonth = internalMutation({
 
     await Promise.all(
       users.page.map((user) =>
-        scheduleUserCapture(ctx, { userId: user._id, periodStart, periodEnd }),
+        scheduleUserCapture(ctx, { userId: user._id, periodStart, periodEnd }, "events"),
       ),
     );
 
@@ -248,29 +239,97 @@ export const capturePreviousMonth = internalMutation({
   },
 });
 
-export const captureUserMonth = internalMutation({
-  args: {
-    userId: v.id("users"),
-    periodStart: v.number(),
-    periodEnd: v.number(),
-    cursor: v.optional(v.string()),
-    summary: v.optional(summaryValidator),
-    pipeSpending: v.optional(v.array(pipeSpendingValidator)),
-    titleSpending: v.optional(v.array(titleSpendingValidator)),
-  },
-  returns: v.null(),
-  handler: async (ctx, args): Promise<null> => {
-    if (args.cursor === undefined) {
-      const existing = await ctx.db
-        .query("monthlySpendingStats")
-        .withIndex("by_userId_periodStart", (q) =>
-          q.eq("userId", args.userId).eq("periodStart", args.periodStart),
-        )
-        .unique();
-      if (existing) return null;
-    }
+const captureArgs = {
+  userId: v.id("users"),
+  periodStart: v.number(),
+  periodEnd: v.number(),
+  cursor: v.optional(v.string()),
+  summary: v.optional(summaryValidator),
+  pipeSpending: v.optional(v.array(pipeSpendingValidator)),
+  titleSpending: v.optional(v.array(titleSpendingValidator)),
+};
+type CaptureArgs = ObjectType<typeof captureArgs>;
 
-    const transactions = await ctx.db
+// Keep transaction continuations on their original stream across deployment.
+export const captureUserMonth = internalMutation({
+  args: captureArgs,
+  returns: v.null(),
+  handler: (ctx, args): Promise<null> => captureMonth(ctx, args, "transactions"),
+});
+
+export const captureUserEventMonth = internalMutation({
+  args: captureArgs,
+  returns: v.null(),
+  handler: (ctx, args): Promise<null> => captureMonth(ctx, args, "events"),
+});
+
+async function captureMonth(ctx: MutationCtx, args: CaptureArgs, source: "transactions" | "events"): Promise<null> {
+  // A different capture chain can finish while this paginated job is pending.
+  const existing = await ctx.db
+    .query("monthlySpendingStats")
+    .withIndex("by_userId_periodStart", q => q.eq("userId", args.userId).eq("periodStart", args.periodStart))
+    .unique();
+  if (existing) return null;
+
+  const page = await readCapturePage(ctx, args, source);
+  const contribution = page.contribution;
+  const previous = args.summary ?? {
+    totalIncomeCents: 0,
+    grossSpendingCents: 0,
+    refundCents: 0,
+    spendingTransactionCount: 0,
+    refundTransactionCount: 0,
+    largestSpendingTransactionCents: 0,
+    nextLargestSpendingCents: [],
+    largestSpendingTransactions: [],
+  };
+  const summary = mergeMonthlySpending({ ...previous, totalIncomeCents: previous.totalIncomeCents ?? 0 }, contribution.summary);
+  const pipeSpending = mergePipeSpending(args.pipeSpending ?? [], contribution.pipeSpending);
+  const titleSpending = mergeTitleSpending(args.titleSpending ?? [], contribution.titleSpending);
+
+  if (!page.isDone) {
+    await scheduleUserCapture(ctx, {
+      userId: args.userId,
+      periodStart: args.periodStart,
+      periodEnd: args.periodEnd,
+      cursor: page.continueCursor,
+      summary,
+      pipeSpending,
+      titleSpending,
+    }, source);
+    return null;
+  }
+
+  const pipes = await ctx.db
+    .query("pipes")
+    .withIndex("by_userId", q => q.eq("userId", args.userId))
+    .take(MAX_PIPES_PER_USER + 1);
+  if (pipes.length > MAX_PIPES_PER_USER) throw new Error("Pipe limit exceeded");
+  const feedSnapshot = summarizeRootFeedSnapshot(pipes);
+
+  await ctx.db.insert("monthlySpendingStats", {
+    userId: args.userId,
+    periodStart: args.periodStart,
+    ...summary,
+    mostRepeatedTransaction: mostRepeatedTransaction(titleSpending),
+    ...feedSnapshot,
+    offenders: rankMonthlyOffenders(pipes.map(pipe => ({
+      id: pipe._id, parentId: pipe.parentId, name: pipe.name, capacity: pipe.capacity,
+    })), pipeSpending),
+  });
+  return null;
+}
+
+async function readCapturePage(ctx: MutationCtx, args: CaptureArgs, source: "transactions" | "events") {
+  if (source === "events") {
+    const page = await ctx.db.query("events")
+      .withIndex("by_userId_occurredAt", q => q.eq("userId", args.userId)
+        .gte("occurredAt", args.periodStart).lt("occurredAt", args.periodEnd))
+      .paginate({ numItems: REPORT_PAGE_SIZE, cursor: args.cursor ?? null });
+    return { isDone: page.isDone, continueCursor: page.continueCursor,
+      contribution: summarizeMonthlyEventSpending(page.page.map(historyEventFromDocument)) };
+  }
+  const page = await ctx.db
       .query("transactions")
       .withIndex("by_userId_date", (q) =>
         q
@@ -279,56 +338,12 @@ export const captureUserMonth = internalMutation({
           .lt("date", args.periodEnd),
       )
       .paginate({
-        numItems: TRANSACTION_PAGE_SIZE,
+         numItems: REPORT_PAGE_SIZE,
         cursor: args.cursor ?? null,
       });
-    const pageSummary = summarizeMonthlySpending(transactions.page);
-    const previous = args.summary ?? {
-      totalIncomeCents: 0,
-      grossSpendingCents: 0,
-      refundCents: 0,
-      spendingTransactionCount: 0,
-      refundTransactionCount: 0,
-      largestSpendingTransactionCents: 0,
-      nextLargestSpendingCents: [],
-      largestSpendingTransactions: [],
-    };
-    const summary = mergeMonthlySpending({ ...previous, totalIncomeCents: previous.totalIncomeCents ?? 0 }, pageSummary);
-    const pipeSpending = mergePipeSpending(args.pipeSpending ?? [], monthlyPipeSpending(transactions.page));
-    const titleSpending = mergeTitleSpending(args.titleSpending ?? [], monthlyTitleSpending(transactions.page));
-
-    if (!transactions.isDone) {
-      await scheduleUserCapture(ctx, {
-        userId: args.userId,
-        periodStart: args.periodStart,
-        periodEnd: args.periodEnd,
-        cursor: transactions.continueCursor,
-        summary,
-        pipeSpending,
-        titleSpending,
-      });
-      return null;
-    }
-
-    const pipes = await ctx.db
-      .query("pipes")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
-      .take(MAX_PIPES_PER_USER + 1);
-    if (pipes.length > MAX_PIPES_PER_USER) {
-      throw new Error("Pipe limit exceeded");
-    }
-    const feedSnapshot = summarizeRootFeedSnapshot(pipes);
-
-    await ctx.db.insert("monthlySpendingStats", {
-      userId: args.userId,
-      periodStart: args.periodStart,
-      ...summary,
-      mostRepeatedTransaction: mostRepeatedTransaction(titleSpending),
-      ...feedSnapshot,
-      offenders: rankMonthlyOffenders(pipes.map((pipe) => ({
-        id: pipe._id, parentId: pipe.parentId, name: pipe.name, capacity: pipe.capacity,
-      })), pipeSpending),
-    });
-    return null;
-  },
-});
+  return { isDone: page.isDone, continueCursor: page.continueCursor, contribution: {
+    summary: summarizeMonthlySpending(page.page),
+    pipeSpending: monthlyPipeSpending(page.page),
+    titleSpending: monthlyTitleSpending(page.page),
+  } };
+}
