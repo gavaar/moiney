@@ -23,7 +23,6 @@ import { MAX_PIPES_PER_USER } from "./lib/constants";
 const TITLE_USAGE_RETENTION_MS = 365 * 24 * 60 * 60 * 1000;
 const TITLE_USAGE_CLEANUP_BATCH_SIZE = 100;
 const RECENT_TRANSACTION_LIMIT = 30;
-const TRANSACTION_CACHE_RECONCILIATION_LIMIT = 300;
 const transactionCacheItem = v.object({
   id: v.id("transactions"),
   createdAt: v.number(),
@@ -359,29 +358,6 @@ export const listTransactions = query({
       ? await loadRecentTransactionsForPipes(ctx, userId, args.pipeIds)
       : await transactionsQuery(ctx, userId).take(RECENT_TRANSACTION_LIMIT);
     return transactions.map(({ operationId: _operationId, ...transaction }) => transaction);
-  },
-});
-
-export const listTransactionsByIds = query({
-  args: {
-    transactionIds: v.array(v.id("transactions")),
-  },
-  returns: v.array(transactionCacheItem),
-  handler: async (ctx, args) => {
-    const userId = await requireAuth(ctx);
-    if (args.transactionIds.length > TRANSACTION_CACHE_RECONCILIATION_LIMIT) {
-      throw new ConvexError({ code: "TOO_MANY_TRANSACTION_IDS" });
-    }
-    const transactionIds = [...new Set(args.transactionIds)];
-
-    const rows = await Promise.all(
-      transactionIds.map((transactionId) => ctx.db.get("transactions", transactionId)),
-    );
-    return rows
-      .filter((transaction): transaction is Doc<"transactions"> =>
-        transaction?.userId === userId,
-      )
-      .map(toTransactionCacheItem);
   },
 });
 

@@ -6,7 +6,6 @@ import {
   listTransactionCorrectionsPaginated,
   listTransactions,
   listTransactionsPaginated,
-  listTransactionsByIds,
 } from "./transactions";
 import { MAX_PIPES_PER_USER } from "./lib/constants";
 
@@ -1224,54 +1223,6 @@ describe("listTransactionsPaginated", () => {
     });
 
     expect(result.page.map((row: any) => row.id)).toEqual(["from", "to", "paid"]);
-  });
-});
-
-describe("listTransactionsByIds", () => {
-  it("returns only owned requested rows in cache-friendly form", async () => {
-    const owned = {
-      _id: "owned",
-      _creationTime: 10,
-      title: "owned",
-      value: -100,
-      date: 20,
-      kind: "expense",
-      from: "pipe-1",
-      userId: "user-1",
-    };
-    const foreign = { ...owned, _id: "foreign", userId: "user-2" };
-    const ctx = mockCtx();
-    ctx.db.get.mockImplementation((_table: string, id: string) => {
-      if (id === "owned") return owned;
-      if (id === "foreign") return foreign;
-      return null;
-    });
-
-    const result = await (listTransactionsByIds as any)._handler(ctx, {
-      transactionIds: ["owned", "missing", "foreign"],
-    });
-
-    expect(result).toEqual([
-      {
-        id: "owned",
-        createdAt: 10,
-        title: "owned",
-        value: -100,
-        date: 20,
-        kind: "expense",
-        from: "pipe-1",
-      },
-    ]);
-  });
-
-  it("rejects more than 300 requested IDs before reading the database", async () => {
-    const ctx = mockCtx();
-    const transactionIds = Array.from({ length: 301 }, () => "duplicate-id");
-
-    await expect(
-      (listTransactionsByIds as any)._handler(ctx, { transactionIds }),
-    ).rejects.toMatchObject({ data: { code: "TOO_MANY_TRANSACTION_IDS" } });
-    expect(ctx.db.get).not.toHaveBeenCalled();
   });
 });
 
