@@ -10,17 +10,17 @@ function expense(id: string, overrides: Partial<Extract<HistoryEntry, { type: "t
   return { id: eventId(id), operationId: eventId(id), createdAt: june, occurredAt: june, pipeId: pipe("source"), type: "transaction", title: "lunch", value: -100, ...overrides };
 }
 
-function transfer(id: string, value = -100, date = june): HistoryEntry[] {
+function transfer(id: string, value = -100, date = june, target = "target"): HistoryEntry[] {
   return [
-    { id: eventId(id), operationId: eventId(id), createdAt: date, occurredAt: date, pipeId: pipe("source"), type: "transfer", targetPipeId: pipe("target"), title: "lunch", value },
-    { id: eventId(`${id}-mirror`), operationId: eventId(id), createdAt: date + 1, occurredAt: date, pipeId: pipe("target"), type: "transfer", targetPipeId: pipe("source"), title: "lunch", value: -value },
+    { id: eventId(id), operationId: eventId(id), createdAt: date, occurredAt: date, pipeId: pipe("source"), type: "transfer", targetPipeId: pipe(target), title: "lunch", value },
+    { id: eventId(`${id}-mirror`), operationId: eventId(id), createdAt: date + 1, occurredAt: date, pipeId: pipe(target), type: "transfer", targetPipeId: pipe("source"), title: "lunch", value: -value },
   ];
 }
 
-function external(id: string, value = -100): HistoryEntry[] {
+function external(id: string, value = -100, payer = "payer"): HistoryEntry[] {
   return [
-    { id: eventId(id), operationId: eventId(id), createdAt: june, occurredAt: june, pipeId: pipe("source"), type: "third_party_transaction", targetPipeId: pipe("payer"), title: "lunch", value },
-    { id: eventId(`${id}-mirror`), operationId: eventId(id), createdAt: june + 1, occurredAt: june, pipeId: pipe("payer"), type: "transaction", targetPipeId: pipe("source"), title: "lunch", value: -value },
+    { id: eventId(id), operationId: eventId(id), createdAt: june, occurredAt: june, pipeId: pipe("source"), type: "third_party_transaction", targetPipeId: pipe(payer), title: "lunch", value },
+    { id: eventId(`${id}-mirror`), operationId: eventId(id), createdAt: june + 1, occurredAt: june, pipeId: pipe(payer), type: "transaction", targetPipeId: pipe("source"), title: "lunch", value: -value },
   ];
 }
 
@@ -63,6 +63,72 @@ describe("event operation and title grouping", () => {
     expect(rows[0]).toMatchObject({ kind: "group", title: "lunch", count: 3, totalValue: -200, visiblePipeIds: [pipe("payer"), pipe("source"), pipe("target")] });
   });
 
+  it.each([
+    { scope: ["source"], expensePipe: "source" },
+    { scope: ["target"], expensePipe: "target" },
+    { scope: ["source", "target"], expensePipe: "target" },
+  ])("excludes transfer value from scoped title totals for $scope", ({ scope, expensePipe }) => {
+    const rows = groupHistoryEvents([
+      expense("expense", { pipeId: pipe(expensePipe), value: -500 }),
+      ...transfer("transfer", -300),
+    ], scope.map(pipe));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ kind: "group", count: 2, totalValue: -500, visiblePipeIds: scope.map(pipe) });
+  });
+
+  it("nets expenses and refunds with different values, keeping the newest member first", () => {
+    const rows = groupHistoryEvents([
+      expense("expense", { value: -500, createdAt: june }),
+      expense("refund", { value: 200, createdAt: june + 1 }),
+    ]);
+    expect(rows[0]).toMatchObject({ kind: "group", count: 2, totalValue: -300, oldestDate: june, latestDate: june });
+    if (rows[0].kind !== "group") throw new Error("Expected title group");
+    expect(rows[0].operations.map(operation => [operation.id, operation.value])).toEqual([[eventId("refund"), 200], [eventId("expense"), -500]]);
+  });
+
+  it("groups expenses across logical sources and payer provenance", () => {
+    const rows = groupHistoryEvents([
+      expense("ordinary", { pipeId: pipe("other") }),
+      ...external("first"),
+      ...external("second", -100, "other-payer"),
+    ]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ kind: "group", count: 3, totalValue: -300, visiblePipeIds: [pipe("other"), pipe("other-payer"), pipe("payer"), pipe("source")] });
+  });
+
+  it("groups transfers across destinations without counting either perspective twice", () => {
+    const rows = groupHistoryEvents([
+      ...transfer("first"),
+      ...transfer("second", -100, june, "other"),
+    ]);
+    expect(rows[0]).toMatchObject({ kind: "group", count: 2, totalValue: 0, visiblePipeIds: [pipe("other"), pipe("source"), pipe("target")] });
+  });
+
+  it("keeps parent and descendant operations visible within an expanded subtree scope", () => {
+    const rows = groupHistoryEvents([
+      expense("parent", { pipeId: pipe("parent") }),
+      expense("child", { pipeId: pipe("child") }),
+      expense("grandchild", { pipeId: pipe("grandchild") }),
+      expense("outside", { pipeId: pipe("outside") }),
+    ], [pipe("parent"), pipe("child"), pipe("grandchild")]);
+    expect(rows[0]).toMatchObject({ kind: "group", count: 3, totalValue: -300, visiblePipeIds: [pipe("child"), pipe("grandchild"), pipe("parent")] });
+  });
+
+  it("keeps different titles distinct even when their title/value concatenations match", () => {
+    const rows = groupHistoryEvents([
+      expense("first-a", { title: "item1", value: 23 }),
+      expense("first-b", { title: "item1", value: 23 }),
+      expense("second-a", { title: "item", value: 123 }),
+      expense("second-b", { title: "item", value: 123 }),
+    ]);
+    expect(rows).toHaveLength(2);
+    expect(new Set(rows.map(row => row.id)).size).toBe(2);
+    expect(rows).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: "group", title: "item1", count: 2, totalValue: 46 }),
+      expect.objectContaining({ kind: "group", title: "item", count: 2, totalValue: 246 }),
+    ]));
+  });
+
   it("keeps feed identity separate from spending titles and other destinations", () => {
     const feed = (id: string, destination = "source"): HistoryEntry => ({ id: eventId(id), operationId: eventId(id), createdAt: june, occurredAt: june, pipeId: pipe(destination), type: "feed", title: "lunch", value: 100 });
     const rows = groupHistoryEvents([feed("a"), feed("b"), feed("c", "other"), expense("expense")]);
@@ -76,6 +142,19 @@ describe("event operation and title grouping", () => {
       expense("june", { occurredAt: boundary - 1 }),
       expense("july", { occurredAt: boundary }),
     ])).toHaveLength(2);
+  });
+
+  it("keeps adjacent years and the same calendar month in different years separate", () => {
+    const january = Date.UTC(2026, 0, 1);
+    const rows = groupHistoryEvents([
+      expense("january", { occurredAt: january, value: -100 }),
+      expense("other-january", { occurredAt: january + 1, value: -300 }),
+      expense("december", { occurredAt: january - 1 }),
+      expense("prior-january", { occurredAt: Date.UTC(2025, 0, 1) }),
+    ]);
+    expect(rows).toHaveLength(3);
+    expect(rows[0]).toMatchObject({ kind: "group", count: 2, totalValue: -400, oldestDate: january, latestDate: january + 1 });
+    expect(rows.slice(1).map(row => row.id)).toEqual([eventId("december"), eventId("prior-january")]);
   });
 
   it("filters by participating pipes and excludes non-visible operations without changing group membership", () => {

@@ -2,7 +2,6 @@ export {
   canonicalizeTransactionTitle,
   deriveTransactionKind,
   resolveTransactionKind,
-  transactionGroupId,
 } from "./identity";
 export type { TransactionKind } from "./identity";
 export {

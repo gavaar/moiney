@@ -1,6 +1,5 @@
 import type { Id } from "../convex/_generated/dataModel";
-import type { TransactionModel } from "../src/components/features/transactions/data/transactions";
-import { groupTransactions } from "../src/components/features/transactions/groupTransactions";
+import { groupHistoryEvents, type HistoryEntry } from "../src/components/features/transactions/history/event-groups";
 import { buildTreeRows } from "../src/components/features/pipes/PipeTreeView/treeRows";
 import type { PipeModel } from "../src/components/features/pipes/data/pipes";
 
@@ -75,15 +74,16 @@ function makeTree(size: number): {
   };
 }
 
-function makeTransactions(size: number): TransactionModel[] {
+function makeEvents(size: number): HistoryEntry[] {
   return Array.from({ length: size }, (_, index) => ({
-    id: `transaction-${index}` as Id<"transactions">,
+    id: `event-${index}` as Id<"events">,
+    operationId: `event-${index}` as Id<"events">,
     createdAt: index,
     title: `title-${index % 10}`,
     value: index % 2 === 0 ? -100 : 100,
-    date: Date.UTC(2026, 0, 1) + index * 86_400_000,
-    kind: "expense" as const,
-    from: "pipe-1" as Id<"pipes">,
+    occurredAt: Date.UTC(2026, 0, 1) + index * 86_400_000,
+    type: "transaction" as const,
+    pipeId: "pipe-1" as Id<"pipes">,
   }));
 }
 
@@ -95,8 +95,8 @@ for (const size of pipeSizes) {
 }
 
 for (const size of historySizes) {
-  const transactions = makeTransactions(size);
-  measure("group-transactions", size, () =>
-    groupTransactions(transactions),
+  const events = makeEvents(size);
+  measure("group-history-events", size, () =>
+    groupHistoryEvents(events),
   );
 }

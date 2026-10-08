@@ -1,10 +1,18 @@
-import type { TransactionGroup } from "@features/transactions/groupTransactions";
+import type { Id } from "@convex/_generated/dataModel";
 import type { PipeCatalogContextValue } from "@features/pipes/context/PipeCatalogContext";
 import { colors } from "@/lib/styles";
 import { safeIconName } from "@ui/Icon/icons";
 import type { TransactionPresentation } from "@features/transactions/data/transactions";
 
-export type StackedTransactionGroup = Pick<TransactionGroup, "title" | "count" | "totalValue" | "oldestDate" | "latestDate" | "visiblePipeIds"> & { transactions: readonly TransactionPresentation[] };
+export type StackedTransactionGroup = {
+  title: string;
+  count: number;
+  totalValue: number;
+  oldestDate: number;
+  latestDate: number;
+  visiblePipeIds: readonly Id<"pipes">[];
+  transactions: readonly TransactionPresentation[];
+};
 
 const MONTH_DAY: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
 const MONTH_DAY_YEAR: Intl.DateTimeFormatOptions = {

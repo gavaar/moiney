@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, fireEvent, within } from "@testing-library/react";
 import { StackedTransactionItem } from "./StackedTransactionItem";
-import { groupTransactions, type TransactionGroup } from "@features/transactions/groupTransactions";
+import type { StackedTransactionGroup } from "./stackedTransactionItem.model";
 import type { Id } from "@convex/_generated/dataModel";
 import { colors } from "@/lib/styles";
 
@@ -34,28 +34,32 @@ vi.mock("react-native", async (importOriginal) => {
   };
 });
 
-const [grouped] = groupTransactions([
-  {
-    id: "tx1" as Id<"transactions">,
-    createdAt: 0,
-    title: "coffee",
-    kind: "expense",
-    value: -500,
-    date: new Date(2024, 2, 15).getTime(),
-    from: "pipe-1" as Id<"pipes">,
-  },
-  {
-    id: "tx2" as Id<"transactions">,
-    createdAt: 0,
-    title: "coffee",
-    kind: "expense",
-    value: -300,
-    date: new Date(2024, 2, 20).getTime(),
-    from: "pipe-1" as Id<"pipes">,
-  },
-]);
-if (!("count" in grouped)) throw new Error("Expected a group");
-const baseGroup = grouped;
+const baseGroup: StackedTransactionGroup = {
+  title: "coffee",
+  count: 2,
+  totalValue: -800,
+  oldestDate: new Date(2024, 2, 15).getTime(),
+  latestDate: new Date(2024, 2, 20).getTime(),
+  visiblePipeIds: ["pipe-1" as Id<"pipes">],
+  transactions: [
+    {
+      createdAt: 0,
+      title: "coffee",
+      kind: "expense",
+      value: -300,
+      date: new Date(2024, 2, 20).getTime(),
+      from: "pipe-1" as Id<"pipes">,
+    },
+    {
+      createdAt: 0,
+      title: "coffee",
+      kind: "expense",
+      value: -500,
+      date: new Date(2024, 2, 15).getTime(),
+      from: "pipe-1" as Id<"pipes">,
+    },
+  ],
+};
 
 const pipeInfo = {
   id: "pipe-1" as Id<"pipes">,
@@ -106,7 +110,7 @@ describe("StackedTransactionItem", () => {
   ] as const)("uses the deleted $role icon belonging to the visible pipe", ({ role, snapshot, icon }) => {
     mockUsePipeCatalog.mockReturnValue({ pipesById: {} });
     const visibleId = "deleted" as Id<"pipes">;
-    const group: TransactionGroup = {
+    const group: StackedTransactionGroup = {
       ...baseGroup,
       visiblePipeIds: [visibleId],
       transactions: baseGroup.transactions.map((transaction) => ({
@@ -186,11 +190,14 @@ describe("StackedTransactionItem", () => {
   });
 
   it("allows expansion when only an older member has a deleted role", () => {
-    const [group] = groupTransactions([
-      baseGroup.transactions[0],
-      { ...baseGroup.transactions[1], paidFrom: "deleted-payer" as Id<"pipes">, paidFromIcon: "cash-outline" },
-    ]);
-    if (!("count" in group)) throw new Error("Expected a group");
+    const group: StackedTransactionGroup = {
+      ...baseGroup,
+      visiblePipeIds: [...baseGroup.visiblePipeIds, "deleted-payer" as Id<"pipes">],
+      transactions: [
+        baseGroup.transactions[0],
+        { ...baseGroup.transactions[1], paidFrom: "deleted-payer" as Id<"pipes">, paidFromIcon: "cash-outline" },
+      ],
+    };
     const onToggle = vi.fn();
     render(<StackedTransactionItem group={group} expanded={false} onToggle={onToggle} />);
 
@@ -199,12 +206,15 @@ describe("StackedTransactionItem", () => {
   });
 
   it.each(["expense", "transfer"] as const)("expands mixed groups with newest kind %s", (newestKind) => {
-    const [group] = groupTransactions([
-      { ...baseGroup.transactions[0], kind: "expense", value: -800, date: newestKind === "expense" ? 2 : 1 },
-      { ...baseGroup.transactions[1], kind: "transfer", to: "destination" as Id<"pipes">, value: 300, date: newestKind === "transfer" ? 2 : 1 },
-    ]);
-    if (!("count" in group)) throw new Error("Expected a group");
-    expect(group.isMixed).toBe(true);
+    const expense = { ...baseGroup.transactions[0], kind: "expense" as const, value: -800, date: newestKind === "expense" ? 2 : 1 };
+    const transfer = { ...baseGroup.transactions[1], kind: "transfer" as const, to: "destination" as Id<"pipes">, value: 300, date: newestKind === "transfer" ? 2 : 1 };
+    const group: StackedTransactionGroup = {
+      ...baseGroup,
+      oldestDate: 1,
+      latestDate: 2,
+      visiblePipeIds: [...baseGroup.visiblePipeIds, "destination" as Id<"pipes">],
+      transactions: newestKind === "expense" ? [expense, transfer] : [transfer, expense],
+    };
     const onToggle = vi.fn();
     render(<StackedTransactionItem group={group} expanded={false} onToggle={onToggle} />);
 

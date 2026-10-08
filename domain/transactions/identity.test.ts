@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   deriveTransactionKind,
   resolveTransactionKind,
-  transactionGroupId,
 } from "./identity";
 
 describe("deriveTransactionKind", () => {
@@ -38,43 +37,5 @@ describe("resolveTransactionKind", () => {
     expect(() =>
       resolveTransactionKind({ kind: "feed", from: "food" }),
     ).toThrow("Transaction kind does not match roles");
-  });
-});
-
-describe("transactionGroupId", () => {
-  it("distinguishes titles without relying on concatenated fields", () => {
-    const first = transactionGroupId({
-      kind: "expense",
-      title: "item1",
-      value: 23,
-      from: "food",
-    });
-    const second = transactionGroupId({
-      kind: "expense",
-      title: "item",
-      value: 123,
-      from: "food",
-    });
-
-    expect(first).not.toBe(second);
-  });
-
-  it("groups expenses independently of paidFrom provenance", () => {
-    const first = transactionGroupId({
-      kind: "expense",
-      title: "coffee",
-      value: -5,
-      from: "food",
-      paidFrom: "salary",
-    });
-    const second = transactionGroupId({
-      kind: "expense",
-      title: "coffee",
-      value: -5,
-      from: "food",
-      paidFrom: "savings",
-    });
-
-    expect(first).toBe(second);
   });
 });
