@@ -17,6 +17,7 @@ import type * as lib_auth from "../lib/auth.js";
 import type * as lib_authRateLimits from "../lib/authRateLimits.js";
 import type * as lib_constants from "../lib/constants.js";
 import type * as lib_events_correctionOwnership from "../lib/events/correctionOwnership.js";
+import type * as lib_events_corrections from "../lib/events/corrections.js";
 import type * as lib_events_financial from "../lib/events/financial.js";
 import type * as lib_events_lifecycle from "../lib/events/lifecycle.js";
 import type * as lib_events_persistence from "../lib/events/persistence.js";
@@ -42,6 +43,7 @@ import type * as lib_transactions_operations from "../lib/transactions/operation
 import type * as lib_usernames from "../lib/usernames.js";
 import type * as migrations from "../migrations.js";
 import type * as monthlySpendingStats from "../monthlySpendingStats.js";
+import type * as operationCorrections from "../operationCorrections.js";
 import type * as pipes from "../pipes.js";
 import type * as profile from "../profile.js";
 import type * as sessions from "../sessions.js";
@@ -63,6 +65,7 @@ declare const fullApi: ApiFromModules<{
   "lib/authRateLimits": typeof lib_authRateLimits;
   "lib/constants": typeof lib_constants;
   "lib/events/correctionOwnership": typeof lib_events_correctionOwnership;
+  "lib/events/corrections": typeof lib_events_corrections;
   "lib/events/financial": typeof lib_events_financial;
   "lib/events/lifecycle": typeof lib_events_lifecycle;
   "lib/events/persistence": typeof lib_events_persistence;
@@ -88,6 +91,7 @@ declare const fullApi: ApiFromModules<{
   "lib/usernames": typeof lib_usernames;
   migrations: typeof migrations;
   monthlySpendingStats: typeof monthlySpendingStats;
+  operationCorrections: typeof operationCorrections;
   pipes: typeof pipes;
   profile: typeof profile;
   sessions: typeof sessions;

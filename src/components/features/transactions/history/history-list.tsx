@@ -32,7 +32,7 @@ export function HistoryList({ entries, deletedPipes: catalog, filters, isLoading
     ...catalog, ...entries.filter((entry): entry is DeletedPipeEntry => entry.type === "pipe_deletion"),
   ].map(entry => [entry.pipeId, entry])).values()], [catalog, entries]);
   const [expanded, setExpanded] = useState(new Set<string>());
-  const [selected, setSelected] = useState<{ id: Id<"transactions">; title: string } | null>(null);
+  const [selected, setSelected] = useState<{ id: Id<"events">; title: string } | null>(null);
   const rows = useMemo(() => {
     const top = groupMonthlyEventHistory(entries, deletedPipes, filters.pipeIds?.length ? filters.pipeIds : undefined);
     const result: Row[] = [];
@@ -84,6 +84,6 @@ export function HistoryList({ entries, deletedPipes: catalog, filters, isLoading
               onShowEditHistory={id => setSelected({ id, title: row.operation.title })} />}
         </View>;
       }} />
-    {selected ? <TransactionCorrectionHistoryModal visible transactionId={selected.id} transactionTitle={selected.title} onClose={() => setSelected(null)} /> : null}
+    {selected ? <TransactionCorrectionHistoryModal visible operationId={selected.id} transactionTitle={selected.title} onClose={() => setSelected(null)} /> : null}
   </View>;
 }

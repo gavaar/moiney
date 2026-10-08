@@ -39,7 +39,7 @@ describe("TransactionCorrectionHistoryModal", () => {
     render(
       <TransactionCorrectionHistoryModal
         visible
-        transactionId={"tx-1" as any}
+        operationId={"operation-1" as any}
         transactionTitle="coffee"
         onClose={onClose}
       />,

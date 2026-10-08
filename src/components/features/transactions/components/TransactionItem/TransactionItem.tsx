@@ -18,7 +18,7 @@ import { useAlert } from "@ui/Alert";
 
 type TransactionItemProps = ({ transaction: TransactionModel; resolveTransaction?: never } |
   { transaction: TransactionPresentation; resolveTransaction: () => Promise<TransactionModel | null> }) & {
-  onShowEditHistory?: (transactionId: TransactionModel["id"]) => void;
+  onShowEditHistory?: () => void;
 };
 
 const DATE_FORMAT: Intl.DateTimeFormatOptions = {
@@ -167,7 +167,7 @@ export function TransactionItem({ transaction, resolveTransaction, onShowEditHis
           accessibilityRole="button"
           accessibilityLabel={`View edit history for ${transaction.title}`}
           disabled={isResolving}
-          onPress={() => withTransaction(row => onShowEditHistory(row.id))}
+          onPress={onShowEditHistory}
         >
           <Icon name="history" size={15} color={colors.muted} />
           <Text className="text-muted text-[10px]">Edited</Text>

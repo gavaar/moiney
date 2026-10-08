@@ -154,14 +154,15 @@ describe("TransactionItem", () => {
     expect(screen.getByTestId("amount-form").getAttribute("data-intent")).toBe("edit");
   });
 
-  it("resolves delete and correction-history actions without inventing a transaction ID", async () => {
+  it("opens correction history directly while resolving the legacy delete action", async () => {
     const { id: _id, ...presentation } = baseTx;
     const resolveTransaction = vi.fn().mockResolvedValue(baseTx);
     const history = vi.fn();
     deleteMocks.confirm.mockResolvedValue(true);
     render(<TransactionItem transaction={{ ...presentation, editedAt: 2 }} resolveTransaction={resolveTransaction} onShowEditHistory={history} />);
     fireEvent.click(screen.getByLabelText("View edit history for shopping mall"));
-    await waitFor(() => expect(history).toHaveBeenCalledWith(baseTx.id));
+    expect(history).toHaveBeenCalledOnce();
+    expect(resolveTransaction).not.toHaveBeenCalled();
     fireEvent.click(screen.getByLabelText("Delete shopping mall"));
     await waitFor(() => expect(deleteMocks.deleteTransaction).toHaveBeenCalledWith({ transactionId: baseTx.id }));
   });
@@ -173,15 +174,14 @@ describe("TransactionItem", () => {
     fireEvent.click(screen.getByText("Shopping mall"));
     await waitFor(() => expect(deleteMocks.showError).toHaveBeenCalledWith("Transaction is no longer available. Pull to refresh."));
     unmount();
-    let finish!: (value: typeof baseTx) => void;
+    let finish!: (value: typeof baseTx | null) => void;
     resolveTransaction.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
-    const history = vi.fn();
-    const next = render(<TransactionItem transaction={{ ...presentation, editedAt: 2 }} resolveTransaction={resolveTransaction} onShowEditHistory={history} />);
-    fireEvent.click(screen.getByLabelText("View edit history for shopping mall"));
+    const next = render(<TransactionItem transaction={presentation} resolveTransaction={resolveTransaction} />);
+    fireEvent.click(screen.getByText("Shopping mall"));
     next.unmount();
-    finish(baseTx);
+    finish(null);
     await Promise.resolve();
-    expect(history).not.toHaveBeenCalled();
+    expect(deleteMocks.showError).toHaveBeenCalledOnce();
   });
 
   it("renders the transaction title with first letter capitalized", () => {
@@ -318,7 +318,7 @@ describe("TransactionItem", () => {
 
     fireEvent.click(screen.getByTestId("transaction-edit-history"));
 
-    expect(onShowEditHistory).toHaveBeenCalledWith(transaction.id);
+    expect(onShowEditHistory).toHaveBeenCalledOnce();
   });
 
   it("renders positive value without sign", () => {

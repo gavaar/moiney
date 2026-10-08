@@ -11,6 +11,7 @@ import { EventTransactionItem } from "./event-transaction-item";
 import { EventHistoryCacheProvider } from "../cache/EventHistoryCacheContext";
 import { EventHistoryStore } from "../cache/EventHistoryStore";
 import { useEventHistory } from "../cache/useEventHistory";
+import type { Id } from "@convex/_generated/dataModel";
 
 const mocks = vi.hoisted(() => ({ query: vi.fn(), mutate: vi.fn(), pipes: [] as PipeModel[], success: vi.fn(), error: vi.fn() }));
 const client = { query: mocks.query };
@@ -27,6 +28,20 @@ vi.mock("@features/pipes/context/PipeCatalogContext", () => ({ usePipeCatalog: (
 function HistoryCount() {
   return <span data-testid="history-count">{useEventHistory().entries.length}</span>;
 }
+
+it("opens Edited history by operation ID without resolving a legacy action", () => {
+  mocks.query.mockClear();
+  mocks.query.mockResolvedValue(null);
+  const history = vi.fn();
+  const operationId = "operation" as Id<"events">;
+  const row = groupHistoryEvents([{ id: operationId, operationId, type: "transaction", pipeId: "source" as Id<"pipes">,
+    title: "lunch", value: -100, occurredAt: 1, createdAt: 1, editedAt: 2 }])[0];
+  if (row.kind !== "operation") throw new Error("Expected operation");
+  render(<EventTransactionItem operation={row.operation} deletedPipes={[]} onShowEditHistory={history} />);
+  fireEvent.click(screen.getByLabelText("View edit history for lunch"));
+  expect(history).toHaveBeenCalledWith(operationId);
+  expect(mocks.query).not.toHaveBeenCalled();
+});
 
 it("deletes the exact linked operation and refreshes event history without transaction snapshots", async () => {
   const t = convexTest(schema, modules);

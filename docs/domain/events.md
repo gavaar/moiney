@@ -130,10 +130,12 @@ or not. Loaded canonical snapshots take precedence when both perspectives exist;
 repeated entry IDs retain the last supplied snapshot rather than adding counts.
 
 Financial display projections contain no legacy action ID. During coexistence,
-repeat, edit, delete, and correction-history actions resolve the exact owned
+repeat, edit, and delete actions resolve the exact owned
 operation through `transactions:forEventOperation` before using legacy APIs. A
 missing link makes the action unavailable; equal titles or amounts never repair
-it. Rendering and expansion perform no action-resolution queries.
+it. Correction history opens directly by canonical operation ID and authorizes
+the complete operation, without resolving a legacy action target. Rendering and
+expansion perform no action-resolution queries.
 
 ## Retrieval
 
@@ -163,9 +165,9 @@ the client uses its live pipe catalog for current presentation. A single-pipe
 query selects that pipe's own perspectives, not its target roles or descendants.
 Client scope expansion and preserved lifecycle ancestry own descendant/archive
 matching; callers can page separate pipe streams without an unbounded backend
-fan-out. Legacy history APIs remain available for installed clients until backend
-cutover. During coexistence, financial responses also include optional `editedAt`
-from the exact legacy link to preserve the `Edited` correction-history control.
+fan-out. Legacy transaction-ID action and correction APIs remain available until
+cutover. Financial responses also include optional `editedAt` from the latest
+owned operation-linked correction to preserve the `Edited` history control.
 This metadata lookup is bounded to the loaded page and reused per operation;
 it neither adds members nor resolves missing mirrors.
 
@@ -201,6 +203,37 @@ archive reveals loaded members without another financial query.
 Counts, Spent, and date bounds describe loaded matching members, not the complete
 pipe/month history. No separate archive reader, pagination, or full-summary scan
 is needed. Deletion-catalog reads supply identity and ancestry metadata only.
+
+## Correction Ownership Migration
+
+Corrections gain an optional canonical `operationId` while retaining their
+required transaction link and previous/current snapshots. New edits write both
+identities atomically, including when an older transaction acquires its first
+event operation. Existing transaction-ID actions, correction reads, and cleanup
+jobs remain supported for installed clients. Current correction reads and edit
+metadata follow the operation-owned contracts in [Retrieval](#retrieval).
+
+`migrations:auditCorrectionOperationLinks` is an internal, read-only paginated
+audit (1–100 corrections per page). Follow every continuation cursor; a clean
+first page does not establish readiness. `ready` means a valid exact link can be
+backfilled; `linked` means that same link is already stored. Every other status
+requires review. A missing transaction does not prove that its correction is safe
+to purge, and equal titles, values, or dates never establish identity.
+
+`migrations:m20261008_180000_backfillCorrectionOperationIds` validates ownership,
+canonical financial identity, and the complete operation before filling missing
+links. It validates existing links too and never overwrites a conflicting one.
+Any unexplained missing or broken link stops the batch atomically, preserving all
+records for review. It does not replay accounting, modify event identities or
+balances, change correction snapshots/timestamps, or restate captured reports.
+
+Deploy the widened schema and dual-writer first, audit all pages in each supported
+deployment, resolve blockers explicitly, and dry-run a batch before manual
+execution. A dry run checks only one batch and rolls its writes back. Verify
+component completion and a full audit showing only `linked` before the
+operation-only reader/action cutover and eventual schema narrowing. Normal
+deployment automation does not execute this migration. Confirmed obsolete
+correction deletion is a separate, explicitly approved data operation.
 
 ## Deployment Compatibility
 

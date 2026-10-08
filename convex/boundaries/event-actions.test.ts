@@ -17,6 +17,8 @@ describe("event action identity bridge", () => {
       const pipeId = await ctx.db.insert("pipes", { userId, name: "Source", icon: "wallet", priority: 0, capacity: 1000, fed: 1000, spent: 0 });
       const operation = await insertHistoryOperation(ctx, { canonicalEvent: { userId, pipeId, type: "transaction", title: "lunch", value: -100, occurredAt: 1 } });
       const transactionId = await ctx.db.insert("transactions", { userId, operationId: operation.canonicalEvent.id, from: pipeId, kind: "expense", title: "lunch", value: -100, date: 1, editedAt: 2 });
+      await ctx.db.insert("transactionCorrections", { userId, transactionId, operationId: operation.canonicalEvent.id, editedAt: 2,
+        previous: { title: "old", value: -100, date: 1 }, current: { title: "lunch", value: -100, date: 1 } });
       return { userId, otherId, operationId: operation.canonicalEvent.id, transactionId };
     });
     const auth = t.withIdentity({ subject: ids.userId });

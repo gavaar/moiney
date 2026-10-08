@@ -7,6 +7,7 @@ import {
 } from "convex/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import { requireAuth } from "./lib/auth";
+import { correctionHistoryItem } from "./lib/events/corrections";
 import {
   correctBoilerCurrentFedOperation,
   createTransactionOperation,
@@ -30,23 +31,6 @@ const transactionCacheItem = v.object({
   toIcon: v.optional(v.string()),
   paidFromIcon: v.optional(v.string()),
   editedAt: v.optional(v.number()),
-});
-const correctionSnapshot = v.object({
-  title: v.string(),
-  value: v.number(),
-  date: v.number(),
-  kind: v.optional(
-    v.union(v.literal("feed"), v.literal("expense"), v.literal("transfer")),
-  ),
-  from: v.optional(v.id("pipes")),
-  to: v.optional(v.id("pipes")),
-  paidFrom: v.optional(v.id("pipes")),
-});
-const correctionHistoryItem = v.object({
-  correctionId: v.id("transactionCorrections"),
-  editedAt: v.number(),
-  previous: correctionSnapshot,
-  current: correctionSnapshot,
 });
 
 function toTransactionCacheItem(transaction: Doc<"transactions">) {

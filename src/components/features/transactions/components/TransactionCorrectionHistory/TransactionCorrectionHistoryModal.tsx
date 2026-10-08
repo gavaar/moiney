@@ -5,11 +5,11 @@ import { Button } from "@ui/Button";
 import { ModalShell } from "@ui/Modal";
 import { formatAmount } from "@/lib/format";
 import { colors } from "@/lib/styles";
-import type { TransactionModel } from "@features/transactions/data/transactions";
+import type { Id } from "@convex/_generated/dataModel";
 
 type Props = {
   visible: boolean;
-  transactionId: TransactionModel["id"];
+  operationId: Id<"events">;
   transactionTitle: string;
   onClose: () => void;
 };
@@ -30,13 +30,13 @@ function displayTitle(title: string): string {
 
 export function TransactionCorrectionHistoryModal({
   visible,
-  transactionId,
+  operationId,
   transactionTitle,
   onClose,
 }: Props) {
   const { results, status, loadMore } = usePaginatedQuery(
-    api.transactions.listTransactionCorrectionsPaginated,
-    { transactionId },
+    api.operationCorrections.list,
+    { operationId },
     { initialNumItems: 20 },
   );
 

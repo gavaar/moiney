@@ -74,9 +74,18 @@ Status: Implemented
 An edit updates the current snapshot and records one linked correction document
 with previous and current title, value, and date. Normal lists show only the
 current snapshot and expose an `Edited` history control. Correction history is
-paginated, authorized through the owning transaction, and displayed in a
+paginated, authorized through the complete canonical event operation, and displayed in a
 read-only modal. Corrections are not ordinary transaction rows and do not affect
 grouping.
+
+During the operation-ownership migration, new corrections retain `transactionId`
+and also record the exact canonical `operationId` atomically with the edited
+snapshot. Persisted corrections may lack the latter until backfill completes;
+Legacy action, correction-read, and cleanup APIs retain their transaction-ID
+contracts for installed clients. Current correction history and `Edited` metadata
+read operation-owned corrections without resolving a legacy transaction. The
+[correction migration checkpoint](events.md#correction-ownership-migration)
+must pass before removing that compatibility.
 
 Across rule-execution boundaries, edits apply their value delta to the current
 accounting period without restating historical periods. A delta changing logical
