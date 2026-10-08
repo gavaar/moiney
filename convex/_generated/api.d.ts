@@ -31,6 +31,7 @@ import type * as lib_password from "../lib/password.js";
 import type * as lib_pipeHistory from "../lib/pipeHistory.js";
 import type * as lib_pipes_cron from "../lib/pipes/cron.js";
 import type * as lib_pipes_delete_contracts from "../lib/pipes/delete/contracts.js";
+import type * as lib_pipes_delete_eventTraversal from "../lib/pipes/delete/eventTraversal.js";
 import type * as lib_pipes_delete_index from "../lib/pipes/delete/index.js";
 import type * as lib_pipes_delete_operations from "../lib/pipes/delete/operations.js";
 import type * as lib_pipes_delete_plan from "../lib/pipes/delete/plan.js";
@@ -81,6 +82,7 @@ declare const fullApi: ApiFromModules<{
   "lib/pipeHistory": typeof lib_pipeHistory;
   "lib/pipes/cron": typeof lib_pipes_cron;
   "lib/pipes/delete/contracts": typeof lib_pipes_delete_contracts;
+  "lib/pipes/delete/eventTraversal": typeof lib_pipes_delete_eventTraversal;
   "lib/pipes/delete/index": typeof lib_pipes_delete_index;
   "lib/pipes/delete/operations": typeof lib_pipes_delete_operations;
   "lib/pipes/delete/plan": typeof lib_pipes_delete_plan;

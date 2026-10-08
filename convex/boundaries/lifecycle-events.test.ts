@@ -131,7 +131,7 @@ describe("Convex boundaries: unified pipe lifecycle events", () => {
     const root = await auth.mutation(api.pipes.addFeed, { name: "Travel", icon: "wallet" });
     const child = await auth.mutation(api.pipes.addPipe, { parentId: root, name: "Madrid", icon: "map", priority: 0, capacity: 0 });
     const job = await auth.mutation(api.pipes.startPipeDeletion, { pipeId: child, deleteTransactions: false });
-    for (let i = 0; i < 3; i++) await t.mutation(internal.pipes.processPipeDeletion, { jobId: job.jobId });
+    await t.mutation(internal.pipes.processPipeDeletion, { jobId: job.jobId });
     expect(await t.run(ctx => ctx.db.get("pipeDeletionJobs", job.jobId))).toMatchObject({ phase: "readyToFinalize" });
     await auth.mutation(api.pipes.updatePipe, { pipeId: root, name: "Trips", icon: "airplane" });
     await t.finishAllScheduledFunctions(vi.runAllTimers);
@@ -142,7 +142,7 @@ describe("Convex boundaries: unified pipe lifecycle events", () => {
     expect(await t.run(ctx => ctx.db.query("pipeCreationEvents").withIndex("by_pipeId", q => q.eq("pipeId", child)).unique())).toMatchObject({ parentName: "Trips", parentIcon: "airplane" });
   });
 
-  it("removes orphan events in the existing bounded transaction pages before finalizing", async () => {
+  it("removes orphan operations in bounded event pages before finalizing", async () => {
     const { t, auth, userId } = await setup();
     const source = await t.run(ctx => ctx.db.insert("pipes", { userId, name: "Trip", icon: "wallet", priority: 0, capacity: 1000, fed: 1000, spent: 0 }));
     for (let i = 0; i < 51; i++) {

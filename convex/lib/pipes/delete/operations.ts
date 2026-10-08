@@ -7,7 +7,8 @@ import {
   type DeletionPipeState,
 } from "./transactionDisposition";
 import type { DeletionPhase, DeletionStartResult } from "./contracts";
-import { ensurePipeCreationEvent, refreshPipeCreationEvent } from "../../pipeHistory";
+import { ensurePipeCreationEvent, refreshPipeCreationEvent, ensureLivePipeCreationHistory } from "../../pipeHistory";
+import { processEventDeletionPage, hasRetainedFinancialHistory } from "./eventTraversal";
 import { resolveTopMostAncestor } from "../pipes";
 import { deleteHistoryOperation } from "../../events/persistence";
 import { discardPipeLifecycleHistory, ensurePipeDeletionHistory } from "../../events/lifecycle";
@@ -117,9 +118,10 @@ export async function startPipeDeletionOperation(
     deleteTransactions: args.deleteTransactions,
     memberPipeIds: plan.memberIds,
     initialBalance: plan.balance,
+    historySource: "events",
     phase,
     memberIndex: 0,
-    role: "from",
+    role: undefined,
     cursor: undefined,
   });
   for (const pipeId of plan.memberIds) {
@@ -127,6 +129,22 @@ export async function startPipeDeletionOperation(
   }
   await scheduleNext(ctx, jobId);
   return { jobId, phase };
+}
+
+/** Persisted pre-cutover jobs must finish on their original role streams/cursors. */
+async function processLegacyDeletionPage(ctx: MutationCtx, job: Doc<"pipeDeletionJobs">, pipeId: Id<"pipes">, role: DeletionRole) {
+  const page = await roleQuery(ctx, role, pipeId).paginate({ numItems: PIPE_DELETION_TRANSACTION_BATCH_SIZE, cursor: job.cursor ?? null });
+  const states = await loadPipeStates(ctx, page.page);
+  for (const transaction of page.page) {
+    const disposition = planTransactionDisposition(transaction, states, job.deleteTransactions);
+    if (disposition.delete) {
+      if (transaction.operationId) await deleteHistoryOperation(ctx, transaction.userId, transaction.operationId);
+      await ctx.db.delete("transactions", transaction._id);
+    } else if (Object.keys(disposition.patches).length > 0) {
+      await ctx.db.patch("transactions", transaction._id, disposition.patches);
+    }
+  }
+  return page;
 }
 
 export async function getPipeDeletionStatusOperation(
@@ -170,29 +188,8 @@ export async function processPipeDeletionOperation(
     }
 
     const role = job.role ?? "from";
-    const page = await roleQuery(ctx, role, pipeId).paginate({
-      numItems: PIPE_DELETION_TRANSACTION_BATCH_SIZE,
-      cursor: job.cursor ?? null,
-    });
-    const states = await loadPipeStates(ctx, page.page);
-
-    for (const transaction of page.page) {
-      const disposition = planTransactionDisposition(
-        transaction,
-        states,
-        job.deleteTransactions,
-      );
-      if (disposition.delete) {
-        if (transaction.operationId) await deleteHistoryOperation(ctx, transaction.userId, transaction.operationId);
-        await ctx.db.delete("transactions", transaction._id);
-      } else if (Object.keys(disposition.patches).length > 0) {
-        await ctx.db.patch(
-          "transactions",
-          transaction._id,
-          disposition.patches,
-        );
-      }
-    }
+    const page = job.historySource === "events" ? await processEventDeletionPage(ctx, job, pipeId)
+      : await processLegacyDeletionPage(ctx, job, pipeId, role);
 
     if (!page.isDone) {
       await ctx.db.patch("pipeDeletionJobs", job._id, {
@@ -203,12 +200,13 @@ export async function processPipeDeletionOperation(
     }
 
     const roleIndex = DELETION_ROLES.indexOf(role);
-    const nextRole = DELETION_ROLES[roleIndex + 1];
+    const nextRole = job.historySource === "events" ? undefined : DELETION_ROLES[roleIndex + 1];
     if (!nextRole) {
       // Finish each member's archive in this bounded batch, while all ancestors
       // still exist. Do not backfill events only to discard them immediately.
       const retained = job.deleteTransactions
-        ? await Promise.all(DELETION_ROLES.map((role) => roleQuery(ctx, role, pipeId).first()))
+        ? job.historySource === "events" ? [await hasRetainedFinancialHistory(ctx, job.userId, pipeId)]
+          : await Promise.all(DELETION_ROLES.map((role) => roleQuery(ctx, role, pipeId).first()))
         : [true];
       if (retained.some(Boolean)) {
         const pipe = await ctx.db.get("pipes", pipeId);
@@ -229,7 +227,7 @@ export async function processPipeDeletionOperation(
     } else if (job.memberIndex + 1 < job.memberPipeIds.length) {
       await ctx.db.patch("pipeDeletionJobs", job._id, {
         memberIndex: job.memberIndex + 1,
-        role: "from",
+        role: job.historySource === "events" ? undefined : "from",
         cursor: undefined,
       });
     } else {
@@ -291,14 +289,27 @@ export async function processPipeDeletionOperation(
 
     const deletedAt = Date.now();
     for (const pipeId of job.memberPipeIds) {
-      const event = await ctx.db.query("pipeCreationEvents")
-        .withIndex("by_pipeId", (q) => q.eq("pipeId", pipeId)).unique();
-      if (event) {
-        const pipe = allPipes.find(candidate => candidate._id === pipeId)!;
-        const parent = allPipes.find(candidate => candidate._id === pipe.parentId) ?? null;
-        const snapshot = await refreshPipeCreationEvent(ctx, pipe, event, parent);
-        await ensurePipeDeletionHistory(ctx, snapshot, deletedAt);
-        await ctx.db.patch("pipeCreationEvents", event._id, { deletedAt });
+      if (job.historySource === "events") {
+        const creation = await ctx.db.query("events").withIndex("by_userId_pipeId_type", q =>
+          q.eq("userId", job.userId).eq("pipeId", pipeId).eq("type", "pipe_creation")).unique();
+        if (creation) {
+          const pipe = allPipes.find(candidate => candidate._id === pipeId)!;
+          const parent = allPipes.find(candidate => candidate._id === pipe.parentId) ?? null;
+          const { snapshot } = await ensureLivePipeCreationHistory(ctx, pipe, parent);
+          await ensurePipeDeletionHistory(ctx, snapshot, deletedAt);
+          const mirror = await ctx.db.query("pipeCreationEvents").withIndex("by_pipeId", q => q.eq("pipeId", pipeId)).unique();
+          if (mirror) await ctx.db.patch("pipeCreationEvents", mirror._id, { ...snapshot, deletedAt });
+        }
+      } else {
+        const event = await ctx.db.query("pipeCreationEvents")
+          .withIndex("by_pipeId", (q) => q.eq("pipeId", pipeId)).unique();
+        if (event) {
+          const pipe = allPipes.find(candidate => candidate._id === pipeId)!;
+          const parent = allPipes.find(candidate => candidate._id === pipe.parentId) ?? null;
+          const snapshot = await refreshPipeCreationEvent(ctx, pipe, event, parent);
+          await ensurePipeDeletionHistory(ctx, snapshot, deletedAt);
+          await ctx.db.patch("pipeCreationEvents", event._id, { deletedAt });
+        }
       }
       await ctx.db.delete("pipes", pipeId);
     }

@@ -132,6 +132,7 @@ export default defineSchema({
     deleteTransactions: v.boolean(),
     memberPipeIds: v.array(v.id("pipes")),
     initialBalance: v.number(),
+    historySource: v.optional(v.literal("events")),
     phase: v.union(
       v.literal("processingTransactions"),
       v.literal("readyToFinalize"),

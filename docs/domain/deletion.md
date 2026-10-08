@@ -36,12 +36,22 @@ not only the selected pipe's local values. Credit that signed balance exactly
 once to the immediate parent, if any. A deleted root has no parent to credit.
 This includes [D012 pending accounting](accounting.md#d012-pay-by-transfer-liquidity-and-logical-spending).
 
-An idempotent job freezes the subtree and processes role-indexed transaction
-pages and finalization in bounded scheduled batches. Embedded icons require no
-additional history reads. The job records completion for safe retries and
+An idempotent job freezes the subtree and processes indexed event perspectives
+in bounded scheduled batches. Each financial operation is validated completely
+and assigned to its first involved deletion member, so shared perspectives do
+not apply disposition twice. Retention considers every logical source,
+destination, and payer; removing an orphan removes the complete operation and
+schedules bounded operation-owned correction cleanup. Retained lifecycle events
+supply deleted-role presentation. Compatibility transaction mirrors still receive
+deleted-role icons for installed clients. The job records completion for safe retries and
 credits the planned balance exactly once. Title-usage cleanup remains owned by
 the existing stale-usage maintenance job. Finalization follows the
 [childless-root default](accounting.md#d020-childless-root-settlement-default).
+
+New jobs persist `historySource: "events"`. Existing jobs without that marker
+finish on their original transaction role streams and cursors; a cursor must
+never be reinterpreted as an event cursor. Public progress phases remain stable
+for installed clients. Remove the legacy traversal only after those jobs drain.
 
 A new deletion cannot start in an accounting tree with an active deletion,
 including a frozen sibling branch: finalization may redistribute liquidity and

@@ -5,9 +5,26 @@ import { api } from "../_generated/api";
 import schema from "../schema";
 import { modules } from "../test.setup";
 import { ensurePipeCreationEvent } from "../lib/pipeHistory";
+import { insertFinancialOperation } from "../lib/events/financial";
 import { startPipeDeletionOperation, processPipeDeletionOperation } from "../lib/pipes/delete/operations";
 
 describe("pipe creation history", () => {
+  it("refreshes lifecycle snapshots from events, not a stale legacy mirror", async () => {
+    const t = convexTest(schema, modules);
+    const ids = await t.run(async ctx => {
+      const userId = await ctx.db.insert("users", { username: "alice", email: "a", password: "hash" });
+      const pipeId = await ctx.db.insert("pipes", { userId, name: "Wallet", icon: "wallet", priority: 0, capacity: 0, fed: 0, spent: 0 });
+      const pipe = (await ctx.db.get("pipes", pipeId))!;
+      const mirrorId = await ensurePipeCreationEvent(ctx, pipe);
+      const event = (await ctx.db.query("events").collect())[0];
+      await ctx.db.patch("pipeCreationEvents", mirrorId, { occurredAt: 1 });
+      await ctx.db.patch("pipes", pipeId, { name: "Renamed" });
+      return { pipeId, eventId: event._id, occurredAt: event.occurredAt };
+    });
+    await t.run(async ctx => ensurePipeCreationEvent(ctx, (await ctx.db.get("pipes", ids.pipeId))!));
+    expect(await t.run(ctx => ctx.db.get("events", ids.eventId))).toMatchObject({ name: "Renamed", occurredAt: ids.occurredAt });
+  });
+
   it.each([false, true])("follows orphan-history deletion while retaining shared archives (shared=%s)", async (shared) => {
     const t = convexTest(schema, modules);
     const { userId, pipeId, eventId } = await t.run(async (ctx) => {
@@ -16,8 +33,10 @@ describe("pipe creation history", () => {
       const pipeId = await ctx.db.insert("pipes", { ...fields, name: "Madrid" });
       const payer = await ctx.db.insert("pipes", { ...fields, name: "Main" });
       const eventId = await ensurePipeCreationEvent(ctx, (await ctx.db.get("pipes", pipeId))!);
+      const operationId = await insertFinancialOperation(ctx, { userId, title: "hotel", value: -6000, occurredAt: 2000,
+        structure: shared ? { type: "payByTransfer", from: pipeId, paidFrom: payer } : { type: "expense", from: pipeId } });
       await ctx.db.insert("transactions", {
-        userId, kind: "expense", title: "hotel", value: -6000, date: 2000,
+        userId, operationId, kind: "expense", title: "hotel", value: -6000, date: 2000,
         from: pipeId, ...(shared ? { paidFrom: payer } : {}),
       });
       return { userId, pipeId, eventId };

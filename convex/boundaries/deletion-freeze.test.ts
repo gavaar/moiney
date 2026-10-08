@@ -4,6 +4,8 @@ import { describe, expect, it, vi } from "vitest";
 import { api, internal } from "../_generated/api";
 import schema from "../schema";
 import { modules } from "../test.setup";
+import { insertFinancialOperation } from "../lib/events/financial";
+import { transactionStructureFromRoles } from "../../domain/transactions";
 
 describe("Convex boundaries: deletion and freeze", () => {
   it("adds a child in one tree while an unrelated tree is frozen", async () => {
@@ -281,8 +283,11 @@ describe("Convex boundaries: deletion and freeze", () => {
         fed: 40,
         spent: 10,
       });
+      const operationId = await insertFinancialOperation(ctx, { userId, title: "preserved expense", value: -10, occurredAt: 1,
+        structure: { type: "expense", from: childId } });
       await ctx.db.insert("transactions", {
         title: "preserved expense",
+        operationId,
         value: -10,
         date: 1,
         kind: "expense",
@@ -462,6 +467,9 @@ describe("Convex boundaries: deletion and freeze", () => {
         fed: 0,
         spent: 0,
       });
+      const deletedPartnerId = await ctx.db.insert("pipes", {
+        userId, parentId: deletedPipeId, name: "Deleted partner", icon: "cafe", priority: 0, capacity: 0, fed: 0, spent: 0,
+      });
       const transactions = [
         { title: "feed-deleted", kind: "feed" as const, to: deletedPipeId },
         {
@@ -485,7 +493,7 @@ describe("Convex boundaries: deletion and freeze", () => {
           title: "pay-both-deleted",
           kind: "expense" as const,
           from: deletedPipeId,
-          paidFrom: deletedPipeId,
+          paidFrom: deletedPartnerId,
         },
         {
           title: "transfer-to-survivor",
@@ -502,15 +510,19 @@ describe("Convex boundaries: deletion and freeze", () => {
         {
           title: "transfer-both-deleted",
           kind: "transfer" as const,
-          from: deletedPipeId,
+          from: deletedPartnerId,
           to: deletedPipeId,
         },
       ];
       for (const [index, transaction] of transactions.entries()) {
+        const value = transaction.kind === "feed" ? 1 : -1;
+        const operationId = await insertFinancialOperation(ctx, { userId, title: transaction.title, value, occurredAt: index,
+          structure: transactionStructureFromRoles(transaction) });
         await ctx.db.insert("transactions", {
           ...transaction,
           userId,
-          value: -1,
+          value,
+          operationId,
           date: index,
         });
       }

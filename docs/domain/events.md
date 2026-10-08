@@ -112,6 +112,13 @@ Each pipe has at most one creation and one deletion operation. Both retained
 snapshots carry the final pipe and parent presentation after deletion; creation
 keeps the original occurrence date, while deletion uses the removal date.
 Lifecycle entries do not carry monetary values or transaction titles.
+Events own lifecycle identity, occurrence dates, and ancestry. Live-pipe refresh
+updates their presentation directly; legacy lifecycle rows are write mirrors,
+not the source of a retained event's creation date. New pipe-deletion jobs decide
+archive retention from financial events and capture final presentation before
+physical removal, even when no legacy lifecycle row exists. Compatibility
+mirrors and pre-cutover job readers remain until the retirement gates in
+[deletion](deletion.md#d002-pipe-deletion-and-transaction-history) are cleared.
 
 ## Client Grouping
 
@@ -129,13 +136,17 @@ The operation row key is its `operationId`, whether its canonical entry is loade
 or not. Loaded canonical snapshots take precedence when both perspectives exist;
 repeated entry IDs retain the last supplied snapshot rather than adding counts.
 
-Financial display projections contain no legacy action ID. During coexistence,
-repeat, edit, and delete actions resolve the exact owned
-operation through `transactions:forEventOperation` before using legacy APIs. A
-missing link makes the action unavailable; equal titles or amounts never repair
-it. Correction history opens directly by canonical operation ID and authorizes
-the complete operation, without resolving a legacy action target. Rendering and
-expansion perform no action-resolution queries.
+Financial display projections contain no legacy action ID. Repeat, edit, and
+delete read the complete owned canonical operation before opening their forms
+or confirmation. Mirrors cannot be action targets, and incomplete operations
+fail without writes. Edits and deletion use event snapshots for accounting,
+not transaction mirrors; existing mirrors are synchronized only for installed
+clients and pre-cutover pipe-deletion jobs. Creation/repeat and boiler submissions use the
+same accounting policies without returning a transaction identity. Boiler
+commands signal whether financial history changed, so current-only corrections
+do not invalidate it. Correction history opens directly by canonical operation
+ID without resolving an action target. Rendering and expansion perform no
+action-resolution queries.
 
 ## Retrieval
 
@@ -206,10 +217,12 @@ is needed. Deletion-catalog reads supply identity and ancestry metadata only.
 
 ## Correction Ownership Migration
 
-Corrections gain an optional canonical `operationId` while retaining their
-required transaction link and previous/current snapshots. New edits write both
-identities atomically, including when an older transaction acquires its first
-event operation. Existing transaction-ID actions, correction reads, and cleanup
+Persisted corrections support either a legacy transaction link or a canonical
+`operationId`, with previous/current snapshots preserved. New edits always write
+the operation link, including when an older transaction acquires its first
+event operation, and retain a transaction link when a compatibility mirror
+exists. Event-only operations do not manufacture transaction rows for edits.
+Existing transaction-ID actions, correction reads, and cleanup
 jobs remain supported for installed clients. Current correction reads and edit
 metadata follow the operation-owned contracts in [Retrieval](#retrieval).
 
@@ -217,8 +230,10 @@ metadata follow the operation-owned contracts in [Retrieval](#retrieval).
 audit (1–100 corrections per page). Follow every continuation cursor; a clean
 first page does not establish readiness. `ready` means a valid exact link can be
 backfilled; `linked` means that same link is already stored. Every other status
-requires review. A missing transaction does not prove that its correction is safe
-to purge, and equal titles, values, or dates never establish identity.
+requires review. Native corrections with no transaction link validate their
+canonical event operation directly. A broken stored transaction link does not
+prove that a correction is safe to purge, and equal titles, values, or dates
+never establish identity.
 
 `migrations:m20261008_180000_backfillCorrectionOperationIds` validates ownership,
 canonical financial identity, and the complete operation before filling missing

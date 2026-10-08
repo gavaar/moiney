@@ -78,14 +78,20 @@ paginated, authorized through the complete canonical event operation, and displa
 read-only modal. Corrections are not ordinary transaction rows and do not affect
 grouping.
 
-During the operation-ownership migration, new corrections retain `transactionId`
-and also record the exact canonical `operationId` atomically with the edited
-snapshot. Persisted corrections may lack the latter until backfill completes;
+New corrections record the exact canonical `operationId` atomically with the
+edited snapshot and retain `transactionId` when a compatibility mirror exists.
+Persisted legacy corrections may lack the former until backfill completes.
 Legacy action, correction-read, and cleanup APIs retain their transaction-ID
 contracts for installed clients. Current correction history and `Edited` metadata
 read operation-owned corrections without resolving a legacy transaction. The
 [correction migration checkpoint](events.md#correction-ownership-migration)
 must pass before removing that compatibility.
+
+Current edit/delete actions validate the complete canonical event operation
+and use its snapshot as the accounting source. They synchronize existing legacy
+mirrors for installed clients, but also work when no transaction row exists.
+Creation/repeat and boiler commands expose no transaction IDs; coexistence writes
+remain necessary for installed-client actions and pre-cutover pipe-deletion jobs.
 
 Across rule-execution boundaries, edits apply their value delta to the current
 accounting period without restating historical periods. A delta changing logical
