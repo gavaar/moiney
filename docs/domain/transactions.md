@@ -155,10 +155,9 @@ the user directs the correction against current balances. Once reassigned, the
 transaction's new roles are treated as ordinary roles by subsequent edits and
 deletion, regardless of the earlier choice to apply replacement effects.
 
-Correction history records previous and current structure. Loaded
-[transaction caches](history-cache.md#d014-transaction-snapshot-cache) update
-history and recent entities immediately and invalidate selected-pipe snapshots
-affected by either old or new roles.
+Correction history records previous and current structure. Successful edits
+invalidate the shared [event History snapshot](history-cache.md#d014-transaction-snapshot-cache)
+and notify mounted History and ranking consumers to reload authoritative entries.
 
 ## D018: Quick Transaction Creation
 

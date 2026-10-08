@@ -9,9 +9,7 @@ const pId = (id: string) => id as Id<"pipes">;
 const mockStartPipeDeletion = vi.fn();
 const mockDeletionStatus = vi.fn();
 const mockConvexQuery = vi.fn();
-const mockReconcileTransactions = vi.fn().mockResolvedValue(undefined);
-const mockInvalidateAll = vi.fn().mockResolvedValue(undefined);
-const mockEntities = { value: { "tx-1": {} } as Record<string, object> };
+const mockInvalidateHistory = vi.fn().mockResolvedValue(undefined);
 
 vi.mock("convex/react", () => ({
   useMutation: () => mockStartPipeDeletion,
@@ -21,9 +19,7 @@ vi.mock("convex/react", () => ({
 
 vi.mock("@features/transactions/cache/TransactionCacheContext", () => ({
   useOptionalTransactionCache: () => ({
-    cache: { entities: mockEntities.value },
-    reconcileTransactions: mockReconcileTransactions,
-    invalidateAll: mockInvalidateAll,
+    invalidateHistory: mockInvalidateHistory,
   }),
 }));
 
@@ -54,12 +50,11 @@ vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
 
 describe("DeletePipeConfirmation", () => {
   beforeEach(() => {
-    mockEntities.value = { "tx-1": {} };
     mockStartPipeDeletion.mockResolvedValue({ jobId: pId("job-1"), phase: "processingTransactions" });
     mockDeletionStatus.mockReturnValue(undefined);
     mockConvexQuery.mockResolvedValue([]);
-    mockReconcileTransactions.mockReset();
-    mockReconcileTransactions.mockResolvedValue(undefined);
+    mockInvalidateHistory.mockReset();
+    mockInvalidateHistory.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -194,25 +189,14 @@ describe("DeletePipeConfirmation", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it("reconciles cached transactions after deletion completes", async () => {
-    const surviving = {
-      id: "tx-1",
-      createdAt: 1,
-      title: "surviving transaction",
-      value: -100,
-      date: 1,
-      kind: "expense",
-      from: pId("pipe_child_1"),
-      fromIcon: "cafe",
-    };
+  it.each([false, true])("invalidates history once without fetching transaction entities after deletion (purge=%s)", async (deleteTransactions) => {
     mockDeletionStatus.mockReturnValue({
       jobId: pId("job-1"),
       phase: "complete",
-      deleteTransactions: true,
+      deleteTransactions,
       totalMembers: 4,
       completedMembers: 4,
     });
-    mockConvexQuery.mockResolvedValue([surviving]);
     render(
       <DeletePipeConfirmation
         visible={true}
@@ -229,18 +213,15 @@ describe("DeletePipeConfirmation", () => {
     await act(async () => {
       await Promise.resolve();
     });
-    expect(mockConvexQuery).toHaveBeenCalledWith(expect.anything(), {
-      transactionIds: ["tx-1"],
-    });
-    expect(mockReconcileTransactions).toHaveBeenCalledWith(["tx-1"], [surviving]);
+    expect(mockConvexQuery.mock.calls.length).toBe(0);
+    expect(mockInvalidateHistory).toHaveBeenCalledOnce();
   });
 
-  it("invalidates event usage after deletion even when no legacy transactions are cached", async () => {
-    mockEntities.value = {};
+  it("invalidates event usage without a legacy cache dependency", async () => {
     mockDeletionStatus.mockReturnValue({ jobId: pId("job-1"), phase: "complete", deleteTransactions: true, totalMembers: 4, completedMembers: 4 });
     render(<DeletePipeConfirmation visible onClose={() => {}} pipeId={pId("pipe_root")} onDeleted={() => {}} />);
     await act(async () => { fireEvent.click(screen.getByText("Delete 4 pipes")); });
-    expect(mockInvalidateAll).toHaveBeenCalledOnce();
+    expect(mockInvalidateHistory).toHaveBeenCalledOnce();
     expect(mockConvexQuery).not.toHaveBeenCalled();
   });
 });

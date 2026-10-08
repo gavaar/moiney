@@ -232,7 +232,7 @@ export function useAmountFormController(props: AmountFormProps) {
 
   const handleEditSubmit = useCallback(async () => {
     if (!initialTransaction?.transactionId) return;
-    const transaction = await editTransaction(
+    await editTransaction(
       buildEditTransactionCommand({
         transactionId: initialTransaction.transactionId,
         title,
@@ -247,7 +247,7 @@ export function useAmountFormController(props: AmountFormProps) {
         paidFromPipeId,
       }),
     );
-    await transactionCache?.updateTransaction(transaction);
+    await transactionCache?.invalidateHistory();
     resetForm();
     onSuccess?.();
   }, [applyReplacementEffects, date, editTransaction, initialStructure, initialTransaction, invalidPreviousPipeIds, onSuccess, paidFromPipeId, pipeId, resetForm, sentToPipeId, spendMode, title, transactionCache, value]);
@@ -265,12 +265,12 @@ export function useAmountFormController(props: AmountFormProps) {
           ? { currentFed: parsedCurrentFed }
           : {}),
       });
-      if (transaction) await transactionCache?.addTransaction(transaction);
+      if (transaction) await transactionCache?.invalidateHistory();
       resetForm();
       onSuccess?.();
       return;
     }
-    const transaction = await createTransaction(
+    await createTransaction(
       buildCreateTransactionCommand({
         title,
         amount,
@@ -282,7 +282,7 @@ export function useAmountFormController(props: AmountFormProps) {
         paidFromPipeId,
       }),
     );
-    await transactionCache?.addTransaction(transaction);
+    await transactionCache?.invalidateHistory();
     resetForm();
     onSuccess?.();
   }, [contributeToBoiler, createTransaction, currentFedChanged, date, isBoiler, isFeed, onSuccess, paidFromPipeId, parsedCurrentFed, pipeId, resetForm, sentToPipeId, spendMode, title, transactionCache, value]);

@@ -70,7 +70,7 @@ describe("unfiltered event History cache loader", () => {
     expect(result.current.error).toBeNull();
   });
 
-  it("refreshes an already-loaded event snapshot after a financial mutation without legacy History", async () => {
+  it("refreshes an already-loaded event snapshot through explicit history invalidation", async () => {
     const disk = storage();
     const seed = new EventHistoryStore("alice", disk);
     await seed.hydrate();
@@ -78,11 +78,11 @@ describe("unfiltered event History cache loader", () => {
     mocks.query.mockResolvedValue({ events: [entry("new")], cursor: null, isDone: true });
     const { result } = renderHook(() => {
       const cache = useTransactionCache();
-      return { history: useEventHistory({ enabled: cache.eventHistory.updatedAt > 0 }), add: cache.addTransaction };
+      return { history: useEventHistory({ enabled: cache.eventHistory.updatedAt > 0 }), invalidate: cache.invalidateHistory };
     }, { wrapper: ({ children }) => <TransactionCacheProvider storage={disk}>{children}</TransactionCacheProvider> });
     await waitFor(() => expect(result.current.history.entries.map(event => event.id)).toEqual(["old"]));
     expect(mocks.query).not.toHaveBeenCalled();
-    await act(async () => { await result.current.add({ id: "tx" as Id<"transactions">, kind: "expense", from: "source" as Id<"pipes">, date: 1, createdAt: 1, title: "lunch", value: -100 }); });
+    await act(async () => { await result.current.invalidate(); });
     await waitFor(() => expect(result.current.history.entries.map(event => event.id)).toEqual(["new"]));
     expect(mocks.query).toHaveBeenCalledTimes(1);
   });
@@ -112,17 +112,22 @@ describe("unfiltered event History cache loader", () => {
     mocks.query.mockImplementationOnce(() => new Promise(resolve => { finishRead = resolve; }))
       .mockResolvedValue({ events: [entry("authoritative")], cursor: null, isDone: true });
     let finishMutation!: () => void;
+    let holdNextWrite = true;
     const write = disk.write;
-    disk.write = (key, value) => key === "alice" ? new Promise<void>(resolve => {
-      finishMutation = () => { void write(key, value).then(resolve); };
-    }) : write(key, value);
+    disk.write = (key, value) => {
+      if (key !== "event-history:alice" || !holdNextWrite) return write(key, value);
+      holdNextWrite = false;
+      return new Promise<void>(resolve => {
+        finishMutation = () => { void write(key, value).then(resolve); };
+      });
+    };
     const { result } = renderHook(() => {
       const cache = useTransactionCache();
-      return { history: useEventHistory(), add: cache.addTransaction };
+      return { history: useEventHistory(), invalidate: cache.invalidateHistory };
     }, { wrapper: ({ children }) => <TransactionCacheProvider storage={disk}>{children}</TransactionCacheProvider> });
     await waitFor(() => expect(mocks.query).toHaveBeenCalledTimes(1));
     let mutation!: Promise<void>;
-    act(() => { mutation = result.current.add({ id: "tx" as Id<"transactions">, kind: "expense", date: 1, createdAt: 1, title: "lunch", value: -100, from: "source" as Id<"pipes"> }); });
+    act(() => { mutation = result.current.invalidate(); });
     await act(async () => finishRead({ events: [entry("stale")], cursor: null, isDone: true }));
     expect(result.current.history.entries).toEqual([]);
     await act(async () => { finishMutation(); await mutation; });

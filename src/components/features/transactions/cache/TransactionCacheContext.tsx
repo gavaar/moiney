@@ -54,6 +54,7 @@ type TransactionCacheContextValue = {
     hasMore: boolean,
   ) => Promise<void>;
   invalidateAll: () => Promise<void>;
+  invalidateHistory: () => Promise<void>;
   clear: () => Promise<void>;
 };
 
@@ -227,6 +228,15 @@ export function TransactionCacheProvider({ children, storage = transactionCacheS
     setMutationVersion((version) => version + 1);
   }, [state.store]);
 
+  const invalidateHistory = useCallback(() => {
+    if (!state.store || previousStore.current !== state.store) return Promise.resolve();
+    const persisted = state.store.eventHistory.invalidate();
+    // Retire in-flight reads before a device write can finish.
+    setState(current => ({ ...current }));
+    setMutationVersion(version => version + 1);
+    return persisted;
+  }, [state.store]);
+
   const mergeEventHead = useCallback(async (entries: HistoryEntry[], hasMore: boolean, generation: number) => {
     if (!state.store || state.isHydrating) return;
     await state.store.eventHistory.mergeHead(entries, hasMore, Date.now(), generation);
@@ -254,6 +264,7 @@ export function TransactionCacheProvider({ children, storage = transactionCacheS
       reconcileTransactions,
       mergeHead,
       invalidateAll,
+      invalidateHistory,
       clear,
     }),
     [
@@ -269,6 +280,7 @@ export function TransactionCacheProvider({ children, storage = transactionCacheS
       reconcileTransactions,
       mergeHead,
       invalidateAll,
+      invalidateHistory,
       clear,
     ],
   );

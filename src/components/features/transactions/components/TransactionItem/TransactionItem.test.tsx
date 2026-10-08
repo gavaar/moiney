@@ -69,8 +69,7 @@ const mockUsePipeSelection = vi.fn();
 const deleteMocks = vi.hoisted(() => ({
   confirm: vi.fn(),
   deleteTransaction: vi.fn(),
-  reconcileTransactions: vi.fn(),
-  invalidateAll: vi.fn(),
+  invalidateHistory: vi.fn(),
   showError: vi.fn(),
   showSuccess: vi.fn(),
 }));
@@ -88,8 +87,7 @@ vi.mock("@ui/Alert", () => ({
 }));
 vi.mock("@features/transactions/cache/TransactionCacheContext", () => ({
   useOptionalTransactionCache: () => ({
-    reconcileTransactions: deleteMocks.reconcileTransactions,
-    invalidateAll: deleteMocks.invalidateAll,
+    invalidateHistory: deleteMocks.invalidateHistory,
   }),
 }));
 vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
@@ -133,8 +131,7 @@ describe("TransactionItem", () => {
     vi.clearAllMocks();
     deleteMocks.confirm.mockResolvedValue(false);
     deleteMocks.deleteTransaction.mockResolvedValue(null);
-    deleteMocks.reconcileTransactions.mockResolvedValue(undefined);
-    deleteMocks.invalidateAll.mockResolvedValue(undefined);
+    deleteMocks.invalidateHistory.mockResolvedValue(undefined);
     mockUsePipeSelection.mockReturnValue({
       pipesById: { [pipeInfo.id]: pipeInfo },
       childrenByParent: new Map(),
@@ -281,7 +278,7 @@ describe("TransactionItem", () => {
     await waitFor(() => expect(deleteMocks.deleteTransaction).toHaveBeenCalledWith({
       transactionId: baseTx.id,
     }));
-    expect(deleteMocks.reconcileTransactions).toHaveBeenCalledWith([baseTx.id], []);
+    expect(deleteMocks.invalidateHistory).toHaveBeenCalledOnce();
     expect(deleteMocks.showSuccess).toHaveBeenCalledWith("Transaction deleted");
   });
 
@@ -293,18 +290,18 @@ describe("TransactionItem", () => {
     fireEvent.click(screen.getByLabelText("Delete shopping mall"));
 
     await waitFor(() => expect(deleteMocks.showError).toHaveBeenCalledWith("Error: blocked"));
-    expect(deleteMocks.reconcileTransactions).not.toHaveBeenCalled();
+    expect(deleteMocks.invalidateHistory).not.toHaveBeenCalled();
   });
 
-  it("invalidates stale cache data when persistence fails after server deletion", async () => {
+  it("reports server deletion success even if history invalidation fails", async () => {
     deleteMocks.confirm.mockResolvedValue(true);
-    deleteMocks.reconcileTransactions.mockRejectedValue(new Error("storage failed"));
+    deleteMocks.invalidateHistory.mockRejectedValue(new Error("storage failed"));
     render(<TransactionItem transaction={baseTx} />);
 
     fireEvent.click(screen.getByLabelText("Delete shopping mall"));
 
-    await waitFor(() => expect(deleteMocks.invalidateAll).toHaveBeenCalledOnce());
-    expect(deleteMocks.showSuccess).toHaveBeenCalledWith("Transaction deleted");
+    await waitFor(() => expect(deleteMocks.showSuccess).toHaveBeenCalledWith("Transaction deleted"));
+    expect(deleteMocks.invalidateHistory).toHaveBeenCalledOnce();
     expect(deleteMocks.showError).not.toHaveBeenCalled();
   });
 

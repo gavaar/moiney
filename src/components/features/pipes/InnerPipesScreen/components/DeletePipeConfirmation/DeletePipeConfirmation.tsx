@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
-import { useConvex, useMutation, useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
-import type { Id } from "@convex/_generated/dataModel";
 import type {
   PipeModel,
 } from "@features/pipes/data/pipes";
@@ -55,7 +54,6 @@ export function DeletePipeConfirmation({ visible, onClose, pipeId, onDeleted }: 
   const notifiedJobId = useRef<typeof jobId>(null);
   const showAlert = useAlert();
   const transactionCache = useOptionalTransactionCache();
-  const convex = useConvex();
   const startPipeDeletion = useMutation(api.pipes.startPipeDeletion);
   const deletionStatus = useQuery(
     api.pipes.getPipeDeletionStatus,
@@ -86,25 +84,13 @@ export function DeletePipeConfirmation({ visible, onClose, pipeId, onDeleted }: 
           completedDeletion.deleteTransactions ? " Orphaned history was deleted" : ""
         }`,
       );
-      const transactionIds = transactionCache?.cache
-        ? Object.keys(transactionCache.cache.entities) as Id<"transactions">[]
-        : [];
-      if (transactionCache && transactionIds.length > 0) {
-        void convex.query(api.transactions.listTransactionsByIds, { transactionIds })
-          .then((transactions) =>
-            transactionCache.reconcileTransactions(transactionIds, transactions),
-          )
-          .catch(() => transactionCache.invalidateAll());
-      } else if (transactionCache) {
-        void transactionCache.invalidateAll().catch(() => undefined);
-      }
+      void transactionCache?.invalidateHistory().catch(() => undefined);
       onDeleted();
       onClose();
     }
   }, [
     completedDeletion,
     descendants.length,
-    convex,
     onClose,
     onDeleted,
     showAlert,

@@ -8,20 +8,27 @@ import { modules } from "@convex/test.setup";
 import type { PipeModel } from "@features/pipes/data/pipes";
 import { groupHistoryEvents } from "./event-groups";
 import { EventTransactionItem } from "./event-transaction-item";
+import { TransactionCacheProvider } from "../cache/TransactionCacheContext";
+import { EventHistoryStore } from "../cache/EventHistoryStore";
+import { useEventHistory } from "../cache/useEventHistory";
 
-const mocks = vi.hoisted(() => ({ query: vi.fn(), mutate: vi.fn(), pipes: [] as PipeModel[], success: vi.fn(), error: vi.fn(), reconcile: vi.fn() }));
+const mocks = vi.hoisted(() => ({ query: vi.fn(), mutate: vi.fn(), pipes: [] as PipeModel[], success: vi.fn(), error: vi.fn() }));
 const client = { query: mocks.query };
 vi.mock("convex/react", () => ({ useConvex: () => client, useMutation: () => mocks.mutate }));
 vi.mock("@ui/ConfirmModal", () => ({ useConfirmWithModal: () => async () => true }));
 vi.mock("@ui/Alert", () => ({ useAlert: () => ({ success: mocks.success, error: mocks.error }) }));
 vi.mock("@ui/Modal", () => ({ ModalShell: () => null }));
 vi.mock("@features/transactions/TransactionForm/TransactionForm", () => ({ TransactionForm: () => null }));
-vi.mock("@features/transactions/cache/TransactionCacheContext", () => ({ useOptionalTransactionCache: () => ({ reconcileTransactions: mocks.reconcile }) }));
+vi.mock("@/lib/auth", () => ({ useAuth: () => ({ accountKey: "alice" }) }));
 vi.mock("@features/pipes/context/PipeCatalogContext", () => ({ usePipeCatalog: () => ({
   pipesById: Object.fromEntries(mocks.pipes.map(pipe => [pipe.id, pipe])), childrenByParent: new Map(), isPaidFromEligible: () => true,
 }) }));
 
-it("renders a mirror-only operation without reads, then deletes the exact linked transaction and whole operation", async () => {
+function HistoryCount() {
+  return <span data-testid="history-count">{useEventHistory().entries.length}</span>;
+}
+
+it("deletes the exact linked operation and refreshes event history without transaction snapshots", async () => {
   const t = convexTest(schema, modules);
   const ids = await t.run(async ctx => {
     const userId = await ctx.db.insert("users", { username: "alice", email: "alice@example.com", password: "hash" });
@@ -32,22 +39,35 @@ it("renders a mirror-only operation without reads, then deletes the exact linked
     return { userId, source, payer };
   });
   const auth = t.withIdentity({ subject: ids.userId });
-  const transaction = await auth.mutation(api.transactions.createTransaction, { from: ids.source, paidFrom: ids.payer, title: "hotel", value: -100, date: Date.now() });
+  await auth.mutation(api.transactions.createTransaction, { from: ids.source, paidFrom: ids.payer, title: "hotel", value: -100, date: Date.now() });
   const entries = await auth.query(api.events.latest, { pipeId: ids.payer });
   expect(entries).toHaveLength(1);
   const row = groupHistoryEvents(entries)[0];
   if (row.kind !== "operation") throw new Error("Expected operation");
   mocks.query.mockImplementation((ref, args) => auth.query(ref, args));
   mocks.mutate.mockImplementation(args => auth.mutation(api.transactions.deleteTransaction, args));
-  mocks.reconcile.mockResolvedValue(undefined);
-  render(<EventTransactionItem operation={row.operation} deletedPipes={[]} onShowEditHistory={() => {}} />);
+  const values = new Map<string, string>();
+  const storage = {
+    read: async (key: string) => values.get(key) ?? null,
+    write: async (key: string, value: string) => { values.set(key, value); },
+    remove: async (key: string) => { values.delete(key); },
+  };
+  const seed = new EventHistoryStore("alice", storage);
+  await seed.hydrate();
+  await seed.mergeHead(entries, false, 1);
+  render(<TransactionCacheProvider storage={storage}>
+    <HistoryCount />
+    <EventTransactionItem operation={row.operation} deletedPipes={[]} onShowEditHistory={() => {}} />
+  </TransactionCacheProvider>);
+  await waitFor(() => expect(screen.getByTestId("history-count").textContent).toBe("1"));
   expect(screen.getByText("Hotel")).toBeTruthy();
   expect(screen.getByText("-1.00")).toBeTruthy();
   expect(mocks.query).not.toHaveBeenCalled();
   fireEvent.click(screen.getByLabelText("Delete hotel"));
   await waitFor(() => expect(mocks.success).toHaveBeenCalledWith("Transaction deleted"));
   expect(mocks.error).not.toHaveBeenCalled();
-  expect(mocks.reconcile).toHaveBeenCalledWith([transaction.id], []);
+  await waitFor(() => expect(screen.getByTestId("history-count").textContent).toBe("0"));
+  expect(values.has("alice")).toBe(false);
   expect(await t.run(ctx => ctx.db.query("events").collect())).toEqual([]);
   expect(await t.run(ctx => ctx.db.query("transactions").collect())).toEqual([]);
 });

@@ -22,9 +22,7 @@ const PIPE_ID = "pipe-1" as Id<"pipes">;
 const mockCreateTransaction = vi.fn().mockResolvedValue(undefined);
 const mockContributeToBoiler = vi.fn().mockResolvedValue(null);
 const mockEditTransactionFn = vi.fn().mockResolvedValue(undefined);
-const mockInvalidateAll = vi.fn().mockResolvedValue(undefined);
-const mockAddTransaction = vi.fn().mockResolvedValue(undefined);
-const mockUpdateTransaction = vi.fn().mockResolvedValue(undefined);
+const mockInvalidateHistory = vi.fn().mockResolvedValue(undefined);
 
 const mockRecentTitles: string[] = [];
 vi.mock("convex/react", () => ({
@@ -110,9 +108,7 @@ vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
 
 vi.mock("@features/transactions/cache/TransactionCacheContext", () => ({
   useOptionalTransactionCache: () => ({
-    invalidateAll: mockInvalidateAll,
-    addTransaction: mockAddTransaction,
-    updateTransaction: mockUpdateTransaction,
+    invalidateHistory: mockInvalidateHistory,
   }),
 }));
 
@@ -542,7 +538,7 @@ describe("AmountForm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockRecentTitles.length = 0;
-    mockInvalidateAll.mockResolvedValue(undefined);
+    mockInvalidateHistory.mockResolvedValue(undefined);
   });
 
   describe("variant='feed'", () => {
@@ -658,12 +654,11 @@ describe("AmountForm", () => {
 
       await waitFor(() => {
         expect(onSuccess).toHaveBeenCalled();
-        expect(mockAddTransaction).toHaveBeenCalled();
-        expect(mockInvalidateAll).not.toHaveBeenCalled();
+        expect(mockInvalidateHistory).toHaveBeenCalledOnce();
       });
     });
 
-    it("adds the created transaction to the cache", async () => {
+    it("invalidates event history after creation", async () => {
       const created = {
         id: "created-1",
         createdAt: 10,
@@ -685,8 +680,7 @@ describe("AmountForm", () => {
       fireEvent.click(screen.getByTestId("submit-button"));
 
       await waitFor(() => {
-        expect(mockAddTransaction).toHaveBeenCalledWith(created);
-        expect(mockInvalidateAll).not.toHaveBeenCalled();
+        expect(mockInvalidateHistory).toHaveBeenCalledOnce();
       });
     });
 
@@ -816,7 +810,7 @@ describe("AmountForm", () => {
           value: 30000,
           date: date.getTime(),
         });
-        expect(mockAddTransaction).toHaveBeenCalledWith(created);
+        expect(mockInvalidateHistory).toHaveBeenCalledOnce();
       });
       vi.useRealTimers();
     });
@@ -849,7 +843,7 @@ describe("AmountForm", () => {
             currentFed: 10000,
           }),
         );
-        expect(mockAddTransaction).not.toHaveBeenCalled();
+        expect(mockInvalidateHistory).not.toHaveBeenCalled();
       });
     });
   });
@@ -1687,7 +1681,7 @@ describe("AmountForm", () => {
         vi.useRealTimers();
       });
 
-      it("updates the edited transaction in the cache", async () => {
+      it("invalidates event history after editing", async () => {
         const updated = {
           id: "tx-1",
           createdAt: 1,
@@ -1723,8 +1717,7 @@ describe("AmountForm", () => {
         fireEvent.click(screen.getByTestId("submit-button"));
 
         await waitFor(() => {
-          expect(mockUpdateTransaction).toHaveBeenCalledWith(updated);
-          expect(mockInvalidateAll).not.toHaveBeenCalled();
+          expect(mockInvalidateHistory).toHaveBeenCalledOnce();
         });
       });
 

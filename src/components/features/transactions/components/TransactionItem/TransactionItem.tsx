@@ -99,13 +99,9 @@ export function TransactionItem({ transaction, resolveTransaction, onShowEditHis
     }
 
     try {
-      await transactionCache?.reconcileTransactions([row.id], []);
+      await transactionCache?.invalidateHistory();
     } catch {
-      try {
-        await transactionCache?.invalidateAll();
-      } catch {
-        // The server deletion succeeded; the next cache refresh remains authoritative.
-      }
+      // The server deletion succeeded; the next history refresh remains authoritative.
     }
     showAlert.success("Transaction deleted");
     setIsDeleting(false);

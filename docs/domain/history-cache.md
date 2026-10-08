@@ -8,33 +8,16 @@ for dependent contracts.
 
 Status: Implemented
 
-Legacy transaction-only loaders use account-scoped persistent
-snapshots as stale, read-only sources. A valid snapshot suppresses live Convex
-query subscriptions on app open. One shared entity map is keyed by transaction
-ID, with separate ordered ID snapshots for history, recent, and selected-pipe
-scopes. Transaction-only History seeds 100 rows and loads further pages of 30
-on demand. Recent and selected-pipe transaction queries return at most 30 rows.
-Snapshot transactions persist until the cache reaches 300 unique entities, then
-least recently refreshed entries are evicted. Mixed History has the separate
-loading contract in [D021](#d021-pipe-creation-and-archived-history).
-
-Successful creation and editing return purpose-built rows and update the shared
-entity map in place. Creation updates only loaded history, recent, and
-selected-pipe snapshots relevant to any `from`, `to`, or `paidFrom` role; it does
-not create unseen partial snapshots. Editing updates and reorders every loaded
-snapshot containing the ID. See [D017](transactions.md#d017-transaction-structural-editing)
-for the in-progress structural-edit invalidation contract. Successful direct
-transaction deletion removes its ID from the entity map and every loaded
-snapshot and refreshes mounted mixed-history views.
-
-After asynchronous pipe deletion completes, one bounded request reconciles
-currently cached IDs, updates surviving rows, and removes absent IDs from the
-entity map and all snapshots.
+History and usage ranking share an account-scoped, read-only raw-event
+snapshot; Latest and filtered History do not persist separate scopes. Transaction
+entity and scope snapshots are not used by current readers or updated by
+financial mutations and completed pipe deletion. The visible History loading
+contract is in [D021](#d021-pipe-creation-and-archived-history).
 
 The server remains authoritative. Explicit refresh, cache misses, and load-more
-use one-shot reads and replace or reconcile cached rows with server results.
-Cache data never authorizes or decides mutations. Explicit logout clears the
-active account's cache. Entries are isolated by deployment and account identity.
+use one-shot event reads. Cache data never authorizes or decides mutations.
+Explicit logout clears the active account's cache. Entries are isolated by
+deployment and account identity.
 
 History filters apply to complete server history, not just the snapshot. They
 may combine an inclusive date range, case-insensitive title substring, and exact
@@ -64,11 +47,14 @@ refresh preserves a valid loaded tail; an invalidated snapshot or an exhausted
 server head replaces membership instead.
 
 Financial creation, editing, direct deletion, and completed pipe deletion
-invalidate event snapshot membership, including when no legacy transaction IDs
-are cached. Mounted enabled consumers then reload authoritative entries; no
-transaction ID is synthesized from an event ID. Logout clears both snapshots,
-and retired-account requests cannot publish or persist entries for another
-account. Device-cache failures do not prevent event data from loading.
+invalidate event snapshot membership through an explicit history-invalidation
+boundary, without reconciling transaction entities. Generation invalidation and
+mutation notifications are synchronous, before device persistence completes.
+Mounted enabled consumers then reload authoritative entries; no transaction ID
+is synthesized from an event ID. Logout clears both snapshots, and retired-account
+requests cannot publish or persist entries for another account. Device-cache
+failures do not prevent event data from loading or turn a successful mutation
+into a failure.
 
 ## D018: Quick Creation Ranking
 
