@@ -8,7 +8,7 @@ import { modules } from "@convex/test.setup";
 import type { PipeModel } from "@features/pipes/data/pipes";
 import { groupHistoryEvents } from "./event-groups";
 import { EventTransactionItem } from "./event-transaction-item";
-import { TransactionCacheProvider } from "../cache/TransactionCacheContext";
+import { EventHistoryCacheProvider } from "../cache/EventHistoryCacheContext";
 import { EventHistoryStore } from "../cache/EventHistoryStore";
 import { useEventHistory } from "../cache/useEventHistory";
 
@@ -55,10 +55,10 @@ it("deletes the exact linked operation and refreshes event history without trans
   const seed = new EventHistoryStore("alice", storage);
   await seed.hydrate();
   await seed.mergeHead(entries, false, 1);
-  render(<TransactionCacheProvider storage={storage}>
+  render(<EventHistoryCacheProvider storage={storage}>
     <HistoryCount />
     <EventTransactionItem operation={row.operation} deletedPipes={[]} onShowEditHistory={() => {}} />
-  </TransactionCacheProvider>);
+  </EventHistoryCacheProvider>);
   await waitFor(() => expect(screen.getByTestId("history-count").textContent).toBe("1"));
   expect(screen.getByText("Hotel")).toBeTruthy();
   expect(screen.getByText("-1.00")).toBeTruthy();

@@ -20,7 +20,7 @@ vi.mock("@features/transactions/cache/useEventHistory", () => ({ useEventHistory
 vi.mock("convex/react", () => ({ useMutation: (api: string) => api === "edit" ? edit : create, useQuery: () => [] }));
 vi.mock("@convex/_generated/api", () => ({ api: { transactions: { createTransaction: "create", editTransaction: "edit", listRecentTitles: "titles" } } }));
 vi.mock("@ui/Alert", () => ({ useAlert: () => ({ error: vi.fn() }) }));
-vi.mock("@features/transactions/cache/TransactionCacheContext", () => ({ useOptionalTransactionCache: () => null }));
+vi.mock("@features/transactions/cache/EventHistoryCacheContext", () => ({ useOptionalEventHistoryCache: () => null }));
 vi.mock("@features/pipes/context/PipeCatalogContext", () => ({ usePipeCatalog: () => ({
   allPipes: [root, source, other, investment, investmentLeaf], childrenByParent: new Map([[root.id, [source]], [investment.id, [investmentLeaf]]]), isLoading: false,
   pipesById: { [root.id]: root, [source.id]: source, [other.id]: other, [investment.id]: investment, [investmentLeaf.id]: investmentLeaf },

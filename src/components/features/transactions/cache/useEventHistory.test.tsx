@@ -3,8 +3,8 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Id } from "@convex/_generated/dataModel";
 import type { HistoryEntry } from "../history/event-groups";
-import { TransactionCacheProvider, useTransactionCache } from "./TransactionCacheContext";
-import type { TransactionCacheStorage } from "./TransactionCacheStore";
+import { EventHistoryCacheProvider, useEventHistoryCache } from "./EventHistoryCacheContext";
+import type { EventHistoryStorage } from "./EventHistoryStore";
 import { EventHistoryStore } from "./EventHistoryStore";
 import { useEventHistory } from "./useEventHistory";
 
@@ -13,12 +13,12 @@ const client = { query: mocks.query };
 vi.mock("convex/react", () => ({ useConvex: () => client }));
 vi.mock("@/lib/auth", () => ({ useAuth: () => ({ accountKey: mocks.accountKey }) }));
 const entry = (id: string, date = 1): HistoryEntry => ({ id: id as Id<"events">, operationId: id as Id<"events">, pipeId: "source" as Id<"pipes">, createdAt: date, occurredAt: date, title: "lunch", type: "transaction", value: -100 });
-function storage(): TransactionCacheStorage {
+function storage(): EventHistoryStorage {
   const values = new Map<string, string>();
   return { read: async key => values.get(key) ?? null, write: async (key, value) => { values.set(key, value); }, remove: async key => { values.delete(key); } };
 }
-function mount(disk: TransactionCacheStorage, options: { enabled?: boolean; minimumCachedRows?: number } = {}) {
-  return renderHook(() => useEventHistory(options), { wrapper: ({ children }) => <TransactionCacheProvider storage={disk}>{children}</TransactionCacheProvider> });
+function mount(disk: EventHistoryStorage, options: { enabled?: boolean; minimumCachedRows?: number } = {}) {
+  return renderHook(() => useEventHistory(options), { wrapper: ({ children }) => <EventHistoryCacheProvider storage={disk}>{children}</EventHistoryCacheProvider> });
 }
 
 describe("unfiltered event History cache loader", () => {
@@ -77,9 +77,9 @@ describe("unfiltered event History cache loader", () => {
     await seed.mergeHead([entry("old")], false, 1);
     mocks.query.mockResolvedValue({ events: [entry("new")], cursor: null, isDone: true });
     const { result } = renderHook(() => {
-      const cache = useTransactionCache();
+      const cache = useEventHistoryCache();
       return { history: useEventHistory({ enabled: cache.eventHistory.updatedAt > 0 }), invalidate: cache.invalidateHistory };
-    }, { wrapper: ({ children }) => <TransactionCacheProvider storage={disk}>{children}</TransactionCacheProvider> });
+    }, { wrapper: ({ children }) => <EventHistoryCacheProvider storage={disk}>{children}</EventHistoryCacheProvider> });
     await waitFor(() => expect(result.current.history.entries.map(event => event.id)).toEqual(["old"]));
     expect(mocks.query).not.toHaveBeenCalled();
     await act(async () => { await result.current.invalidate(); });
@@ -96,9 +96,9 @@ describe("unfiltered event History cache loader", () => {
     mocks.query.mockResolvedValue({ events: head, cursor: "more", isDone: false });
     const tail = Array.from({ length: 201 }, (_, i) => entry(`tail-${i}`, 500 - i));
     const { result } = renderHook(() => {
-      const cache = useTransactionCache();
+      const cache = useEventHistoryCache();
       return { history: useEventHistory(), append: () => cache.appendEventHistory(tail, false, cache.eventHistory.generation) };
-    }, { wrapper: ({ children }) => <TransactionCacheProvider storage={disk}>{children}</TransactionCacheProvider> });
+    }, { wrapper: ({ children }) => <EventHistoryCacheProvider storage={disk}>{children}</EventHistoryCacheProvider> });
     await waitFor(() => expect(result.current.history.entries).toEqual(head));
     expect(mocks.query).not.toHaveBeenCalled();
     await act(async () => { await result.current.append(); });
@@ -122,9 +122,9 @@ describe("unfiltered event History cache loader", () => {
       });
     };
     const { result } = renderHook(() => {
-      const cache = useTransactionCache();
+      const cache = useEventHistoryCache();
       return { history: useEventHistory(), invalidate: cache.invalidateHistory };
-    }, { wrapper: ({ children }) => <TransactionCacheProvider storage={disk}>{children}</TransactionCacheProvider> });
+    }, { wrapper: ({ children }) => <EventHistoryCacheProvider storage={disk}>{children}</EventHistoryCacheProvider> });
     await waitFor(() => expect(mocks.query).toHaveBeenCalledTimes(1));
     let mutation!: Promise<void>;
     act(() => { mutation = result.current.invalidate(); });

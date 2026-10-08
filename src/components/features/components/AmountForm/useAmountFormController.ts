@@ -7,7 +7,7 @@ import { planTransactionEdit, type TransactionStructure } from "@domain/transact
 import { formatAmount } from "@/lib/format";
 import { useAlert } from "@ui/Alert";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
-import { useOptionalTransactionCache } from "@features/transactions/cache/TransactionCacheContext";
+import { useOptionalEventHistoryCache } from "@features/transactions/cache/EventHistoryCacheContext";
 import {
   buildCreateTransactionCommand,
   buildEditTransactionCommand,
@@ -65,7 +65,7 @@ export function useAmountFormController(props: AmountFormProps) {
   const [applyReplacementEffects, setApplyReplacementEffects] = useState(false);
 
   const showAlert = useAlert();
-  const transactionCache = useOptionalTransactionCache();
+  const historyCache = useOptionalEventHistoryCache();
   const createTransaction = useMutation(api.transactions.createTransaction);
   const contributeToBoiler = useMutation(api.transactions.contributeToBoiler);
   const editTransaction = useMutation(api.transactions.editTransaction);
@@ -247,10 +247,10 @@ export function useAmountFormController(props: AmountFormProps) {
         paidFromPipeId,
       }),
     );
-    await transactionCache?.invalidateHistory();
+    await historyCache?.invalidateHistory();
     resetForm();
     onSuccess?.();
-  }, [applyReplacementEffects, date, editTransaction, initialStructure, initialTransaction, invalidPreviousPipeIds, onSuccess, paidFromPipeId, pipeId, resetForm, sentToPipeId, spendMode, title, transactionCache, value]);
+  }, [applyReplacementEffects, date, editTransaction, initialStructure, initialTransaction, invalidPreviousPipeIds, onSuccess, paidFromPipeId, pipeId, resetForm, sentToPipeId, spendMode, title, historyCache, value]);
 
   const handleRepeatSubmit = useCallback(async () => {
     if (!pipeId) return;
@@ -265,7 +265,7 @@ export function useAmountFormController(props: AmountFormProps) {
           ? { currentFed: parsedCurrentFed }
           : {}),
       });
-      if (transaction) await transactionCache?.invalidateHistory();
+      if (transaction) await historyCache?.invalidateHistory();
       resetForm();
       onSuccess?.();
       return;
@@ -282,10 +282,10 @@ export function useAmountFormController(props: AmountFormProps) {
         paidFromPipeId,
       }),
     );
-    await transactionCache?.invalidateHistory();
+    await historyCache?.invalidateHistory();
     resetForm();
     onSuccess?.();
-  }, [contributeToBoiler, createTransaction, currentFedChanged, date, isBoiler, isFeed, onSuccess, paidFromPipeId, parsedCurrentFed, pipeId, resetForm, sentToPipeId, spendMode, title, transactionCache, value]);
+  }, [contributeToBoiler, createTransaction, currentFedChanged, date, isBoiler, isFeed, onSuccess, paidFromPipeId, parsedCurrentFed, pipeId, resetForm, sentToPipeId, spendMode, title, historyCache, value]);
 
   const handleSubmit = useCallback(async () => {
     if (!isValid || loading) return;

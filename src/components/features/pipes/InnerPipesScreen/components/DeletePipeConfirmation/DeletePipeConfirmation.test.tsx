@@ -17,8 +17,8 @@ vi.mock("convex/react", () => ({
   useConvex: () => ({ query: mockConvexQuery }),
 }));
 
-vi.mock("@features/transactions/cache/TransactionCacheContext", () => ({
-  useOptionalTransactionCache: () => ({
+vi.mock("@features/transactions/cache/EventHistoryCacheContext", () => ({
+  useOptionalEventHistoryCache: () => ({
     invalidateHistory: mockInvalidateHistory,
   }),
 }));

@@ -89,10 +89,8 @@ vi.mock("@ui/Icon", () => ({
   ),
   safeIconName: (name: string) => name,
 }));
-vi.mock("@features/transactions/cache/TransactionCacheContext", () => ({
-  useTransactionCache: () => ({
-    cache: {},
-    read: () => mocks.historySnapshot,
+vi.mock("@features/transactions/cache/EventHistoryCacheContext", () => ({
+  useEventHistoryCache: () => ({
     eventHistory: mocks.historySnapshot,
   }),
 }));

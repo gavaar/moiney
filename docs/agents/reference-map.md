@@ -13,7 +13,7 @@ test before introducing another pattern; follow linked contracts for behavior.
 | Registered Convex wrapper and operation | `convex/transactions.ts` and `convex/lib/transactions/operations.ts` | `convex/boundaries/transactions-transfer-history.test.ts` |
 | Persisted schema or migration | `convex/schema.ts` and `convex/migrations.ts` | `docs/backend.md` and migration skill |
 | Bounded maintenance continuation | `convex/sessions.ts` | `convex/sessions.test.ts` |
-| Transaction cache ownership | `src/components/features/transactions/cache/TransactionCacheStore.ts` | Adjacent `TransactionCacheStore.test.ts` and `docs/domain/history-cache.md` |
+| Event History cache ownership | `src/components/features/transactions/cache/EventHistoryCacheContext.tsx` and `EventHistoryStore.ts` | Adjacent provider/store tests and `docs/domain/history-cache.md` |
 | Shared input | `src/components/ui/Input/Input.tsx` | `src/components/ui/Input/Input.test.tsx` and `docs/input.md` |
 | Shared modal shell | `src/components/ui/Modal/ModalShell.tsx` | Adjacent `ModalShell.test.tsx` and `docs/ui.md` |
 | Money parsing and validation | `domain/money/money.ts` | Adjacent `money.test.ts` and `docs/domain/accounting.md` |

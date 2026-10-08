@@ -13,7 +13,7 @@ import { getTransactionDeletionWarning } from "./transactionDeletion.model";
 import { useConfirmWithModal } from "@ui/ConfirmModal";
 import { useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
-import { useOptionalTransactionCache } from "@features/transactions/cache/TransactionCacheContext";
+import { useOptionalEventHistoryCache } from "@features/transactions/cache/EventHistoryCacheContext";
 import { useAlert } from "@ui/Alert";
 
 type TransactionItemProps = ({ transaction: TransactionModel; resolveTransaction?: never } |
@@ -30,7 +30,7 @@ export function TransactionItem({ transaction, resolveTransaction, onShowEditHis
   const { pipesById, childrenByParent, isLoading: isPipeCatalogLoading, isPaidFromEligible } = usePipeCatalog();
   const confirmWithModal = useConfirmWithModal();
   const deleteTransaction = useMutation(api.transactions.deleteTransaction);
-  const transactionCache = useOptionalTransactionCache();
+  const historyCache = useOptionalEventHistoryCache();
   const showAlert = useAlert();
 
   const [formIntent, setFormIntent] = useState<"repeat" | "edit" | null>(null);
@@ -99,7 +99,7 @@ export function TransactionItem({ transaction, resolveTransaction, onShowEditHis
     }
 
     try {
-      await transactionCache?.invalidateHistory();
+      await historyCache?.invalidateHistory();
     } catch {
       // The server deletion succeeded; the next history refresh remains authoritative.
     }

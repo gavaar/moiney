@@ -85,8 +85,8 @@ vi.mock("@ui/Alert", () => ({
     success: deleteMocks.showSuccess,
   }),
 }));
-vi.mock("@features/transactions/cache/TransactionCacheContext", () => ({
-  useOptionalTransactionCache: () => ({
+vi.mock("@features/transactions/cache/EventHistoryCacheContext", () => ({
+  useOptionalEventHistoryCache: () => ({
     invalidateHistory: deleteMocks.invalidateHistory,
   }),
 }));

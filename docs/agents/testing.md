@@ -10,7 +10,7 @@ every layer.
 | Authorization, public validators, persistence, atomicity, or registered API result | `convex-test` boundary test | `convex/boundaries/accounts-sessions-profile.test.ts` |
 | Backend operation sequencing not observable through a registered function | Focused operation test | `convex/lib/pipes/delete/operations.test.ts` |
 | Feature interaction, accessibility, or visible state | Testing Library feature/component test | `src/components/features/creation/CreateModal.test.tsx` |
-| Cache ordering, merge, or persistence policy | Feature-owned store/hook test | `src/components/features/transactions/cache/TransactionCacheStore.test.ts` |
+| Cache ordering, merge, or persistence policy | Feature-owned store/hook test | `src/components/features/transactions/cache/EventHistoryStore.test.ts` |
 | UI primitive contract | Adjacent primitive test | `src/components/ui/Modal/ModalShell.test.tsx` |
 
 ## Selection Rules

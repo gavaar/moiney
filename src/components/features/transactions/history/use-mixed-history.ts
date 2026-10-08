@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useConvex } from "convex/react";
 import { useIsFocused } from "expo-router/react-navigation";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
-import { useTransactionCache } from "../cache/TransactionCacheContext";
+import { useEventHistoryCache } from "../cache/EventHistoryCacheContext";
 import type { HistoryFilters } from "./history-filters";
 import type { HistoryEntry } from "./event-groups";
 import type { DeletedPipeEntry } from "./event-archives";
@@ -11,7 +11,7 @@ import { createEventHistoryReader, mergeHistoryEntries, readDeletedPipes, readLa
 export function useMixedHistory(filters: HistoryFilters = {}, options: { enabled?: boolean; recent?: boolean } = {}) {
   const client = useConvex();
   const focused = useIsFocused();
-  const { accountKey, isHydrating, mutationVersion, eventHistory, mergeEventHead, appendEventHistory } = useTransactionCache();
+  const { accountKey, isHydrating, mutationVersion, eventHistory, mergeEventHead, appendEventHistory } = useEventHistoryCache();
   const { allPipes } = usePipeCatalog();
   const catalogKey = allPipes?.map(pipe => [pipe.id, pipe.name, pipe.icon, pipe.deletionJobId].join(":" )).join("|");
   const filterKey = JSON.stringify(filters);

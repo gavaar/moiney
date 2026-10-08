@@ -1,13 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Id } from "@convex/_generated/dataModel";
 import type { HistoryEntry } from "../history/event-groups";
-import type { TransactionCacheStorage } from "./TransactionCacheStore";
-import { EventHistoryStore } from "./EventHistoryStore";
+import { EventHistoryStore, type EventHistoryStorage } from "./EventHistoryStore";
 
 function entry(id: string, occurredAt = 1): Extract<HistoryEntry, { type: "transaction" }> {
   return { id: id as Id<"events">, operationId: id as Id<"events">, pipeId: "source" as Id<"pipes">, createdAt: occurredAt, occurredAt, type: "transaction", title: "lunch", value: -100 };
 }
-function storage(): TransactionCacheStorage & { values: Map<string, string> } {
+function storage(): EventHistoryStorage & { values: Map<string, string> } {
   const values = new Map<string, string>();
   return {
     values,
@@ -18,16 +17,18 @@ function storage(): TransactionCacheStorage & { values: Map<string, string> } {
 }
 
 describe("event History snapshots", () => {
-  it("persists raw entry IDs separately from legacy transaction snapshots and other accounts", async () => {
+  it("removes the retired transaction key while preserving event snapshots and other accounts", async () => {
     const disk = storage();
     disk.values.set("alice", "legacy transaction cache");
+    disk.values.set("bob", "another account's legacy cache");
     const store = new EventHistoryStore("alice", disk);
     await store.hydrate();
     await store.mergeHead([entry("logical"), { ...entry("mirror"), operationId: "logical" as Id<"events"> }], true, 1);
     const next = new EventHistoryStore("alice", disk);
     await next.hydrate();
     expect(next.read()).toMatchObject({ entries: [expect.objectContaining({ id: "mirror" }), expect.objectContaining({ id: "logical" })], complete: true, hasMore: true, updatedAt: 1 });
-    expect(disk.values.get("alice")).toBe("legacy transaction cache");
+    expect(disk.values.has("alice")).toBe(false);
+    expect(disk.values.get("bob")).toBe("another account's legacy cache");
     const other = new EventHistoryStore("bob", disk);
     await other.hydrate();
     expect(other.read().complete).toBe(false);
@@ -126,5 +127,21 @@ describe("event History snapshots", () => {
     await Promise.all([write, clear]);
     expect(disk.values.size).toBe(0);
     expect(store.read().entries).toEqual([]);
+  });
+
+  it.each(["invalidate", "clear"] as const)("does not restore stale hydration after %s", async operation => {
+    const disk = storage();
+    const seed = new EventHistoryStore("alice", disk);
+    await seed.mergeHead([entry("stale")], false, 1);
+    const serialized = disk.values.get("event-history:alice")!;
+    let finishRead!: (value: string) => void;
+    vi.mocked(disk.read).mockImplementationOnce(() => new Promise(resolve => { finishRead = resolve; }));
+    const store = new EventHistoryStore("alice", disk);
+    const hydration = store.hydrate();
+    await vi.waitFor(() => expect(finishRead).toBeTypeOf("function"));
+    await store[operation]();
+    finishRead(serialized);
+    await hydration;
+    expect(store.read()).toMatchObject({ entries: [], complete: false, generation: 1 });
   });
 });

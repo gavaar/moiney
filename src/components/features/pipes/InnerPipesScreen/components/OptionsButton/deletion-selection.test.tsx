@@ -17,8 +17,8 @@ vi.mock("convex/react", () => ({
     ? { phase: "complete", deleteTransactions: false } : undefined,
 }));
 vi.mock("@ui/Alert", () => ({ useAlert: () => alert }));
-vi.mock("@features/transactions/cache/TransactionCacheContext", () => ({
-  useOptionalTransactionCache: () => ({
+vi.mock("@features/transactions/cache/EventHistoryCacheContext", () => ({
+  useOptionalEventHistoryCache: () => ({
     invalidateHistory,
   }),
 }));

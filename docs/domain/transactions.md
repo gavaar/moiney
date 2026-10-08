@@ -156,7 +156,7 @@ transaction's new roles are treated as ordinary roles by subsequent edits and
 deletion, regardless of the earlier choice to apply replacement effects.
 
 Correction history records previous and current structure. Successful edits
-invalidate the shared [event History snapshot](history-cache.md#d014-transaction-snapshot-cache)
+invalidate the shared [event History snapshot](history-cache.md#d014-event-history-snapshot-cache)
 and notify mounted History and ranking consumers to reload authoritative entries.
 
 ## D018: Quick Transaction Creation

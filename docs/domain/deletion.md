@@ -2,7 +2,7 @@
 
 Canonical deletion contracts. See the [decision index and status meanings](../domain-decisions.md#status-meanings),
 [accounting](accounting.md), [transaction involvement](transactions.md#d003-transaction-involvement),
-and [history invalidation](history-cache.md#d014-transaction-snapshot-cache).
+and [history invalidation](history-cache.md#d014-event-history-snapshot-cache).
 
 ## D002: Pipe Deletion And Transaction History
 

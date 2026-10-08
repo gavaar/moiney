@@ -106,8 +106,8 @@ vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
   },
 }));
 
-vi.mock("@features/transactions/cache/TransactionCacheContext", () => ({
-  useOptionalTransactionCache: () => ({
+vi.mock("@features/transactions/cache/EventHistoryCacheContext", () => ({
+  useOptionalEventHistoryCache: () => ({
     invalidateHistory: mockInvalidateHistory,
   }),
 }));

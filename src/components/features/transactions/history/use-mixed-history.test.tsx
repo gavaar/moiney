@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({ query: vi.fn(), focused: true, accountKey: "al
 const client = { query: mocks.query };
 vi.mock("convex/react", () => ({ useConvex: () => client }));
 vi.mock("expo-router/react-navigation", () => ({ useIsFocused: () => mocks.focused }));
-vi.mock("../cache/TransactionCacheContext", () => ({ useTransactionCache: () => mocks }));
+vi.mock("../cache/EventHistoryCacheContext", () => ({ useEventHistoryCache: () => mocks }));
 vi.mock("@features/pipes/context/PipeCatalogContext", () => ({ usePipeCatalog: () => ({ allPipes: mocks.pipes }) }));
 const pipe = (id: string) => id as Id<"pipes">;
 function expense(id = "expense", pipeId = "source", date = 1000): Extract<HistoryEntry, { type: "transaction" }> {

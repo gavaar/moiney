@@ -4,7 +4,7 @@ import { beforeEach, expect, it, vi } from "vitest";
 import { getFunctionName, type FunctionReference } from "convex/server";
 import type { Id } from "@convex/_generated/dataModel";
 import type { PipeModel } from "@features/pipes/data/pipes";
-import { TransactionCacheProvider } from "@features/transactions/cache/TransactionCacheContext";
+import { EventHistoryCacheProvider } from "@features/transactions/cache/EventHistoryCacheContext";
 import { EventHistoryStore } from "@features/transactions/cache/EventHistoryStore";
 import { useEventHistory } from "@features/transactions/cache/useEventHistory";
 import { useAmountFormController } from "./useAmountFormController";
@@ -59,7 +59,7 @@ async function setup(props: AmountFormProps) {
   const { result } = renderHook(() => ({
     form: useAmountFormController({ ...props, onSuccess: success }),
     history: useEventHistory(),
-  }), { wrapper: ({ children }) => <TransactionCacheProvider storage={disk}>{children}</TransactionCacheProvider> });
+  }), { wrapper: ({ children }) => <EventHistoryCacheProvider storage={disk}>{children}</EventHistoryCacheProvider> });
   await waitFor(() => expect(result.current.history.entries).toEqual([entry("old")]));
   return { result, values, success };
 }
