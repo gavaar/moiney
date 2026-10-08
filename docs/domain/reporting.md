@@ -62,6 +62,11 @@ not. Summaries store total income, gross spending, refunds, spending and refund
 transaction counts, and the largest spending transaction in integer cents.
 Total outcome is gross spending minus refunds. Averages and comparisons are
 derived when read, not persisted.
+Summary cards emphasize Net change: income minus (gross spending minus refunds).
+Their separate Income, Outcome, and Refunds figures show income, gross spending,
+and refunds respectively. Missing legacy income makes income and net change
+unavailable, not zero. Positive net change uses muted primary, negative uses muted
+error, and zero is neutral.
 New reports also freeze the titles and amounts of the three largest individual
 expenses (ties count as separate transactions). Older reports without titles
 retain their amount-only ranking. The live and captured cards and details show

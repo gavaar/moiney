@@ -57,9 +57,10 @@ it("shows a monthly summary card and selects its report", async () => {
   render(<StatisticsScreen onSelectPeriod={onSelectPeriod} />);
 
   expect(screen.getByText("June 2026")).toBeDefined();
-  expect(screen.getByText("Total outcome")).toBeDefined();
-  expect(screen.getByText("17.50")).toBeDefined();
-  expect(screen.getByText((_, element) => element?.textContent === "Gross 20.00")).toBeDefined();
+  expect(screen.getByText("Net change")).toBeDefined();
+  expect(screen.getByText("482.50")).toBeDefined();
+  expect(screen.getByText((_, element) => element?.textContent === "Income 500.00")).toBeDefined();
+  expect(screen.getByText((_, element) => element?.textContent === "Outcome 20.00")).toBeDefined();
   expect(screen.getByText((_, element) => element?.textContent === "Refunds: 2.50")).toBeDefined();
 
   await user.click(

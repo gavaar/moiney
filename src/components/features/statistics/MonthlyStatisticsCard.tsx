@@ -12,11 +12,13 @@ export function MonthlyStatisticsCard({ report, onPress, live = false, offenderI
 }) {
   const month = formatMonthYear(report.periodStart);
   const offender = report.offenders?.[0];
+  const netChange = report.totalIncomeCents === undefined ? undefined : report.totalIncomeCents - netSpendingCents(report);
+  const netChangeTone = netChange === undefined ? "text-muted" : netChange > 0 ? "text-primaryMuted" : netChange < 0 ? "text-errorMuted" : "text-text";
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`Open ${month} ${live ? "live " : ""}spending report`}
-      className="gap-2 rounded-2xl border border-border bg-surface p-4 active:opacity-80"
+      className="gap-2 rounded-xl border border-border bg-surface p-4 active:opacity-80"
       onPress={onPress}
     >
       <View className="flex-row items-center justify-between">
@@ -25,11 +27,12 @@ export function MonthlyStatisticsCard({ report, onPress, live = false, offenderI
       </View>
       <View className="flex-row items-center justify-between gap-3">
         <View className="min-w-0 flex-1">
-          <Text className="text-sm text-muted">Total outcome</Text>
-          <Text className="text-2xl font-bold text-text" adjustsFontSizeToFit numberOfLines={1}>{formatAmount(netSpendingCents(report))}</Text>
+          <Text className="text-sm text-muted">Net change</Text>
+          <Text className={`text-2xl font-bold ${netChangeTone}`} adjustsFontSizeToFit numberOfLines={1}>{netChange === undefined ? "Unavailable" : formatAmount(netChange)}</Text>
         </View>
         <View className="items-end">
-          <Text className="text-sm text-muted">Gross <Text className="text-errorMuted">{formatAmount(report.grossSpendingCents)}</Text></Text>
+          <Text className="text-sm text-muted">Income <Text className="text-primaryMuted">{report.totalIncomeCents === undefined ? "Unavailable" : formatAmount(report.totalIncomeCents)}</Text></Text>
+          <Text className="text-sm text-muted">Outcome <Text className="text-errorMuted">{formatAmount(report.grossSpendingCents)}</Text></Text>
           <Text className="text-sm text-muted">Refunds: <Text className="text-accentMuted">{formatAmount(report.refundCents)}</Text></Text>
         </View>
       </View>

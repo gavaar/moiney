@@ -114,7 +114,7 @@ export function PipesScreen({ openPipeId, onPipeOpened, onOpenCurrentReport }: {
       />
 
       {!treeMode && !selectedName ? (
-        <View className="px-4 pb-3">
+        <View className="px-2 pb-3">
           {report ? (
             <MonthlyStatisticsCard report={report} live offenderIcon={allPipes?.find((pipe) => pipe.id === report.offenders?.[0]?.pipeId)?.icon} onPress={() => onOpenCurrentReport?.()} />
           ) : (
