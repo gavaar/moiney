@@ -1,12 +1,9 @@
 import { v } from "convex/values";
 import type { ObjectType } from "convex/values";
 import {
-  summarizeMonthlySpending,
   summarizeRootFeedSnapshot,
-  monthlyPipeSpending,
   mergeMonthlySpending,
   mergePipeSpending,
-  monthlyTitleSpending,
   mergeTitleSpending,
   mostRepeatedTransaction,
   rankMonthlyOffenders,
@@ -94,46 +91,6 @@ export const listMine = query({
   },
 });
 
-export const monthPage = query({
-  args: { periodStart: v.number(), paginationOpts: paginationOptsValidator },
-  returns: v.object({
-    page: v.array(v.object({
-      summary: summaryValidator,
-      pipeSpending: v.array(pipeSpendingValidator),
-      titleSpending: v.array(titleSpendingValidator),
-    })),
-    isDone: v.boolean(),
-    continueCursor: v.string(),
-  }),
-  handler: async (ctx, args) => {
-    const userId = await requireAuth(ctx);
-    const period = new Date(args.periodStart);
-    if (
-      !Number.isSafeInteger(args.periodStart) ||
-      period.getTime() !== args.periodStart ||
-      period.getUTCDate() !== 1 ||
-      period.getUTCHours() !== 0 ||
-      period.getUTCMinutes() !== 0 ||
-      period.getUTCSeconds() !== 0 ||
-      period.getUTCMilliseconds() !== 0
-    ) {
-      throw new Error("Invalid period start");
-    }
-    if (!Number.isInteger(args.paginationOpts.numItems) || args.paginationOpts.numItems < 1 || args.paginationOpts.numItems > REPORT_PAGE_SIZE) {
-      throw new Error("Invalid page size");
-    }
-    const end = Date.UTC(period.getUTCFullYear(), period.getUTCMonth() + 1, 1);
-    const transactions = await ctx.db.query("transactions")
-      .withIndex("by_userId_date", (q) => q.eq("userId", userId).gte("date", args.periodStart).lt("date", end))
-      .paginate(args.paginationOpts);
-    return {
-      page: [{ summary: summarizeMonthlySpending(transactions.page), pipeSpending: monthlyPipeSpending(transactions.page), titleSpending: monthlyTitleSpending(transactions.page) }],
-      isDone: transactions.isDone,
-      continueCursor: transactions.continueCursor,
-    };
-  },
-});
-
 export const eventMonthPage = query({
   args: { periodStart: v.number(), paginationOpts: paginationOptsValidator },
   returns: v.object({
@@ -195,18 +152,6 @@ function previousUtcMonth(now: number) {
   };
 }
 
-function scheduleUserCapture(
-  ctx: MutationCtx,
-  args: CaptureArgs,
-  source: "transactions" | "events",
-) {
-  return ctx.scheduler.runAfter(
-    0,
-    source === "events" ? internal.monthlySpendingStats.captureUserEventMonth : internal.monthlySpendingStats.captureUserMonth,
-    args,
-  );
-}
-
 export const capturePreviousMonth = internalMutation({
   args: {
     now: v.optional(v.number()),
@@ -223,7 +168,8 @@ export const capturePreviousMonth = internalMutation({
 
     await Promise.all(
       users.page.map((user) =>
-        scheduleUserCapture(ctx, { userId: user._id, periodStart, periodEnd }, "events"),
+        ctx.scheduler.runAfter(0, internal.monthlySpendingStats.captureUserEventMonth,
+          { userId: user._id, periodStart, periodEnd }),
       ),
     );
 
@@ -250,20 +196,13 @@ const captureArgs = {
 };
 type CaptureArgs = ObjectType<typeof captureArgs>;
 
-// Keep transaction continuations on their original stream across deployment.
-export const captureUserMonth = internalMutation({
-  args: captureArgs,
-  returns: v.null(),
-  handler: (ctx, args): Promise<null> => captureMonth(ctx, args, "transactions"),
-});
-
 export const captureUserEventMonth = internalMutation({
   args: captureArgs,
   returns: v.null(),
-  handler: (ctx, args): Promise<null> => captureMonth(ctx, args, "events"),
+  handler: captureMonth,
 });
 
-async function captureMonth(ctx: MutationCtx, args: CaptureArgs, source: "transactions" | "events"): Promise<null> {
+async function captureMonth(ctx: MutationCtx, args: CaptureArgs): Promise<null> {
   // A different capture chain can finish while this paginated job is pending.
   const existing = await ctx.db
     .query("monthlySpendingStats")
@@ -271,8 +210,11 @@ async function captureMonth(ctx: MutationCtx, args: CaptureArgs, source: "transa
     .unique();
   if (existing) return null;
 
-  const page = await readCapturePage(ctx, args, source);
-  const contribution = page.contribution;
+  const page = await ctx.db.query("events")
+    .withIndex("by_userId_occurredAt", q => q.eq("userId", args.userId)
+      .gte("occurredAt", args.periodStart).lt("occurredAt", args.periodEnd))
+    .paginate({ numItems: REPORT_PAGE_SIZE, cursor: args.cursor ?? null });
+  const contribution = summarizeMonthlyEventSpending(page.page.map(historyEventFromDocument));
   const previous = args.summary ?? {
     totalIncomeCents: 0,
     grossSpendingCents: 0,
@@ -288,7 +230,7 @@ async function captureMonth(ctx: MutationCtx, args: CaptureArgs, source: "transa
   const titleSpending = mergeTitleSpending(args.titleSpending ?? [], contribution.titleSpending);
 
   if (!page.isDone) {
-    await scheduleUserCapture(ctx, {
+    await ctx.scheduler.runAfter(0, internal.monthlySpendingStats.captureUserEventMonth, {
       userId: args.userId,
       periodStart: args.periodStart,
       periodEnd: args.periodEnd,
@@ -296,7 +238,7 @@ async function captureMonth(ctx: MutationCtx, args: CaptureArgs, source: "transa
       summary,
       pipeSpending,
       titleSpending,
-    }, source);
+    });
     return null;
   }
 
@@ -318,32 +260,4 @@ async function captureMonth(ctx: MutationCtx, args: CaptureArgs, source: "transa
     })), pipeSpending),
   });
   return null;
-}
-
-async function readCapturePage(ctx: MutationCtx, args: CaptureArgs, source: "transactions" | "events") {
-  if (source === "events") {
-    const page = await ctx.db.query("events")
-      .withIndex("by_userId_occurredAt", q => q.eq("userId", args.userId)
-        .gte("occurredAt", args.periodStart).lt("occurredAt", args.periodEnd))
-      .paginate({ numItems: REPORT_PAGE_SIZE, cursor: args.cursor ?? null });
-    return { isDone: page.isDone, continueCursor: page.continueCursor,
-      contribution: summarizeMonthlyEventSpending(page.page.map(historyEventFromDocument)) };
-  }
-  const page = await ctx.db
-      .query("transactions")
-      .withIndex("by_userId_date", (q) =>
-        q
-          .eq("userId", args.userId)
-          .gte("date", args.periodStart)
-          .lt("date", args.periodEnd),
-      )
-      .paginate({
-         numItems: REPORT_PAGE_SIZE,
-        cursor: args.cursor ?? null,
-      });
-  return { isDone: page.isDone, continueCursor: page.continueCursor, contribution: {
-    summary: summarizeMonthlySpending(page.page),
-    pipeSpending: monthlyPipeSpending(page.page),
-    titleSpending: monthlyTitleSpending(page.page),
-  } };
 }

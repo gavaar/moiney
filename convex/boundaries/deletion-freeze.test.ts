@@ -310,9 +310,8 @@ describe("Convex boundaries: deletion and freeze", () => {
     expect(state.parent?.fed).toBe(130);
     expect(state.parent?.rule).toBe("instant_settlement");
     expect(state.child).toBeNull();
-    const history = await t
-      .withIdentity({ subject: userId })
-      .query(api.transactions.listTransactions, {});
+    const history = await t.run(ctx => ctx.db.query("transactions")
+      .withIndex("by_userId_date", q => q.eq("userId", userId)).collect());
     expect(history[0]).toMatchObject({
       title: "preserved expense",
       from: childId,
@@ -561,39 +560,44 @@ describe("Convex boundaries: deletion and freeze", () => {
   });
 
   it("rejects new transactions against a frozen deletion subtree", async () => {
-    const t = convexTest(schema, modules);
-    const { userId, pipeId } = await t.run(async (ctx) => {
-      const userId = await ctx.db.insert("users", {
-        username: "alice",
-        email: "alice@example.com",
-        password: "hash",
+    vi.useFakeTimers();
+    try {
+      const t = convexTest(schema, modules);
+      const { userId, pipeId } = await t.run(async (ctx) => {
+        const userId = await ctx.db.insert("users", {
+          username: "alice",
+          email: "alice@example.com",
+          password: "hash",
+        });
+        const pipeId = await ctx.db.insert("pipes", {
+          userId,
+          name: "Frozen",
+          icon: "pipe",
+          priority: 0,
+          capacity: 100,
+          fed: 50,
+          spent: 0,
+        });
+        return { userId, pipeId };
       });
-      const pipeId = await ctx.db.insert("pipes", {
-        userId,
-        name: "Frozen",
-        icon: "pipe",
-        priority: 0,
-        capacity: 100,
-        fed: 50,
-        spent: 0,
+      const asUser = t.withIdentity({ subject: userId });
+
+      await asUser.mutation(api.pipes.startPipeDeletion, {
+        pipeId,
+        deleteTransactions: false,
       });
-      return { userId, pipeId };
-    });
-    const asUser = t.withIdentity({ subject: userId });
 
-    await asUser.mutation(api.pipes.startPipeDeletion, {
-      pipeId,
-      deleteTransactions: false,
-    });
-
-    await expect(
-      asUser.mutation(api.transactions.createTransaction, {
-        title: "new expense",
-        value: -10,
-        date: 100,
-        from: pipeId,
-      }),
-    ).rejects.toThrow("Pipe is being deleted");
+      await expect(
+        asUser.mutation(api.transactions.createTransaction, {
+          title: "new expense",
+          value: -10,
+          date: 100,
+          from: pipeId,
+        }),
+      ).rejects.toThrow("Pipe is being deleted");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("allows an expense in one root while an unrelated root is frozen", async () => {

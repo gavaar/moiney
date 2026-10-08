@@ -103,9 +103,10 @@ captured before its addition.
 The first successful capture is immutable. Subsequent transaction creation,
 editing, movement, or deletion does not restate a captured month. User and event
 traversal is paginated; `(userId, periodStart)` is the logical identity providing
-retry idempotency. During coexistence, already-scheduled transaction capture
-continuations retain their original stream; each continuation stops if another
-capture chain has already frozen that month.
+retry idempotency. Each event capture continuation stops if another capture
+chain has already frozen that month. Transaction-backed capture handlers may
+retire only after their scheduled work drains; the event handler never accepts
+transaction-stream cursors or accumulators.
 
 Authenticated users can read their newest 24 summaries and open an exact owned
 month. Reports derive net spending as gross spending minus refunds. Average

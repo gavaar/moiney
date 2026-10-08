@@ -4,10 +4,7 @@ import {
   createTransaction,
   editTransaction,
   listTransactionCorrectionsPaginated,
-  listTransactions,
-  listTransactionsPaginated,
 } from "./transactions";
-import { MAX_PIPES_PER_USER } from "./lib/constants";
 
 vi.mock("./lib/auth", () => ({
   requireAuth: vi.fn().mockResolvedValue("user-1"),
@@ -1109,120 +1106,6 @@ describe("listTransactionCorrectionsPaginated", () => {
         paginationOpts: { numItems: 20, cursor: null },
       }),
     ).rejects.toThrow("Not authorized");
-  });
-});
-
-describe("listTransactions", () => {
-  it("merges the newest transactions across every involved role index", async () => {
-    const rowsByIndex = {
-      by_userId_from_date: [{ _id: "from-row", date: 100 }],
-      by_userId_to_date: [{ _id: "to-row", date: 300 }],
-      by_userId_paidFrom_date: [{ _id: "paid-row", date: 200 }],
-    };
-    const queriedIndexes: string[] = [];
-    const takeLimits: number[] = [];
-    const query = vi.fn(() => ({
-      withIndex: vi.fn((name: string, predicate: (q: any) => void) => {
-        queriedIndexes.push(name);
-        const q = { eq: vi.fn(() => q) };
-        predicate(q);
-        if (!(name in rowsByIndex)) {
-          throw new Error(`unexpected transaction index: ${name}`);
-        }
-        return {
-          order: vi.fn(() => ({
-            take: vi.fn((limit: number) => {
-              takeLimits.push(limit);
-              return Promise.resolve(rowsByIndex[name as keyof typeof rowsByIndex]);
-            }),
-          })),
-        };
-      }),
-    }));
-    const ctx = mockCtx();
-    ctx.db.query = query;
-
-    const result = await (listTransactions as any)._handler(ctx, {
-      pipeIds: ["pipe-1"],
-    });
-
-    expect(queriedIndexes).toEqual([
-      "by_userId_from_date",
-      "by_userId_to_date",
-      "by_userId_paidFrom_date",
-    ]);
-    expect(takeLimits).toEqual([30, 30, 30]);
-    expect(result.map((transaction: any) => transaction._id)).toEqual([
-      "to-row",
-      "paid-row",
-      "from-row",
-    ]);
-  });
-
-  it("limits unfiltered recent transactions to 30 rows", async () => {
-    const ctx = mockCtx();
-
-    await (listTransactions as any)._handler(ctx, {});
-
-    expect(ctx.db._chain.take).toHaveBeenCalledWith(30);
-  });
-
-  it("rejects more pipe filters than one user can own", async () => {
-    const ctx = mockCtx();
-    const pipeIds = Array.from(
-      { length: MAX_PIPES_PER_USER + 1 },
-      (_, index) => `pipe-${index}`,
-    );
-
-    await expect(
-      (listTransactions as any)._handler(ctx, { pipeIds }),
-    ).rejects.toMatchObject({ data: { code: "TOO_MANY_PIPE_FILTERS" } });
-    expect(ctx.db.query).not.toHaveBeenCalled();
-  });
-});
-
-describe("listTransactionsPaginated", () => {
-  it("combines date, title substring, and exact pipe involvement filters", async () => {
-    const transaction = (overrides: Record<string, unknown>) => ({
-      _id: "tx",
-      _creationTime: 1,
-      title: "coffee",
-      value: -100,
-      date: 20,
-      kind: "expense",
-      userId: "user-1",
-      ...overrides,
-    });
-    const ctx = mockCtx();
-    ctx.db.get.mockImplementation((_table: string, id: string) => ({
-      _id: id,
-      userId: "user-1",
-    }));
-    ctx.db._chain.paginate.mockResolvedValue({
-      page: [
-        transaction({ _id: "from", from: "pipe-1", title: "Coffee beans", date: 10 }),
-        transaction({ _id: "to", to: "pipe-2", title: "iced COFFEE", date: 20 }),
-        transaction({ _id: "paid", paidFrom: "pipe-1", title: "coffee run", date: 30 }),
-        transaction({ _id: "wrong-pipe", from: "pipe-3", title: "coffee", date: 20 }),
-        transaction({ _id: "wrong-title", from: "pipe-1", title: "tea", date: 20 }),
-        transaction({ _id: "too-old", from: "pipe-1", title: "coffee", date: 9 }),
-        transaction({ _id: "too-new", from: "pipe-1", title: "coffee", date: 31 }),
-      ],
-      isDone: true,
-      continueCursor: "done",
-    });
-
-    const result = await (listTransactionsPaginated as any)._handler(ctx, {
-      paginationOpts: { numItems: 30, cursor: null },
-      filters: {
-        fromDate: 10,
-        toDate: 30,
-        pipeIds: ["pipe-1", "pipe-2"],
-        title: " COFFEE ",
-      },
-    });
-
-    expect(result.page.map((row: any) => row.id)).toEqual(["from", "to", "paid"]);
   });
 });
 

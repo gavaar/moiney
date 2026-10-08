@@ -157,17 +157,6 @@ describe("transaction deletion", () => {
     });
 
     const client = t.withIdentity({ subject: state.userId });
-    const history = await client.query(api.history.list, {
-      source: "transactions",
-      limit: 10,
-    });
-    expect(history.items[0]).toMatchObject({
-      kind: "transaction",
-      transaction: {
-        id: state.transactionId,
-      },
-    });
-
     await client.mutation(
       api.transactions.deleteTransaction,
       { transactionId: state.transactionId },

@@ -5,6 +5,7 @@ import { api } from "../_generated/api";
 import schema from "../schema";
 import { modules } from "../test.setup";
 import { MAX_AMOUNT } from "../../domain/money";
+import { insertFinancialOperation } from "../lib/events/financial";
 
 describe("Convex boundaries: transactions, transfers, and history", () => {
   it("adds a boiler contribution to principal and current fed", async () => {
@@ -775,7 +776,7 @@ describe("Convex boundaries: transactions, transfers, and history", () => {
     );
   });
 
-  it("filters transactions through from, to, and paidFrom involvement", async () => {
+  it("scopes event history to financial from, to, and paidFrom perspectives", async () => {
     const t = convexTest(schema, modules);
     const { userId, selectedPipeId } = await t.run(async (ctx) => {
       const userId = await ctx.db.insert("users", {
@@ -813,25 +814,22 @@ describe("Convex boundaries: transactions, transfers, and history", () => {
         { title: "unrelated", kind: "expense" as const, from: otherPipeId },
       ];
       for (const [index, row] of rows.entries()) {
-        await ctx.db.insert("transactions", {
-          ...row,
-          userId,
-          value: -1,
-          date: index,
-        });
+        await insertFinancialOperation(ctx, { userId, title: row.title, value: row.kind === "feed" ? 1 : -1, occurredAt: index,
+          structure: row.kind === "feed" ? { type: "feed", to: row.to } : row.paidFrom
+            ? { type: "payByTransfer", from: row.from, paidFrom: row.paidFrom } : { type: "expense", from: row.from } });
       }
       return { userId, selectedPipeId };
     });
 
     const transactions = await t
       .withIdentity({ subject: userId })
-      .query(api.transactions.listTransactions, {
-        pipeIds: [selectedPipeId],
+      .query(api.events.latest, {
+        pipeId: selectedPipeId,
       });
 
     expect(
       transactions
-        .map((transaction: { title: string }) => transaction.title)
+        .flatMap(event => "title" in event ? [event.title] : [])
         .sort(),
     ).toEqual(["from", "paid", "to"]);
   });
@@ -1164,32 +1162,32 @@ describe("Convex boundaries: transactions, transfers, and history", () => {
     });
     const asUser = t.withIdentity({ subject: userId });
 
-    await asUser.mutation(api.transactions.createTransaction, {
+    const created = await asUser.mutation(api.transactions.createTransaction, {
       title: "  COFFEE  ",
       value: -10,
       date: 3000,
       from: pipeId,
     });
 
-    const transactions = await asUser.query(api.transactions.listTransactions, {
-      pipeIds: [pipeId],
+    const transactions = await asUser.query(api.events.latest, {
+      pipeId,
     });
     const recentTitles = await asUser.query(api.transactions.listRecentTitles, { pipeId });
 
-    expect(transactions[0].title).toBe("coffee");
+    expect(transactions[0]).toMatchObject({ title: "coffee" });
     expect(recentTitles).toEqual(["coffee"]);
 
     await asUser.mutation(api.transactions.editTransaction, {
-      transactionId: transactions[0]._id,
+      transactionId: created.id,
       title: "  LATTE  ",
       value: -10,
       date: 3000,
     });
 
-    const editedTransactions = await asUser.query(api.transactions.listTransactions, {
-      pipeIds: [pipeId],
+    const editedTransactions = await asUser.query(api.events.latest, {
+      pipeId,
     });
-    expect(editedTransactions[0].title).toBe("latte");
+    expect(editedTransactions[0]).toMatchObject({ title: "latte" });
 
     await expect(
       asUser.mutation(api.transactions.createTransaction, {

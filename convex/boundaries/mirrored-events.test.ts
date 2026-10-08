@@ -72,9 +72,9 @@ describe("Convex boundaries: mirrored event creation", () => {
       expect(state.source).toMatchObject({ fed: 1000, spent: 200 - value, pendingFedAdjustment: -value, contributedFed: 1000 });
       expect(state.target).toMatchObject({ fed: 500 + value, spent: 100, contributedFed: 500 });
     }
-    const rows = await auth.query(api.transactions.listTransactions, {});
-    expect(rows).toHaveLength(1);
-    expect(rows[0]).not.toHaveProperty("operationId");
+    const rows = await auth.query(api.events.latest, {});
+    expect(rows).toHaveLength(2);
+    expect(new Set(rows.map(row => row.operationId)).size).toBe(1);
   });
 
   it.each([-MAX_AMOUNT, MAX_AMOUNT])("persists opposing transfer entries at the signed cents boundary %s", async value => {

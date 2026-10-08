@@ -202,34 +202,20 @@ Counts, Spent, and date bounds describe loaded matching members, not the complet
 pipe/month history. No separate archive reader, pagination, or full-summary scan
 is needed. Deletion-catalog reads supply identity and ancestry metadata only.
 
-## Backfill During Coexistence
+## Deployment Compatibility
 
-The migrations component owns pagination, resumability, and status. Run these
-internal migrations in order after deploying the dual-writers:
+For dependency-ordered compatibility cleanup after retiring old clients, see the
+[old-app retirement inventory](../old-app-retirement.md).
 
-1. `migrations:m20261006_160000_backfillLivePipeEvents` captures live creation snapshots.
-2. `migrations:m20261006_160001_backfillLifecycleEvents` copies retained lifecycle history.
-3. `migrations:m20261006_160002_backfillTransactionEvents` materializes and links legacy financial
-   operations, including ones involving deleted pipes.
+Removing legacy public readers requires retiring installed clients that still
+call them. Transaction-ID action contracts remain supported until their own
+replacement and minimum-version cutover. Handler removal does not authorize
+deleting persisted transactions or lifecycle snapshots.
 
-Use `bunx convex run <name> '{"dryRun":true}'` to check a batch before running
-`bunx convex run <name>`. A dry run rolls back all writes, including event
-insertions. It checks only one batch, not the complete dataset. Component status
-is available through `bunx convex run --component migrations lib:getStatus`.
-Use the CLI's `--prod` flag only when intentionally targeting production.
-Do not switch readers until all three migrations report completion.
-
-The passes are safe to resume or restart: lifecycle identity is per pipe/type,
-and existing transaction links are validated and retained. Invalid financial
-rows or broken links fail the batch atomically rather than being skipped or
-silently replaced. Backfill never replays accounting, resets balances or boiler
-principal, or alters correction records.
-
-For a retained snapshot whose pipe no longer exists and whose deletion date is
-missing, use the newest retained transaction date across `from`, `to`, and
-`paidFrom`, no earlier than creation; without retained transactions, use creation.
-Persist that inferred date so retries and later history edits do not move it.
-Retain known dates, final presentation, and deleted-descendant ancestry.
-
-Production backfills follow the
-[manual migration workflow](../backend.md#deployment-and-manual-migrations).
+Completed coexistence backfill definitions may retire only after completion in
+every supported deployment and verification that no scheduled migration still
+references them. Transaction-backed monthly captures must likewise drain before
+their handler is removed; event captures cannot resume a transaction cursor.
+Follow the [manual migration workflow](../backend.md#deployment-and-manual-migrations)
+for subsequent data changes, without replaying accounting or restating frozen
+reports.

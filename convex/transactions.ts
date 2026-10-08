@@ -6,23 +6,16 @@ import {
   paginationResultValidator,
 } from "convex/server";
 import type { Doc, Id } from "./_generated/dataModel";
-import type { QueryCtx } from "./_generated/server";
 import { requireAuth } from "./lib/auth";
-import {
-  transactionRoleNames,
-  type TransactionRole,
-} from "../domain/transactions";
 import {
   correctBoilerCurrentFedOperation,
   createTransactionOperation,
   deleteTransactionOperation,
   editTransactionOperation,
 } from "./lib/transactions/operations";
-import { MAX_PIPES_PER_USER } from "./lib/constants";
 
 const TITLE_USAGE_RETENTION_MS = 365 * 24 * 60 * 60 * 1000;
 const TITLE_USAGE_CLEANUP_BATCH_SIZE = 100;
-const RECENT_TRANSACTION_LIMIT = 30;
 const transactionCacheItem = v.object({
   id: v.id("transactions"),
   createdAt: v.number(),
@@ -55,25 +48,6 @@ const correctionHistoryItem = v.object({
   previous: correctionSnapshot,
   current: correctionSnapshot,
 });
-
-function transactionsQuery(
-  ctx: QueryCtx,
-  userId: Id<"users">,
-  dates?: { fromDate?: number; toDate?: number },
-) {
-  return ctx.db
-    .query("transactions")
-    .withIndex("by_userId_date", (q) => {
-      const userRange = q.eq("userId", userId);
-      if (dates?.fromDate !== undefined && dates.toDate !== undefined) {
-        return userRange.gte("date", dates.fromDate).lte("date", dates.toDate);
-      }
-      if (dates?.fromDate !== undefined) return userRange.gte("date", dates.fromDate);
-      if (dates?.toDate !== undefined) return userRange.lte("date", dates.toDate);
-      return userRange;
-    })
-    .order("desc");
-}
 
 function toTransactionCacheItem(transaction: Doc<"transactions">) {
   const item = {
@@ -124,71 +98,6 @@ export const forEventOperation = query({
     return transaction ? toTransactionCacheItem(transaction) : null;
   },
 });
-
-async function loadRecentTransactionsForRole(
-  ctx: QueryCtx,
-  userId: Id<"users">,
-  pipeId: Id<"pipes">,
-  role: TransactionRole,
-): Promise<Doc<"transactions">[]> {
-  if (role === "from") {
-    return await ctx.db
-      .query("transactions")
-      .withIndex("by_userId_from_date", (q) =>
-        q.eq("userId", userId).eq("from", pipeId),
-      )
-      .order("desc")
-      .take(RECENT_TRANSACTION_LIMIT);
-  }
-
-  if (role === "to") {
-    return await ctx.db
-      .query("transactions")
-      .withIndex("by_userId_to_date", (q) =>
-        q.eq("userId", userId).eq("to", pipeId),
-      )
-      .order("desc")
-      .take(RECENT_TRANSACTION_LIMIT);
-  }
-
-  return await ctx.db
-    .query("transactions")
-    .withIndex("by_userId_paidFrom_date", (q) =>
-      q.eq("userId", userId).eq("paidFrom", pipeId),
-    )
-    .order("desc")
-    .take(RECENT_TRANSACTION_LIMIT);
-}
-
-async function loadRecentTransactionsForPipes(
-  ctx: QueryCtx,
-  userId: Id<"users">,
-  pipeIds: Id<"pipes">[],
-): Promise<Doc<"transactions">[]> {
-  const uniquePipeIds = [...new Set(pipeIds)];
-  if (uniquePipeIds.length > MAX_PIPES_PER_USER) {
-    throw new ConvexError({ code: "TOO_MANY_PIPE_FILTERS" });
-  }
-
-  const rows = await Promise.all(
-    uniquePipeIds.flatMap((pipeId) =>
-      transactionRoleNames.map((role) =>
-        loadRecentTransactionsForRole(ctx, userId, pipeId, role),
-      ),
-    ),
-  );
-  const unique = new Map<Id<"transactions">, Doc<"transactions">>();
-  for (const transaction of rows.flat()) {
-    unique.set(transaction._id, transaction);
-  }
-
-  return [...unique.values()]
-    .sort(
-      (left, right) =>
-        right.date - left.date || right._creationTime - left._creationTime,
-    )
-    .slice(0, RECENT_TRANSACTION_LIMIT);
-}
 
 export const createTransaction = mutation({
   args: {
@@ -348,19 +257,6 @@ export const listTransactionCorrectionsPaginated = query({
   },
 });
 
-export const listTransactions = query({
-  args: {
-    pipeIds: v.optional(v.array(v.id("pipes"))),
-  },
-  handler: async (ctx, args) => {
-    const userId = await requireAuth(ctx);
-    const transactions = args.pipeIds && args.pipeIds.length > 0
-      ? await loadRecentTransactionsForPipes(ctx, userId, args.pipeIds)
-      : await transactionsQuery(ctx, userId).take(RECENT_TRANSACTION_LIMIT);
-    return transactions.map(({ operationId: _operationId, ...transaction }) => transaction);
-  },
-});
-
 export const listRecentTitles = query({
   args: {
     pipeId: v.id("pipes"),
@@ -377,63 +273,6 @@ export const listRecentTitles = query({
       .take(10);
 
     return rows.map((r) => r.title);
-  },
-});
-
-export const listTransactionsPaginated = query({
-  args: {
-    paginationOpts: paginationOptsValidator,
-    filters: v.optional(
-      v.object({
-        fromDate: v.optional(v.number()),
-        toDate: v.optional(v.number()),
-        pipeIds: v.optional(v.array(v.id("pipes"))),
-        title: v.optional(v.string()),
-      }),
-    ),
-  },
-  returns: paginationResultValidator(transactionCacheItem),
-  handler: async (ctx, args) => {
-    const userId = await requireAuth(ctx);
-    const filters = args.filters;
-    if (
-      filters?.fromDate !== undefined &&
-      filters.toDate !== undefined &&
-      filters.fromDate > filters.toDate
-    ) {
-      throw new ConvexError({ code: "INVALID_TRANSACTION_DATE_RANGE" });
-    }
-
-    const pipeIds = [...new Set(filters?.pipeIds ?? [])];
-    if (pipeIds.length > MAX_PIPES_PER_USER) {
-      throw new ConvexError({ code: "TOO_MANY_PIPE_FILTERS" });
-    }
-
-    const page = await transactionsQuery(ctx, userId, filters).paginate(
-      args.paginationOpts,
-    );
-    const selectedPipeIds = new Set(pipeIds);
-    const title = filters?.title?.trim().toLowerCase() ?? "";
-    const filteredPage = page.page.filter((transaction) => {
-      const matchesDate =
-        (filters?.fromDate === undefined || transaction.date >= filters.fromDate) &&
-        (filters?.toDate === undefined || transaction.date <= filters.toDate);
-      const matchesPipe =
-        selectedPipeIds.size === 0 ||
-        (transaction.from !== undefined && selectedPipeIds.has(transaction.from)) ||
-        (transaction.to !== undefined && selectedPipeIds.has(transaction.to)) ||
-        (transaction.paidFrom !== undefined && selectedPipeIds.has(transaction.paidFrom));
-      return (
-        matchesDate &&
-        matchesPipe &&
-        (title === "" || transaction.title.toLowerCase().includes(title))
-      );
-    });
-
-    return {
-      ...page,
-      page: filteredPage.map(toTransactionCacheItem),
-    };
   },
 });
 

@@ -143,7 +143,5 @@ read independently. Main History retains all loaded entries even beyond the
 persistent cache's 300-entry limit. Account/filter changes and unmounting invalidate
 in-flight reads.
 
-During backfill, existing live pipes may lack creation events; their financial
-history remains available. Backfill is idempotent, uses original creation times,
-and captures the surviving ancestry. Frozen pipes are captured by deletion before
-removal. Pipes deleted before event support cannot generally be reconstructed.
+Frozen pipes are captured by deletion before removal. Pipes deleted before event
+support cannot generally be reconstructed.

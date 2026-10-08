@@ -74,15 +74,15 @@ describe("Convex boundaries: single-entry event creation", () => {
     expect(await t.run(ctx => ctx.db.get("pipes", pipeId))).toMatchObject({ fed: -1000, contributedFed: 1000 });
   });
 
-  it.each([false, true])("keeps the operation link internal for recent history (pipe filter: %s)", async filtered => {
+  it.each([false, true])("returns event identity in recent history (pipe filter: %s)", async filtered => {
     const { auth, pipeId } = await setup();
-    const result = await auth.mutation(api.transactions.createTransaction, {
+    await auth.mutation(api.transactions.createTransaction, {
       title: "lunch", value: -100, date: 1000, from: pipeId,
     });
-    const rows = await auth.query(api.transactions.listTransactions, filtered ? { pipeIds: [pipeId] } : {});
+    const rows = await auth.query(api.events.latest, filtered ? { pipeId } : {});
     expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ _id: result.id, title: "lunch", value: -100, kind: "expense" });
-    expect(rows[0]).not.toHaveProperty("operationId");
+    expect(rows[0]).toMatchObject({ title: "lunch", value: -100, type: "transaction", pipeId });
+    expect(rows[0].operationId).toBe(rows[0].id);
   });
 
   it.each(["foreign", "frozen", "parent"] as const)("rejects a %s expense without persisting events or accounting changes", async (condition) => {
