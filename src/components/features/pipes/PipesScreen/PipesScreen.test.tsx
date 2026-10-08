@@ -71,9 +71,6 @@ vi.mock("@features/pipes/FeedListScreen", () => ({
     <div data-testid="feed-order">{pipes.map((pipe: any) => pipe.id).join(",")}</div>
   ),
 }));
-vi.mock("@features/transactions/components/TransactionList", () => ({
-  TransactionList: () => <div data-testid="latest-list" />,
-}));
 vi.mock("@features/transactions/history/mixed-history-feed", () => ({
   MixedHistoryFeed: ({ filters, recent, enabled }: { filters?: { pipeIds?: string[] }; recent?: boolean; enabled?: boolean }) => {
     useEffect(() => { mocks.historyMounts(); }, []);

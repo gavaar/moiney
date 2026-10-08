@@ -1,5 +1,4 @@
 import type { Id } from "../convex/_generated/dataModel";
-import { buildFlatItems } from "../src/components/features/transactions/components/TransactionList/helpers";
 import type { TransactionModel } from "../src/components/features/transactions/data/transactions";
 import { groupTransactions } from "../src/components/features/transactions/groupTransactions";
 import { buildTreeRows } from "../src/components/features/pipes/PipeTreeView/treeRows";
@@ -97,18 +96,7 @@ for (const size of pipeSizes) {
 
 for (const size of historySizes) {
   const transactions = makeTransactions(size);
-  const grouped = groupTransactions(transactions);
-  const expandedKeys = new Set(
-    grouped.flatMap((item) => ("count" in item ? [item.id] : [])),
-  );
-
   measure("group-transactions", size, () =>
     groupTransactions(transactions),
-  );
-  measure("build-flat-items-collapsed", size, () =>
-    buildFlatItems(grouped, new Set()),
-  );
-  measure("build-flat-items-expanded", size, () =>
-    buildFlatItems(grouped, expandedKeys),
   );
 }

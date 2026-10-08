@@ -4,7 +4,7 @@ import { useRouter } from "expo-router";
 import type { Id } from "@convex/_generated/dataModel";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import { colors } from "@/lib/styles";
-import { StackedTransactionItem } from "../components/TransactionList/components";
+import { StackedTransactionItem } from "../components/StackedTransactionItem";
 import { TransactionCorrectionHistoryModal } from "../components/TransactionCorrectionHistory/TransactionCorrectionHistoryModal";
 import type { HistoryFilters } from "./history-filters";
 import { groupMonthlyEventHistory, type DeletedPipeEntry, type MonthlyEventArchive } from "./event-archives";
