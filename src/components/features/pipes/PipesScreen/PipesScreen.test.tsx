@@ -92,9 +92,6 @@ vi.mock("@ui/Icon", () => ({
   ),
   safeIconName: (name: string) => name,
 }));
-vi.mock("@features/transactions/context/TransactionsContext", () => ({
-  useTransactions: () => ({ transactions: [], isLoading: false }),
-}));
 vi.mock("@features/transactions/cache/TransactionCacheContext", () => ({
   useTransactionCache: () => ({
     cache: {},
