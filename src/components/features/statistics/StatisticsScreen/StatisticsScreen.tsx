@@ -44,7 +44,7 @@ export function StatisticsScreen({ onSelectPeriod }: Props) {
           data={reports as MonthlySpendingStat[]}
           keyExtractor={(item) => String(item.periodStart)}
           contentInsetAdjustmentBehavior="automatic"
-          contentContainerClassName="gap-3 px-4 pb-4"
+          contentContainerClassName="gap-3 px-2 pb-4"
           renderItem={({ item }) => <MonthlyStatisticsCard report={item} offenderIcon={pipes?.find((pipe) => pipe._id === item.offenders?.[0]?.pipeId)?.icon} onPress={() => onSelectPeriod(item.periodStart)} />}
         />
       )}

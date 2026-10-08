@@ -1,0 +1,99 @@
+import type { Doc, Id } from "../../_generated/dataModel";
+import type { MutationCtx, QueryCtx } from "../../_generated/server";
+import { historyOperationFromEvents, type HistoryEvent, type HistoryOperation } from "../../../domain/events";
+
+type EventDraft<Event = Doc<"events">> = Event extends Doc<"events">
+  ? Omit<Event, "_id" | "_creationTime" | "operationId"> : never;
+export type OperationDraft = { canonicalEvent: EventDraft; counterpart?: EventDraft };
+type PersistedOperation = HistoryOperation<Id<"pipes">, Id<"events">>;
+
+/** Called inside an authorized mutation; eligibility/accounting remain with the caller. */
+export async function insertHistoryOperation(
+  ctx: MutationCtx,
+  draft: OperationDraft,
+): Promise<PersistedOperation> {
+  const entries = [
+    { ...draft.canonicalEvent, id: "canonical", operationId: "canonical" },
+    ...(draft.counterpart ? [{ ...draft.counterpart, id: "counterpart", operationId: "canonical" }] : []),
+  ];
+  historyOperationFromEvents(entries);
+
+  const operationId = await ctx.db.insert("events", draft.canonicalEvent);
+  await ctx.db.patch("events", operationId, { operationId });
+  const canonicalEvent = { ...draft.canonicalEvent, id: operationId, operationId };
+  if (!draft.counterpart) return historyOperationFromEvents<Id<"pipes">, Id<"events">>([canonicalEvent]);
+  const counterpartId = await ctx.db.insert("events", { ...draft.counterpart, operationId });
+  return historyOperationFromEvents<Id<"pipes">, Id<"events">>([
+    canonicalEvent,
+    { ...draft.counterpart, id: counterpartId, operationId },
+  ]);
+}
+
+export function historyEventFromDocument(document: Doc<"events">): HistoryEvent<Id<"pipes">, Id<"events">> {
+  const { _id, _creationTime, operationId, ...fields } = document;
+  if (!operationId) throw new Error("History event is missing its operation ID");
+  return { ...fields, id: _id, operationId };
+}
+
+/** A complete write model, not a partial page of history entries. */
+export async function readHistoryOperation(
+  ctx: QueryCtx,
+  userId: Id<"users">,
+  eventId: Id<"events">,
+): Promise<PersistedOperation | null> {
+  const entry = await ctx.db.get("events", eventId);
+  if (!entry || entry.userId !== userId) return null;
+  if (!entry.operationId) throw new Error("History event is missing its operation ID");
+  const entries = await ctx.db.query("events")
+    .withIndex("by_operationId", (q) => q.eq("operationId", entry.operationId))
+    .take(3);
+  return historyOperationFromEvents(entries.map(historyEventFromDocument));
+}
+
+/** Replaces the entire snapshot, retaining canonical and surviving counterpart IDs. */
+export async function replaceHistoryOperation(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  operationId: Id<"events">,
+  draft: OperationDraft,
+): Promise<void> {
+  if (draft.canonicalEvent.userId !== userId) throw new Error("Not authorized");
+  const operation = await readHistoryOperation(ctx, userId, operationId);
+  if (!operation || operation.canonicalEvent.id !== operationId) {
+    throw new Error("History operation not found");
+  }
+  historyOperationFromEvents([
+    { ...draft.canonicalEvent, id: operationId, operationId },
+    ...(draft.counterpart ? [{
+      ...draft.counterpart,
+      id: operation.counterpart?.id ?? "counterpart",
+      operationId,
+    }] : []),
+  ]);
+
+  await ctx.db.replace("events", operationId, { ...draft.canonicalEvent, operationId });
+  if (draft.counterpart) {
+    const counterpart = { ...draft.counterpart, operationId };
+    if (operation.counterpart) {
+      await ctx.db.replace("events", operation.counterpart.id, counterpart);
+    } else {
+      await ctx.db.insert("events", counterpart);
+    }
+  } else if (operation.counterpart) {
+    await ctx.db.delete("events", operation.counterpart.id);
+  }
+}
+
+/** Removes every entry in an owned, complete operation inside the caller's mutation. */
+export async function deleteHistoryOperation(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  operationId: Id<"events">,
+): Promise<void> {
+  const operation = await readHistoryOperation(ctx, userId, operationId);
+  if (!operation || operation.canonicalEvent.id !== operationId) {
+    throw new Error("History operation not found");
+  }
+  if (operation.counterpart) await ctx.db.delete("events", operation.counterpart.id);
+  await ctx.db.delete("events", operationId);
+}

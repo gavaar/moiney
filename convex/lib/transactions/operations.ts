@@ -23,6 +23,8 @@ import {
   resolveTopMostAncestor,
 } from "../pipes";
 import { updateOrCreateTitleUsage } from "../transactions";
+import { insertFinancialOperation, replaceFinancialOperation } from "../events/financial";
+import { deleteHistoryOperation } from "../events/persistence";
 
 export type CreateTransactionCommand = {
   title: string;
@@ -264,7 +266,15 @@ export async function createTransactionOperation(
       await executePipeRule(ctx, command.to);
     }
 
+    const operationId = await insertFinancialOperation(ctx, {
+      userId,
+      occurredAt: command.date,
+      title,
+      value,
+      structure: { type: "feed", to: command.to },
+    });
     const transactionId = await ctx.db.insert("transactions", {
+      operationId,
       title,
       value,
       date: command.date,
@@ -364,7 +374,15 @@ export async function createTransactionOperation(
       getPipe,
     );
 
+    const operationId = await insertFinancialOperation(ctx, {
+      userId,
+      occurredAt: command.date,
+      title,
+      value,
+      structure: { type: "payByTransfer", from: pipeId, paidFrom: command.paidFrom },
+    });
     const transactionId = await ctx.db.insert("transactions", {
+      operationId,
       title,
       value,
       date: command.date,
@@ -468,7 +486,17 @@ export async function createTransactionOperation(
     await reconcileAffectedPipeRoots(ctx, [pipeId], getPipe);
   }
 
+  const operationId = await insertFinancialOperation(ctx, {
+    userId,
+    occurredAt: command.date,
+    title,
+    value,
+    structure: command.to
+      ? { type: "transfer", from: pipeId, to: command.to }
+      : { type: "expense", from: pipeId },
+  });
   const transactionId = await ctx.db.insert("transactions", {
+    operationId,
     title,
     value,
     date: command.date,
@@ -733,7 +761,20 @@ export async function editTransactionOperation(
     });
   }
 
+  let operationId = transaction.operationId;
+  if (hasCorrection) {
+    const eventInput = {
+      userId,
+      occurredAt: command.date,
+      title,
+      value: command.value,
+      structure: currentStructure,
+    };
+    if (operationId) await replaceFinancialOperation(ctx, operationId, eventInput);
+    else operationId = await insertFinancialOperation(ctx, eventInput);
+  }
   await ctx.db.patch("transactions", command.transactionId, {
+    ...(operationId !== transaction.operationId ? { operationId } : {}),
     title,
     value: command.value,
     date: command.date,
@@ -797,5 +838,8 @@ export async function deleteTransactionOperation(
     await assertPipeTreesNotFrozen(ctx, survivingOwnedPipes, getPipe);
   }
 
+  if (transaction.operationId) {
+    await deleteHistoryOperation(ctx, userId, transaction.operationId);
+  }
   await ctx.db.delete("transactions", command.transactionId);
 }

@@ -1,5 +1,5 @@
 import { resolveTransactionKind, type TransactionKind, transactionStructureFromRoles } from "@domain/transactions";
-import type { TransactionModel } from "../../data/transactions";
+import type { TransactionModel, TransactionPresentation } from "../../data/transactions";
 import { colors } from "@/lib/styles";
 import { formatMoneyInput } from "@domain/money";
 import { safeIconName } from "@ui/Icon/icons";
@@ -25,7 +25,7 @@ const getBackgroundClass = (kind: TransactionKind, transaction: Pick<Transaction
 
 const getTransactionIcons = (
   kind: TransactionKind,
-  transaction: TransactionModel,
+  transaction: TransactionPresentation,
   fromPipe: PipeModel | undefined,
   toPipe: PipeModel | undefined,
   paidFromPipe: PipeModel | undefined,
@@ -76,8 +76,8 @@ const getTransactionIcons = (
   return uiIcons;
 };
 
-export const getTransactionItemModel = (
-  transaction: TransactionModel,
+export const getTransactionItemPresentation = (
+  transaction: TransactionPresentation,
   { pipesById, childrenByParent, isPaidFromEligible }: Pick<
     PipeCatalogContextValue,
     "pipesById" | "childrenByParent" | "isPaidFromEligible"
@@ -106,25 +106,31 @@ export const getTransactionItemModel = (
 
   const primaryPipe = kind === "feed" ? toPipe : fromPipe;
   const canRepeat = !viewOnly && (!transaction.from || fromValid) && (!transaction.to || toValid) && (!transaction.paidFrom || paidFromValid);
-  const formInitState = {
-    pipeIcon: primaryPipe?.icon ?? (kind === "feed" ? transaction.toIcon : transaction.fromIcon) ?? "pipe-disconnected",
-    pipeName: primaryPipe?.name ?? "Deleted pipe",
-    spent: primaryPipe?.spent,
-    capacity: primaryPipe?.capacity,
+  return {
+    viewOnly, uiIcons, disabled: !canRepeat,
+    canEdit: ![fromPipe, toPipe, paidFromPipe].some(pipe => pipe?.deletionJobId),
+    bgClass: getBackgroundClass(kind, transaction),
+    primaryPipeId: kind === "feed" ? (toValid ? primaryPipe?.id : undefined) : (fromValid ? primaryPipe?.id : undefined),
+  };
+};
+
+export const getTransactionItemModel = (
+  transaction: TransactionModel,
+  catalog: Parameters<typeof getTransactionItemPresentation>[1],
+) => {
+  const presentation = getTransactionItemPresentation(transaction, catalog);
+  const kind = resolveTransactionKind(transaction);
+  const primaryPipe = (kind === "feed" ? transaction.to : transaction.from);
+  const pipe = primaryPipe ? catalog.pipesById?.[primaryPipe] : undefined;
+  return { ...presentation, formInitState: {
+    pipeIcon: pipe?.icon ?? (kind === "feed" ? transaction.toIcon : transaction.fromIcon) ?? "pipe-disconnected",
+    pipeName: pipe?.name ?? "Deleted pipe",
+    spent: pipe?.spent,
+    capacity: pipe?.capacity,
     title: transaction.title,
     value: formatMoneyInput(transaction.value),
     structure: transactionStructureFromRoles(transaction),
     transactionId: transaction.id,
     date: transaction.date,
-  };
-
-  return {
-    viewOnly,
-    formInitState,
-    uiIcons,
-    disabled: !canRepeat,
-    canEdit: ![fromPipe, toPipe, paidFromPipe].some(pipe => pipe?.deletionJobId),
-    bgClass: getBackgroundClass(kind, transaction),
-    primaryPipeId: kind === "feed" ? (toValid ? primaryPipe?.id : undefined) : (fromValid ? primaryPipe?.id : undefined),
-  };
+  } };
 };

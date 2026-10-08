@@ -3,18 +3,11 @@ import type { Doc, Id } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
 import type { HistoryFilters } from "./historyContracts";
 import { MAX_PIPES_PER_USER } from "./constants";
+import { validateDateRange } from "./historyValidation";
 
 export function validateFilters(filters: HistoryFilters) {
-  if ([filters.fromDate, filters.toDate].some((date) => date !== undefined && !Number.isFinite(date)) ||
-    (filters.fromDate !== undefined && filters.toDate !== undefined && filters.fromDate > filters.toDate)) {
-    throw new ConvexError({ code: "INVALID_TRANSACTION_DATE_RANGE" });
-  }
+  validateDateRange(filters);
   if ((filters.pipeIds?.length ?? 0) > MAX_PIPES_PER_USER) throw new ConvexError({ code: "TOO_MANY_PIPE_FILTERS" });
-}
-
-export function pageLimit(limit = 30) {
-  if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new ConvexError({ code: "INVALID_HISTORY_LIMIT" });
-  return limit;
 }
 
 export function transactionQuery(

@@ -21,7 +21,7 @@ type Props = {
   cronNextDate?: number;
   cronInterval?: { interval: number; unit: CronUnit };
   disabled?: boolean;
-  now?: number;
+  now: number;
 };
 
 export function RulesIcon({
@@ -33,7 +33,7 @@ export function RulesIcon({
   cronNextDate,
   cronInterval,
   disabled,
-  now = Date.now(),
+  now,
 }: Props) {
   const [modalVisible, setModalVisible] = useState(false);
   const color = rule === "self_destruct" ? colors.error : fed >= capacity ? colors.secondary : colors.text;

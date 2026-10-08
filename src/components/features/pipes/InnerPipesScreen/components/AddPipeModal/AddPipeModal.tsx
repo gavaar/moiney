@@ -12,6 +12,7 @@ import { ModalShell } from "@ui/Modal";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import { buildAddPipeForm, validatePipeCapacity, validatePipeName, type AddPipeDraft } from "./addPipeForm.config";
 import { createRuleDraft, mergeRuleDraft, ruleConfigurationFromDraft, validateRuleDraft } from "@features/pipes/rules/rule-form";
+import { useRuleClock } from "@features/pipes/rules/use-rule-clock";
 
 type AddPipeModalProps = {
   parentId?: Id<"pipes">;
@@ -38,15 +39,16 @@ export function AddPipeForm({ parentId, onClose }: Omit<AddPipeModalProps, "visi
   const [activeStep, setActiveStep] = useState(parentId ? 1 : 0);
   const [loading, setLoading] = useState(false);
   const [submitError, setSubmitError] = useState<string>();
+  const validationTime = useRuleClock(draft.selectedRule === "cron" || draft.selectedRule === "self_destruct");
   const addPipe = useMutation(api.pipes.addPipe);
   const owner = pipes.find(pipe => pipe.id === draft.ownerId);
   const hasChildren = owner ? (childrenByParent.get(owner.id)?.length ?? 0) > 0 : false;
   const willRemoveSpentCapValues = owner && !hasChildren && (owner.capacity > 0 || owner.spent > 0);
-  const valid = !!owner && validatePipeName(draft.name) === undefined && validatePipeCapacity(draft.capacity) === undefined && validateRuleDraft(draft, Date.now()) === undefined;
+  const valid = !!owner && validatePipeName(draft.name) === undefined && validatePipeCapacity(draft.capacity) === undefined && validateRuleDraft(draft, validationTime) === undefined;
 
-  async function handleSubmit() {
+  async function handleSubmit(now: number) {
     if (!valid || !owner || loading) return;
-    const ruleError = validateRuleDraft(draft, Date.now());
+    const ruleError = validateRuleDraft(draft, now);
     if (ruleError) { setSubmitError(ruleError); return; }
     setLoading(true);
     setSubmitError(undefined);
@@ -79,17 +81,19 @@ export function AddPipeForm({ parentId, onClose }: Omit<AddPipeModalProps, "visi
     setFormVersion(version => version + 1);
   }
 
+  function handleChange(next: Partial<AddPipeDraft>) {
+    setDraft((previous) => mergeRuleDraft(previous, next));
+    // This is an interaction, not an effect: Back must stay on the owner step.
+    if (activeStep === 0 && pipes.some(pipe => pipe.id === next.ownerId)) setActiveStep(1);
+  }
+
   return (
     <View className="gap-4" style={{ flexShrink: 1 }}>
       <Form
         key={formVersion}
-        form={buildAddPipeForm(pipes, loading, isLoading, draft)}
+        form={buildAddPipeForm(pipes, loading, isLoading, draft, validationTime)}
         value={draft}
-        onChange={next => {
-          setDraft((previous) => mergeRuleDraft(previous, next));
-          // This is an interaction, not an effect: Back must stay on the owner step.
-          if (activeStep === 0 && pipes.some(pipe => pipe.id === next.ownerId)) setActiveStep(1);
-        }}
+        onChange={handleChange}
         activeStep={activeStep}
         onStepChange={step => { if (!loading) setActiveStep(step); }}
         header={
@@ -118,7 +122,7 @@ export function AddPipeForm({ parentId, onClose }: Omit<AddPipeModalProps, "visi
             {owner.rule ? (
               <View className="bg-warning/10 border border-warning/30 rounded-xl px-3 py-1">
                 <Text className="text-warning text-sm">
-                  The owner pipe's current rule will be removed. Add rules directly to its children instead.
+                  The owner pipe&apos;s current rule will be removed. Add rules directly to its children instead.
                 </Text>
               </View>
             ) : null}
@@ -126,7 +130,7 @@ export function AddPipeForm({ parentId, onClose }: Omit<AddPipeModalProps, "visi
           {submitError ? <Text accessibilityRole="alert" className="text-sm text-error">{submitError}</Text> : null}
         </View> : undefined}
         actions={<FormActionRow onClear={handleClear} clearDisabled={loading}>
-          <Button title="Submit" icon="add" variant="outline" onPress={handleSubmit} loading={loading} disabled={!valid} />
+          <Button title="Submit" icon="add" variant="outline" onPress={() => void handleSubmit(Date.now())} loading={loading} disabled={!valid} />
         </FormActionRow>}
       />
     </View>

@@ -4,7 +4,7 @@ import type { TransactionModel } from "@features/transactions/data/transactions"
 
 
 export function getFrequentlyUsedSourcePipeIds(
-  transactions: readonly TransactionModel[],
+  transactions: readonly Pick<TransactionModel, "from">[],
 ): Id<"pipes">[] {
   const counts = new Map<Id<"pipes">, number>();
 

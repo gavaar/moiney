@@ -33,11 +33,11 @@ describe("ModalShell", () => {
     expect(screen.queryByText("modal content")).toBeNull();
   });
 
-  it("calls onClose when the backdrop is pressed", async () => {
+  it.each(["wide", "content"] as const)("calls onClose when the %s modal backdrop is pressed", async width => {
     const user = userEvent.setup();
     const onClose = vi.fn();
     render(
-      <ModalShell visible onClose={onClose}>
+      <ModalShell visible onClose={onClose} width={width}>
         <div>modal content</div>
       </ModalShell>,
     );
@@ -45,11 +45,11 @@ describe("ModalShell", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it("does not call onClose when content is pressed", async () => {
+  it.each(["wide", "content"] as const)("does not call onClose when %s modal content is pressed", async width => {
     const user = userEvent.setup();
     const onClose = vi.fn();
     render(
-      <ModalShell visible onClose={onClose}>
+      <ModalShell visible onClose={onClose} width={width}>
         <div data-testid="modal-content">modal content</div>
       </ModalShell>,
     );

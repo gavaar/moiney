@@ -1,11 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Id } from "@convex/_generated/dataModel";
 import type { PipeModel } from "@features/pipes/data/pipes";
-import type { TransactionModel } from "@features/transactions/data/transactions";
-import {
-  getFrequentlyUsedSourcePipeIds,
-  getQuickTransactionPipes,
-} from "./helpers";
+import { getQuickTransactionPipes } from "./helpers";
 
 function pipe(
   id: string,

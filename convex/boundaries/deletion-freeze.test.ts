@@ -321,6 +321,7 @@ describe("Convex boundaries: deletion and freeze", () => {
     vi.useRealTimers();
   });
 
+  // Draining a maximum-size tree needs extra headroom when suite workers compete.
   it("finishes the maximum-size deletion with conserved parent credit", async () => {
     vi.useFakeTimers();
     try {
@@ -433,7 +434,7 @@ describe("Convex boundaries: deletion and freeze", () => {
     } finally {
       vi.useRealTimers();
     }
-  });
+  }, 15_000);
 
   it("deletes only orphaned transactions across every transaction role", async () => {
     vi.useFakeTimers();

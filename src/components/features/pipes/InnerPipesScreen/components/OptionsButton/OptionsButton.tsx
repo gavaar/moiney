@@ -20,6 +20,7 @@ export function OptionsButton({ pipeId, disabled = false }: OptionsButtonProps) 
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletePipeId, setDeletePipeId] = useState(pipeId);
   const gearRef = useRef<View>(null);
 
   return (
@@ -67,6 +68,7 @@ export function OptionsButton({ pipeId, disabled = false }: OptionsButtonProps) 
           className="flex-row items-center gap-2 px-2 py-1"
           onPress={() => {
             setShowOptions(false);
+            setDeletePipeId(pipeId);
             setShowDeleteModal(true);
           }}
         >
@@ -92,9 +94,10 @@ export function OptionsButton({ pipeId, disabled = false }: OptionsButtonProps) 
       <DeletePipeConfirmation
         visible={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
-        pipeId={pipeId}
+        pipeId={deletePipeId}
         onDeleted={() => {
-          selectPipe(selectedPipePath.slice(0, -1));
+          const deletedIndex = selectedPipePath.indexOf(deletePipeId);
+          if (deletedIndex >= 0) selectPipe(selectedPipePath.slice(0, deletedIndex));
           setShowDeleteModal(false);
         }}
       />

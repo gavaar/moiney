@@ -4,6 +4,91 @@ import { expect, it, vi } from "vitest";
 import { api, internal } from "./_generated/api";
 import schema from "./schema";
 import { modules } from "./test.setup";
+import { insertFinancialOperation } from "./lib/events/financial";
+import { insertHistoryOperation } from "./lib/events/persistence";
+
+it("scheduled captures use event snapshots, not legacy rows, without restating frozen reports", async () => {
+  const t = convexTest(schema, modules);
+  const periodStart = Date.UTC(2026, 5, 1);
+  const userId = await t.run(async ctx => {
+    const userId = await ctx.db.insert("users", { username: "event-capture", email: "event-capture@example.com", password: "hash" });
+    const pipeId = await ctx.db.insert("pipes", { userId, name: "Root", icon: "wallet", priority: 0, fed: 1000, spent: 0, capacity: 1000 });
+    await insertFinancialOperation(ctx, { userId, occurredAt: periodStart, title: "Event only", value: -100,
+      structure: { type: "expense", from: pipeId } });
+    await ctx.db.insert("transactions", { userId, title: "Legacy only", value: -9999, date: periodStart, kind: "expense", from: pipeId });
+    return userId;
+  });
+  await t.mutation(internal.monthlySpendingStats.capturePreviousMonth, { now: Date.UTC(2026, 6, 1, 5) });
+  vi.useFakeTimers();
+  try { await t.finishAllScheduledFunctions(vi.runAllTimers); } finally { vi.useRealTimers(); }
+  const report = await t.withIdentity({ subject: userId }).query(api.monthlySpendingStats.getMine, { periodStart });
+  expect(report).toMatchObject({ grossSpendingCents: 100, spendingTransactionCount: 1, largestSpendingTransactions: [{ title: "Event only", amountCents: 100 }] });
+  await t.run(async ctx => {
+    for (const event of await ctx.db.query("events").collect()) await ctx.db.delete("events", event._id);
+  });
+  await t.mutation(internal.monthlySpendingStats.capturePreviousMonth, { now: Date.UTC(2026, 6, 1, 5) });
+  vi.useFakeTimers();
+  try { await t.finishAllScheduledFunctions(vi.runAllTimers); } finally { vi.useRealTimers(); }
+  expect(await t.withIdentity({ subject: userId }).query(api.monthlySpendingStats.getMine, { periodStart })).toEqual(report);
+});
+
+it.each([false, true])("preserves transaction capture continuations across cutover (event capture already finished: %s)", async eventCaptureFinished => {
+  const t = convexTest(schema, modules);
+  const periodStart = Date.UTC(2026, 5, 1);
+  const periodEnd = Date.UTC(2026, 6, 1);
+  const userId = await t.run(async ctx => {
+    const userId = await ctx.db.insert("users", { username: "continuation", email: "continuation@example.com", password: "hash" });
+    const pipeId = await ctx.db.insert("pipes", { userId, name: "Root", icon: "wallet", priority: 0, fed: 0, spent: 0, capacity: 0 });
+    for (let i = 0; i < 101; i++) await ctx.db.insert("transactions", {
+      userId, from: pipeId, title: "Legacy", kind: "expense", value: -100, date: periodStart + i,
+    });
+    await insertFinancialOperation(ctx, { userId, title: "Event", value: -500, occurredAt: periodStart, structure: { type: "expense", from: pipeId } });
+    return userId;
+  });
+  await t.mutation(internal.monthlySpendingStats.captureUserMonth, { userId, periodStart, periodEnd });
+  expect(await t.run(ctx => ctx.db.query("monthlySpendingStats").collect())).toEqual([]);
+  if (eventCaptureFinished) await t.mutation(internal.monthlySpendingStats.captureUserEventMonth, { userId, periodStart, periodEnd });
+  vi.useFakeTimers();
+  try { await t.finishAllScheduledFunctions(vi.runAllTimers); } finally { vi.useRealTimers(); }
+  const stats = await t.run(ctx => ctx.db.query("monthlySpendingStats").collect());
+  expect(stats).toHaveLength(1);
+  expect(stats[0]).toMatchObject({ grossSpendingCents: eventCaptureFinished ? 500 : 10100,
+    spendingTransactionCount: eventCaptureFinished ? 1 : 101 });
+});
+
+it("exhausts event pages before capture, counts logical spending once, and retains deleted-pipe activity", async () => {
+  const t = convexTest(schema, modules);
+  const periodStart = Date.UTC(2026, 5, 1);
+  const periodEnd = Date.UTC(2026, 6, 1);
+  const ids = await t.run(async ctx => {
+    const userId = await ctx.db.insert("users", { username: "paired-capture", email: "paired-capture@example.com", password: "hash" });
+    const fields = { userId, name: "Root", icon: "wallet", priority: 0, fed: 5000, spent: 200, capacity: 5000 };
+    const root = await ctx.db.insert("pipes", fields);
+    const leaf = await ctx.db.insert("pipes", { ...fields, name: "Deleted leaf", parentId: root });
+    for (let i = 0; i < 101; i++) await insertFinancialOperation(ctx, { userId, title: "Hotel", value: -100,
+      occurredAt: periodStart + i, structure: { type: "payByTransfer", from: leaf, paidFrom: root } });
+    await insertFinancialOperation(ctx, { userId, title: "Hotel", value: 25, occurredAt: periodStart,
+      structure: { type: "payByTransfer", from: leaf, paidFrom: root } });
+    await insertFinancialOperation(ctx, { userId, title: "Income", value: 500, occurredAt: periodStart,
+      structure: { type: "feed", to: root } });
+    await insertFinancialOperation(ctx, { userId, title: "Allocation", value: -900, occurredAt: periodStart,
+      structure: { type: "transfer", from: root, to: leaf } });
+    await insertHistoryOperation(ctx, { canonicalEvent: { userId, pipeId: leaf, type: "pipe_deletion",
+      name: "Deleted leaf", icon: "wallet", pipeType: "pipe", ancestorIds: [root], occurredAt: periodStart } });
+    await ctx.db.delete("pipes", leaf);
+    return { userId, root };
+  });
+  await t.mutation(internal.monthlySpendingStats.captureUserEventMonth, { userId: ids.userId, periodStart, periodEnd });
+  expect(await t.run(ctx => ctx.db.query("monthlySpendingStats").collect())).toEqual([]);
+  vi.useFakeTimers();
+  try { await t.finishAllScheduledFunctions(vi.runAllTimers); } finally { vi.useRealTimers(); }
+  const report = await t.withIdentity({ subject: ids.userId }).query(api.monthlySpendingStats.getMine, { periodStart });
+  expect(report).toMatchObject({ totalIncomeCents: 500, grossSpendingCents: 10100, refundCents: 25,
+    spendingTransactionCount: 101, refundTransactionCount: 1, volumeCents: 4800, producedCents: 4800,
+    mostRepeatedTransaction: { title: "hotel", count: 102, netSpendingCents: 10075 }, offenders: [] });
+  expect(await t.run(ctx => ctx.db.get("pipes", ids.root))).toMatchObject({ fed: 5000, spent: 200 });
+  expect(await t.run(ctx => ctx.db.query("transactions").collect())).toEqual([]);
+});
 
 it("captures the previous UTC month's spending once for every user", async () => {
   const t = convexTest(schema, modules);
@@ -22,6 +107,8 @@ it("captures the previous UTC month's spending once for every user", async () =>
       email: "inactive@example.com",
       password: "hash",
     });
+    const source = await ctx.db.insert("pipes", { userId: activeUserId, name: "Source", icon: "wallet", priority: 0, capacity: 0, fed: 0, spent: 0 });
+    const target = await ctx.db.insert("pipes", { userId: activeUserId, name: "Target", icon: "wallet", priority: 0, capacity: 0, fed: 0, spent: 0 });
 
     for (const transaction of [
       { kind: "expense" as const, value: -1_200, date: juneStart },
@@ -37,6 +124,9 @@ it("captures the previous UTC month's spending once for every user", async () =>
         title: "test transaction",
         userId: activeUserId,
       });
+      await insertFinancialOperation(ctx, { userId: activeUserId, title: "test transaction", value: transaction.value, occurredAt: transaction.date,
+        structure: transaction.kind === "feed" ? { type: "feed", to: source } : transaction.kind === "transfer"
+          ? { type: "transfer", from: source, to: target } : { type: "expense", from: source } });
     }
   });
 
@@ -167,6 +257,8 @@ it("freezes the top overspending leaves by net logical expenses and capacity at 
     const debt = await ctx.db.insert("pipes", { userId, parentId: root, name: "Debt", icon: "cash", priority: 3, capacity: -1_000, fed: 0, spent: 0 });
     for (const [value, from, paidFrom] of [[-900, leaf, payer], [200, leaf, payer], [-150, payer, undefined], [-200, debt, undefined]] as const) {
       await ctx.db.insert("transactions", { userId, title: "Spend", kind: "expense", date: juneStart, value, from, ...(paidFrom ? { paidFrom } : {}) });
+      await insertFinancialOperation(ctx, { userId, title: "Spend", value, occurredAt: juneStart,
+        structure: paidFrom ? { type: "payByTransfer", from, paidFrom } : { type: "expense", from } });
     }
     return { userId, leaf, debt };
   });
@@ -205,6 +297,8 @@ it("finishes paginated capture and preserves the frozen result on rerun", async 
         userId: id,
         from: leaf,
       });
+      await insertFinancialOperation(ctx, { userId: id, title: index === 100 ? "expense 0" : `expense ${index}`,
+        value: -100, occurredAt: juneStart + index, structure: { type: "expense", from: leaf } });
     }
     return id;
   });

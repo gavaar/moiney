@@ -2,7 +2,6 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -32,14 +31,13 @@ export function PipeSelectionProvider({ children }: { children: ReactNode }) {
   const { allPipes } = usePipeCatalog();
   const [selectedPipePath, setSelectedPipePath] = useState<PipeModel["id"][]>([]);
 
-  useEffect(() => {
-    if (!allPipes) return;
+  if (allPipes) {
     const existingIds = new Set(allPipes.map((pipe) => pipe.id));
     const firstMissingIndex = selectedPipePath.findIndex((id) => !existingIds.has(id));
     if (firstMissingIndex >= 0) {
       setSelectedPipePath((current) => current.slice(0, firstMissingIndex));
     }
-  }, [allPipes, selectedPipePath]);
+  }
 
   const selectedId =
     selectedPipePath.length > 0

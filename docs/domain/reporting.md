@@ -44,13 +44,14 @@ frozen summary per user for the previous UTC calendar month, with inclusive
 start and exclusive end. Users without qualifying activity receive zero-valued
 rows so retries cannot change an originally empty snapshot.
 The Pipes root bar view displays a live, unsaved report for the current UTC
-month; Statistics lists only captured months. Both use the same transaction
-summary calculation. Live Volume and Produced reflect current root balances;
+month; Statistics lists only captured months. Both use the same spending summary
+calculation. The [event reporting contract](events.md#reporting-and-usage-ranking)
+preserves these metrics during reader cutover. Live Volume and Produced reflect current root balances;
 captured values reflect balances at capture time. At 00:00 UTC the live report
 switches months; the closed month appears in Statistics only after capture.
 The live report subscription remains mounted above the tabs so navigation among
 Pipes, History, and the full live report does not restart pagination. It remains
-reactive to relevant transaction and pipe changes while the signed-in tabs are
+reactive to relevant event and pipe changes while the signed-in tabs are
 mounted, including when another tab is visible.
 
 Negative expenses contribute their absolute value to gross spending; positive
@@ -61,6 +62,11 @@ not. Summaries store total income, gross spending, refunds, spending and refund
 transaction counts, and the largest spending transaction in integer cents.
 Total outcome is gross spending minus refunds. Averages and comparisons are
 derived when read, not persisted.
+Summary cards emphasize Net change: income minus (gross spending minus refunds).
+Their separate Income, Outcome, and Refunds figures show income, gross spending,
+and refunds respectively. Missing legacy income makes income and net change
+unavailable, not zero. Positive net change uses muted primary, negative uses muted
+error, and zero is neutral.
 New reports also freeze the titles and amounts of the three largest individual
 expenses (ties count as separate transactions). Older reports without titles
 retain their amount-only ranking. The live and captured cards and details show
@@ -95,9 +101,11 @@ and are not backfilled. Total income is optional for the same reason on rows
 captured before its addition.
 
 The first successful capture is immutable. Subsequent transaction creation,
-editing, movement, or deletion does not restate a captured month. User and
-transaction traversal is paginated; `(userId, periodStart)` is the logical
-identity providing retry idempotency.
+editing, movement, or deletion does not restate a captured month. User and event
+traversal is paginated; `(userId, periodStart)` is the logical identity providing
+retry idempotency. During coexistence, already-scheduled transaction capture
+continuations retain their original stream; each continuation stops if another
+capture chain has already frozen that month.
 
 Authenticated users can read their newest 24 summaries and open an exact owned
 month. Reports derive net spending as gross spending minus refunds. Average

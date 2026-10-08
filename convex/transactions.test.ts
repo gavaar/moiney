@@ -15,6 +15,7 @@ vi.mock("./lib/auth", () => ({
 }));
 
 function mockDb() {
+  let eventCount = 0;
   const chain: any = {
     withIndex: vi.fn(() => chain),
     filter: vi.fn(() => chain),
@@ -31,7 +32,7 @@ function mockDb() {
   return {
     get: vi.fn(),
     patch: vi.fn(),
-    insert: vi.fn().mockResolvedValue("transaction-1"),
+    insert: vi.fn(async (table: string) => table === "events" ? `event-${++eventCount}` : "transaction-1"),
     query: vi.fn(() => chain),
     _chain: chain,
   };
@@ -119,6 +120,7 @@ describe("createTransaction", () => {
 
       expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", { spent: 130 });
       expect(ctx.db.insert).toHaveBeenCalledWith("transactions", {
+        operationId: "event-1",
         title: "groceries",
         value: -30,
         date: 1000,
@@ -151,6 +153,7 @@ describe("createTransaction", () => {
       expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", { fed: 450 });
       expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-2", { fed: 250 });
       expect(ctx.db.insert).toHaveBeenCalledWith("transactions", {
+        operationId: "event-1",
         title: "transfer",
         value: -50,
         date: 2000,
@@ -191,8 +194,9 @@ describe("createTransaction", () => {
       });
 
       expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", { fed: 1500 });
-      expect(ctx.db.patch).toHaveBeenCalledTimes(1);
+      expect(ctx.db.patch.mock.calls.filter(([table]: [string]) => table === "pipes")).toHaveLength(1);
       expect(ctx.db.insert).toHaveBeenCalledWith("transactions", {
+        operationId: "event-1",
         title: "salary",
         value: 1000,
         date: 3000,
@@ -270,8 +274,9 @@ describe("createTransaction", () => {
         pendingFedAdjustment: 30,
       });
       expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-2", { fed: 170 });
-      expect(ctx.db.patch).toHaveBeenCalledTimes(2);
+      expect(ctx.db.patch.mock.calls.filter(([table]: [string]) => table === "pipes")).toHaveLength(2);
       expect(ctx.db.insert).toHaveBeenCalledWith("transactions", {
+        operationId: "event-1",
         title: "coffee",
         value: -30,
         date: 3500,
@@ -406,7 +411,7 @@ describe("createTransaction", () => {
 
       expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", { fed: 450 });
       expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-2", { fed: 250 });
-      expect(ctx.db.patch).toHaveBeenCalledTimes(2);
+      expect(ctx.db.patch.mock.calls.filter(([table]: [string]) => table === "pipes")).toHaveLength(2);
     });
 
     it("executes instant settlement when a refund changes spending", async () => {
@@ -464,7 +469,7 @@ describe("createTransaction", () => {
         from: "pipe-1",
       });
 
-      expect(ctx.db.patch).toHaveBeenCalledTimes(1);
+      expect(ctx.db.patch.mock.calls.filter(([table]: [string]) => table === "pipes")).toHaveLength(1);
       expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", { spent: 130 });
     });
 
@@ -573,6 +578,7 @@ describe("editTransaction", () => {
         },
       });
       expect(ctx.db.patch).toHaveBeenCalledWith("transactions", "tx-1", {
+        operationId: "event-1",
         title: "move money",
         value: -50,
         date: 3000,

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import {
   TransactionsProvider,
   useTransactions,
@@ -8,6 +8,7 @@ import {
 } from "./TransactionsContext";
 import type { Id } from "@convex/_generated/dataModel";
 import type { PipeModel } from "@features/pipes/data/pipes";
+import type { TransactionModel } from "@features/transactions/data/transactions";
 
 const mockConvexQuery = vi.fn();
 vi.mock("convex/react", () => ({
@@ -247,6 +248,44 @@ describe("TransactionsProvider", () => {
     expect(screen.getByTestId("transactions-count").textContent).toBe("undefined");
     expect(screen.getByTestId("pipe-ids").textContent).toBe("undefined");
     expect(mockConvexQuery).not.toHaveBeenCalled();
+  });
+
+  it.each(["account", "scope"] as const)("never exposes retired rows after a %s change, including delayed refreshes", async (change) => {
+    const pipes = [pipe("a"), pipe("b")];
+    const selection = { allPipes: pipes, childrenByParent: buildChildrenMap(pipes), selectedPipePath: [pipes[0].id] };
+    mockUsePipeSelection.mockReturnValue(selection);
+    const cachedTransaction: TransactionModel = {
+      id: "cached" as Id<"transactions">, createdAt: 1, date: 1,
+      title: "old", value: -100, kind: "expense", from: pipes[0].id,
+    };
+    const replace = vi.fn();
+    mockUseTransactionCache.mockReturnValue({
+      accountKey: "account-1", isHydrating: false, replace,
+      read: () => ({ transactions: [cachedTransaction], complete: true, hasMore: false, updatedAt: 1 }),
+    });
+    const observedRows = vi.fn();
+    function ObservingConsumer() {
+      observedRows(useTransactions().transactions);
+      return <TestConsumer />;
+    }
+    let finish!: (rows: []) => void;
+    mockConvexQuery.mockReturnValue(new Promise((resolve) => { finish = resolve; }));
+    const { rerender } = render(<TransactionsProvider><ObservingConsumer /></TransactionsProvider>);
+    expect(observedRows).toHaveBeenLastCalledWith([cachedTransaction]);
+    fireEvent.click(screen.getByText("refresh"));
+    observedRows.mockClear();
+
+    mockUseTransactionCache.mockReturnValue({
+      accountKey: change === "account" ? "account-2" : "account-1",
+      isHydrating: change === "account", replace,
+      read: () => ({ transactions: [], complete: true, hasMore: false, updatedAt: 1 }),
+    });
+    if (change === "scope") mockUsePipeSelection.mockReturnValue({ ...selection, selectedPipePath: [pipes[1].id] });
+    rerender(<TransactionsProvider><ObservingConsumer /></TransactionsProvider>);
+    expect(observedRows.mock.calls.every(([rows]) => rows === undefined)).toBe(true);
+    await act(async () => finish([]));
+    expect(observedRows.mock.calls.every(([rows]) => rows === undefined)).toBe(true);
+    expect(replace).not.toHaveBeenCalled();
   });
 
   it("refreshes the current scope with one explicit query", async () => {

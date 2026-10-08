@@ -3,6 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, render, screen, fireEvent } from "@testing-library/react";
 import { type Id } from "@convex/_generated/dataModel";
 import { computeElapsedIntervals } from "@domain/scheduling";
+import { RuleModal } from "./RuleModal";
+
+vi.mock("expo-router/react-navigation", () => ({ useIsFocused: () => true }));
 
 const h = vi.hoisted(() => ({
   api: {
@@ -26,8 +29,6 @@ vi.mock("@ui/Alert", () => ({ useAlert: () => h.showAlert }));
 vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
   usePipeCatalog: () => h.usePipeSelection(),
 }));
-
-import { RuleModal } from "./RuleModal";
 
 const pId = (id: string) => id as Id<"pipes">;
 

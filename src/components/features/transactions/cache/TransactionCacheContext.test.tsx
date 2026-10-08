@@ -15,21 +15,20 @@ vi.mock("@/lib/auth", () => ({
 }));
 
 function storage(): TransactionCacheStorage & { value: string | null } {
-  const value = { value: null as string | null };
+  const values = new Map<string, string>();
   return {
-    ...value,
-    read: vi.fn(async () => value.value),
-    write: vi.fn(async (_accountKey: string, next: string) => {
-      value.value = next;
+    read: vi.fn(async key => values.get(key) ?? null),
+    write: vi.fn(async (key: string, next: string) => {
+      values.set(key, next);
     }),
-    remove: vi.fn(async () => {
-      value.value = null;
+    remove: vi.fn(async key => {
+      values.delete(key);
     }),
     get value() {
-      return value.value;
+      return values.get("account-1") ?? null;
     },
     set value(next: string | null) {
-      value.value = next;
+      if (next === null) values.delete("account-1"); else values.set("account-1", next);
     },
   };
 }
@@ -126,6 +125,27 @@ function ReconcileFailureConsumer() {
 }
 
 describe("TransactionCacheProvider", () => {
+  it("never exposes the retired account during an account change", async () => {
+    auth.accountKey = "account-1";
+    const observedAccounts = vi.fn();
+    const cacheStorage = storage();
+    function AccountConsumer() {
+      observedAccounts(useTransactionCache().accountKey);
+      return null;
+    }
+    const { rerender } = render(<TransactionCacheProvider storage={cacheStorage}><AccountConsumer /></TransactionCacheProvider>);
+    await waitFor(() => expect(observedAccounts).toHaveBeenLastCalledWith("account-1"));
+    observedAccounts.mockClear();
+
+    auth.accountKey = "account-2";
+    try {
+      await act(async () => rerender(<TransactionCacheProvider storage={cacheStorage}><AccountConsumer /></TransactionCacheProvider>));
+      expect(observedAccounts.mock.calls.map(([key]) => key)).not.toContain("account-1");
+    } finally {
+      auth.accountKey = "account-1";
+    }
+  });
+
   it.each(["mergeHead", "append"] as const)("ignores a retired account's delayed %s write", async (operation) => {
     auth.accountKey = "account-1";
     let finishWrite!: () => void;

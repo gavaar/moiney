@@ -99,7 +99,7 @@ export function Calendar({ visible, value, onChange, onClose }: Props) {
   }, [today, onChange, onClose]);
 
   return (
-    <ModalShell visible={visible} onClose={onClose}>
+    <ModalShell visible={visible} onClose={onClose} width="content">
       <View className="w-[280px]">
         <View className="flex-row items-center justify-between mb-2">
           <Pressable

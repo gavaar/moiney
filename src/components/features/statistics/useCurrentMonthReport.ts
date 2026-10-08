@@ -14,7 +14,7 @@ export function useCurrentMonthReport() {
   const periodStart = useUtcMonthStart(true);
 
   const { results, status, loadMore } = usePaginatedQuery(
-    api.monthlySpendingStats.monthPage,
+    api.monthlySpendingStats.eventMonthPage,
     { periodStart },
     { initialNumItems: 100 },
   );

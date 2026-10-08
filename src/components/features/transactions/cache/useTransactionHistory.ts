@@ -55,10 +55,10 @@ export function useTransactionHistory(
   options: TransactionHistoryOptions = DEFAULT_OPTIONS,
 ): TransactionHistoryState {
   const convex = useConvex();
-  const { cache, isHydrating, read, append, mergeHead } = useTransactionCache();
+  const { accountKey, isHydrating, read, append, mergeHead } = useTransactionCache();
   const cached = useMemo(
     () => read(HISTORY_SCOPE),
-    [cache, read],
+    [read],
   );
   const [transactions, setTransactions] = useState<TransactionModel[] | undefined>();
   const [error, setError] = useState<string | null>(null);
@@ -87,6 +87,14 @@ export function useTransactionHistory(
     (!cached.hasMore ||
       cached.transactions.length >= (options.minimumCachedRows ?? 0));
 
+  const requestScope = useRef({ active: true });
+  useEffect(() => {
+    const scope = { active: true };
+    requestScope.current = scope;
+    requestInFlight.current = false;
+    return () => { scope.active = false; };
+  }, [accountKey, queryFilters, enabled, isHydrating]);
+
   const fetchPage = useCallback(
     async (numItems: number, pageCursor: string | null): Promise<Page> => {
       const result = await convex.query(api.transactions.listTransactionsPaginated, {
@@ -94,7 +102,7 @@ export function useTransactionHistory(
         ...(queryFilters ? { filters: queryFilters } : {}),
       });
       return {
-        rows: (result.page as unknown as Array<TransactionModel | Doc<"transactions">>).map(
+        rows: (result.page as unknown as (TransactionModel | Doc<"transactions">)[]).map(
           (transaction) =>
             "id" in transaction ? transaction : normalizeTransaction(transaction),
         ),
@@ -146,40 +154,40 @@ export function useTransactionHistory(
     [hasActiveFilters, mergeHead],
   );
 
-  useEffect(() => {
-    if (isHydrating) {
-      setError(null);
-      setIsLoading(true);
-      return;
-    }
-
-    if (!enabled) {
-      setError(null);
-      setTransactions(cached.transactions);
-      setHasMore(cached.hasMore);
-      setLoadMoreStatus(cached.hasMore ? "CanLoadMore" : "Exhausted");
-      setIsLoading(false);
-      return;
-    }
-
-    if (!hasActiveFilters && hasEnoughCachedRows) {
-      setError(null);
-      setTransactions(cached.transactions);
-      setHasMore(cached.hasMore);
-      setLoadMoreStatus(cached.hasMore ? "CanLoadMore" : "Exhausted");
-      setIsLoading(false);
-      return;
-    }
-
-    let active = true;
+  const inputs = { accountKey, cached, enabled, fetchVisiblePage, hasEnoughCachedRows, isHydrating };
+  const [previousInputs, setPreviousInputs] = useState<typeof inputs | null>(null);
+  if (!previousInputs || previousInputs.accountKey !== accountKey || previousInputs.cached !== cached ||
+    previousInputs.enabled !== enabled || previousInputs.fetchVisiblePage !== fetchVisiblePage ||
+    previousInputs.hasEnoughCachedRows !== hasEnoughCachedRows || previousInputs.isHydrating !== isHydrating) {
+    setPreviousInputs(inputs);
     setError(null);
-    setIsLoading(hasActiveFilters || cached.transactions.length === 0);
-    setLoadMoreStatus("LoadingFirstPage");
-    if (hasActiveFilters) {
+    if (previousInputs && previousInputs.accountKey !== accountKey) {
       setTransactions(undefined);
       setCursor(null);
       setHasMore(false);
+      setIsRefreshing(false);
     }
+    if (isHydrating) {
+      setIsLoading(true);
+    } else if (!enabled || (!hasActiveFilters && hasEnoughCachedRows)) {
+      setTransactions(cached.transactions);
+      setHasMore(cached.hasMore);
+      setLoadMoreStatus(cached.hasMore ? "CanLoadMore" : "Exhausted");
+      setIsLoading(false);
+    } else {
+      setIsLoading(hasActiveFilters || cached.transactions.length === 0);
+      setLoadMoreStatus("LoadingFirstPage");
+      if (hasActiveFilters) {
+        setTransactions(undefined);
+        setCursor(null);
+        setHasMore(false);
+      }
+    }
+  }
+
+  useEffect(() => {
+    if (isHydrating || !enabled || (!hasActiveFilters && hasEnoughCachedRows)) return;
+    let active = true;
     void fetchVisiblePage(HISTORY_INITIAL_PAGE_SIZE, null)
       .then((page) => {
         if (active) applyPage(page);
@@ -195,6 +203,7 @@ export function useTransactionHistory(
       active = false;
     };
   }, [
+    accountKey,
     applyPage,
     cached,
     enabled,
@@ -205,7 +214,8 @@ export function useTransactionHistory(
   ]);
 
   const loadMore = useCallback(() => {
-    if (requestInFlight.current || !hasMore || error) return;
+    if (!enabled || isHydrating || requestInFlight.current || !hasMore || error) return;
+    const scope = requestScope.current;
     requestInFlight.current = true;
     setError(null);
     setLoadMoreStatus("LoadingMore");
@@ -214,12 +224,14 @@ export function useTransactionHistory(
       let nextCursor = cursor;
       if (!nextCursor) {
         const seed = await fetchVisiblePage(HISTORY_INITIAL_PAGE_SIZE, null);
+        if (!scope.active) return;
         nextCursor = seed.continueCursor;
         setCursor(nextCursor);
         setHasMore(!seed.isDone);
         setTransactions((current) => mergeTransactions(current ?? [], seed.rows));
         if (!hasActiveFilters) {
           await append(HISTORY_SCOPE, seed.rows, !seed.isDone);
+          if (!scope.active) return;
         }
         if (seed.isDone) {
           setLoadMoreStatus("Exhausted");
@@ -228,6 +240,7 @@ export function useTransactionHistory(
       }
 
       const page = await fetchVisiblePage(HISTORY_LOAD_MORE_PAGE_SIZE, nextCursor);
+      if (!scope.active) return;
       setTransactions((current) => mergeTransactions(current ?? [], page.rows));
       setCursor(page.continueCursor);
       setHasMore(!page.isDone);
@@ -239,29 +252,32 @@ export function useTransactionHistory(
 
     void load()
       .catch(() => {
+        if (!scope.active) return;
         setLoadMoreStatus("CanLoadMore");
         setError(HISTORY_LOAD_ERROR);
       })
       .finally(() => {
-        requestInFlight.current = false;
+        if (scope.active) requestInFlight.current = false;
       });
-  }, [append, cursor, error, fetchVisiblePage, hasActiveFilters, hasMore]);
+  }, [append, cursor, enabled, error, fetchVisiblePage, hasActiveFilters, hasMore, isHydrating]);
 
   const refresh = useCallback(() => {
-    if (requestInFlight.current) return;
+    if (!enabled || isHydrating || requestInFlight.current) return;
+    const scope = requestScope.current;
     requestInFlight.current = true;
     setError(null);
     setIsRefreshing(true);
     void fetchVisiblePage(HISTORY_INITIAL_PAGE_SIZE, null)
-      .then(applyPage)
+      .then((page) => { if (scope.active) applyPage(page); })
       .catch(() => {
+        if (!scope.active) return;
         setIsRefreshing(false);
         setError(HISTORY_LOAD_ERROR);
       })
       .finally(() => {
-        requestInFlight.current = false;
+        if (scope.active) requestInFlight.current = false;
       });
-  }, [applyPage, fetchVisiblePage]);
+  }, [applyPage, enabled, fetchVisiblePage, isHydrating]);
 
   return {
     transactions,

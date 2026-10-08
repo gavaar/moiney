@@ -35,13 +35,12 @@ export function InnerPipesScreen() {
 
   const selectedId = selectedPipePath[selectedPipePath.length - 1];
   const children = childrenByParent.get(selectedId) ?? [];
-  const ruleNow = useRuleClock(children.some((pipe) =>
-    !pipe.deletionJobId && (pipe.rule === "cron" || pipe.rule === "self_destruct")));
+  const ruleNow = useRuleClock(Boolean(selectedPipe));
   const expected = selectedPipe
     ? expectedMonthlyCapacity(
         { ...selectedPipe, capacity },
         childrenByParent,
-        Date.now(),
+        ruleNow,
       )
     : 0;
 
@@ -92,6 +91,7 @@ export function InnerPipesScreen() {
               pendingFedAdjustment={pendingFedAdjustment}
               sourceType={selectedPipe?.sourceType}
               contributedFed={selectedPipe?.contributedFed}
+              now={ruleNow}
             />
           </View>
           <OptionsButton pipeId={selectedId} disabled={isDeleting} />

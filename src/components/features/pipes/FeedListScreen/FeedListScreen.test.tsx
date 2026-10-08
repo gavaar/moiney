@@ -1,18 +1,23 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { useState } from "react";
 import { render, screen } from "@testing-library/react";
 import { type Id } from "@convex/_generated/dataModel";
 import { FeedListScreen } from './FeedListScreen';
 import type { PipeModel } from "@features/pipes/data/pipes";
 
 const mockShowAlert = { success: vi.fn(), error: vi.fn() };
+const chooseTitle = vi.fn();
 vi.mock("@ui/Alert", () => ({
   useAlert: () => mockShowAlert,
 }));
 
 vi.mock("@features/pipes/components/PipesList", () => ({
-  PipesList: ({ pipes, onSelectPipe, compactAction, footer }: any) => (
-    <div data-testid="pipes-list" data-count={pipes.length}>
+  PipesList: ({ pipes, onSelectPipe, compactAction, trailing, footer }: any) => (
+    <div data-testid="pipes-list" data-count={pipes.length} onClickCapture={event => {
+      // Model a background list's keyboard-dismiss capture across modal ancestry.
+      if ((event.target as Element).closest('[data-testid="feed-title-choice"]')) event.stopPropagation();
+    }}>
       <button
         data-testid="select-pipe"
          onClick={() => onSelectPipe?.(pipes[0].id)}
@@ -20,13 +25,23 @@ vi.mock("@features/pipes/components/PipesList", () => ({
         Select {pipes[0].name}
       </button>
       {compactAction?.label(pipes[0]) && <button onClick={() => compactAction.onPress(pipes[0])}>{compactAction.label(pipes[0])}</button>}
+      {pipes.map((pipe: PipeModel) => <div key={pipe.id}>{trailing?.(pipe)}</div>)}
       {footer}
     </div>
   ),
 }));
 
 vi.mock("@features/pipes/FeedListScreen/components/FeedAmountModal", () => ({
-  FeedAmountModal: ({ visible, onClose }: any) => <div data-testid="feed-amount-modal">{visible && <button onClick={onClose}>Close feed form</button>}</div>,
+  FeedAmountModal: ({ visible, onClose, hideTrigger, feedName }: any) => {
+    const [localVisible, setVisible] = useState(false);
+    return <div data-testid="feed-amount-modal">
+      {!hideTrigger && <button aria-label={`Add money to ${feedName}`} onClick={() => setVisible(true)}>+</button>}
+      {(visible ?? localVisible) && <>
+        <button data-testid="feed-title-choice" onClick={chooseTitle}>Salary suggestion</button>
+        <button onClick={() => { setVisible(false); onClose?.(); }}>Close feed form</button>
+      </>}
+    </div>;
+  },
 }));
 
 vi.mock("@features/pipes/FeedListScreen/components/AddFeedButton", () => ({
@@ -39,6 +54,18 @@ const mockPipes = [
 ] as PipeModel[];
 
 describe("FeedListScreen", () => {
+  beforeEach(() => chooseTitle.mockClear());
+
+  it("opens the expanded feed's form outside background list keyboard capture", async () => {
+    const userEvent = (await import("@testing-library/user-event")).default;
+    const user = userEvent.setup();
+    render(<FeedListScreen isLoading={false} pipes={mockPipes} onSelectFeed={vi.fn()} />);
+    await user.click(screen.getByRole("button", { name: "Add money to Salary" }));
+    await user.click(screen.getByText("Salary suggestion"));
+    expect(chooseTitle).toHaveBeenCalledTimes(1);
+    await user.click(screen.getByRole("button", { name: "Close feed form" }));
+    expect(screen.queryByText("Salary suggestion")).toBeNull();
+  });
   it("opens and closes the feed form from a minimized feed's menu action", async () => {
     const userEvent = (await import("@testing-library/user-event")).default;
     const user = userEvent.setup();

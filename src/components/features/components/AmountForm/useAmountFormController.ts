@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
@@ -201,19 +201,13 @@ export function useAmountFormController(props: AmountFormProps) {
     return lines;
   }, [applyReplacementEffects, initialStructure, initialTransaction?.pipeName, initialTransaction?.value, invalidPreviousPipeIds, intent, isFeed, isValidAmount, paidFromPipeId, pipeId, pipesById, sentToPipeId, spendMode, value]);
 
-  useEffect(() => {
-    if (
-      allPipes && pipeId &&
-      paidFromPipeId &&
-      !paidFromPipeItems.some((item) => item.id === paidFromPipeId)
-    ) {
-      setPaidFromPipeId(null);
-    }
-  }, [allPipes, paidFromPipeId, paidFromPipeItems, pipeId]);
-
-  useEffect(() => {
-    if (allPipes && pipeId && sentToPipeId && !pipeItems.some(item => item.id === sentToPipeId)) setSentToPipeId(null);
-  }, [allPipes, pipeId, sentToPipeId, pipeItems]);
+  if (allPipes && pipeId && paidFromPipeId &&
+    !paidFromPipeItems.some((item) => item.id === paidFromPipeId)) {
+    setPaidFromPipeId(null);
+  }
+  if (allPipes && pipeId && sentToPipeId && !pipeItems.some(item => item.id === sentToPipeId)) {
+    setSentToPipeId(null);
+  }
 
   const destinationPipeName = getDestinationPipeName(allPipes, sentToPipeId);
   const actionLabel =

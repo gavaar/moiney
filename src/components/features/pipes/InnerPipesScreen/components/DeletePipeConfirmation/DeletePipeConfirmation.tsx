@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { useConvex, useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
@@ -48,6 +48,11 @@ export function DeletePipeConfirmation({ visible, onClose, pipeId, onDeleted }: 
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteTransactions, setDeleteTransactions] = useState(false);
   const [jobId, setJobId] = useState<NonNullable<PipeModel["deletionJobId"]> | null>(null);
+  const [completedDeletion, setCompletedDeletion] = useState<{
+    jobId: NonNullable<PipeModel["deletionJobId"]>;
+    deleteTransactions: boolean;
+  } | null>(null);
+  const notifiedJobId = useRef<typeof jobId>(null);
   const showAlert = useAlert();
   const transactionCache = useOptionalTransactionCache();
   const convex = useConvex();
@@ -63,23 +68,24 @@ export function DeletePipeConfirmation({ visible, onClose, pipeId, onDeleted }: 
     [pipeId, childrenByParent],
   );
 
-  useEffect(() => {
-    if (!visible && !jobId) {
-      setIsDeleting(false);
-      setDeleteTransactions(false);
-    }
-  }, [jobId, visible]);
+  if (!visible && !jobId && (isDeleting || deleteTransactions)) {
+    setIsDeleting(false);
+    setDeleteTransactions(false);
+  }
+  if (jobId && deletionStatus?.phase === "complete") {
+    setCompletedDeletion({ jobId, deleteTransactions: deletionStatus.deleteTransactions });
+    setJobId(null);
+    setIsDeleting(false);
+  }
 
   useEffect(() => {
-    if (!jobId || !deletionStatus) return;
-    if (deletionStatus.phase === "complete") {
+    if (completedDeletion && notifiedJobId.current !== completedDeletion.jobId) {
+      notifiedJobId.current = completedDeletion.jobId;
       showAlert.success(
         `Deleted ${descendants.length ? "pipe subtree." : "pipe."}${
-          deletionStatus.deleteTransactions ? " Orphaned history was deleted" : ""
+          completedDeletion.deleteTransactions ? " Orphaned history was deleted" : ""
         }`,
       );
-      setJobId(null);
-      setIsDeleting(false);
       const transactionIds = transactionCache?.cache
         ? Object.keys(transactionCache.cache.entities) as Id<"transactions">[]
         : [];
@@ -89,15 +95,16 @@ export function DeletePipeConfirmation({ visible, onClose, pipeId, onDeleted }: 
             transactionCache.reconcileTransactions(transactionIds, transactions),
           )
           .catch(() => transactionCache.invalidateAll());
+      } else if (transactionCache) {
+        void transactionCache.invalidateAll().catch(() => undefined);
       }
       onDeleted();
       onClose();
     }
   }, [
-    deletionStatus,
+    completedDeletion,
     descendants.length,
     convex,
-    jobId,
     onClose,
     onDeleted,
     showAlert,

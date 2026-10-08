@@ -2,6 +2,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { act, render, screen, fireEvent } from "@testing-library/react";
 import { type Id } from "@convex/_generated/dataModel";
+import { DeletePipeConfirmation } from "./DeletePipeConfirmation";
 
 const pId = (id: string) => id as Id<"pipes">;
 
@@ -9,6 +10,8 @@ const mockStartPipeDeletion = vi.fn();
 const mockDeletionStatus = vi.fn();
 const mockConvexQuery = vi.fn();
 const mockReconcileTransactions = vi.fn().mockResolvedValue(undefined);
+const mockInvalidateAll = vi.fn().mockResolvedValue(undefined);
+const mockEntities = { value: { "tx-1": {} } as Record<string, object> };
 
 vi.mock("convex/react", () => ({
   useMutation: () => mockStartPipeDeletion,
@@ -18,9 +21,9 @@ vi.mock("convex/react", () => ({
 
 vi.mock("@features/transactions/cache/TransactionCacheContext", () => ({
   useOptionalTransactionCache: () => ({
-    cache: { entities: { "tx-1": {} } },
+    cache: { entities: mockEntities.value },
     reconcileTransactions: mockReconcileTransactions,
-    invalidateAll: vi.fn(),
+    invalidateAll: mockInvalidateAll,
   }),
 }));
 
@@ -49,10 +52,9 @@ vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
   }),
 }));
 
-import { DeletePipeConfirmation } from "./DeletePipeConfirmation";
-
 describe("DeletePipeConfirmation", () => {
   beforeEach(() => {
+    mockEntities.value = { "tx-1": {} };
     mockStartPipeDeletion.mockResolvedValue({ jobId: pId("job-1"), phase: "processingTransactions" });
     mockDeletionStatus.mockReturnValue(undefined);
     mockConvexQuery.mockResolvedValue([]);
@@ -231,5 +233,14 @@ describe("DeletePipeConfirmation", () => {
       transactionIds: ["tx-1"],
     });
     expect(mockReconcileTransactions).toHaveBeenCalledWith(["tx-1"], [surviving]);
+  });
+
+  it("invalidates event usage after deletion even when no legacy transactions are cached", async () => {
+    mockEntities.value = {};
+    mockDeletionStatus.mockReturnValue({ jobId: pId("job-1"), phase: "complete", deleteTransactions: true, totalMembers: 4, completedMembers: 4 });
+    render(<DeletePipeConfirmation visible onClose={() => {}} pipeId={pId("pipe_root")} onDeleted={() => {}} />);
+    await act(async () => { fireEvent.click(screen.getByText("Delete 4 pipes")); });
+    expect(mockInvalidateAll).toHaveBeenCalledOnce();
+    expect(mockConvexQuery).not.toHaveBeenCalled();
   });
 });

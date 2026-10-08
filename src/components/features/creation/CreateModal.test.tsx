@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Id } from "@convex/_generated/dataModel";
 import { CreateModal } from "./CreateModal";
 
+vi.mock("expo-router/react-navigation", () => ({ useIsFocused: () => true }));
+
 const onClose = vi.fn();
 const createTransaction = vi.fn().mockResolvedValue(undefined);
 const addPipe = vi.fn().mockResolvedValue(undefined);
@@ -31,12 +33,12 @@ const pipe2 = {
   spent: 5000,
 };
 
-vi.mock("@features/transactions/cache/useTransactionHistory", () => ({
-  useTransactionHistory: () => ({
-    transactions: [
-      { id: "tx-1", from: "pipe-2" },
-      { id: "tx-2", from: "pipe-1" },
-      { id: "tx-3", from: "pipe-2" },
+vi.mock("@features/transactions/cache/useEventHistory", () => ({
+  useEventHistory: () => ({
+    entries: [
+      { id: "tx-1", operationId: "tx-1", pipeId: "pipe-2", type: "transaction", title: "lunch", value: -100, occurredAt: 3, createdAt: 3 },
+      { id: "tx-2", operationId: "tx-2", pipeId: "pipe-1", type: "transaction", title: "lunch", value: -100, occurredAt: 2, createdAt: 2 },
+      { id: "tx-3", operationId: "tx-3", pipeId: "pipe-2", type: "transaction", title: "lunch", value: -100, occurredAt: 1, createdAt: 1 },
     ],
     isLoading: false,
   }),

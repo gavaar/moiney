@@ -1,4 +1,4 @@
-import { RefObject, useMemo, useRef, useState } from "react";
+import { RefObject, useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { Popover } from "@ui/Popover";
 import { Icon, type IconName } from "@ui/Icon";
@@ -28,6 +28,7 @@ type Props = {
   pendingFedAdjustment?: number;
   sourceType?: "feed" | "boiler";
   contributedFed?: number;
+  now: number;
 };
 
 function formatSignedAmount(value: number): string {
@@ -48,9 +49,11 @@ export function StatisticsRow({
   pendingFedAdjustment = 0,
   sourceType,
   contributedFed = 0,
+  now,
 }: Props) {
-  const daysInMonth = getDaysInMonth();
-  const currentDay = new Date().getDate();
+  const date = new Date(now);
+  const daysInMonth = getDaysInMonth(date);
+  const currentDay = date.getDate();
   const dailyExpected = daysInMonth > 0 ? expected / daysInMonth : 0;
   const accumulatedSpend = dailyExpected * currentDay - spent;
   const daysUntilPositive =
@@ -82,11 +85,10 @@ export function StatisticsRow({
 
   const daysLeft =
     currentPipe?.rule === "cron" && currentPipe.cronNextDate != null
-      ? Math.max(0, Math.ceil((currentPipe.cronNextDate - Date.now()) / DAY_MS))
+      ? Math.max(0, Math.ceil((currentPipe.cronNextDate - now) / DAY_MS))
       : null;
 
-  const stats = useMemo<StatItem[]>(
-    () => [
+  const stats: StatItem[] = [
       ...(sourceType !== "boiler"
         ? [
             {
@@ -164,22 +166,7 @@ export function StatisticsRow({
             },
           ]
         : []),
-    ],
-    [
-      accumulatedSpend,
-      currentDay,
-      dailyExpected,
-      daysLeft,
-      expected,
-      fed,
-      contributedFed,
-      growth,
-      growthLabel,
-      pendingFedAdjustment,
-      sourceType,
-      spent,
-    ],
-  );
+    ];
 
   return (
     <View className="flex-row flex-wrap items-center justify-center gap-1">

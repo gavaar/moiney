@@ -1,8 +1,15 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import { pipeRuleValidator } from "./lib/pipes/ruleConfig";
+import { historyEventValidator } from "./lib/events/validators";
 
 export default defineSchema({
+  events: defineTable(historyEventValidator)
+    .index("by_operationId", ["operationId"])
+    .index("by_userId_pipeId_type", ["userId", "pipeId", "type"])
+    .index("by_userId_type", ["userId", "type"])
+    .index("by_userId_occurredAt", ["userId", "occurredAt"])
+    .index("by_userId_pipeId_occurredAt", ["userId", "pipeId", "occurredAt"]),
   pipeCreationEvents: defineTable({
     userId: v.id("users"),
     pipeId: v.id("pipes"),
@@ -18,6 +25,7 @@ export default defineSchema({
     .index("by_pipeId", ["pipeId"])
     .index("by_userId_occurredAt", ["userId", "occurredAt"]),
   transactions: defineTable({
+    operationId: v.optional(v.id("events")),
     title: v.string(),
     value: v.number(),
     date: v.number(),
@@ -42,7 +50,8 @@ export default defineSchema({
     .index("by_userId_to_date", ["userId", "to", "date"])
     .index("by_userId_paidFrom_date", ["userId", "paidFrom", "date"])
     .index("by_userId", ["userId"])
-    .index("by_userId_date", ["userId", "date"]),
+    .index("by_userId_date", ["userId", "date"])
+    .index("by_userId_operationId", ["userId", "operationId"]),
   transactionCorrections: defineTable({
     transactionId: v.id("transactions"),
     userId: v.id("users"),

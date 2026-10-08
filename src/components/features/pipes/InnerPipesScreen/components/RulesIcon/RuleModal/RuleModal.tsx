@@ -12,6 +12,7 @@ import type { PipeModel } from "@features/pipes/data/pipes";
 import { colors } from "@/lib/styles";
 import { buildRuleFields, createRuleDraft, mergeRuleDraft, ruleDraftValues, validateRuleDraft } from "@features/pipes/rules/rule-form";
 import { buildRuleUpdateCommand, getActionConfig, hasRuleDiff } from "@features/pipes/rules/helpers";
+import { useRuleClock } from "@features/pipes/rules/use-rule-clock";
 
 type Props = { visible: boolean; onClose: () => void; pipeId: PipeModel["id"] };
 
@@ -23,6 +24,7 @@ export function RuleModal({ visible, onClose, pipeId }: Props) {
   const executePipeRuleNow = useMutation(api.pipes.executePipeRuleNow);
   const [draft, setDraft] = useState(() => createRuleDraft(pipe));
   const [isBusy, setIsBusy] = useState(false);
+  const validationTime = useRuleClock(visible && (draft.selectedRule === "cron" || draft.selectedRule === "self_destruct"));
   const values = ruleDraftValues(draft);
   const isCron = values.selectedRule === "cron";
   const isSelfDestruct = values.selectedRule === "self_destruct";
@@ -32,7 +34,7 @@ export function RuleModal({ visible, onClose, pipeId }: Props) {
     interval: values.effectiveCron.interval, unit: values.effectiveCron.unit,
   });
   const action = getActionConfig({ hasDiff, isCron, isSelfDestruct });
-  const valid = validateRuleDraft(draft, Date.now()) === undefined;
+  const valid = validateRuleDraft(draft, validationTime) === undefined;
 
   async function handleAction() {
     if (isBusy || action.disabled) return;
@@ -64,7 +66,7 @@ export function RuleModal({ visible, onClose, pipeId }: Props) {
         {pipe ? <Icon name={safeIconName(pipe.icon)} size={20} color={colors.muted} /> : null}
         <Text className="text-muted text-lg">{pipe?.name ?? "Pipe"}</Text>
       </View>}
-      form={buildRuleFields(draft, { capacity: pipe?.capacity ?? 0, disabled: isBusy, allowSelfDestruct: Boolean(pipe?.parentId), now: Date.now() })}
+      form={buildRuleFields(draft, { capacity: pipe?.capacity ?? 0, disabled: isBusy, allowSelfDestruct: Boolean(pipe?.parentId), now: validationTime })}
       value={draft} onChange={(next) => setDraft((previous) => mergeRuleDraft(previous, next))}
       actions={<Button title={action.title} variant={action.variant} icon={action.icon}
         disabled={action.disabled || !valid} loading={isBusy} onPress={handleAction} />}

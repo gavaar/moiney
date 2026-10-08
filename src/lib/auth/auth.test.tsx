@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, render, screen, waitFor } from "@testing-library/react";
+import { AuthProvider, useAuth } from "./auth";
 
 const mocks = vi.hoisted(() => ({
   mockSetAuth: vi.fn(),
@@ -53,8 +54,6 @@ vi.mock("@convex/_generated/api", () => ({
     },
   },
 }));
-
-import { AuthProvider, useAuth } from "./auth";
 
 function AuthStateDisplay() {
   const { accountKey, isLoading, isAuthenticated } = useAuth();

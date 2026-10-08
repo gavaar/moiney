@@ -20,12 +20,17 @@ import {
   type TransactionSnapshotRead,
 } from "./transactionSnapshot";
 import { transactionCacheStorage } from "./storage";
+import { EMPTY_EVENT_HISTORY, type EventHistorySnapshot } from "./EventHistoryStore";
+import type { HistoryEntry } from "../history/event-groups";
 
 type TransactionCacheContextValue = {
   accountKey: string | null;
   isHydrating: boolean;
   cache: TransactionCache | null;
   mutationVersion: number;
+  eventHistory: EventHistorySnapshot;
+  mergeEventHead: (entries: HistoryEntry[], hasMore: boolean, generation: number) => Promise<void>;
+  appendEventHistory: (entries: HistoryEntry[], hasMore: boolean, generation: number) => Promise<void>;
   read: (scope: string) => TransactionSnapshotRead;
   replace: (
     scope: string,
@@ -71,17 +76,34 @@ type Props = {
   storage?: TransactionCacheStorage;
 };
 
+type CacheState = {
+  accountKey: string | null;
+  storage: TransactionCacheStorage;
+  store: TransactionCacheStore | null;
+  cache: TransactionCache | null;
+  isHydrating: boolean;
+};
+
+function createCacheState(accountKey: string | null, storage: TransactionCacheStorage): CacheState {
+  return {
+    accountKey,
+    storage,
+    store: accountKey ? new TransactionCacheStore(accountKey, storage) : null,
+    cache: null,
+    isHydrating: accountKey !== null,
+  };
+}
+
 export function TransactionCacheProvider({ children, storage = transactionCacheStorage }: Props) {
   const { accountKey } = useAuth();
   const [mutationVersion, setMutationVersion] = useState(0);
   const previousStore = useRef<TransactionCacheStore | null>(null);
   const previousAccountKey = useRef<string | null>(null);
-  const [state, setState] = useState<{
-    accountKey: string | null;
-    store: TransactionCacheStore | null;
-    cache: TransactionCache | null;
-    isHydrating: boolean;
-  }>({ accountKey: null, store: null, cache: null, isHydrating: false });
+  const [state, setState] = useState(() => createCacheState(accountKey, storage));
+  if (state.accountKey !== accountKey || state.storage !== storage) {
+    setState(createCacheState(accountKey, storage));
+  }
+  const store = state.store;
 
   useEffect(() => {
     const oldStore = previousStore.current;
@@ -90,26 +112,23 @@ export function TransactionCacheProvider({ children, storage = transactionCacheS
     }
     previousAccountKey.current = accountKey;
 
-    if (!accountKey) {
+    if (!store) {
       previousStore.current = null;
-      setState({ accountKey: null, store: null, cache: null, isHydrating: false });
       return;
     }
 
-    const store = new TransactionCacheStore(accountKey, storage);
     let active = true;
     previousStore.current = store;
-    setState({ accountKey, store, cache: null, isHydrating: true });
 
     void store.hydrate().then((cache) => {
       if (!active || previousStore.current !== store) return;
-      setState({ accountKey, store, cache, isHydrating: false });
+      setState((current) => ({ ...current, cache, isHydrating: false }));
     });
 
     return () => {
       active = false;
     };
-  }, [accountKey, storage]);
+  }, [accountKey, store]);
 
   const read = useCallback(
     (scope: string) =>
@@ -208,12 +227,25 @@ export function TransactionCacheProvider({ children, storage = transactionCacheS
     setMutationVersion((version) => version + 1);
   }, [state.store]);
 
+  const mergeEventHead = useCallback(async (entries: HistoryEntry[], hasMore: boolean, generation: number) => {
+    if (!state.store || state.isHydrating) return;
+    await state.store.eventHistory.mergeHead(entries, hasMore, Date.now(), generation);
+    if (previousStore.current === state.store) setState(current => ({ ...current }));
+  }, [state.store, state.isHydrating]);
+  const appendEventHistory = useCallback(async (entries: HistoryEntry[], hasMore: boolean, generation: number) => {
+    if (!state.store || state.isHydrating) return;
+    await state.store.eventHistory.append(entries, hasMore, Date.now(), generation);
+    if (previousStore.current === state.store) setState(current => ({ ...current }));
+  }, [state.store, state.isHydrating]);
+  const eventHistory = !state.isHydrating && state.store ? state.store.eventHistory.read() : EMPTY_EVENT_HISTORY;
+
   const value = useMemo(
     () => ({
       accountKey: state.accountKey,
       isHydrating: state.isHydrating,
       cache: state.cache,
       mutationVersion,
+      eventHistory, mergeEventHead, appendEventHistory,
       read,
       replace,
       append,
@@ -228,7 +260,7 @@ export function TransactionCacheProvider({ children, storage = transactionCacheS
       state.accountKey,
       state.isHydrating,
       state.cache,
-      mutationVersion,
+      mutationVersion, eventHistory, mergeEventHead, appendEventHistory,
       read,
       replace,
       append,

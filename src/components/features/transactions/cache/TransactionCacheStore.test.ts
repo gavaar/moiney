@@ -20,20 +20,50 @@ function transaction(id: string): TransactionModel {
 }
 
 function memoryStorage(): TransactionCacheStorage & { value: string | null } {
+  const values = new Map<string, string>();
   const storage = {
-    value: null as string | null,
-    read: vi.fn(async () => storage.value),
-    write: vi.fn(async (_accountKey: string, value: string) => {
-      storage.value = value;
+    get value() { return values.get("account-1") ?? null; },
+    read: vi.fn(async (key: string) => values.get(key) ?? null),
+    write: vi.fn(async (key: string, value: string) => {
+      values.set(key, value);
     }),
-    remove: vi.fn(async () => {
-      storage.value = null;
+    remove: vi.fn(async (key: string) => {
+      values.delete(key);
     }),
   };
   return storage;
 }
 
 describe("TransactionCacheStore", () => {
+  it("invalidates event History on legacy financial mutations and clears both stores on logout", async () => {
+    const values = new Map<string, string>();
+    const disk: TransactionCacheStorage = {
+      read: async key => values.get(key) ?? null,
+      write: async (key, value) => { values.set(key, value); },
+      remove: async key => { values.delete(key); },
+    };
+    const store = new TransactionCacheStore("account-1", disk);
+    await store.hydrate();
+    const entries = [{ id: "event" as Id<"events">, operationId: "event" as Id<"events">, pipeId: "pipe" as Id<"pipes">, createdAt: 1, occurredAt: 1, title: "lunch", type: "transaction" as const, value: -100 }];
+    for (const mutate of [
+      () => store.addTransaction(transaction("tx-1")),
+      () => store.updateTransaction(transaction("tx-1")),
+      () => store.reconcileTransactions(["tx-1"], []),
+      () => store.invalidateAll(),
+    ]) {
+      await store.eventHistory.mergeHead(entries, false, 1);
+      expect(store.eventHistory.read().complete).toBe(true);
+      await mutate();
+      expect(store.eventHistory.read().complete).toBe(false);
+      const hydrated = new TransactionCacheStore("account-1", disk);
+      await hydrated.hydrate();
+      expect(hydrated.eventHistory.read().complete).toBe(false);
+    }
+    await store.eventHistory.mergeHead(entries, false, 1);
+    await store.clear();
+    expect(values.size).toBe(0);
+  });
+
   it("persists a created transaction in the cache", async () => {
     const storage = memoryStorage();
     const store = new TransactionCacheStore("account-1", storage);

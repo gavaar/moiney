@@ -3,6 +3,8 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { CreateTabAction } from "./CreateTabAction";
 
+vi.mock("expo-router/react-navigation", () => ({ useIsFocused: () => true }));
+
 vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
   PipeCatalogProvider: ({ children }: any) => <>{children}</>,
   usePipeCatalog: () => ({ allPipes: [], childrenByParent: new Map(), isLoading: false }),

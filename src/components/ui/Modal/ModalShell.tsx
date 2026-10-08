@@ -5,15 +5,17 @@ import {
   View,
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { cn } from "@/lib/styles";
 
 type Props = {
   visible: boolean;
   onClose: () => void;
   children: ReactNode;
   bottomAccessory?: ReactNode;
+  width?: "wide" | "content";
 };
 
-export function ModalShell({ visible, onClose, children, bottomAccessory }: Props) {
+export function ModalShell({ visible, onClose, children, bottomAccessory, width = "wide" }: Props) {
   return (
     <RNModal
       transparent
@@ -32,7 +34,9 @@ export function ModalShell({ visible, onClose, children, bottomAccessory }: Prop
             pointerEvents="box-none"
             style={{ flex: 1, alignItems: "center", paddingVertical: 24 }}
           >
-            <View className="bg-surface rounded-xl p-4 w-[85%] max-w-[960px] max-h-[85%]" style={{ flexShrink: 1 }}>
+            <View className={cn("bg-surface rounded-xl p-4 max-h-[85%]",
+              width === "content" ? "max-w-[85%]" : "w-[85%] max-w-[960px]",
+            )} style={{ flexShrink: 1 }}>
               {children}
             </View>
             {bottomAccessory ? (

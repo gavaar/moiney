@@ -17,6 +17,9 @@ export type TransactionModel = {
   editedAt?: number;
 };
 
+/** Display facts may come from events; action IDs must be resolved separately. */
+export type TransactionPresentation = Omit<TransactionModel, "id">;
+
 export function normalizeTransaction(
   transaction: Doc<"transactions">,
 ): TransactionModel {

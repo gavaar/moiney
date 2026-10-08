@@ -38,7 +38,7 @@ export function LoginScreen() {
             style={{ color: colors.secondary }}
             className="text-sm font-medium"
           >
-            Don't have an account? Sign Up
+            Don&apos;t have an account? Sign Up
           </Link>
           < MoineyVers />
         </View>

@@ -2,6 +2,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { HistoryScreen } from "./HistoryScreen";
 
 const mocks = vi.hoisted(() => ({
   useTransactionHistory: vi.fn(),
@@ -82,8 +83,6 @@ vi.mock("@ui/Button", () => ({
     </button>
   ),
 }));
-
-import { HistoryScreen } from "./HistoryScreen";
 
 describe("HistoryScreen filters", () => {
   beforeEach(() => {

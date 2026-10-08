@@ -7,8 +7,10 @@ import {
   type DeletionPipeState,
 } from "./transactionDisposition";
 import type { DeletionPhase, DeletionStartResult } from "./contracts";
-import { ensurePipeCreationEvent } from "../../pipeHistory";
+import { ensurePipeCreationEvent, refreshPipeCreationEvent } from "../../pipeHistory";
 import { resolveTopMostAncestor } from "../pipes";
+import { deleteHistoryOperation } from "../../events/persistence";
+import { discardPipeLifecycleHistory, ensurePipeDeletionHistory } from "../../events/lifecycle";
 
 const PIPE_DELETION_TRANSACTION_BATCH_SIZE = 50;
 const DELETION_ROLES = ["from", "to", "paidFrom"] as const;
@@ -181,6 +183,7 @@ export async function processPipeDeletionOperation(
         job.deleteTransactions,
       );
       if (disposition.delete) {
+        if (transaction.operationId) await deleteHistoryOperation(ctx, transaction.userId, transaction.operationId);
         await ctx.db.delete("transactions", transaction._id);
       } else if (Object.keys(disposition.patches).length > 0) {
         await ctx.db.patch(
@@ -210,16 +213,12 @@ export async function processPipeDeletionOperation(
       if (retained.some(Boolean)) {
         const pipe = await ctx.db.get("pipes", pipeId);
         if (!pipe) throw new Error("Pipe deletion state is invalid");
-        const eventId = await ensurePipeCreationEvent(ctx, pipe);
-        const parent = pipe.parentId ? await ctx.db.get("pipes", pipe.parentId) : null;
-        await ctx.db.patch("pipeCreationEvents", eventId, {
-          name: pipe.name, icon: pipe.icon,
-          parentName: parent?.name, parentIcon: parent?.icon,
-        });
+        await ensurePipeCreationEvent(ctx, pipe);
       } else {
         const event = await ctx.db.query("pipeCreationEvents")
           .withIndex("by_pipeId", (q) => q.eq("pipeId", pipeId)).unique();
         if (event) await ctx.db.delete("pipeCreationEvents", event._id);
+        await discardPipeLifecycleHistory(ctx, job.userId, pipeId);
       }
     }
     if (nextRole) {
@@ -290,11 +289,16 @@ export async function processPipeDeletionOperation(
         : undefined;
     const reconciled = recalculatePipes(remainingPipes);
 
+    const deletedAt = Date.now();
     for (const pipeId of job.memberPipeIds) {
       const event = await ctx.db.query("pipeCreationEvents")
         .withIndex("by_pipeId", (q) => q.eq("pipeId", pipeId)).unique();
       if (event) {
-        await ctx.db.patch("pipeCreationEvents", event._id, { deletedAt: Date.now() });
+        const pipe = allPipes.find(candidate => candidate._id === pipeId)!;
+        const parent = allPipes.find(candidate => candidate._id === pipe.parentId) ?? null;
+        const snapshot = await refreshPipeCreationEvent(ctx, pipe, event, parent);
+        await ensurePipeDeletionHistory(ctx, snapshot, deletedAt);
+        await ctx.db.patch("pipeCreationEvents", event._id, { deletedAt });
       }
       await ctx.db.delete("pipes", pipeId);
     }

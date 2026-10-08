@@ -62,6 +62,7 @@ vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
         priority: 0,
         fed: 0,
         spent: 0,
+        capacity: 10000,
       },
       {
         id: "feed-1" as Id<"pipes">,
@@ -1198,6 +1199,30 @@ describe("AmountForm", () => {
       expect(screen.getByTestId("text-select-option-groceries")).toBeTruthy();
       expect(screen.getByTestId("text-select-option-gas")).toBeTruthy();
       expect(screen.getByTestId("text-select-option-rent")).toBeTruthy();
+    });
+
+    it("shows the shared feed heading and submits the selected title from its feed fields", async () => {
+      mockRecentTitles.push("salary");
+      render(<AmountForm pipeId={PIPE_ID} variant="feed" />);
+      const heading = screen.getByRole("heading", { name: "Feed: Main (0.00 / 100.00)" });
+      expect(heading.textContent).toContain("Main (0.00 / 100.00)");
+      expect(heading.textContent).toContain("feed");
+      fireEvent.click(screen.getByTestId("text-select-option-salary"));
+      expect((screen.getByPlaceholderText("What was this for?") as HTMLInputElement).value).toBe("salary");
+      fireEvent.change(screen.getByTestId("input-Amount-field"), { target: { value: "12.50" } });
+      fireEvent.click(screen.getByRole("button", { name: "Feed" }));
+      await waitFor(() => expect(mockCreateTransaction).toHaveBeenCalledWith(expect.objectContaining({ title: "salary", value: 1250, to: PIPE_ID })));
+    });
+
+    it("clears feed fields without changing the feed heading or submitting", () => {
+      render(<AmountForm pipeId={PIPE_ID} variant="feed" />);
+      fireEvent.change(screen.getByPlaceholderText("What was this for?"), { target: { value: "Salary" } });
+      fireEvent.change(screen.getByTestId("input-Amount-field"), { target: { value: "50" } });
+      fireEvent.click(screen.getByTestId("eraser-button"));
+      expect((screen.getByPlaceholderText("What was this for?") as HTMLInputElement).value).toBe("");
+      expect((screen.getByTestId("input-Amount-field") as HTMLInputElement).value).toBe("");
+      expect(screen.getByRole("heading", { name: "Feed: Main (0.00 / 100.00)" })).toBeTruthy();
+      expect(mockCreateTransaction).not.toHaveBeenCalled();
     });
 
     it("selecting recent title populates the input", () => {

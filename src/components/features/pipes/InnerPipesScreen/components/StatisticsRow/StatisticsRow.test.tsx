@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { StatisticsRow } from "./StatisticsRow";
 
 vi.mock("@/lib/dates", () => ({
   getDaysInMonth: () => 30,
@@ -18,8 +19,6 @@ vi.mock("@features/pipes/context/PipeSelectionContext", () => ({
 vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
   usePipeCatalog: () => ({ pipesById: mockPipesById }),
 }));
-
-import { StatisticsRow } from "./StatisticsRow";
 
 vi.mock("@ui/Popover", () => ({
   Popover: ({ visible, children, onClose, testID }: any) =>
@@ -46,10 +45,14 @@ const baseProps = {
 function renderStatistics(
   overrides: Partial<React.ComponentProps<typeof StatisticsRow>> = {},
 ) {
-  return render(<StatisticsRow {...baseProps} {...overrides} />);
+  return render(<StatisticsRow {...baseProps} now={Date.now()} {...overrides} />);
 }
 
 describe("StatisticsRow", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   beforeEach(() => {
     mockPipesById = {
       test_pipe_id: {
@@ -95,6 +98,16 @@ describe("StatisticsRow", () => {
         "An average of 30.00 was spent per day over 15 days in this pipe this month.",
       ),
     ).toBeDefined();
+  });
+
+  it("updates daily spending from the screen's clock without sampling render time", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2026, 6, 15, 12));
+    const { rerender } = renderStatistics({ spent: 45000, now: new Date(2026, 6, 15, 12).getTime() });
+    expect(screen.getByRole("button", { name: "Spent this month per day, 30.00" })).toBeDefined();
+
+    rerender(<StatisticsRow {...baseProps} spent={45000} now={new Date(2026, 6, 16, 12).getTime()} />);
+    expect(screen.getByRole("button", { name: "Spent this month per day, 28.13" })).toBeDefined();
   });
 
   it("calculates and explains accumulated spend through today", () => {
@@ -191,14 +204,17 @@ describe("StatisticsRow", () => {
   ])(
     "keeps an external adjustment of %s out of remaining expected and explains it",
     async (pendingFedAdjustment, displayValue, title, description) => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date(2026, 9, 5, 12));
       const user = userEvent.setup();
       renderStatistics({ pendingFedAdjustment });
 
       expect(
         screen.getByRole("button", { name: "Remaining expected, 500.00" }),
       ).toBeDefined();
-      expect(screen.getByText(displayValue)).toBeDefined();
-      await user.click(screen.getByTestId("external-adjustment-chip"));
+      const adjustment = screen.getByRole("button", { name: `${title}, ${displayValue}` });
+      expect(adjustment.textContent).toBe(displayValue);
+      await user.click(adjustment);
       expect(screen.getByText(new RegExp(title))).toBeDefined();
       expect(screen.getByText(description)).toBeDefined();
     },
@@ -233,6 +249,7 @@ describe("StatisticsRow", () => {
     rerender(
       <StatisticsRow
         {...baseProps}
+        now={Date.now()}
         fed={10000}
         spent={0}
         sourceType="boiler"
@@ -262,7 +279,7 @@ describe("StatisticsRow", () => {
     expect(screen.getByText("7")).toBeDefined();
 
     mockPipesById.test_pipe_id.cronNextDate = Date.UTC(2026, 6, 1, 12);
-    rerender(<StatisticsRow {...baseProps} />);
+    rerender(<StatisticsRow {...baseProps} now={Date.now()} />);
     expect(screen.getByText("0")).toBeDefined();
   });
 

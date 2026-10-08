@@ -130,7 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsAuthenticated(false);
         setIsLoading(false);
       });
-  }, []);
+  }, [handleAuthChange]);
 
   const login = useCallback(async (username: string, password: string) => {
     try {
@@ -146,7 +146,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (e) {
       toUserFriendly(e);
     }
-  }, []);
+  }, [handleAuthChange]);
 
   const signUp = useCallback(async (username: string, email: string, password: string) => {
     try {
@@ -162,7 +162,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (e) {
       toUserFriendly(e);
     }
-  }, []);
+  }, [handleAuthChange]);
 
   const signOut = useCallback(async () => {
     try {

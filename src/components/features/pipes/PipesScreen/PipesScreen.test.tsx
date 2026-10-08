@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { PipesScreen } from "./PipesScreen";
 
 const mocks = vi.hoisted(() => ({
   addEventListener: vi.fn(),
@@ -17,9 +18,9 @@ const mocks = vi.hoisted(() => ({
   focusEffect: undefined as undefined | (() => void | (() => void)),
   feeds: [] as any[],
   allPipes: [] as any[],
-  historyTransactions: [] as any[],
+  historyEntries: [] as any[],
   historySnapshot: {
-    transactions: [] as any[],
+    entries: [] as any[],
     complete: true,
     hasMore: false,
     updatedAt: 1,
@@ -108,12 +109,13 @@ vi.mock("@features/transactions/cache/TransactionCacheContext", () => ({
   useTransactionCache: () => ({
     cache: {},
     read: () => mocks.historySnapshot,
+    eventHistory: mocks.historySnapshot,
   }),
 }));
-vi.mock("@features/transactions/cache/useTransactionHistory", () => ({
-  useTransactionHistory: (_filters: unknown, options: unknown) => {
+vi.mock("@features/transactions/cache/useEventHistory", () => ({
+  useEventHistory: (options: unknown) => {
     mocks.historyOptions = options;
-    return { transactions: mocks.historyTransactions, isLoading: false };
+    return { entries: mocks.historyEntries, isLoading: false };
   },
 }));
 vi.mock("@features/pipes/context/PipeSelectionContext", () => ({
@@ -141,8 +143,6 @@ vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
     isLoading: false,
   }),
 }));
-
-import { PipesScreen } from "./PipesScreen";
 
 describe("Pipes Android back handling", () => {
   it("opens the current ancestor path when navigating from a creation event", async () => {
@@ -181,9 +181,9 @@ describe("Pipes Android back handling", () => {
     mocks.selectedName = null;
     mocks.feeds = [];
     mocks.allPipes = [];
-    mocks.historyTransactions = [];
+    mocks.historyEntries = [];
     mocks.historySnapshot = {
-      transactions: [],
+      entries: [],
       complete: true,
       hasMore: false,
       updatedAt: 1,
@@ -211,10 +211,10 @@ describe("Pipes Android back handling", () => {
     const childB = { ...feedB, id: "child-b", parentId: feedB.id };
     mocks.feeds = [feedA, feedB];
     mocks.allPipes = [feedA, feedB, childA, childB];
-    mocks.historyTransactions = [
-      { id: "tx-1", kind: "expense", from: childB.id },
-      { id: "tx-2", kind: "expense", from: childA.id },
-      { id: "tx-3", kind: "expense", from: childB.id },
+    mocks.historyEntries = [
+      { id: "tx-1", operationId: "tx-1", type: "transaction", pipeId: childB.id, occurredAt: 3, createdAt: 3, title: "lunch", value: -100 },
+      { id: "tx-2", operationId: "tx-2", type: "transaction", pipeId: childA.id, occurredAt: 2, createdAt: 2, title: "lunch", value: -100 },
+      { id: "tx-3", operationId: "tx-3", type: "transaction", pipeId: childB.id, occurredAt: 1, createdAt: 1, title: "lunch", value: -100 },
     ];
 
     render(<PipesScreen />);
@@ -224,6 +224,22 @@ describe("Pipes Android back handling", () => {
       enabled: true,
       minimumCachedRows: 100,
     });
+  });
+
+  it("collapses mirror entries before ranking feed trees", () => {
+    const a = { id: "a", name: "A", fed: 2000 };
+    const b = { id: "b", name: "B", fed: 1000 };
+    const c = { id: "c", name: "C", fed: 500 };
+    mocks.feeds = [b, c, a];
+    mocks.allPipes = [a, b, c];
+    mocks.historyEntries = [
+      { id: "logical", operationId: "logical", type: "third_party_transaction", pipeId: "c", targetPipeId: "b", occurredAt: 3, createdAt: 3, title: "lunch", value: -100 },
+      { id: "payment", operationId: "logical", type: "transaction", pipeId: "b", targetPipeId: "c", occurredAt: 3, createdAt: 3, title: "lunch", value: 100 },
+      { id: "a-one", operationId: "a-one", type: "transaction", pipeId: "a", occurredAt: 2, createdAt: 2, title: "lunch", value: -100 },
+      { id: "a-two", operationId: "a-two", type: "transaction", pipeId: "a", occurredAt: 1, createdAt: 1, title: "lunch", value: -100 },
+    ];
+    render(<PipesScreen />);
+    expect(screen.getByTestId("feed-order").textContent).toBe("a,b,c");
   });
 
   it("navigates to the parent, falls through at root, and scopes its listener to focus", () => {

@@ -3,8 +3,9 @@ import type { Id } from "@convex/_generated/dataModel";
 import { AmountForm } from "@features/components/AmountForm";
 import type { TransactionInitialState } from "@features/components/AmountForm/types";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
-import { useTransactionHistory } from "@features/transactions/cache/useTransactionHistory";
-import { getFrequentlyUsedSourcePipeIds, getQuickTransactionPipes } from "../QuickTransactionModal/helpers";
+import { useEventHistory } from "@features/transactions/cache/useEventHistory";
+import { getFrequentlyUsedEventSourcePipeIds } from "../history/event-usage";
+import { getQuickTransactionPipes } from "../QuickTransactionModal/helpers";
 import { groupPipesByRoot } from "@features/components/AmountForm/pipeGroups";
 
 type Props = { onSuccess?: () => void } & (
@@ -18,13 +19,13 @@ export function TransactionForm(props: Props) {
 
 function SelectableTransactionForm({ pipeId, initState, onSuccess }: Props) {
   const { allPipes, childrenByParent, isLoading } = usePipeCatalog();
-  const { transactions, isLoading: historyLoading } = useTransactionHistory();
+  const { entries, isLoading: historyLoading } = useEventHistory();
   const [selectedId, setSelectedId] = useState<Id<"pipes"> | null>(pipeId ?? null);
   const [activeStep, setActiveStep] = useState(pipeId ? 1 : 0);
   const isFeed = initState?.structure?.type === "feed";
   const pipes = isFeed
     ? (allPipes ?? []).filter(pipe => !pipe.parentId && !pipe.deletionJobId)
-    : getQuickTransactionPipes(allPipes ?? [], childrenByParent, getFrequentlyUsedSourcePipeIds(transactions ?? []));
+    : getQuickTransactionPipes(allPipes ?? [], childrenByParent, getFrequentlyUsedEventSourcePipeIds(entries.slice(0, 100)));
   const groups = isFeed ? [] : groupPipesByRoot(pipes, allPipes ?? [], {
     ...(pipeId ? { preferredPipeId: pipeId } : {}),
     expandFirst: !initState || initState.intent === "create",

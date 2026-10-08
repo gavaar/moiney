@@ -17,12 +17,8 @@ export function useInputValidation<Value>(
   validator?: (value: Value) => string | undefined,
   onError?: (error?: string) => void,
 ) {
-  const [error, setError] = useState<string | undefined>();
   const [dirty, setDirty] = useState(false);
-
-  useEffect(() => {
-    if (dirty) setError(validator?.(value));
-  }, [value, validator, dirty]);
+  const error = dirty ? validator?.(value) : undefined;
 
   const notifyError = useEffectEvent(() => onError?.(error));
   useEffect(() => {

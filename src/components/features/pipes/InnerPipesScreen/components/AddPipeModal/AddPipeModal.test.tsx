@@ -1,10 +1,12 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi, beforeEach } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { type Id } from "@convex/_generated/dataModel";
 import { AddPipeModal } from "./AddPipeModal";
 import type { PipeModel } from "@features/pipes/data/pipes";
+
+vi.mock("expo-router/react-navigation", () => ({ useIsFocused: () => true }));
 
 const mockAddPipe = vi.fn().mockResolvedValue(undefined);
 
@@ -41,6 +43,7 @@ function renderModal(visible = true) {
 }
 
 describe("AddPipeModal", () => {
+  afterEach(() => vi.useRealTimers());
   it("clears an unfinished pipe while retaining its selected owner and keeping creation open", async () => {
     renderModal();
     fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "Groceries" } });
@@ -91,6 +94,28 @@ describe("AddPipeModal", () => {
         name: "Madrid", parentId,
         ruleConfig: { rule: "self_destruct", starting: Date.UTC(2026, 8, 21, 5) },
       }));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("revalidates a self-destruct deadline while the rule form remains open", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(Date.UTC(2026, 8, 21, 4, 59));
+    try {
+      renderModal();
+      fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "Madrid" } });
+      fireEvent.click(screen.getByRole("button", { name: "Next step" }));
+      fireEvent.click(screen.getByRole("button", { name: "Next step" }));
+      fireEvent.click(screen.getByTestId("select-trigger"));
+      fireEvent.click(screen.getByText("Self-destruct"));
+      fireEvent.click(screen.getByRole("button", { name: "Deletion date" }));
+      fireEvent.click(screen.getByTestId("day-21"));
+      expect(screen.getByRole("button", { name: "Submit" }).getAttribute("aria-disabled")).not.toBe("true");
+
+      act(() => vi.advanceTimersByTime(60000));
+      expect(screen.getByRole("button", { name: "Submit" }).getAttribute("aria-disabled")).toBe("true");
+      expect(mockAddPipe).not.toHaveBeenCalled();
     } finally {
       vi.useRealTimers();
     }
