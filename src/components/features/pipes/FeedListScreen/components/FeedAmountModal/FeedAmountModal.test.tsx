@@ -56,7 +56,8 @@ describe("FeedAmountModal", () => {
 
     await user.click(screen.getByTestId("feed-amount-trigger"));
 
-    expect(screen.getByText("Feed Groceries")).toBeTruthy();
+    expect(screen.getByTestId("amount-form")).toBeTruthy();
+    expect(screen.queryByText("Feed Groceries")).toBeNull();
   });
 
   it("shows success alert and closes modal when AmountForm succeeds", async () => {

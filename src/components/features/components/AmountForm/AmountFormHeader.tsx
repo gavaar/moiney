@@ -4,7 +4,7 @@ import { colors } from "@/lib/styles";
 import { Icon, safeIconName, type IconName } from "@ui/Icon";
 import type { TransactionInitialState } from "./types";
 
-type Intent = "create" | "repeat" | "edit";
+type Intent = "create" | "repeat" | "edit" | "feed";
 type TransactionHeading = {
   intent: Intent;
   initial: Pick<TransactionInitialState, "pipeName" | "pipeIcon" | "title" | "spent" | "capacity">;
@@ -15,7 +15,7 @@ type Props = {
 };
 
 const intentIcons: Record<Intent, IconName> = {
-  create: "add-circle-outline", repeat: "repeat-once", edit: "pencil-outline",
+  create: "add-circle-outline", repeat: "repeat-once", edit: "pencil-outline", feed: "add-circle-outline",
 };
 
 function getHeading(transaction: TransactionHeading, selected: boolean) {
@@ -30,7 +30,8 @@ function getHeading(transaction: TransactionHeading, selected: boolean) {
   const summary = initial.spent !== undefined && initial.capacity !== undefined
     ? ` (${formatAmount(initial.spent)} / ${formatAmount(initial.capacity)})` : "";
   const title = `${initial.pipeName}${summary}`;
-  return { title, accessibleTitle: intent === "create" ? `Create: ${title}` : title, icon };
+  const accessibleTitle = intent === "create" ? `Create: ${title}` : intent === "feed" ? `Feed: ${title}` : title;
+  return { title, accessibleTitle, icon };
 }
 
 export function AmountFormHeader({ transaction, sourceSelected }: Props) {

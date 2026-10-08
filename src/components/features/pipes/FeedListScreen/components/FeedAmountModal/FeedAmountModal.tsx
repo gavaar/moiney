@@ -50,25 +50,19 @@ export function FeedAmountModal({
       </Pressable>}
 
       <ModalShell visible={visible} onClose={close}>
-        {visible ? (
+        {visible ? sourceType === "boiler" ? (
           <View className="gap-4" style={{ flexShrink: 1 }}>
             <Text className="text-lg font-semibold text-text">Feed {feedName}</Text>
-            {sourceType === "boiler" ? (
-              <AmountForm
-                variant="boiler"
-                pipeId={pipeId}
-                boilerName={feedName}
-                currentFed={fed}
-                onSuccess={handleSuccess}
-              />
-            ) : (
-              <AmountForm
-                variant="feed"
-                pipeId={pipeId}
-                onSuccess={handleSuccess}
-              />
-            )}
+            <AmountForm
+              variant="boiler"
+              pipeId={pipeId}
+              boilerName={feedName}
+              currentFed={fed}
+              onSuccess={handleSuccess}
+            />
           </View>
+        ) : (
+          <AmountForm variant="feed" pipeId={pipeId} onSuccess={handleSuccess} />
         ) : null}
       </ModalShell>
     </>

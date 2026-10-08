@@ -9,6 +9,11 @@ import { AmountFormActions } from "./AmountFormActions";
 export function AmountForm(props: AmountFormProps) {
   const form = useAmountFormController(props);
   const picker = props.sourcePicker;
+  const feedPipe = props.variant === "feed" && props.pipeId ? form.pipesById[props.pipeId] : undefined;
+  const heading = form.transaction ?? (feedPipe ? {
+    intent: "feed" as const,
+    initial: { pipeName: feedPipe.name, pipeIcon: feedPipe.icon, spent: feedPipe.spent, capacity: feedPipe.capacity, title: "" },
+  } : null);
 
   function handleFormChange(next: AmountFormDraft) {
     form.updateDraft(next);
@@ -27,8 +32,8 @@ export function AmountForm(props: AmountFormProps) {
         onChange={handleFormChange}
         activeStep={picker?.activeStep}
         onStepChange={picker?.onStepChange}
-        header={form.transaction ? (
-          <AmountFormHeader transaction={form.transaction} sourceSelected={props.pipeId !== null} />
+        header={heading ? (
+          <AmountFormHeader transaction={heading} sourceSelected={props.pipeId !== null} />
         ) : undefined}
         warnings={form.editWarning ? (
           <View accessibilityRole="alert" className="rounded-lg border border-muted px-2 py-1">

@@ -5,6 +5,7 @@ import type { PipeModel } from "@features/pipes/data/pipes";
 import { AddFeedButton, FeedAmountModal } from "@features/pipes/FeedListScreen/components";
 import { ModalShell } from '@ui/Modal';
 import { useState } from 'react';
+import { Icon } from "@ui/Icon";
 
 type FeedListScreenProps = {
   isLoading: boolean;
@@ -32,7 +33,8 @@ export function FeedListScreen({
   onSelectFeed,
 }: FeedListScreenProps) {
   const [showFeedInfo, setShowFeedInfo] = useState(false);
-  const [compactFeed, setCompactFeed] = useState<PipeModel | null>(null);
+  const [fundingFeedId, setFundingFeedId] = useState<PipeModel["id"] | null>(null);
+  const fundingFeed = pipes.find(pipe => pipe.id === fundingFeedId);
 
   return (
     <View className="flex-1">
@@ -51,15 +53,14 @@ export function FeedListScreen({
           onSelectPipe={onSelectFeed}
           compactAction={{
             label: () => "Add money",
-            onPress: (pipe) => setCompactFeed(pipes.find((feed) => feed.id === pipe.id) ?? null),
+            onPress: (pipe) => setFundingFeedId(pipe.id),
           }}
            trailing={(pipe) => (
-             <FeedAmountModal
-               pipeId={pipe.id}
-               feedName={pipe.name}
-               sourceType={pipe.sourceType}
-               fed={pipe.fed}
-             />
+              <Pressable className="p-2 rounded-full" accessibilityRole="button"
+                accessibilityLabel={`Add money to ${pipe.name}`} testID="feed-amount-trigger"
+                onPress={() => setFundingFeedId(pipe.id)}>
+                <Icon name="add-circle-outline" size={24} color="white" />
+              </Pressable>
            )}
           footer={<AddFeedButton />}
         />
@@ -78,15 +79,15 @@ export function FeedListScreen({
       <ModalShell visible={showFeedInfo} onClose={() => setShowFeedInfo(false)}>
         <FeedDescription />
       </ModalShell>
-      {compactFeed && (
+      {fundingFeed && (
         <FeedAmountModal
-          pipeId={compactFeed.id}
-          feedName={compactFeed.name}
-          sourceType={compactFeed.sourceType}
-          fed={compactFeed.fed}
+          pipeId={fundingFeed.id}
+          feedName={fundingFeed.name}
+          sourceType={fundingFeed.sourceType}
+          fed={fundingFeed.fed}
           visible
           hideTrigger
-          onClose={() => setCompactFeed(null)}
+          onClose={() => setFundingFeedId(null)}
         />
       )}
     </View>
