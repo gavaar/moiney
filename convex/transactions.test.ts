@@ -555,6 +555,7 @@ describe("editTransaction", () => {
       });
       expect(ctx.db.insert).toHaveBeenCalledWith("transactionCorrections", {
         transactionId: "tx-1",
+        operationId: "event-1",
         userId: "user-1",
         editedAt: expect.any(Number),
         previous: {
@@ -673,6 +674,7 @@ describe("editTransaction", () => {
 
       expect(ctx.db.insert).toHaveBeenCalledWith("transactionCorrections", {
         transactionId: "tx-1",
+        operationId: "event-1",
         userId: "user-1",
         editedAt: expect.any(Number),
         previous: {

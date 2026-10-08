@@ -733,9 +733,23 @@ export async function editTransactionOperation(
     structureChanged;
   const editedAt = hasCorrection ? now : undefined;
 
+  let operationId = transaction.operationId;
+  if (hasCorrection) {
+    const eventInput = {
+      userId,
+      occurredAt: command.date,
+      title,
+      value: command.value,
+      structure: currentStructure,
+    };
+    if (operationId) await replaceFinancialOperation(ctx, operationId, eventInput);
+    else operationId = await insertFinancialOperation(ctx, eventInput);
+  }
+
   if (editedAt !== undefined) {
     await ctx.db.insert("transactionCorrections", {
       transactionId: command.transactionId,
+      operationId,
       userId,
       editedAt,
       previous: {
@@ -761,18 +775,6 @@ export async function editTransactionOperation(
     });
   }
 
-  let operationId = transaction.operationId;
-  if (hasCorrection) {
-    const eventInput = {
-      userId,
-      occurredAt: command.date,
-      title,
-      value: command.value,
-      structure: currentStructure,
-    };
-    if (operationId) await replaceFinancialOperation(ctx, operationId, eventInput);
-    else operationId = await insertFinancialOperation(ctx, eventInput);
-  }
   await ctx.db.patch("transactions", command.transactionId, {
     ...(operationId !== transaction.operationId ? { operationId } : {}),
     title,

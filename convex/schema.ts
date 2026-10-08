@@ -54,6 +54,7 @@ export default defineSchema({
     .index("by_userId_operationId", ["userId", "operationId"]),
   transactionCorrections: defineTable({
     transactionId: v.id("transactions"),
+    operationId: v.optional(v.id("events")),
     userId: v.id("users"),
     editedAt: v.number(),
     previous: v.object({
@@ -78,7 +79,9 @@ export default defineSchema({
       to: v.optional(v.id("pipes")),
       paidFrom: v.optional(v.id("pipes")),
     }),
-  }).index("by_transactionId", ["transactionId", "editedAt"]),
+  })
+    .index("by_transactionId", ["transactionId", "editedAt"])
+    .index("by_operationId", ["operationId", "editedAt"]),
   monthlySpendingStats: defineTable({
     userId: v.id("users"),
     periodStart: v.number(),
