@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useConvex } from "convex/react";
 import { api } from "@convex/_generated/api";
-import type { Doc, Id } from "@convex/_generated/dataModel";
+import type { Doc } from "@convex/_generated/dataModel";
+import type { HistoryFilters } from "../history/history-filters";
 import {
   normalizeTransaction,
   type TransactionModel,
@@ -35,23 +36,16 @@ export type TransactionHistoryState = {
   refresh: () => void;
 };
 
-export type TransactionHistoryFilters = {
-  fromDate?: number;
-  toDate?: number;
-  pipeIds?: readonly Id<"pipes">[];
-  title?: string;
-};
-
 export type TransactionHistoryOptions = {
   enabled?: boolean;
   minimumCachedRows?: number;
 };
 
-const EMPTY_FILTERS: TransactionHistoryFilters = {};
+const EMPTY_FILTERS: HistoryFilters = {};
 const DEFAULT_OPTIONS: TransactionHistoryOptions = {};
 
 export function useTransactionHistory(
-  filters: TransactionHistoryFilters = EMPTY_FILTERS,
+  filters: HistoryFilters = EMPTY_FILTERS,
   options: TransactionHistoryOptions = DEFAULT_OPTIONS,
 ): TransactionHistoryState {
   const convex = useConvex();

@@ -1,6 +1,6 @@
 import type { ConvexReactClient } from "convex/react";
 import { api } from "@convex/_generated/api";
-import type { TransactionHistoryFilters } from "../cache/useTransactionHistory";
+import type { HistoryFilters } from "./history-filters";
 import type { HistoryEntry } from "./event-groups";
 import type { DeletedPipeEntry } from "./event-archives";
 
@@ -20,14 +20,14 @@ export async function readDeletedPipes(client: ConvexReactClient, isActive: () =
   }
 }
 
-export function eventScopeIds(filters: TransactionHistoryFilters, deleted: readonly DeletedPipeEntry[]) {
+export function eventScopeIds(filters: HistoryFilters, deleted: readonly DeletedPipeEntry[]) {
   if (!filters.pipeIds?.length) return undefined;
   const scope = new Set(filters.pipeIds);
   return new Set([...scope, ...deleted.filter(event => event.ancestorIds.some(id => scope.has(id))).map(event => event.pipeId)]);
 }
 
 /** One indexed window per unique pipe; grouping sees only the newest 30 overall. */
-export async function readLatestEvents(client: ConvexReactClient, filters: TransactionHistoryFilters, deleted: readonly DeletedPipeEntry[], isActive: () => boolean) {
+export async function readLatestEvents(client: ConvexReactClient, filters: HistoryFilters, deleted: readonly DeletedPipeEntry[], isActive: () => boolean) {
   const scope = eventScopeIds(filters, deleted);
   const pipeIds = scope ? [...scope] : [undefined];
   let entries: HistoryEntry[] = [];
@@ -42,7 +42,7 @@ export async function readLatestEvents(client: ConvexReactClient, filters: Trans
 }
 
 /** Only the main stream supplies visible members; the catalog supplies scope metadata. */
-export function createEventHistoryReader(client: ConvexReactClient, filters: TransactionHistoryFilters, deleted: readonly DeletedPipeEntry[]) {
+export function createEventHistoryReader(client: ConvexReactClient, filters: HistoryFilters, deleted: readonly DeletedPipeEntry[]) {
   const scope = eventScopeIds(filters, deleted);
   const pipeId = scope?.size === 1 ? [...scope][0] : undefined;
   const title = filters.title?.trim() || undefined;

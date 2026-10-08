@@ -4,7 +4,6 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import {
   TransactionsProvider,
   useTransactions,
-  getSubtreePipeIds,
 } from "./TransactionsContext";
 import type { Id } from "@convex/_generated/dataModel";
 import type { PipeModel } from "@features/pipes/data/pipes";
@@ -82,93 +81,6 @@ function buildChildrenMap(
   }
   return map;
 }
-
-describe("getSubtreePipeIds", () => {
-  it("includes the selected pipe and every descendant", () => {
-    const pipes = [
-      pipe("b", "a"),
-      pipe("c", "b"),
-      pipe("d", "a"),
-    ];
-    const map = buildChildrenMap(pipes);
-
-    expect(getSubtreePipeIds(map, "a" as Id<"pipes">)?.sort()).toEqual(
-      ["a", "b", "c", "d"].sort(),
-    );
-  });
-
-  it("returns null when selectedPipeId is null", () => {
-    const map = buildChildrenMap([]);
-    expect(getSubtreePipeIds(map, null)).toBeNull();
-  });
-
-  it("returns [pipeId] for a leaf pipe (no children)", () => {
-    const pipes = [pipe("a")];
-    const map = buildChildrenMap(pipes);
-    expect(getSubtreePipeIds(map, "a" as Id<"pipes">)).toEqual([
-      "a" as Id<"pipes">,
-    ]);
-  });
-
-  it("returns the selected parent and direct children", () => {
-    const pipes = [pipe("b", "a"), pipe("c", "a")];
-    const map = buildChildrenMap(pipes);
-    const result = getSubtreePipeIds(map, "a" as Id<"pipes">);
-    expect(result!.sort()).toEqual(
-      ["a" as Id<"pipes">, "b" as Id<"pipes">, "c" as Id<"pipes">].sort(),
-    );
-  });
-
-  it("returns nested descendants in DFS order", () => {
-    const pipes = [
-      pipe("b", "a"),
-      pipe("c", "b"),
-      pipe("d", "b"),
-      pipe("e", "a"),
-    ];
-    const map = buildChildrenMap(pipes);
-    const result = getSubtreePipeIds(map, "a" as Id<"pipes">);
-    expect(result!.sort()).toEqual(
-      ["a", "b", "c", "d", "e"].sort(),
-    );
-  });
-
-  it("returns parents and leaves", () => {
-    const pipes = [
-      pipe("b", "a"),
-      pipe("c", "b"),
-      pipe("d", "c"),
-      pipe("e", "a"),
-    ];
-    const map = buildChildrenMap(pipes);
-    const result = getSubtreePipeIds(map, "a" as Id<"pipes">);
-    expect(result!.sort()).toEqual(["a", "b", "c", "d", "e"].sort());
-  });
-
-  it("returns [pipeId] when selected pipe has no known parent entry", () => {
-    const map = buildChildrenMap([]);
-    expect(getSubtreePipeIds(map, "x" as Id<"pipes">)).toEqual([
-      "x" as Id<"pipes">,
-    ]);
-  });
-
-  it("handles a deep chain", () => {
-    const pipes = [
-      pipe("b", "a"),
-      pipe("c", "b"),
-      pipe("d", "c"),
-      pipe("e", "d"),
-    ];
-    const map = buildChildrenMap(pipes);
-    expect(getSubtreePipeIds(map, "a" as Id<"pipes">)).toEqual([
-      "a",
-      "b",
-      "c",
-      "d",
-      "e",
-    ]);
-  });
-});
 
 describe("TransactionsProvider", () => {
   beforeEach(() => {

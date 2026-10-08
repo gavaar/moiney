@@ -9,7 +9,7 @@ import {
   usePipeCatalog,
 } from "@features/pipes/context/PipeCatalogContext";
 import { MixedHistoryFeed } from "@features/transactions/history/mixed-history-feed";
-import type { TransactionHistoryFilters } from "@features/transactions/cache/useTransactionHistory";
+import type { HistoryFilters } from "@features/transactions/history/history-filters";
 import { Button } from "@ui/Button";
 import { Input } from "@ui/Input";
 import { useUtcMonthStart } from "@/lib/useUtcMonthStart";
@@ -29,7 +29,7 @@ function HistoryFilterControls({
   onApply,
   initialFromDate,
 }: {
-  onApply: (filters: TransactionHistoryFilters) => void;
+  onApply: (filters: HistoryFilters) => void;
   initialFromDate: number;
 }) {
   const { allPipes } = usePipeCatalog();
@@ -167,7 +167,7 @@ function HistoryFilterControls({
 
 export function HistoryScreen() {
   const initialFromDate = useUtcMonthStart(useIsFocused());
-  const [customFilters, setCustomFilters] = useState<TransactionHistoryFilters | null>(null);
+  const [customFilters, setCustomFilters] = useState<HistoryFilters | null>(null);
   const filters = useMemo(() => customFilters ?? { fromDate: initialFromDate }, [customFilters, initialFromDate]);
 
   return (

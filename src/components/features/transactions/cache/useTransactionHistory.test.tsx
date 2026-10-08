@@ -3,9 +3,9 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { Id } from "@convex/_generated/dataModel";
 import type { TransactionModel } from "@features/transactions/data/transactions";
+import type { HistoryFilters } from "../history/history-filters";
 import {
   useTransactionHistory,
-  type TransactionHistoryFilters,
   type TransactionHistoryOptions,
 } from "./useTransactionHistory";
 
@@ -38,7 +38,7 @@ function Consumer({
   filters,
   options,
 }: {
-  filters?: TransactionHistoryFilters;
+  filters?: HistoryFilters;
   options?: TransactionHistoryOptions;
 }) {
   const { transactions, error, isLoading, loadMore, loadMoreStatus, refresh } =

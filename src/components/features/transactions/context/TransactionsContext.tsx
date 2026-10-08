@@ -8,6 +8,7 @@ import {
 import type { PipeModel } from "@features/pipes/data/pipes";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
+import { getSubtreePipeIds } from "@features/pipes/data/subtree";
 import { useTransactionCache } from "@features/transactions/cache/TransactionCacheContext";
 import { pipeScope, RECENT_SCOPE } from "@features/transactions/cache/transactionSnapshot";
 
@@ -29,26 +30,6 @@ export function useTransactions(): TransactionsContextValue {
     throw new Error("useTransactions must be used within TransactionsProvider");
   }
   return value;
-}
-
-export function getSubtreePipeIds(
-  childrenByParent: Map<PipeModel["id"], PipeModel[]>,
-  selectedPipeId: PipeModel["id"] | null,
-): PipeModel["id"][] | null {
-  if (!selectedPipeId) return null;
-
-  const result: PipeModel["id"][] = [];
-  function dfs(nodeId: PipeModel["id"]) {
-    result.push(nodeId);
-    const nodeChildren = childrenByParent.get(nodeId);
-    if (nodeChildren) {
-      for (const child of nodeChildren) {
-        dfs(child.id);
-      }
-    }
-  }
-  dfs(selectedPipeId);
-  return result;
 }
 
 export function TransactionsProvider({ children }: { children: ReactNode }) {

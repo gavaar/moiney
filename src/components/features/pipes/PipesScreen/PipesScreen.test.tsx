@@ -94,16 +94,6 @@ vi.mock("@ui/Icon", () => ({
 }));
 vi.mock("@features/transactions/context/TransactionsContext", () => ({
   useTransactions: () => ({ transactions: [], isLoading: false }),
-  getSubtreePipeIds: (children: Map<string, { id: string }[]>, selected: string | null) => {
-    if (!selected) return null;
-    const ids: string[] = [];
-    const visit = (id: string) => {
-      ids.push(id);
-      children.get(id)?.forEach((child) => visit(child.id));
-    };
-    visit(selected);
-    return ids;
-  },
 }));
 vi.mock("@features/transactions/cache/TransactionCacheContext", () => ({
   useTransactionCache: () => ({

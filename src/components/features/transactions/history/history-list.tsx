@@ -6,7 +6,7 @@ import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import { colors } from "@/lib/styles";
 import { StackedTransactionItem } from "../components/TransactionList/components";
 import { TransactionCorrectionHistoryModal } from "../components/TransactionCorrectionHistory/TransactionCorrectionHistoryModal";
-import type { TransactionHistoryFilters } from "../cache/useTransactionHistory";
+import type { HistoryFilters } from "./history-filters";
 import { groupMonthlyEventHistory, type DeletedPipeEntry, type MonthlyEventArchive } from "./event-archives";
 import type { EventHistoryRow, HistoryEntry } from "./event-groups";
 import { EventTransactionItem, eventTransactionPresentation } from "./event-transaction-item";
@@ -20,7 +20,7 @@ type Row = { key: string; depth: number } & (
 const monthFormatter = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
 const rowDate = (row: EventHistoryRow | MonthlyEventArchive) => row.kind === "group" || row.kind === "archive" ? row.latestDate : row.kind === "operation" ? row.operation.occurredAt : row.event.occurredAt;
 export type HistoryListProps = {
-  entries: HistoryEntry[]; deletedPipes: DeletedPipeEntry[]; filters: TransactionHistoryFilters;
+  entries: HistoryEntry[]; deletedPipes: DeletedPipeEntry[]; filters: HistoryFilters;
   isLoading: boolean; error: string | null; hasMore: boolean; isRefreshing: boolean;
   loadMore: () => void; refresh: () => void;
 };
