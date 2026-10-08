@@ -29,7 +29,7 @@ const DATE_FORMAT: Intl.DateTimeFormatOptions = {
 export function TransactionItem({ transaction, resolveTransaction, onShowEditHistory }: TransactionItemProps) {
   const { pipesById, childrenByParent, isLoading: isPipeCatalogLoading, isPaidFromEligible } = usePipeCatalog();
   const confirmWithModal = useConfirmWithModal();
-  const deleteTransaction = useMutation(api.transactions.deleteTransaction);
+  const deleteTransaction = useMutation(api.financialOperations.remove);
   const historyCache = useOptionalEventHistoryCache();
   const showAlert = useAlert();
 
@@ -91,7 +91,7 @@ export function TransactionItem({ transaction, resolveTransaction, onShowEditHis
 
     setIsDeleting(true);
     try {
-      await deleteTransaction({ transactionId: row.id });
+      await deleteTransaction({ operationId: row.id });
     } catch (error) {
       showAlert.error(`${error}`);
       setIsDeleting(false);

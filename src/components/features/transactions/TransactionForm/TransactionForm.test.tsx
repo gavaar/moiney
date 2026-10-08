@@ -18,7 +18,7 @@ const edit = vi.fn().mockResolvedValue(undefined);
 const eventHistory = vi.hoisted(() => ({ entries: [] as HistoryEntry[] }));
 vi.mock("@features/transactions/cache/useEventHistory", () => ({ useEventHistory: () => ({ entries: eventHistory.entries, isLoading: false }) }));
 vi.mock("convex/react", () => ({ useMutation: (api: string) => api === "edit" ? edit : create, useQuery: () => [] }));
-vi.mock("@convex/_generated/api", () => ({ api: { transactions: { createTransaction: "create", editTransaction: "edit", listRecentTitles: "titles" } } }));
+vi.mock("@convex/_generated/api", () => ({ api: { financialOperations: { edit: "edit", create: "create", contributeToBoiler: "boiler" }, transactions: { listRecentTitles: "titles" } } }));
 vi.mock("@ui/Alert", () => ({ useAlert: () => ({ error: vi.fn() }) }));
 vi.mock("@features/transactions/cache/EventHistoryCacheContext", () => ({ useOptionalEventHistoryCache: () => null }));
 vi.mock("@features/pipes/context/PipeCatalogContext", () => ({ usePipeCatalog: () => ({
@@ -27,7 +27,7 @@ vi.mock("@features/pipes/context/PipeCatalogContext", () => ({ usePipeCatalog: (
 }) }));
 
 const initial = {
-  transactionId: "tx" as Id<"transactions">, date: Date.UTC(2025, 1, 3),
+  operationId: "operation" as Id<"events">, date: Date.UTC(2025, 1, 3),
   pipeName: source.name, pipeIcon: source.icon, title: "Lunch", value: "-5.00",
   structure: { type: "payByTransfer" as const, from: source.id, paidFrom: other.id },
 };
@@ -79,7 +79,7 @@ describe("transaction forms", () => {
     expect(screen.getByDisplayValue("Dinner")).toBeTruthy();
     expect(screen.getByText(/Food: spent/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Update transaction" }));
-    await waitFor(() => expect(edit).toHaveBeenCalledWith(expect.objectContaining({ transactionId: initial.transactionId, primaryPipeId: other.id, title: "Dinner", value: -500, date: initial.date })));
+    await waitFor(() => expect(edit).toHaveBeenCalledWith(expect.objectContaining({ operationId: initial.operationId, primaryPipeId: other.id, title: "Dinner", value: -500, date: initial.date })));
   });
 
   it("requires selection and an accounting choice when the old primary pipe is missing", async () => {

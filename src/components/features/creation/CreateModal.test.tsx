@@ -11,7 +11,7 @@ const createTransaction = vi.fn().mockResolvedValue(undefined);
 const addPipe = vi.fn().mockResolvedValue(undefined);
 const addFeed = vi.fn().mockResolvedValue(undefined);
 vi.mock("convex/react", () => ({ useMutation: (name: string) => name === "addPipe" ? addPipe : name === "addFeed" ? addFeed : createTransaction, useQuery: () => [] }));
-vi.mock("@convex/_generated/api", () => ({ api: { transactions: { createTransaction: {}, listRecentTitles: {} }, pipes: { addPipe: "addPipe", addFeed: "addFeed" } } }));
+vi.mock("@convex/_generated/api", () => ({ api: { financialOperations: { edit: {}, create: {}, contributeToBoiler: {} }, transactions: { listRecentTitles: {} }, pipes: { addPipe: "addPipe", addFeed: "addFeed" } } }));
 vi.mock("@ui/Alert", () => ({ useAlert: () => ({ error: vi.fn(), success: vi.fn() }) }));
 vi.mock("@features/transactions/cache/EventHistoryCacheContext", () => ({ useOptionalEventHistoryCache: () => null }));
 const pipe1 = {

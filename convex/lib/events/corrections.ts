@@ -2,7 +2,7 @@ import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "../../_generated/dataModel";
 import type { QueryCtx } from "../../_generated/server";
 
-const correctionSnapshot = v.object({
+export const correctionSnapshot = v.object({
   title: v.string(), value: v.number(), date: v.number(),
   kind: v.optional(v.union(v.literal("feed"), v.literal("expense"), v.literal("transfer"))),
   from: v.optional(v.id("pipes")), to: v.optional(v.id("pipes")), paidFrom: v.optional(v.id("pipes")),

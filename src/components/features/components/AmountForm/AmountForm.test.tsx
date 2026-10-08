@@ -38,10 +38,8 @@ vi.mock("convex/react", () => ({
 vi.mock("@convex/_generated/api", () => ({
   api: {
     pipes: {},
+    financialOperations: { edit: "editTransaction", create: "createTransaction", contributeToBoiler: "contributeToBoiler" },
     transactions: {
-      createTransaction: "createTransaction",
-      contributeToBoiler: "contributeToBoiler",
-      editTransaction: "editTransaction",
       listRecentTitles: "listRecentTitles",
     },
   },
@@ -277,18 +275,18 @@ describe("buildCreateTransactionCommand", () => {
 
 describe("buildEditTransactionCommand", () => {
   it("builds an edit command with the supplied title and integer cents", () => {
-    const transactionId = "transaction-1" as Id<"transactions">;
+    const operationId = "transaction-1" as Id<"events">;
     const date = new Date(2026, 6, 21, 15, 45).getTime();
 
     expect(
       buildEditTransactionCommand({
-        transactionId,
+        operationId,
         title: " Lunch ",
         amount: -1250,
         date,
       }),
     ).toEqual({
-      transactionId,
+      operationId,
       title: " Lunch ",
       value: -1250,
       date,
@@ -1375,7 +1373,7 @@ describe("AmountForm", () => {
             title: "coffee",
             value: "-5",
             structure: { type: "expense", from: PIPE_ID },
-            transactionId: "transaction-1" as Id<"transactions">,
+            operationId: "transaction-1" as Id<"events">,
             date: new Date(2026, 6, 20).getTime(),
           }}
         />,
@@ -1396,7 +1394,7 @@ describe("AmountForm", () => {
             title: "coffee",
             value: "-5",
             structure: { type: "expense", from: PIPE_ID },
-            transactionId: "transaction-1" as Id<"transactions">,
+            operationId: "transaction-1" as Id<"events">,
             date: new Date(2026, 6, 20).getTime(),
             intent: "edit",
           }}
@@ -1538,7 +1536,7 @@ describe("AmountForm", () => {
               title: "coffee",
               value: "-5",
               structure: { type: "expense", from: PIPE_ID },
-              transactionId: "transaction-1" as Id<"transactions">,
+              operationId: "transaction-1" as Id<"events">,
               date: new Date(2026, 6, 20).getTime(),
               intent: "edit",
             }}
@@ -1560,7 +1558,7 @@ describe("AmountForm", () => {
               title: "coffee",
               value: "-5",
               structure: { type: "expense", from: PIPE_ID },
-              transactionId: "transaction-1" as Id<"transactions">,
+              operationId: "transaction-1" as Id<"events">,
               date: new Date(2026, 6, 20).getTime(),
               intent: "edit",
             }}
@@ -1587,7 +1585,7 @@ describe("AmountForm", () => {
                 from: "child-1" as Id<"pipes">,
                 paidFrom: "feed-2" as Id<"pipes">,
               },
-              transactionId: "tx-1" as Id<"transactions">,
+              operationId: "tx-1" as Id<"events">,
               date: new Date(2026, 6, 20).getTime(),
               intent: "edit",
             }}
@@ -1612,7 +1610,7 @@ describe("AmountForm", () => {
               title: "lunch",
               value: "-15",
               structure: { type: "expense", from: PIPE_ID },
-              transactionId: "tx-1" as Id<"transactions">,
+              operationId: "tx-1" as Id<"events">,
               date: date.getTime(),
               intent: "edit",
             }}
@@ -1633,7 +1631,7 @@ describe("AmountForm", () => {
 
         await waitFor(() => {
           expect(mockEditTransactionFn).toHaveBeenCalledWith({
-            transactionId: "tx-1",
+            operationId: "tx-1",
             title: "new lunch",
             value: 2000,
             date: date.getTime(),
@@ -1657,7 +1655,7 @@ describe("AmountForm", () => {
               title: "move money",
               value: "-15",
               structure: { type: "expense", from: PIPE_ID },
-              transactionId: "tx-1" as Id<"transactions">,
+              operationId: "tx-1" as Id<"events">,
               date: date.getTime(),
               intent: "edit",
             }}
@@ -1670,7 +1668,7 @@ describe("AmountForm", () => {
 
         await waitFor(() => {
           expect(mockEditTransactionFn).toHaveBeenCalledWith({
-            transactionId: "tx-1",
+            operationId: "tx-1",
             title: "move money",
             value: -1500,
             date: date.getTime(),
@@ -1704,7 +1702,7 @@ describe("AmountForm", () => {
               title: "lunch",
               value: "-15",
               structure: { type: "expense", from: PIPE_ID },
-              transactionId: "tx-1" as Id<"transactions">,
+              operationId: "tx-1" as Id<"events">,
               date: 1,
               intent: "edit",
             }}
@@ -1732,7 +1730,7 @@ describe("AmountForm", () => {
               title: "lunch",
               value: "-15",
               structure: { type: "expense", from: PIPE_ID },
-              transactionId: "tx-1" as Id<"transactions">,
+              operationId: "tx-1" as Id<"events">,
               date: 1,
               intent: "edit",
             }}
@@ -1803,7 +1801,7 @@ describe("AmountForm", () => {
               title: "lunch",
               value: "-15",
               structure: { type: "expense", from: PIPE_ID },
-              transactionId: "tx-1" as Id<"transactions">,
+              operationId: "tx-1" as Id<"events">,
               date: 1,
               intent: "edit",
             }}

@@ -30,7 +30,7 @@ type CreateTransactionInput = {
 };
 
 type EditTransactionCommand = {
-  transactionId: Id<"transactions">;
+  operationId: Id<"events">;
   title: string;
   value: number;
   date: number;
@@ -43,7 +43,7 @@ type EditTransactionCommand = {
 };
 
 type EditTransactionInput = {
-  transactionId: Id<"transactions">;
+  operationId: Id<"events">;
   title: string;
   amount: number;
   date: number;
@@ -99,7 +99,7 @@ export function buildCreateTransactionCommand({
 }
 
 export function buildEditTransactionCommand({
-  transactionId,
+  operationId,
   title,
   amount,
   date,
@@ -132,7 +132,7 @@ export function buildEditTransactionCommand({
     }
   }
   return {
-    transactionId,
+    operationId,
     title,
     value: amount,
     date,

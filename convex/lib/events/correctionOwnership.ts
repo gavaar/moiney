@@ -13,10 +13,10 @@ export async function inspectCorrectionOperationLink(
   ctx: QueryCtx,
   correction: Doc<"transactionCorrections">,
 ): Promise<CorrectionLink> {
-  const transaction = await ctx.db.get("transactions", correction.transactionId);
-  if (!transaction) return { status: "missing_transaction" };
-  if (transaction.userId !== correction.userId) return { status: "foreign_transaction" };
-  const operationId = transaction.operationId;
+  const transaction = correction.transactionId ? await ctx.db.get("transactions", correction.transactionId) : null;
+  if (correction.transactionId && !transaction) return { status: "missing_transaction" };
+  if (transaction && transaction.userId !== correction.userId) return { status: "foreign_transaction" };
+  const operationId = transaction ? transaction.operationId : correction.operationId;
   if (!operationId) return { status: "missing_operation_link" };
   if (correction.operationId && correction.operationId !== operationId) {
     return { status: "conflicting_operation_link" };

@@ -2,6 +2,14 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import { pipeRuleValidator } from "./lib/pipes/ruleConfig";
 import { historyEventValidator } from "./lib/events/validators";
+import { correctionSnapshot } from "./lib/events/corrections";
+
+const correctionFields = {
+  userId: v.id("users"),
+  editedAt: v.number(),
+  previous: correctionSnapshot,
+  current: correctionSnapshot,
+};
 
 export default defineSchema({
   events: defineTable(historyEventValidator)
@@ -52,34 +60,10 @@ export default defineSchema({
     .index("by_userId", ["userId"])
     .index("by_userId_date", ["userId", "date"])
     .index("by_userId_operationId", ["userId", "operationId"]),
-  transactionCorrections: defineTable({
-    transactionId: v.id("transactions"),
-    operationId: v.optional(v.id("events")),
-    userId: v.id("users"),
-    editedAt: v.number(),
-    previous: v.object({
-      title: v.string(),
-      value: v.number(),
-      date: v.number(),
-      kind: v.optional(
-        v.union(v.literal("feed"), v.literal("expense"), v.literal("transfer")),
-      ),
-      from: v.optional(v.id("pipes")),
-      to: v.optional(v.id("pipes")),
-      paidFrom: v.optional(v.id("pipes")),
-    }),
-    current: v.object({
-      title: v.string(),
-      value: v.number(),
-      date: v.number(),
-      kind: v.optional(
-        v.union(v.literal("feed"), v.literal("expense"), v.literal("transfer")),
-      ),
-      from: v.optional(v.id("pipes")),
-      to: v.optional(v.id("pipes")),
-      paidFrom: v.optional(v.id("pipes")),
-    }),
-  })
+  transactionCorrections: defineTable(v.union(
+    v.object({ ...correctionFields, transactionId: v.id("transactions"), operationId: v.optional(v.id("events")) }),
+    v.object({ ...correctionFields, operationId: v.id("events"), transactionId: v.optional(v.id("transactions")) }),
+  ))
     .index("by_transactionId", ["transactionId", "editedAt"])
     .index("by_operationId", ["operationId", "editedAt"]),
   monthlySpendingStats: defineTable({

@@ -16,7 +16,10 @@ vi.mock("convex/react", () => ({
   useConvex: () => client,
   useMutation: (reference: FunctionReference<"mutation">) => {
     const name = getFunctionName(reference);
-    return name === "transactions:createTransaction" ? mocks.create : name === "transactions:editTransaction" ? mocks.edit : mocks.boiler;
+    if (name === "financialOperations:create") return mocks.create;
+    if (name === "financialOperations:edit") return mocks.edit;
+    if (name === "financialOperations:contributeToBoiler") return mocks.boiler;
+    throw new Error(`Unexpected mutation ${name}`);
   },
   useQuery: () => [],
 }));
@@ -29,9 +32,9 @@ const entry = (id: string) => ({ id: id as Id<"events">, operationId: id as Id<"
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mocks.create.mockResolvedValue({ id: "legacy-tx", title: "lunch", value: -100, date: 1, createdAt: 1, kind: "expense", from: source.id });
-  mocks.edit.mockResolvedValue({ id: "legacy-tx", title: "lunch", value: -100, date: 1, createdAt: 1, kind: "expense", from: source.id });
-  mocks.boiler.mockResolvedValue({ id: "legacy-tx", title: "lunch", value: 100, date: 1, createdAt: 1, kind: "feed", to: source.id });
+  mocks.create.mockResolvedValue(null);
+  mocks.edit.mockResolvedValue(null);
+  mocks.boiler.mockResolvedValue(true);
   mocks.query.mockResolvedValue({ events: [entry("new")], cursor: null, isDone: true });
 });
 
@@ -39,7 +42,7 @@ const cases: { name: string; props: AmountFormProps; value: string }[] = [
   { name: "creation", props: { pipeId: source.id }, value: "-1.00" },
   { name: "feed", props: { pipeId: source.id, variant: "feed" }, value: "1.00" },
   { name: "edit", props: { pipeId: source.id, variant: "transaction", initState: {
-    transactionId: "legacy-tx" as Id<"transactions">, intent: "edit", structure: { type: "expense", from: source.id },
+    operationId: "operation" as Id<"events">, intent: "edit", structure: { type: "expense", from: source.id },
     pipeName: source.name, pipeIcon: source.icon, title: "lunch", value: "-1.00", date: 1,
   } }, value: "-1.00" },
   { name: "boiler contribution", props: { pipeId: source.id, variant: "boiler", currentFed: 1000, boilerName: source.name }, value: "1.00" },
@@ -89,7 +92,7 @@ it.each(cases)("keeps event history intact when $name fails", async ({ props, va
 });
 
 it("does not invalidate history for a boiler current-fed-only correction with no event", async () => {
-  mocks.boiler.mockResolvedValueOnce(null);
+  mocks.boiler.mockResolvedValueOnce(false);
   const { result, success } = await setup({ pipeId: source.id, variant: "boiler", currentFed: 1000, boilerName: source.name });
   act(() => result.current.form.updateDraft({ currentFed: "12.00" }));
   await act(async () => result.current.form.action.submit());

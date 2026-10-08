@@ -12,7 +12,7 @@ export const auditCorrectionOperationLinks = internalQuery({
   args: { paginationOpts: paginationOptsValidator },
   returns: paginationResultValidator(v.object({
     correctionId: v.id("transactionCorrections"),
-    transactionId: v.id("transactions"),
+    transactionId: v.optional(v.id("transactions")),
     operationId: v.optional(v.id("events")),
     status: v.union(v.literal("ready"), v.literal("linked"), v.literal("missing_transaction"),
       v.literal("foreign_transaction"), v.literal("missing_operation_link"), v.literal("conflicting_operation_link"),

@@ -9,7 +9,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { requireAuth } from "./lib/auth";
 import { correctionHistoryItem } from "./lib/events/corrections";
 import {
-  correctBoilerCurrentFedOperation,
+  contributeToBoilerOperation,
   createTransactionOperation,
   deleteTransactionOperation,
   editTransactionOperation,
@@ -110,31 +110,7 @@ export const contributeToBoiler = mutation({
   returns: v.union(transactionCacheItem, v.null()),
   handler: async (ctx, args) => {
     const userId = await requireAuth(ctx);
-    if (args.value === 0) {
-      if (args.currentFed === undefined) {
-        throw new ConvexError({ code: "BOILER_UPDATE_EMPTY" });
-      }
-      await correctBoilerCurrentFedOperation(
-        ctx,
-        userId,
-        args.pipeId,
-        args.currentFed,
-      );
-      return null;
-    }
-    return await createTransactionOperation(
-      ctx,
-      userId,
-      {
-        title: args.title,
-        value: args.value,
-        date: args.date,
-        to: args.pipeId,
-        requireBoiler: true,
-        currentFedOverride: args.currentFed,
-      },
-      Date.now(),
-    );
+    return contributeToBoilerOperation(ctx, userId, args, Date.now());
   },
 });
 

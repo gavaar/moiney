@@ -114,7 +114,7 @@ vi.mock("@features/transactions/TransactionForm/TransactionForm", () => ({
     <div
       data-testid="amount-form"
       data-intent={initState?.intent ?? "repeat"}
-      data-transaction-id={initState?.transactionId}
+      data-operation-id={initState?.operationId}
       data-spent={initState?.spent}
       data-capacity={initState?.capacity}
       data-paid-from={
@@ -144,17 +144,17 @@ describe("TransactionItem", () => {
       .toContain("cart-outline");
   });
 
-  it("resolves an event presentation only on action and opens edit with the real transaction ID", async () => {
+  it("reads a complete event operation only on action and opens edit with its operation ID", async () => {
     const { id: _id, ...presentation } = baseTx;
     const resolveTransaction = vi.fn().mockResolvedValue(baseTx);
     render(<TransactionItem transaction={presentation} resolveTransaction={resolveTransaction} />);
     expect(resolveTransaction).not.toHaveBeenCalled();
     fireEvent.click(screen.getByLabelText("Edit shopping mall"));
-    await waitFor(() => expect(screen.getByTestId("amount-form").getAttribute("data-transaction-id")).toBe(baseTx.id));
+    await waitFor(() => expect(screen.getByTestId("amount-form").getAttribute("data-operation-id")).toBe(baseTx.id));
     expect(screen.getByTestId("amount-form").getAttribute("data-intent")).toBe("edit");
   });
 
-  it("opens correction history directly while resolving the legacy delete action", async () => {
+  it("opens correction history directly while reading the complete delete operation", async () => {
     const { id: _id, ...presentation } = baseTx;
     const resolveTransaction = vi.fn().mockResolvedValue(baseTx);
     const history = vi.fn();
@@ -164,7 +164,7 @@ describe("TransactionItem", () => {
     expect(history).toHaveBeenCalledOnce();
     expect(resolveTransaction).not.toHaveBeenCalled();
     fireEvent.click(screen.getByLabelText("Delete shopping mall"));
-    await waitFor(() => expect(deleteMocks.deleteTransaction).toHaveBeenCalledWith({ transactionId: baseTx.id }));
+    await waitFor(() => expect(deleteMocks.deleteTransaction).toHaveBeenCalledWith({ operationId: baseTx.id }));
   });
 
   it("reports a missing action target and discards resolution after the row unmounts", async () => {
@@ -276,7 +276,7 @@ describe("TransactionItem", () => {
     fireEvent.click(screen.getByLabelText("Delete shopping mall"));
 
     await waitFor(() => expect(deleteMocks.deleteTransaction).toHaveBeenCalledWith({
-      transactionId: baseTx.id,
+      operationId: baseTx.id,
     }));
     expect(deleteMocks.invalidateHistory).toHaveBeenCalledOnce();
     expect(deleteMocks.showSuccess).toHaveBeenCalledWith("Transaction deleted");

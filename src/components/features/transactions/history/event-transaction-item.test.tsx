@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { convexTest } from "convex-test";
+import type { FunctionReference } from "convex/server";
 import { expect, it, vi } from "vitest";
 import { api } from "@convex/_generated/api";
 import schema from "@convex/schema";
@@ -15,7 +16,8 @@ import type { Id } from "@convex/_generated/dataModel";
 
 const mocks = vi.hoisted(() => ({ query: vi.fn(), mutate: vi.fn(), pipes: [] as PipeModel[], success: vi.fn(), error: vi.fn() }));
 const client = { query: mocks.query };
-vi.mock("convex/react", () => ({ useConvex: () => client, useMutation: () => mocks.mutate }));
+vi.mock("convex/react", () => ({ useConvex: () => client, useMutation: (reference: FunctionReference<"mutation">) =>
+  (args: unknown) => mocks.mutate(reference, args) }));
 vi.mock("@ui/ConfirmModal", () => ({ useConfirmWithModal: () => async () => true }));
 vi.mock("@ui/Alert", () => ({ useAlert: () => ({ success: mocks.success, error: mocks.error }) }));
 vi.mock("@ui/Modal", () => ({ ModalShell: () => null }));
@@ -43,7 +45,7 @@ it("opens Edited history by operation ID without resolving a legacy action", () 
   expect(mocks.query).not.toHaveBeenCalled();
 });
 
-it("deletes the exact linked operation and refreshes event history without transaction snapshots", async () => {
+it("deletes an event-only operation and refreshes event history without transaction snapshots", async () => {
   const t = convexTest(schema, modules);
   const ids = await t.run(async ctx => {
     const userId = await ctx.db.insert("users", { username: "alice", email: "alice@example.com", password: "hash" });
@@ -55,12 +57,13 @@ it("deletes the exact linked operation and refreshes event history without trans
   });
   const auth = t.withIdentity({ subject: ids.userId });
   await auth.mutation(api.transactions.createTransaction, { from: ids.source, paidFrom: ids.payer, title: "hotel", value: -100, date: Date.now() });
+  await t.run(async ctx => { for (const transaction of await ctx.db.query("transactions").collect()) await ctx.db.delete("transactions", transaction._id); });
   const entries = await auth.query(api.events.latest, { pipeId: ids.payer });
   expect(entries).toHaveLength(1);
   const row = groupHistoryEvents(entries)[0];
   if (row.kind !== "operation") throw new Error("Expected operation");
   mocks.query.mockImplementation((ref, args) => auth.query(ref, args));
-  mocks.mutate.mockImplementation(args => auth.mutation(api.transactions.deleteTransaction, args));
+  mocks.mutate.mockImplementation((reference, args) => auth.mutation(reference, args));
   const values = new Map<string, string>();
   const storage = {
     read: async (key: string) => values.get(key) ?? null,
