@@ -284,17 +284,8 @@ describe("Convex boundaries: deletion and freeze", () => {
         fed: 40,
         spent: 10,
       });
-      const operationId = await insertFinancialOperation(ctx, { userId, title: "preserved expense", value: -10, occurredAt: 1,
+      await insertFinancialOperation(ctx, { userId, title: "preserved expense", value: -10, occurredAt: 1,
         structure: { type: "expense", from: childId } });
-      await ctx.db.insert("transactions", {
-        title: "preserved expense",
-        operationId,
-        value: -10,
-        date: 1,
-        kind: "expense",
-        from: childId,
-        userId,
-      });
       return { userId, parentId, childId };
     });
 
@@ -516,15 +507,8 @@ describe("Convex boundaries: deletion and freeze", () => {
       ];
       for (const [index, transaction] of transactions.entries()) {
         const value = transaction.kind === "feed" ? 1 : -1;
-        const operationId = await insertFinancialOperation(ctx, { userId, title: transaction.title, value, occurredAt: index,
+        await insertFinancialOperation(ctx, { userId, title: transaction.title, value, occurredAt: index,
           structure: transactionStructureFromRoles(transaction) });
-        await ctx.db.insert("transactions", {
-          ...transaction,
-          userId,
-          value,
-          operationId,
-          date: index,
-        });
       }
       return { userId, deletedPipeId };
     });

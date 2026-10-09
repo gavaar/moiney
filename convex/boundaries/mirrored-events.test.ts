@@ -37,7 +37,6 @@ describe("Convex boundaries: mirrored event creation", () => {
       ...(structure === "transfer" ? { to: targetId } : { paidFrom: targetId }),
     });
     const state = await t.run(async ctx => ({
-      transactions: await ctx.db.query("transactions").collect(),
       events: await ctx.db.query("events").collect(),
       source: await ctx.db.get("pipes", sourceId),
       target: await ctx.db.get("pipes", targetId),
@@ -57,7 +56,6 @@ describe("Convex boundaries: mirrored event creation", () => {
       occurredAt: 1000, title: "lunch", value: -value, operationId: canonical?._id,
     });
     expect(canonical!._id).not.toBe(mirror!._id);
-    expect(state.transactions).toEqual([]);
     expect(result).toBeNull();
     expect(state.usage).toHaveLength(1);
     expect(state.usage[0]).toMatchObject({ userId, pipeId: sourceId, title: "lunch", count: 1 });
@@ -98,7 +96,6 @@ describe("Convex boundaries: mirrored event creation", () => {
       ...(structure === "transfer" ? { to: targetId } : { paidFrom: targetId }),
     })).rejects.toThrow();
     expect(await t.run(ctx => ctx.db.query("events").collect())).toEqual([]);
-    expect(await t.run(ctx => ctx.db.query("transactions").collect())).toEqual([]);
     expect(await t.run(ctx => ctx.db.get("pipes", sourceId))).toMatchObject({ fed: 1000, spent: 200, contributedFed: 1000 });
     expect(await t.run(ctx => ctx.db.get("pipes", targetId))).toMatchObject({ fed: 500, spent: 100, contributedFed: 500 });
   });

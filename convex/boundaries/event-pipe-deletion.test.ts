@@ -7,7 +7,6 @@ import { modules } from "../test.setup";
 import { insertFinancialOperation } from "../lib/events/financial";
 import { ensureLivePipeCreationHistory } from "../lib/pipeHistory";
 import { startPipeDeletionOperation, processPipeDeletionOperation } from "../lib/pipes/delete/operations";
-import { deleteHistoryOperation } from "../lib/events/persistence";
 
 it.each([false, true])("applies orphan-history policy to event-only operations (delete=%s)", async deleteTransactions => {
   const t = convexTest(schema, modules);
@@ -60,7 +59,6 @@ it("keeps canonical lifecycle dates, ancestry and final presentation without a l
   expect(events.find(event => event._id === ids.creation._id)).toMatchObject({ occurredAt: ids.creation.occurredAt, parentName: "Final root", parentIcon: "airplane", ancestorIds: [ids.root] });
   expect(events.find(event => event.type === "pipe_deletion")).toMatchObject({ parentName: "Final root", parentIcon: "airplane", ancestorIds: [ids.root] });
   expect(await t.run(ctx => ctx.db.get("pipes", ids.child))).toBeNull();
-  expect(await t.run(ctx => ctx.db.query("pipeCreationEvents").collect())).toEqual([]);
 });
 
 it.each(["processingTransactions", "readyToFinalize", "complete"] as const)("handles a retired legacy job in phase %s without changing stored data", async phase => {
@@ -68,39 +66,27 @@ it.each(["processingTransactions", "readyToFinalize", "complete"] as const)("han
   const ids = await t.run(async ctx => {
     const userId = await ctx.db.insert("users", { username: "alice", email: "a", password: "hash" });
     const pipeId = await ctx.db.insert("pipes", { userId, name: "Deleted", icon: "wallet", priority: 0, capacity: 0, fed: 0, spent: 0 });
-    for (let i = 0; i < 2; i++) {
-      const operationId = await insertFinancialOperation(ctx, { userId, title: "old", value: -1, occurredAt: i, structure: { type: "expense", from: pipeId } });
-      await ctx.db.insert("transactions", { userId, operationId, title: "old", value: -1, date: i, kind: "expense", from: pipeId });
-    }
-    const page = await ctx.db.query("transactions").withIndex("by_from", q => q.eq("from", pipeId)).paginate({ numItems: 1, cursor: null });
+    await insertFinancialOperation(ctx, { userId, title: "old", value: -1, occurredAt: 1, structure: { type: "expense", from: pipeId } });
     const job = await startPipeDeletionOperation(ctx, userId, { pipeId, deleteTransactions: true }, async () => {});
-    await ctx.db.patch("pipeDeletionJobs", job.jobId, { historySource: undefined, phase, role: "from", cursor: page.continueCursor });
-    await deleteHistoryOperation(ctx, userId, page.page[0].operationId!);
-    await ctx.db.delete("transactions", page.page[0]._id);
+    await ctx.db.patch("pipeDeletionJobs", job.jobId, { historySource: undefined, phase, role: "from", cursor: "retired-transaction-cursor" });
     return { ...job, pipeId };
   });
-  const before = await t.run(async ctx => ({ job: await ctx.db.get("pipeDeletionJobs", ids.jobId), transactions: await ctx.db.query("transactions").collect(), events: await ctx.db.query("events").collect() }));
+  const before = await t.run(async ctx => ({ job: await ctx.db.get("pipeDeletionJobs", ids.jobId), pipes: await ctx.db.query("pipes").collect(), events: await ctx.db.query("events").collect() }));
   if (phase === "complete") expect(await t.run(ctx => processPipeDeletionOperation(ctx, ids.jobId, async () => {}))).toBeNull();
   else await expect(t.run(ctx => processPipeDeletionOperation(ctx, ids.jobId, async () => {}))).rejects.toThrow("Legacy pipe deletion job is no longer supported");
-  expect(await t.run(async ctx => ({ job: await ctx.db.get("pipeDeletionJobs", ids.jobId), transactions: await ctx.db.query("transactions").collect(), events: await ctx.db.query("events").collect() }))).toEqual(before);
+  expect(await t.run(async ctx => ({ job: await ctx.db.get("pipeDeletionJobs", ids.jobId), pipes: await ctx.db.query("pipes").collect(), events: await ctx.db.query("events").collect() }))).toEqual(before);
 });
 
-it.each([false, true])("creates and deletes lifecycle events without touching legacy data (deleteHistory=%s)", async deleteTransactions => {
+it.each([false, true])("creates and deletes lifecycle events with deleteHistory=%s", async deleteTransactions => {
   const t = convexTest(schema, modules);
   const userId = await t.run(ctx => ctx.db.insert("users", { username: "alice", email: "a", password: "hash" }));
   const auth = t.withIdentity({ subject: userId });
   const pipeId = await auth.mutation(api.pipes.addFeed, { name: "Wallet", icon: "wallet" });
-  expect(await t.run(ctx => ctx.db.query("pipeCreationEvents").collect())).toEqual([]);
-  const mirrorId = await t.run(ctx => ctx.db.insert("pipeCreationEvents", {
-    userId, pipeId, name: "Legacy", icon: "cafe", pipeType: "feed", occurredAt: 1, ancestorIds: [],
-  }));
-  const before = await t.run(ctx => ctx.db.get("pipeCreationEvents", mirrorId));
   vi.useFakeTimers();
   try {
     await auth.mutation(api.pipes.startPipeDeletion, { pipeId, deleteTransactions });
     await t.finishAllScheduledFunctions(vi.runAllTimers);
   } finally { vi.useRealTimers(); }
-  expect(await t.run(ctx => ctx.db.get("pipeCreationEvents", mirrorId))).toEqual(before);
   const events = await t.run(ctx => ctx.db.query("events").collect());
   expect(events.map(event => event.type).sort()).toEqual(deleteTransactions ? [] : ["pipe_creation", "pipe_deletion"]);
   expect(events.every(event => "name" in event && event.name === "Wallet")).toBe(true);
@@ -172,6 +158,5 @@ it("preserves complete paired operations across tied-date payer-only pages", asy
     const events = await t.run(ctx => ctx.db.query("events").collect());
     expect(events.filter(event => event.type !== "pipe_creation" && event.type !== "pipe_deletion")).toEqual(originalEvents);
     expect(events.filter(event => event.type === "pipe_creation" || event.type === "pipe_deletion")).toHaveLength(2);
-    expect(await t.run(ctx => ctx.db.query("transactions").collect())).toEqual([]);
   } finally { vi.useRealTimers(); }
 });

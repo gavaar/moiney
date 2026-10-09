@@ -65,7 +65,6 @@ it.each(["edit", "repeat"] as const)("submits %s from a payer-only perspective t
     const corrections = await t.run(ctx => ctx.db.query("transactionCorrections").collect());
     expect(corrections).toEqual([expect.objectContaining({ operationId: ids.operationId, previous: { title: "lunch", value: -100, date: 1,
       kind: "expense", from: ids.source, paidFrom: ids.payer }, current: expect.objectContaining({ title: "dinner", value: -100 }) })]);
-    expect(await t.run(ctx => ctx.db.query("transactions").collect())).toEqual([]);
     expect(await t.run(ctx => ctx.db.get("pipes", ids.source))).toMatchObject({ spent: 100, pendingFedAdjustment: 100 });
     expect(await t.run(ctx => ctx.db.get("pipes", ids.payer))).toMatchObject({ fed: 900 });
   } else {

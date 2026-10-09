@@ -43,7 +43,7 @@ and assigned to its first involved deletion member, so shared perspectives do
 not apply disposition twice. Retention considers every logical source,
 destination, and payer; removing an orphan removes the complete operation and
 schedules bounded operation-owned correction cleanup. Retained lifecycle events
-supply deleted-role presentation; legacy transaction rows stay untouched.
+supply deleted-role presentation without transaction mirrors.
 The job records completion for safe retries and
 credits the planned balance exactly once. Title-usage cleanup remains owned by
 the existing stale-usage maintenance job. Finalization follows the
@@ -51,8 +51,9 @@ the existing stale-usage maintenance job. Finalization follows the
 
 Jobs persist `historySource: "events"`. Active jobs without that marker are
 rejected rather than reinterpreting a retired transaction cursor. Legacy jobs
-must drain before deploying this reader retirement; completed job records remain
-safe to retry. Public progress phase names remain stable.
+may retain optional source, role, and cursor fields at rest; completed records
+remain safe to retry. Removing these persisted fields requires its own migration
+and does not authorize deleting job records. Public progress phase names remain stable.
 
 A new deletion cannot start in an accounting tree with an active deletion,
 including a frozen sibling branch: finalization may redistribute liquidity and

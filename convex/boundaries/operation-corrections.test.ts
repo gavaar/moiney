@@ -27,7 +27,6 @@ async function setup() {
 it("preserves Edited metadata and paginated correction history without the legacy transaction row", async () => {
   const { t, auth, operationId, payer } = await setup();
   const corrections = await t.run(ctx => ctx.db.query("transactionCorrections").collect());
-  expect(await t.run(ctx => ctx.db.query("transactions").collect())).toEqual([]);
   const first = await auth.query(listCorrections, { operationId, paginationOpts: { numItems: 1, cursor: null } });
   expect(first).toMatchObject({ isDone: false, page: [{ correctionId: corrections[1]._id, previous: { title: "dinner" }, current: { title: "hotel" } }] });
   expect(first.page[0]).not.toHaveProperty("transactionId");
@@ -72,7 +71,7 @@ it("bounds rows read even when reactive pagination supplies a wider end-cursor w
   await t.run(async ctx => {
     const example = (await ctx.db.query("transactionCorrections").first())!;
     for (let i = 0; i < 120; i++) await ctx.db.insert("transactionCorrections", {
-      userId: example.userId, transactionId: example.transactionId, operationId,
+      userId: example.userId, operationId,
       editedAt: example.editedAt + i + 1, previous: example.previous, current: example.current,
     });
   });

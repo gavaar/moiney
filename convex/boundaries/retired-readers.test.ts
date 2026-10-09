@@ -13,6 +13,8 @@ it.each([
   "transactions:forEventOperation",
   "transactions:listTransactionCorrectionsPaginated",
   "monthlySpendingStats:monthPage",
+  "migrations:auditCorrectionOperationLinks",
+  "migrations:legacyRetirementStatus",
 ])("does not expose the retired reader %s", async path => {
   const t = convexTest(schema, modules);
   await expect(t.query(makeFunctionReference<"query">(path), {})).rejects.toThrow(/Could not find|no such export/);
@@ -28,6 +30,10 @@ it.each([
   "migrations:m20261006_160000_backfillLivePipeEvents",
   "migrations:m20261006_160001_backfillLifecycleEvents",
   "migrations:m20261006_160002_backfillTransactionEvents",
+  "migrations:m20261008_180000_backfillCorrectionOperationIds",
+  "migrations:m20261009_160000_detachCorrectionTransactionIds",
+  "migrations:m20261009_160001_purgeLegacyTransactions",
+  "migrations:m20261009_160002_purgeLegacyPipeCreationEvents",
 ])("does not expose the retired job %s", async path => {
   const t = convexTest(schema, modules);
   await expect(t.mutation(makeFunctionReference<"mutation">(path), {})).rejects.toThrow(/Could not find|no such export/);

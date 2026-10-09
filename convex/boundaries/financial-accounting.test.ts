@@ -27,7 +27,6 @@ it.each([
   await t.run(ctx => ctx.db.patch("pipes", source, { rule, capacity }));
   await auth.mutation(api.financialOperations.create, { from: source, title: "food", value, date: 1 });
   expect(await t.run(ctx => ctx.db.get("pipes", source))).toMatchObject({ fed, spent });
-  expect(await t.run(ctx => ctx.db.query("transactions").collect())).toEqual([]);
 });
 
 it("applies cap updates to actual post-spend balances", async () => {

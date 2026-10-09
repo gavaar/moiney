@@ -63,7 +63,6 @@ it.each([
     await t.finishAllScheduledFunctions(vi.runAllTimers);
     expect(await t.run(ctx => ctx.db.query("transactionCorrections").collect())).toEqual([]);
   } finally { vi.useRealTimers(); }
-  expect(await t.run(ctx => ctx.db.query("transactions").collect())).toEqual([]);
   const restored = await t.run(async ctx => ({ source: await ctx.db.get("pipes", source), target: await ctx.db.get("pipes", target) }));
   expect(restored.source).toMatchObject({ fed: 1000, spent: 0 });
   expect(restored.target).toMatchObject({ fed: 1000, spent: 0, contributedFed: 1000 });
@@ -82,26 +81,6 @@ it.each(["foreign", "mirror", "incomplete"] as const)("rejects %s action targets
   expect(await t.run(ctx => ctx.db.query("transactionCorrections").collect())).toEqual([]);
   await expect(t.query(get, { operationId })).rejects.toThrow("Not authenticated");
   if (problem !== "incomplete") expect(await client.query(get, { operationId: actionId })).toBeNull();
-});
-
-it("leaves retired transaction rows untouched while editing and deleting their event operation", async () => {
-  const { t, auth, operationId, userId, source } = await setup("expense");
-  const transactionId = await t.run(ctx => ctx.db.insert("transactions", { userId, operationId, from: source, title: "stale mirror",
-    value: -9999, date: 9999, kind: "expense" }));
-  const mirror = await t.run(ctx => ctx.db.get("transactions", transactionId));
-  expect(await auth.query(get, { operationId })).toMatchObject({ title: "lunch", value: -100, date: 1 });
-  await auth.mutation(edit, { operationId, title: "dinner", value: -200, date: 2 });
-  expect(await t.run(ctx => ctx.db.get("transactions", transactionId))).toEqual(mirror);
-  expect((await t.run(ctx => ctx.db.get("pipes", source)))!.spent).toBe(200);
-  expect(await auth.query(api.operationCorrections.list, { operationId,
-    paginationOpts: { numItems: 20, cursor: null } })).toMatchObject({ page: [{ previous: { title: "lunch", value: -100 }, current: { title: "dinner", value: -200 } }] });
-  vi.useFakeTimers();
-  try {
-    await auth.mutation(remove, { operationId });
-    expect(await t.run(ctx => ctx.db.get("transactions", transactionId))).toEqual(mirror);
-    await t.finishAllScheduledFunctions(vi.runAllTimers);
-    expect(await t.run(ctx => ctx.db.query("transactionCorrections").collect())).toEqual([]);
-  } finally { vi.useRealTimers(); }
 });
 
 it("converts event-native structure while preserving canonical identity and applying the net plan", async () => {
@@ -138,7 +117,6 @@ it("creates and repeats through event-native commands without transaction writes
   const events = await t.run(ctx => ctx.db.query("events").collect());
   const repeated = events.find(event => event.type === "transfer")!;
   expect(repeated).toMatchObject({ operationId: repeated._id, title: "trip", value: -200 });
-  expect(await t.run(ctx => ctx.db.query("transactions").collect())).toEqual([]);
   expect(await t.run(ctx => ctx.db.get("pipes", source))).toMatchObject({ fed: 800, spent: 100 });
   expect(await t.run(ctx => ctx.db.get("pipes", target))).toMatchObject({ fed: 1200, contributedFed: 1200 });
 });
@@ -174,16 +152,16 @@ it("blocks native edits and deletions while an involved accounting tree is froze
   expect(await t.run(async ctx => ({ pipes: await ctx.db.query("pipes").collect(), events: await ctx.db.query("events").collect() }))).toEqual(before);
 });
 
-it("audits native corrections as linked and removes long histories in bounded, idempotent batches", async () => {
+it("reads native corrections and removes long histories in bounded, idempotent batches", async () => {
   const { t, auth, operationId, userId } = await setup("expense");
   await t.run(async ctx => {
     for (let i = 0; i < 125; i++) await ctx.db.insert("transactionCorrections", {
       operationId, userId, editedAt: i, previous: { title: "lunch", value: -100, date: 1 }, current: { title: "dinner", value: -100, date: 2 },
     });
   });
-  const audit = await t.query(internal.migrations.auditCorrectionOperationLinks, { paginationOpts: { numItems: 100, cursor: null } });
-  expect(audit.page).toHaveLength(100);
-  expect(audit.page.every(row => row.status === "linked" && row.operationId === operationId && row.transactionId === undefined)).toBe(true);
+  const history = await auth.query(api.operationCorrections.list, { operationId, paginationOpts: { numItems: 100, cursor: null } });
+  expect(history.page).toHaveLength(100);
+  expect(history.isDone).toBe(false);
   vi.useFakeTimers();
   try {
     await auth.mutation(remove, { operationId });
@@ -212,5 +190,4 @@ it.each([false, true])("replaces a missing native source with applyReplacementEf
   expect(await t.run(ctx => ctx.db.query("transactionCorrections").collect())).toEqual([
     expect.objectContaining({ operationId, previous: expect.objectContaining({ from: source }), current: expect.objectContaining({ from: replacement }) }),
   ]);
-  expect(await t.run(ctx => ctx.db.query("transactions").collect())).toEqual([]);
 });

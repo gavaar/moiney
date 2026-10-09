@@ -57,7 +57,6 @@ it("deletes an event-only operation and refreshes event history without transact
   });
   const auth = t.withIdentity({ subject: ids.userId });
   await auth.mutation(api.financialOperations.create, { from: ids.source, paidFrom: ids.payer, title: "hotel", value: -100, date: Date.now() });
-  expect(await t.run(ctx => ctx.db.query("transactions").collect())).toEqual([]);
   const entries = await auth.query(api.events.latest, { pipeId: ids.payer });
   expect(entries).toHaveLength(1);
   const row = groupHistoryEvents(entries)[0];
@@ -87,5 +86,4 @@ it("deletes an event-only operation and refreshes event history without transact
   await waitFor(() => expect(screen.getByTestId("history-count").textContent).toBe("0"));
   expect(values.has("alice")).toBe(false);
   expect(await t.run(ctx => ctx.db.query("events").collect())).toEqual([]);
-  expect(await t.run(ctx => ctx.db.query("transactions").collect())).toEqual([]);
 });

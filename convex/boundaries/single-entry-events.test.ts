@@ -33,7 +33,6 @@ describe("Convex boundaries: single-entry event creation", () => {
       ...(structure === "feed" ? { to: pipeId } : { from: pipeId }),
     });
     const state = await t.run(async (ctx) => ({
-      transactions: await ctx.db.query("transactions").collect(),
       events: await ctx.db.query("events").collect(),
       pipe: await ctx.db.get("pipes", pipeId),
       usage: await ctx.db.query("transactionTitleUsage").collect(),
@@ -44,7 +43,6 @@ describe("Convex boundaries: single-entry event creation", () => {
       operationId: state.events[0]._id,
     });
     expect(state.events[0]).not.toHaveProperty("targetPipeId");
-    expect(state.transactions).toEqual([]);
     expect(result).toBeNull();
     expect(state.pipe).toMatchObject({ fed, spent });
     expect(state.usage).toHaveLength(1);
@@ -60,7 +58,6 @@ describe("Convex boundaries: single-entry event creation", () => {
     expect(events).toHaveLength(1);
     expect(events[0]).toMatchObject({ type: "feed", userId, pipeId, occurredAt: 2000, title: "investment", value: 100 });
     expect(result).toBe(true);
-    expect(await t.run(ctx => ctx.db.query("transactions").collect())).toEqual([]);
     expect(await t.run(ctx => ctx.db.get("pipes", pipeId))).toMatchObject({ fed: 5000, spent: 200, contributedFed: 1100 });
   });
 
@@ -70,7 +67,6 @@ describe("Convex boundaries: single-entry event creation", () => {
       pipeId, title: "correction", value: 0, date: 2000, currentFed: -1000,
     })).toBe(false);
     expect(await t.run(ctx => ctx.db.query("events").collect())).toEqual([]);
-    expect(await t.run(ctx => ctx.db.query("transactions").collect())).toEqual([]);
     expect(await t.run(ctx => ctx.db.get("pipes", pipeId))).toMatchObject({ fed: -1000, contributedFed: 1000 });
   });
 
@@ -103,7 +99,6 @@ describe("Convex boundaries: single-entry event creation", () => {
     });
     await expect(auth.mutation(api.financialOperations.create, { title: "lunch", value: -100, date: 1000, from: pipeId })).rejects.toThrow();
     expect(await t.run(ctx => ctx.db.query("events").collect())).toEqual([]);
-    expect(await t.run(ctx => ctx.db.query("transactions").collect())).toEqual([]);
     expect(await t.run(ctx => ctx.db.get("pipes", pipeId))).toMatchObject({ fed: 1000, spent: 200 });
   });
 
@@ -111,7 +106,6 @@ describe("Convex boundaries: single-entry event creation", () => {
     const { t, auth, pipeId } = await setup();
     await expect(auth.mutation(api.financialOperations.create, { title: "lunch", value, date: 1000, from: pipeId })).rejects.toThrow();
     expect(await t.run(ctx => ctx.db.query("events").collect())).toEqual([]);
-    expect(await t.run(ctx => ctx.db.query("transactions").collect())).toEqual([]);
     expect(await t.run(ctx => ctx.db.get("pipes", pipeId))).toMatchObject({ fed: 1000, spent: 200 });
   });
 });

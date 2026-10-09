@@ -33,7 +33,6 @@ describe("Convex boundaries: unified pipe lifecycle events", () => {
       expect(event).not.toHaveProperty("title");
       expect(event).not.toHaveProperty("targetPipeId");
     }
-    expect(await t.run(ctx => ctx.db.query("transactions").collect())).toEqual([]);
   });
 
   it("retains distinct creation and deletion operations with final presentation and ancestry, including retries", async () => {
@@ -78,7 +77,6 @@ describe("Convex boundaries: unified pipe lifecycle events", () => {
     } else {
       expect(events).toEqual([]);
       expect(await t.run(ctx => readOperation(ctx, transaction.id))).toBeNull();
-      expect(await t.run(ctx => ctx.db.query("pipeCreationEvents").collect())).toEqual([]);
     }
   });
 
@@ -88,7 +86,6 @@ describe("Convex boundaries: unified pipe lifecycle events", () => {
     await auth.mutation(api.pipes.startPipeDeletion, { pipeId: root, deleteTransactions: true });
     await t.finishAllScheduledFunctions(vi.runAllTimers);
     expect(await t.run(ctx => ctx.db.query("events").collect())).toEqual([]);
-    expect(await t.run(ctx => ctx.db.query("pipeCreationEvents").collect())).toEqual([]);
   });
 
   it("captures an unlinked legacy pipe's creation before removal and credits its signed balance only once", async () => {
@@ -140,7 +137,6 @@ describe("Convex boundaries: unified pipe lifecycle events", () => {
     const childEvents = events.filter(event => event.pipeId === child);
     expect(childEvents).toHaveLength(2);
     for (const event of childEvents) expect(event).toMatchObject({ parentName: "Trips", parentIcon: "airplane" });
-    expect(await t.run(ctx => ctx.db.query("pipeCreationEvents").collect())).toEqual([]);
   });
 
   it("removes orphan operations in bounded event pages before finalizing", async () => {

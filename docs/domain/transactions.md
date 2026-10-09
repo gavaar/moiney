@@ -80,13 +80,12 @@ grouping.
 New corrections record only the exact canonical `operationId` atomically with
 the edited snapshot. Correction history, `Edited` metadata, and bounded cleanup
 use operation-owned corrections without resolving a legacy transaction.
-Persisted legacy correction links remain until separately approved schema/data
-retirement; see [correction ownership](events.md#correction-ownership-migration).
+Every correction requires canonical operation linkage; see
+[correction ownership](events.md#correction-ownership).
 
 Edit/delete actions validate the complete canonical event operation and use its
 snapshot as the accounting source. Creation/repeat and boiler commands expose
-no transaction IDs. Financial workflows neither read nor write legacy transaction
-rows, including when an existing row links to the operation.
+no transaction IDs. Financial persistence uses event operations only.
 
 Across rule-execution boundaries, edits apply their value delta to the current
 accounting period without restating historical periods. A delta changing logical

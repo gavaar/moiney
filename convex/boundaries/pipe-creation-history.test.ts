@@ -9,7 +9,7 @@ import { insertFinancialOperation } from "../lib/events/financial";
 import { startPipeDeletionOperation, processPipeDeletionOperation } from "../lib/pipes/delete/operations";
 
 describe("pipe creation history", () => {
-  it("refreshes lifecycle snapshots from events, not a stale legacy mirror", async () => {
+  it("refreshes lifecycle presentation without changing original occurrence dates", async () => {
     const t = convexTest(schema, modules);
     const ids = await t.run(async ctx => {
       const userId = await ctx.db.insert("users", { username: "alice", email: "a", password: "hash" });
@@ -17,7 +17,6 @@ describe("pipe creation history", () => {
       const pipe = (await ctx.db.get("pipes", pipeId))!;
       await ensureLivePipeCreationHistory(ctx, pipe);
       const event = (await ctx.db.query("events").collect())[0];
-      await ctx.db.insert("pipeCreationEvents", { userId, pipeId, name: "Stale", icon: "wallet", pipeType: "feed", occurredAt: 1, ancestorIds: [] });
       await ctx.db.patch("pipes", pipeId, { name: "Renamed" });
       return { pipeId, eventId: event._id, occurredAt: event.occurredAt };
     });
@@ -33,12 +32,8 @@ describe("pipe creation history", () => {
       const pipeId = await ctx.db.insert("pipes", { ...fields, name: "Madrid" });
       const payer = await ctx.db.insert("pipes", { ...fields, name: "Main" });
       const { id: eventId } = await ensureLivePipeCreationHistory(ctx, (await ctx.db.get("pipes", pipeId))!);
-      const operationId = await insertFinancialOperation(ctx, { userId, title: "hotel", value: -6000, occurredAt: 2000,
+      await insertFinancialOperation(ctx, { userId, title: "hotel", value: -6000, occurredAt: 2000,
         structure: shared ? { type: "payByTransfer", from: pipeId, paidFrom: payer } : { type: "expense", from: pipeId } });
-      await ctx.db.insert("transactions", {
-        userId, operationId, kind: "expense", title: "hotel", value: -6000, date: 2000,
-        from: pipeId, ...(shared ? { paidFrom: payer } : {}),
-      });
       return { userId, pipeId, eventId };
     });
     const job = await t.run((ctx) => startPipeDeletionOperation(ctx, userId, {
@@ -52,7 +47,6 @@ describe("pipe creation history", () => {
         q.eq("userId", userId).eq("pipeId", pipeId).eq("type", "pipe_deletion")).unique())).not.toBeNull();
     }
     else expect(event).toBeNull();
-    expect(await t.run((ctx) => ctx.db.query("transactions").collect())).toHaveLength(1);
     const financial = await t.run(async ctx => (await ctx.db.query("events").collect())
       .filter(event => event.type !== "pipe_creation" && event.type !== "pipe_deletion"));
     expect(financial).toHaveLength(shared ? 2 : 0);
@@ -101,7 +95,6 @@ describe("pipe creation history", () => {
     const state = await t.run(async (ctx) => ({
       events: await ctx.db.query("events").collect(),
       pipe: await ctx.db.get("pipes", child),
-      transactions: await ctx.db.query("transactions").collect(),
     }));
     expect(state.events).toHaveLength(3);
     expect(state.events.find((event) => event.pipeId === child)).toMatchObject({
@@ -109,6 +102,6 @@ describe("pipe creation history", () => {
       name: "Madrid", icon: "map", pipeType: "pipe",
     });
     expect(state.events.find((event) => event.pipeId === root && event.type === "pipe_creation")).toMatchObject({ ancestorIds: [] });
-    expect(state.transactions).toEqual([]);
+    expect(state.events.every(event => event.type === "pipe_creation")).toBe(true);
   });
 });

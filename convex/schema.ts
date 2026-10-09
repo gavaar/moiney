@@ -18,53 +18,7 @@ export default defineSchema({
     .index("by_userId_type", ["userId", "type"])
     .index("by_userId_occurredAt", ["userId", "occurredAt"])
     .index("by_userId_pipeId_occurredAt", ["userId", "pipeId", "occurredAt"]),
-  pipeCreationEvents: defineTable({
-    userId: v.id("users"),
-    pipeId: v.id("pipes"),
-    ancestorIds: v.array(v.id("pipes")),
-    occurredAt: v.number(),
-    name: v.string(),
-    icon: v.string(),
-    pipeType: v.union(v.literal("feed"), v.literal("boiler"), v.literal("pipe")),
-    parentName: v.optional(v.string()),
-    parentIcon: v.optional(v.string()),
-    deletedAt: v.optional(v.number()),
-  })
-    .index("by_pipeId", ["pipeId"])
-    .index("by_userId_occurredAt", ["userId", "occurredAt"]),
-  transactions: defineTable({
-    operationId: v.optional(v.id("events")),
-    title: v.string(),
-    value: v.number(),
-    date: v.number(),
-    kind: v.union(
-      v.literal("feed"),
-      v.literal("expense"),
-      v.literal("transfer"),
-    ),
-    from: v.optional(v.id("pipes")),
-    to: v.optional(v.id("pipes")),
-    paidFrom: v.optional(v.id("pipes")),
-    fromIcon: v.optional(v.string()),
-    toIcon: v.optional(v.string()),
-    paidFromIcon: v.optional(v.string()),
-    editedAt: v.optional(v.number()),
-    userId: v.id("users"),
-  })
-    .index("by_from", ["from"])
-    .index("by_to", ["to"])
-    .index("by_paidFrom", ["paidFrom"])
-    .index("by_userId_from_date", ["userId", "from", "date"])
-    .index("by_userId_to_date", ["userId", "to", "date"])
-    .index("by_userId_paidFrom_date", ["userId", "paidFrom", "date"])
-    .index("by_userId", ["userId"])
-    .index("by_userId_date", ["userId", "date"])
-    .index("by_userId_operationId", ["userId", "operationId"]),
-  transactionCorrections: defineTable(v.union(
-    v.object({ ...correctionFields, transactionId: v.id("transactions"), operationId: v.optional(v.id("events")) }),
-    v.object({ ...correctionFields, operationId: v.id("events"), transactionId: v.optional(v.id("transactions")) }),
-  ))
-    .index("by_transactionId", ["transactionId", "editedAt"])
+  transactionCorrections: defineTable({ ...correctionFields, operationId: v.id("events") })
     .index("by_operationId", ["operationId", "editedAt"]),
   monthlySpendingStats: defineTable({
     userId: v.id("users"),

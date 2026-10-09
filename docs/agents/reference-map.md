@@ -11,7 +11,7 @@ test before introducing another pattern; follow linked contracts for behavior.
 | Narrow feature context | `src/components/features/pipes/context/PipeCatalogContext.tsx` | Adjacent `PipeCatalogContext.test.tsx` |
 | Pure domain policy plus feature adapter | `domain/transactions/paidFromEligibility.ts` and `src/components/features/pipes/data/paidFromEligibility.ts` | `domain/transactions/paidFromEligibility.test.ts` |
 | Registered Convex wrapper and operation | `convex/financialOperations.ts` and `convex/lib/transactions/operations.ts` | `convex/boundaries/native-financial-actions.test.ts` |
-| Persisted schema or migration | `convex/schema.ts` and `convex/migrations.ts` | `docs/backend.md` and migration skill |
+| Persisted schema or migration | `convex/schema.ts` and `docs/backend.md#deployment-and-manual-migrations` | Convex migration skill and schema boundary tests |
 | Bounded maintenance continuation | `convex/sessions.ts` | `convex/sessions.test.ts` |
 | Event History cache ownership | `src/components/features/transactions/cache/EventHistoryCacheContext.tsx` and `EventHistoryStore.ts` | Adjacent provider/store tests and `docs/domain/history-cache.md` |
 | Shared input | `src/components/ui/Input/Input.tsx` | `src/components/ui/Input/Input.test.tsx` and `docs/input.md` |
