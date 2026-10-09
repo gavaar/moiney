@@ -16,7 +16,8 @@ controls orphaned transaction history:
 - An ordinary expense is orphaned when its `from` does not survive.
 - A pay-by-transfer expense is orphaned when neither `from` nor `paidFrom` survives.
 - A transfer is orphaned when neither `from` nor `to` survives.
-- Unchecked: preserve all transactions and embed deleted-role icons on them.
+- Unchecked: preserve all financial operations; retained lifecycle snapshots
+  supply deleted-role icons.
 - Preserved transactions cannot be repeated while they involve a deleted pipe.
   They may be edited by replacing every invalid role under
   [D017](transactions.md#d017-transaction-structural-editing), or physically
@@ -42,16 +43,16 @@ and assigned to its first involved deletion member, so shared perspectives do
 not apply disposition twice. Retention considers every logical source,
 destination, and payer; removing an orphan removes the complete operation and
 schedules bounded operation-owned correction cleanup. Retained lifecycle events
-supply deleted-role presentation. Compatibility transaction mirrors still receive
-deleted-role icons for installed clients. The job records completion for safe retries and
+supply deleted-role presentation; legacy transaction rows stay untouched.
+The job records completion for safe retries and
 credits the planned balance exactly once. Title-usage cleanup remains owned by
 the existing stale-usage maintenance job. Finalization follows the
 [childless-root default](accounting.md#d020-childless-root-settlement-default).
 
-New jobs persist `historySource: "events"`. Existing jobs without that marker
-finish on their original transaction role streams and cursors; a cursor must
-never be reinterpreted as an event cursor. Public progress phases remain stable
-for installed clients. Remove the legacy traversal only after those jobs drain.
+Jobs persist `historySource: "events"`. Active jobs without that marker are
+rejected rather than reinterpreting a retired transaction cursor. Legacy jobs
+must drain before deploying this reader retirement; completed job records remain
+safe to retry. Public progress phase names remain stable.
 
 A new deletion cannot start in an accounting tree with an active deletion,
 including a frozen sibling branch: finalization may redistribute liquidity and

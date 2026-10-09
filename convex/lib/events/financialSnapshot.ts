@@ -3,12 +3,16 @@ import type { Id } from "../../_generated/dataModel";
 import type { QueryCtx } from "../../_generated/server";
 import { historyOperationFromEvents } from "../../../domain/events";
 import { historyEventFromDocument } from "./persistence";
-import type { TransactionWriteResult } from "../transactions/operations";
-
-export type FinancialSnapshot = Omit<TransactionWriteResult, "id" | "createdAt"> & {
+export type FinancialSnapshot = {
   _creationTime: number;
-  operationId?: Id<"events">;
-  legacyTransactionId?: Id<"transactions">;
+  operationId: Id<"events">;
+  title: string;
+  value: number;
+  date: number;
+  kind: "feed" | "expense" | "transfer";
+  from?: Id<"pipes">;
+  to?: Id<"pipes">;
+  paidFrom?: Id<"pipes">;
 };
 
 /** Validates all perspectives before exposing an authoritative action snapshot. */

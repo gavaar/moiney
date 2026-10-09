@@ -56,8 +56,8 @@ it("deletes an event-only operation and refreshes event history without transact
     return { userId, source, payer };
   });
   const auth = t.withIdentity({ subject: ids.userId });
-  await auth.mutation(api.transactions.createTransaction, { from: ids.source, paidFrom: ids.payer, title: "hotel", value: -100, date: Date.now() });
-  await t.run(async ctx => { for (const transaction of await ctx.db.query("transactions").collect()) await ctx.db.delete("transactions", transaction._id); });
+  await auth.mutation(api.financialOperations.create, { from: ids.source, paidFrom: ids.payer, title: "hotel", value: -100, date: Date.now() });
+  expect(await t.run(ctx => ctx.db.query("transactions").collect())).toEqual([]);
   const entries = await auth.query(api.events.latest, { pipeId: ids.payer });
   expect(entries).toHaveLength(1);
   const row = groupHistoryEvents(entries)[0];

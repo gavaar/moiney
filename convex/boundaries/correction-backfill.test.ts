@@ -23,16 +23,20 @@ async function setup(count = 1) {
     return { userId, pipeId };
   });
   const auth = t.withIdentity({ subject: ids.userId });
-  const transaction = await auth.mutation(api.transactions.createTransaction, { from: ids.pipeId, title: "lunch", value: -100, date: 1 });
+  const transactionId = await t.run(async ctx => {
+    const operationId = await insertFinancialOperation(ctx, { userId: ids.userId, title: "lunch", value: -100, occurredAt: 1,
+      structure: { type: "expense", from: ids.pipeId } });
+    return ctx.db.insert("transactions", { operationId, userId: ids.userId, from: ids.pipeId, kind: "expense", title: "lunch", value: -100, date: 1 });
+  });
   const correctionIds = await t.run(async ctx => {
     const result = [];
     for (let i = 0; i < count; i++) result.push(await ctx.db.insert("transactionCorrections", {
-      transactionId: transaction.id, userId: ids.userId, editedAt: 100 + i,
+      transactionId, userId: ids.userId, editedAt: 100 + i,
       previous: { title: "old", value: -50, date: 1 }, current: { title: "lunch", value: -100, date: 1 },
     }));
     return result;
   });
-  return { t, auth, transactionId: transaction.id, correctionIds, ...ids };
+  return { t, auth, transactionId, correctionIds, ...ids };
 }
 
 it("backfills only exact ownership, without changing correction snapshots or accounting", async () => {
@@ -137,11 +141,12 @@ it("rolls back correction ownership in a dry run", async () => {
   expect(await t.run(ctx => ctx.db.query("transactionCorrections").collect())).toEqual(before);
 });
 
-it("continues bounded migration pages while new edits dual-write exact ownership", async () => {
+it("continues bounded migration pages alongside operation-only corrections", async () => {
   const { t, auth, transactionId } = await setup(5);
   const first = await t.mutation(migrate, { ...batch, batchSize: 2 });
   expect(first).toMatchObject({ processed: 2, isDone: false });
-  await auth.mutation(api.transactions.editTransaction, { transactionId, title: "dinner", value: -100, date: 1 });
+  const operationId = (await t.run(ctx => ctx.db.get("transactions", transactionId)))!.operationId!;
+  await auth.mutation(api.financialOperations.edit, { operationId, title: "dinner", value: -100, date: 1 });
   expect(await t.mutation(migrate, { ...batch, cursor: first.continueCursor })).toMatchObject({ processed: 4, isDone: true });
   const transaction = await t.run(ctx => ctx.db.get("transactions", transactionId));
   const corrections = await t.run(ctx => ctx.db.query("transactionCorrections").collect());

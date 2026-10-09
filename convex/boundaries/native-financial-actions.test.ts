@@ -84,20 +84,21 @@ it.each(["foreign", "mirror", "incomplete"] as const)("rejects %s action targets
   if (problem !== "incomplete") expect(await client.query(get, { operationId: actionId })).toBeNull();
 });
 
-it("updates installed-client mirrors and their correction reads without making the mirror authoritative", async () => {
+it("leaves retired transaction rows untouched while editing and deleting their event operation", async () => {
   const { t, auth, operationId, userId, source } = await setup("expense");
   const transactionId = await t.run(ctx => ctx.db.insert("transactions", { userId, operationId, from: source, title: "stale mirror",
     value: -9999, date: 9999, kind: "expense" }));
+  const mirror = await t.run(ctx => ctx.db.get("transactions", transactionId));
   expect(await auth.query(get, { operationId })).toMatchObject({ title: "lunch", value: -100, date: 1 });
   await auth.mutation(edit, { operationId, title: "dinner", value: -200, date: 2 });
-  expect(await auth.query(api.transactions.forEventOperation, { operationId })).toMatchObject({ id: transactionId, title: "dinner", value: -200, date: 2 });
+  expect(await t.run(ctx => ctx.db.get("transactions", transactionId))).toEqual(mirror);
   expect((await t.run(ctx => ctx.db.get("pipes", source)))!.spent).toBe(200);
-  expect(await auth.query(api.transactions.listTransactionCorrectionsPaginated, { transactionId,
+  expect(await auth.query(api.operationCorrections.list, { operationId,
     paginationOpts: { numItems: 20, cursor: null } })).toMatchObject({ page: [{ previous: { title: "lunch", value: -100 }, current: { title: "dinner", value: -200 } }] });
   vi.useFakeTimers();
   try {
     await auth.mutation(remove, { operationId });
-    expect(await t.run(ctx => ctx.db.get("transactions", transactionId))).toBeNull();
+    expect(await t.run(ctx => ctx.db.get("transactions", transactionId))).toEqual(mirror);
     await t.finishAllScheduledFunctions(vi.runAllTimers);
     expect(await t.run(ctx => ctx.db.query("transactionCorrections").collect())).toEqual([]);
   } finally { vi.useRealTimers(); }
@@ -130,14 +131,14 @@ it("removes complete retained history without partially reversing surviving pipe
   expect(await t.run(ctx => ctx.db.query("events").collect())).toEqual([]);
 });
 
-it("creates and repeats through event-native commands while retaining installed-client write mirrors", async () => {
+it("creates and repeats through event-native commands without transaction writes", async () => {
   const { t, auth, source, target } = await setup("expense");
   const result = await auth.mutation(create, { title: " trip ", value: -200, date: 2, from: source, to: target });
   expect(result).toBeNull();
   const events = await t.run(ctx => ctx.db.query("events").collect());
   const repeated = events.find(event => event.type === "transfer")!;
   expect(repeated).toMatchObject({ operationId: repeated._id, title: "trip", value: -200 });
-  expect(await t.run(ctx => ctx.db.query("transactions").collect())).toEqual([expect.objectContaining({ operationId: repeated._id, value: -200 })]);
+  expect(await t.run(ctx => ctx.db.query("transactions").collect())).toEqual([]);
   expect(await t.run(ctx => ctx.db.get("pipes", source))).toMatchObject({ fed: 800, spent: 100 });
   expect(await t.run(ctx => ctx.db.get("pipes", target))).toMatchObject({ fed: 1200, contributedFed: 1200 });
 });

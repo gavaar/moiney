@@ -4,9 +4,8 @@ Canonical transaction contracts. See the [decision index and status meanings](..
 [accounting](accounting.md), [deletion](deletion.md), [history cache](history-cache.md),
 and [reporting](reporting.md) for dependent contracts.
 
-The replacement [operation-centered event model](events.md) is in progress;
-the contracts below continue to govern legacy transaction readers and writers
-until cutover.
+The [operation-centered event model](events.md) owns transaction identity and
+persistence. The accounting and presentation contracts below govern those operations.
 
 ## D003: Transaction Involvement
 
@@ -78,20 +77,16 @@ paginated, authorized through the complete canonical event operation, and displa
 read-only modal. Corrections are not ordinary transaction rows and do not affect
 grouping.
 
-New corrections record the exact canonical `operationId` atomically with the
-edited snapshot and retain `transactionId` when a compatibility mirror exists.
-Persisted legacy corrections may lack the former until backfill completes.
-Legacy action, correction-read, and cleanup APIs retain their transaction-ID
-contracts for installed clients. Current correction history and `Edited` metadata
-read operation-owned corrections without resolving a legacy transaction. The
-[correction migration checkpoint](events.md#correction-ownership-migration)
-must pass before removing that compatibility.
+New corrections record only the exact canonical `operationId` atomically with
+the edited snapshot. Correction history, `Edited` metadata, and bounded cleanup
+use operation-owned corrections without resolving a legacy transaction.
+Persisted legacy correction links remain until separately approved schema/data
+retirement; see [correction ownership](events.md#correction-ownership-migration).
 
-Current edit/delete actions validate the complete canonical event operation
-and use its snapshot as the accounting source. They synchronize existing legacy
-mirrors for installed clients, but also work when no transaction row exists.
-Creation/repeat and boiler commands expose no transaction IDs; coexistence writes
-remain necessary for installed-client actions and pre-cutover pipe-deletion jobs.
+Edit/delete actions validate the complete canonical event operation and use its
+snapshot as the accounting source. Creation/repeat and boiler commands expose
+no transaction IDs. Financial workflows neither read nor write legacy transaction
+rows, including when an existing row links to the operation.
 
 Across rule-execution boundaries, edits apply their value delta to the current
 accounting period without restating historical periods. A delta changing logical
@@ -109,7 +104,7 @@ and tree separation before accounting effects.
 Missing and foreign pipes use the same non-disclosing expected error. Invalid
 topology uses stable error codes for a non-root destination, a source with
 children, and a destination in the source tree. Valid transfers conserve integer
-cents and create one transaction and one title-usage update.
+cents and create one financial operation and one title-usage update.
 
 ## D017: Transaction Structural Editing
 

@@ -43,7 +43,7 @@ export const get = query({
   handler: async (ctx, { operationId }) => {
     const userId = await requireAuth(ctx);
     try {
-      const { legacyTransactionId: _legacyId, _creationTime: createdAt, operationId: _operationId, ...snapshot } =
+      const { _creationTime: createdAt, operationId: _operationId, ...snapshot } =
         await readFinancialSnapshot(ctx, userId, operationId);
       return { ...snapshot, operationId, createdAt, editedAt: await latestCorrectionEditedAt(ctx, userId, operationId) };
     } catch (error) {

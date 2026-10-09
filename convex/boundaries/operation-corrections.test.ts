@@ -1,4 +1,5 @@
 // @vitest-environment edge-runtime
+import { createAndReadOperation } from "./financialFixtures.helpers";
 import { convexTest } from "convex-test";
 import { makeFunctionReference } from "convex/server";
 import { expect, it } from "vitest";
@@ -17,17 +18,16 @@ async function setup() {
     return { userId, otherId, source: await ctx.db.insert("pipes", fields), payer: await ctx.db.insert("pipes", fields) };
   });
   const auth = t.withIdentity({ subject: ids.userId });
-  const transaction = await auth.mutation(api.transactions.createTransaction, { from: ids.source, paidFrom: ids.payer, title: "lunch", value: -100, date: 1 });
-  await auth.mutation(api.transactions.editTransaction, { transactionId: transaction.id, title: "dinner", value: -150, date: 2 });
-  await auth.mutation(api.transactions.editTransaction, { transactionId: transaction.id, title: "hotel", value: -200, date: 3 });
-  const operationId = (await t.run(ctx => ctx.db.get("transactions", transaction.id)))!.operationId!;
-  return { t, auth, operationId, transactionId: transaction.id, ...ids };
+  const { operationId } = await createAndReadOperation(t, auth, { from: ids.source, paidFrom: ids.payer, title: "lunch", value: -100, date: 1 });
+  await auth.mutation(api.financialOperations.edit, { operationId, title: "dinner", value: -150, date: 2 });
+  await auth.mutation(api.financialOperations.edit, { operationId, title: "hotel", value: -200, date: 3 });
+  return { t, auth, operationId, ...ids };
 }
 
 it("preserves Edited metadata and paginated correction history without the legacy transaction row", async () => {
-  const { t, auth, operationId, transactionId, payer } = await setup();
+  const { t, auth, operationId, payer } = await setup();
   const corrections = await t.run(ctx => ctx.db.query("transactionCorrections").collect());
-  await t.run(ctx => ctx.db.delete("transactions", transactionId));
+  expect(await t.run(ctx => ctx.db.query("transactions").collect())).toEqual([]);
   const first = await auth.query(listCorrections, { operationId, paginationOpts: { numItems: 1, cursor: null } });
   expect(first).toMatchObject({ isDone: false, page: [{ correctionId: corrections[1]._id, previous: { title: "dinner" }, current: { title: "hotel" } }] });
   expect(first.page[0]).not.toHaveProperty("transactionId");

@@ -39,7 +39,7 @@ export type CreateTransactionCommand = {
 };
 
 export type EditTransactionCommand = {
-  transactionId: Id<"transactions">;
+  operationId: Id<"events">;
   title: string;
   value: number;
   date: number;
@@ -50,53 +50,6 @@ export type EditTransactionCommand = {
     | { type: "transfer"; to: Id<"pipes"> }
     | { type: "payByTransfer"; paidFrom: Id<"pipes"> };
 };
-
-export type DeleteTransactionCommand = {
-  transactionId: Id<"transactions">;
-};
-
-export type TransactionWriteResult = {
-  id: Id<"transactions">;
-  createdAt: number;
-  title: string;
-  value: number;
-  date: number;
-  kind: "feed" | "expense" | "transfer";
-  from?: Id<"pipes">;
-  to?: Id<"pipes">;
-  paidFrom?: Id<"pipes">;
-  fromIcon?: string;
-  toIcon?: string;
-  paidFromIcon?: string;
-  editedAt?: number;
-};
-
-function buildTransactionWriteResult(
-  id: Id<"transactions">,
-  createdAt: number,
-  transaction: Omit<TransactionWriteResult, "id" | "createdAt">,
-): TransactionWriteResult {
-  const result: TransactionWriteResult = {
-    id,
-    createdAt,
-    title: transaction.title,
-    value: transaction.value,
-    date: transaction.date,
-    kind: transaction.kind,
-  };
-
-  if (transaction.from !== undefined) result.from = transaction.from;
-  if (transaction.to !== undefined) result.to = transaction.to;
-  if (transaction.paidFrom !== undefined) result.paidFrom = transaction.paidFrom;
-  if (transaction.fromIcon !== undefined) result.fromIcon = transaction.fromIcon;
-  if (transaction.toIcon !== undefined) result.toIcon = transaction.toIcon;
-  if (transaction.paidFromIcon !== undefined) {
-    result.paidFromIcon = transaction.paidFromIcon;
-  }
-  if (transaction.editedAt !== undefined) result.editedAt = transaction.editedAt;
-
-  return result;
-}
 
 function createCachedPipeReader(ctx: MutationCtx) {
   const cache = new Map<Id<"pipes">, Promise<Doc<"pipes"> | null>>();
@@ -209,7 +162,7 @@ export async function createTransactionOperation(
   userId: Id<"users">,
   command: CreateTransactionCommand,
   now: number,
-): Promise<TransactionWriteResult> {
+): Promise<Id<"events">> {
   const title = canonicalizeTransactionTitle(command.title);
   const value = command.value;
   const getPipe = createCachedPipeReader(ctx);
@@ -274,16 +227,6 @@ export async function createTransactionOperation(
       value,
       structure: { type: "feed", to: command.to },
     });
-    const transactionId = await ctx.db.insert("transactions", {
-      operationId,
-      title,
-      value,
-      date: command.date,
-      kind,
-      from: undefined,
-      to: command.to,
-      userId,
-    });
     await updateOrCreateTitleUsage(ctx, {
       pipeId: command.to,
       userId,
@@ -291,13 +234,7 @@ export async function createTransactionOperation(
       now,
     });
     await reconcileAffectedPipeRoots(ctx, [command.to], getPipe);
-    return buildTransactionWriteResult(transactionId, now, {
-      title,
-      value,
-      date: command.date,
-      kind,
-      to: command.to,
-    });
+    return operationId;
   }
 
   const pipeId = command.from!;
@@ -382,30 +319,13 @@ export async function createTransactionOperation(
       value,
       structure: { type: "payByTransfer", from: pipeId, paidFrom: command.paidFrom },
     });
-    const transactionId = await ctx.db.insert("transactions", {
-      operationId,
-      title,
-      value,
-      date: command.date,
-      kind,
-      from: pipeId,
-      paidFrom: command.paidFrom,
-      userId,
-    });
     await updateOrCreateTitleUsage(ctx, {
       pipeId,
       userId,
       title,
       now,
     });
-    return buildTransactionWriteResult(transactionId, now, {
-      title,
-      value,
-      date: command.date,
-      kind,
-      from: pipeId,
-      paidFrom: command.paidFrom,
-    });
+    return operationId;
   }
 
   if (command.to) {
@@ -496,43 +416,13 @@ export async function createTransactionOperation(
       ? { type: "transfer", from: pipeId, to: command.to }
       : { type: "expense", from: pipeId },
   });
-  const transactionId = await ctx.db.insert("transactions", {
-    operationId,
-    title,
-    value,
-    date: command.date,
-    kind,
-    from: pipeId,
-    to: command.to,
-    userId,
-  });
   await updateOrCreateTitleUsage(ctx, {
     pipeId,
     userId,
     title,
     now,
   });
-  return buildTransactionWriteResult(transactionId, now, {
-    title,
-    value,
-    date: command.date,
-    kind,
-    from: pipeId,
-    to: command.to,
-  });
-}
-
-export async function editTransactionOperation(
-  ctx: MutationCtx,
-  userId: Id<"users">,
-  command: EditTransactionCommand,
-  now: number,
-): Promise<TransactionWriteResult> {
-  const transaction = await ctx.db.get("transactions", command.transactionId);
-  if (!transaction) throw new Error("Transaction not found");
-  if (transaction.userId !== userId) throw new Error("Not authorized");
-  const edited = await editFinancialSnapshot(ctx, userId, { ...transaction, legacyTransactionId: transaction._id }, command, now);
-  return buildTransactionWriteResult(command.transactionId, transaction._creationTime, edited);
+  return operationId;
 }
 
 export async function contributeToBoilerOperation(
@@ -540,7 +430,7 @@ export async function contributeToBoilerOperation(
   userId: Id<"users">,
   command: { pipeId: Id<"pipes">; title: string; value: number; date: number; currentFed?: number },
   now: number,
-): Promise<TransactionWriteResult | null> {
+): Promise<Id<"events"> | null> {
   if (command.value === 0) {
     if (command.currentFed === undefined) throw new ConvexError({ code: "BOILER_UPDATE_EMPTY" });
     await correctBoilerCurrentFedOperation(ctx, userId, command.pipeId, command.currentFed);
@@ -555,22 +445,20 @@ export async function contributeToBoilerOperation(
 export async function editEventFinancialOperation(
   ctx: MutationCtx,
   userId: Id<"users">,
-  command: Omit<EditTransactionCommand, "transactionId"> & { operationId: Id<"events"> },
+  command: EditTransactionCommand,
   now: number,
 ): Promise<void> {
   const transaction = await readFinancialSnapshot(ctx, userId, command.operationId);
-  const mirror = await ctx.db.query("transactions")
-    .withIndex("by_userId_operationId", q => q.eq("userId", userId).eq("operationId", command.operationId)).unique();
-  await editFinancialSnapshot(ctx, userId, { ...transaction, legacyTransactionId: mirror?._id }, command, now);
+  await editFinancialSnapshot(ctx, userId, transaction, command, now);
 }
 
 async function editFinancialSnapshot(
   ctx: MutationCtx,
   userId: Id<"users">,
   transaction: FinancialSnapshot,
-  command: Omit<EditTransactionCommand, "transactionId">,
+  command: EditTransactionCommand,
   now: number,
-): Promise<Omit<TransactionWriteResult, "id" | "createdAt">> {
+): Promise<void> {
   const getPipe = createCachedPipeReader(ctx);
 
   const title = canonicalizeTransactionTitle(command.title);
@@ -642,7 +530,7 @@ async function editFinancialSnapshot(
     const hasChildren = pipe && (role === "from" || (role === "paidFrom" && transaction.value < 0))
       ? (await ctx.db.query("pipes").withIndex("by_parentId", q => q.eq("parentId", oldId)).take(1)).length > 0
       : false;
-    const invalid = !pipe || transaction[`${role}Icon`] !== undefined || hasChildren ||
+    const invalid = !pipe || hasChildren ||
       (role === "to" && !!pipe.parentId) ||
       (role === "paidFrom" && transaction.value > 0 && !!pipe.parentId);
     if (invalid) {
@@ -774,7 +662,7 @@ async function editFinancialSnapshot(
     structureChanged;
   const editedAt = hasCorrection ? now : undefined;
 
-  let operationId = transaction.operationId;
+  const operationId = transaction.operationId;
   if (hasCorrection) {
     const eventInput = {
       userId,
@@ -783,14 +671,11 @@ async function editFinancialSnapshot(
       value: command.value,
       structure: currentStructure,
     };
-    if (operationId) await replaceFinancialOperation(ctx, operationId, eventInput);
-    else operationId = await insertFinancialOperation(ctx, eventInput);
+    await replaceFinancialOperation(ctx, operationId, eventInput);
   }
 
   if (editedAt !== undefined) {
-    if (!operationId) throw new Error("Edited operation identity is missing");
     await ctx.db.insert("transactionCorrections", {
-      transactionId: transaction.legacyTransactionId,
       operationId,
       userId,
       editedAt,
@@ -817,50 +702,11 @@ async function editFinancialSnapshot(
     });
   }
 
-  if (transaction.legacyTransactionId) await ctx.db.patch("transactions", transaction.legacyTransactionId, {
-    ...(operationId !== transaction.operationId ? { operationId } : {}),
-    title,
-    value: command.value,
-    date: command.date,
-    kind: currentKind,
-    from: currentFrom,
-    to: currentTo,
-    paidFrom: currentPaidFrom,
-    fromIcon: undefined,
-    toIcon: undefined,
-    paidFromIcon: undefined,
-    ...(editedAt !== undefined ? { editedAt } : {}),
-  });
-  return {
-    title,
-    value: command.value,
-    date: command.date,
-    kind: currentKind,
-    from: currentFrom,
-    to: currentTo,
-    paidFrom: currentPaidFrom,
-    editedAt: editedAt ?? transaction.editedAt,
-  };
-}
-
-export async function deleteTransactionOperation(
-  ctx: MutationCtx,
-  userId: Id<"users">,
-  command: DeleteTransactionCommand,
-): Promise<void> {
-  const transaction = await ctx.db.get("transactions", command.transactionId);
-  if (!transaction || transaction.userId !== userId) {
-    throw new ConvexError({ code: "TRANSACTION_NOT_FOUND" });
-  }
-
-  await deleteFinancialSnapshot(ctx, userId, { ...transaction, legacyTransactionId: transaction._id });
 }
 
 export async function deleteEventFinancialOperation(ctx: MutationCtx, userId: Id<"users">, operationId: Id<"events">): Promise<void> {
   const transaction = await readFinancialSnapshot(ctx, userId, operationId);
-  const mirror = await ctx.db.query("transactions")
-    .withIndex("by_userId_operationId", q => q.eq("userId", userId).eq("operationId", operationId)).unique();
-  await deleteFinancialSnapshot(ctx, userId, { ...transaction, legacyTransactionId: mirror?._id });
+  await deleteFinancialSnapshot(ctx, userId, transaction);
 }
 
 async function deleteFinancialSnapshot(ctx: MutationCtx, userId: Id<"users">, transaction: FinancialSnapshot): Promise<void> {
@@ -894,8 +740,5 @@ async function deleteFinancialSnapshot(ctx: MutationCtx, userId: Id<"users">, tr
     await assertPipeTreesNotFrozen(ctx, survivingOwnedPipes, getPipe);
   }
 
-  if (transaction.operationId) {
-    await deleteHistoryOperation(ctx, userId, transaction.operationId);
-  }
-  if (transaction.legacyTransactionId) await ctx.db.delete("transactions", transaction.legacyTransactionId);
+  await deleteHistoryOperation(ctx, userId, transaction.operationId);
 }

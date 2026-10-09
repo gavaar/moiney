@@ -1,4 +1,5 @@
 // @vitest-environment edge-runtime
+import { insertOperation, readOperation } from "./financialFixtures.helpers";
 import { convexTest } from "convex-test";
 import { describe, expect, it, vi } from "vitest";
 import { api } from "../_generated/api";
@@ -49,7 +50,7 @@ describe("transaction deletion", () => {
     const state = await t.run(async (ctx) => {
       const userId = await seedUser(ctx);
       const pipeId = await seedPipe(ctx, userId, { spent: startingSpent });
-      const transactionId = await ctx.db.insert("transactions", {
+      const operationId = await insertOperation(ctx, {
         userId,
         title: name,
         value,
@@ -57,17 +58,17 @@ describe("transaction deletion", () => {
         kind: "expense",
         from: pipeId,
       });
-      return { userId, pipeId, transactionId };
+      return { userId, pipeId, operationId };
     });
 
     await t.withIdentity({ subject: state.userId }).mutation(
-      api.transactions.deleteTransaction,
-      { transactionId: state.transactionId },
+      api.financialOperations.remove,
+      { operationId: state.operationId },
     );
 
     const result = await t.run(async (ctx) => ({
       pipe: await ctx.db.get("pipes", state.pipeId),
-      transaction: await ctx.db.get("transactions", state.transactionId),
+      transaction: await readOperation(ctx, state.operationId),
     }));
     expect(result.pipe?.spent).toBe(expectedSpent);
     expect(result.transaction).toBeNull();
@@ -82,7 +83,7 @@ describe("transaction deletion", () => {
         contributedFed: 1500,
         fed: 1500,
       });
-      const transactionId = await ctx.db.insert("transactions", {
+      const operationId = await insertOperation(ctx, {
         userId,
         title: "feed",
         value: 500,
@@ -90,12 +91,12 @@ describe("transaction deletion", () => {
         kind: "feed",
         to: pipeId,
       });
-      return { userId, pipeId, transactionId };
+      return { userId, pipeId, operationId };
     });
 
     await t.withIdentity({ subject: state.userId }).mutation(
-      api.transactions.deleteTransaction,
-      { transactionId: state.transactionId },
+      api.financialOperations.remove,
+      { operationId: state.operationId },
     );
 
     expect(await t.run((ctx) => ctx.db.get("pipes", state.pipeId))).toMatchObject({
@@ -110,7 +111,7 @@ describe("transaction deletion", () => {
       const userId = await seedUser(ctx);
       const from = await seedPipe(ctx, userId, { fed: 500 });
       const to = await seedPipe(ctx, userId, { fed: 1500 });
-      const transactionId = await ctx.db.insert("transactions", {
+      const operationId = await insertOperation(ctx, {
         userId,
         title: "transfer",
         value: -500,
@@ -119,12 +120,12 @@ describe("transaction deletion", () => {
         from,
         to,
       });
-      return { userId, from, to, transactionId };
+      return { userId, from, to, operationId };
     });
 
     await t.withIdentity({ subject: state.userId }).mutation(
-      api.transactions.deleteTransaction,
-      { transactionId: state.transactionId },
+      api.financialOperations.remove,
+      { operationId: state.operationId },
     );
 
     const [from, to] = await t.run(async (ctx) => Promise.all([
@@ -144,7 +145,7 @@ describe("transaction deletion", () => {
         pendingFedAdjustment: 500,
       });
       const paidFrom = await seedPipe(ctx, userId, { fed: 500 });
-      const transactionId = await ctx.db.insert("transactions", {
+      const operationId = await insertOperation(ctx, {
         userId,
         title: "purchase",
         value: -500,
@@ -153,13 +154,13 @@ describe("transaction deletion", () => {
         from,
         paidFrom,
       });
-      return { userId, from, paidFrom, transactionId };
+      return { userId, from, paidFrom, operationId };
     });
 
     const client = t.withIdentity({ subject: state.userId });
     await client.mutation(
-      api.transactions.deleteTransaction,
-      { transactionId: state.transactionId },
+      api.financialOperations.remove,
+      { operationId: state.operationId },
     );
 
     const [from, paidFrom] = await t.run(async (ctx) => Promise.all([
@@ -177,7 +178,7 @@ describe("transaction deletion", () => {
       const missing = await seedPipe(ctx, userId);
       const surviving = await seedPipe(ctx, userId, { fed: 1500 });
       await ctx.db.delete("pipes", missing);
-      const transactionId = await ctx.db.insert("transactions", {
+      const operationId = await insertOperation(ctx, {
         userId,
         title: "old transfer",
         value: -500,
@@ -185,19 +186,18 @@ describe("transaction deletion", () => {
         kind: "transfer",
         from: missing,
         to: surviving,
-        fromIcon: "wallet",
       });
-      return { userId, surviving, transactionId };
+      return { userId, surviving, operationId };
     });
 
     await t.withIdentity({ subject: state.userId }).mutation(
-      api.transactions.deleteTransaction,
-      { transactionId: state.transactionId },
+      api.financialOperations.remove,
+      { operationId: state.operationId },
     );
 
     const result = await t.run(async (ctx) => ({
       pipe: await ctx.db.get("pipes", state.surviving),
-      transaction: await ctx.db.get("transactions", state.transactionId),
+      transaction: await readOperation(ctx, state.operationId),
     }));
     expect(result.pipe?.fed).toBe(1500);
     expect(result.transaction).toBeNull();
@@ -212,7 +212,7 @@ describe("transaction deletion", () => {
         pendingFedAdjustment: 200,
       });
       const paidFrom = await seedPipe(ctx, userId, { fed: 500 });
-      const transactionId = await ctx.db.insert("transactions", {
+      const operationId = await insertOperation(ctx, {
         userId,
         title: "legacy purchase",
         value: -500,
@@ -221,18 +221,18 @@ describe("transaction deletion", () => {
         from,
         paidFrom,
       });
-      return { userId, from, paidFrom, transactionId };
+      return { userId, from, paidFrom, operationId };
     });
 
     await t.withIdentity({ subject: state.userId }).mutation(
-      api.transactions.deleteTransaction,
-      { transactionId: state.transactionId },
+      api.financialOperations.remove,
+      { operationId: state.operationId },
     );
 
     const [from, paidFrom, transaction] = await t.run(async (ctx) => Promise.all([
       ctx.db.get("pipes", state.from),
       ctx.db.get("pipes", state.paidFrom),
-      ctx.db.get("transactions", state.transactionId),
+      readOperation(ctx, state.operationId),
     ]));
     expect(from).toMatchObject({ spent: 0, pendingFedAdjustment: -300 });
     expect(paidFrom?.fed).toBe(1000);
@@ -257,7 +257,7 @@ describe("transaction deletion", () => {
       });
       await ctx.db.patch("pipes", frozenSibling, { deletionJobId });
       await ctx.db.delete("pipes", missing);
-      const transactionId = await ctx.db.insert("transactions", {
+      const operationId = await insertOperation(ctx, {
         userId,
         title: "old transfer",
         value: -500,
@@ -265,17 +265,16 @@ describe("transaction deletion", () => {
         kind: "transfer",
         from: missing,
         to: surviving,
-        fromIcon: "wallet",
       });
-      return { userId, transactionId };
+      return { userId, operationId };
     });
 
     await expect(t.withIdentity({ subject: state.userId }).mutation(
-      api.transactions.deleteTransaction,
-      { transactionId: state.transactionId },
+      api.financialOperations.remove,
+      { operationId: state.operationId },
     )).rejects.toThrow("Pipe is being deleted");
     expect(await t.run((ctx) =>
-      ctx.db.get("transactions", state.transactionId)
+      readOperation(ctx, state.operationId)
     )).not.toBeNull();
   });
 
@@ -284,7 +283,7 @@ describe("transaction deletion", () => {
     const state = await t.run(async (ctx) => {
       const userId = await seedUser(ctx);
       const pipeId = await seedPipe(ctx, userId, { spent: 100 });
-      const transactionId = await ctx.db.insert("transactions", {
+      const operationId = await insertOperation(ctx, {
         userId,
         title: "edited expense",
         value: -100,
@@ -294,19 +293,19 @@ describe("transaction deletion", () => {
       });
       for (let index = 0; index < 101; index += 1) {
         await ctx.db.insert("transactionCorrections", {
-          transactionId,
+          operationId,
           userId,
           editedAt: index,
           previous: { title: "old", value: -100, date: 1000 },
           current: { title: "new", value: -100, date: 1000 },
         });
       }
-      return { userId, transactionId };
+      return { userId, operationId };
     });
 
     await t.withIdentity({ subject: state.userId }).mutation(
-      api.transactions.deleteTransaction,
-      { transactionId: state.transactionId },
+      api.financialOperations.remove,
+      { operationId: state.operationId },
     );
     vi.useFakeTimers();
     await t.finishAllScheduledFunctions(vi.runAllTimers);
@@ -323,7 +322,7 @@ describe("transaction deletion", () => {
       const userId = await seedUser(ctx);
       const source = await seedPipe(ctx, userId, { spent: 500 });
       await seedPipe(ctx, userId, { parentId: source, fed: 0 });
-      const transactionId = await ctx.db.insert("transactions", {
+      const operationId = await insertOperation(ctx, {
         userId,
         title: "old expense",
         value: -500,
@@ -331,12 +330,12 @@ describe("transaction deletion", () => {
         kind: "expense",
         from: source,
       });
-      return { userId, source, transactionId };
+      return { userId, source, operationId };
     });
 
     await t.withIdentity({ subject: state.userId }).mutation(
-      api.transactions.deleteTransaction,
-      { transactionId: state.transactionId },
+      api.financialOperations.remove,
+      { operationId: state.operationId },
     );
 
     expect(await t.run((ctx) => ctx.db.get("pipes", state.source))).toMatchObject({
@@ -361,7 +360,7 @@ describe("transaction deletion", () => {
         role: "from",
       });
       await ctx.db.patch("pipes", sibling, { deletionJobId });
-      const transactionId = await ctx.db.insert("transactions", {
+      const operationId = await insertOperation(ctx, {
         userId,
         title: "expense",
         value: -500,
@@ -369,17 +368,17 @@ describe("transaction deletion", () => {
         kind: "expense",
         from: source,
       });
-      return { userId, source, transactionId };
+      return { userId, source, operationId };
     });
 
     await expect(t.withIdentity({ subject: state.userId }).mutation(
-      api.transactions.deleteTransaction,
-      { transactionId: state.transactionId },
+      api.financialOperations.remove,
+      { operationId: state.operationId },
     )).rejects.toThrow("Pipe is being deleted");
 
     const result = await t.run(async (ctx) => ({
       pipe: await ctx.db.get("pipes", state.source),
-      transaction: await ctx.db.get("transactions", state.transactionId),
+      transaction: await readOperation(ctx, state.operationId),
     }));
     expect(result.pipe?.spent).toBe(500);
     expect(result.transaction).not.toBeNull();
@@ -394,7 +393,7 @@ describe("transaction deletion", () => {
         spent: 0,
         rule: "instant_settlement",
       });
-      const transactionId = await ctx.db.insert("transactions", {
+      const operationId = await insertOperation(ctx, {
         userId,
         title: "refund",
         value: 500,
@@ -402,12 +401,12 @@ describe("transaction deletion", () => {
         kind: "expense",
         from: pipeId,
       });
-      return { userId, pipeId, transactionId };
+      return { userId, pipeId, operationId };
     });
 
     await t.withIdentity({ subject: state.userId }).mutation(
-      api.transactions.deleteTransaction,
-      { transactionId: state.transactionId },
+      api.financialOperations.remove,
+      { operationId: state.operationId },
     );
 
     expect(await t.run((ctx) => ctx.db.get("pipes", state.pipeId))).toMatchObject({
@@ -422,7 +421,7 @@ describe("transaction deletion", () => {
       const ownerId = await seedUser(ctx, "owner");
       const requesterId = await seedUser(ctx, "requester");
       const pipeId = await seedPipe(ctx, ownerId);
-      const foreignTransactionId = await ctx.db.insert("transactions", {
+      const foreignTransactionId = await insertOperation(ctx, {
         userId: ownerId,
         title: "private",
         value: -100,
@@ -430,7 +429,7 @@ describe("transaction deletion", () => {
         kind: "expense",
         from: pipeId,
       });
-      const missingTransactionId = await ctx.db.insert("transactions", {
+      const missingTransactionId = await insertOperation(ctx, {
         userId: ownerId,
         title: "removed",
         value: -100,
@@ -438,16 +437,16 @@ describe("transaction deletion", () => {
         kind: "expense",
         from: pipeId,
       });
-      await ctx.db.delete("transactions", missingTransactionId);
+      await ctx.db.delete("events", missingTransactionId);
       return { requesterId, foreignTransactionId, missingTransactionId };
     });
     const client = t.withIdentity({ subject: state.requesterId });
 
-    await expect(client.mutation(api.transactions.deleteTransaction, {
-      transactionId: state.foreignTransactionId,
-    })).rejects.toThrow("TRANSACTION_NOT_FOUND");
-    await expect(client.mutation(api.transactions.deleteTransaction, {
-      transactionId: state.missingTransactionId,
-    })).rejects.toThrow("TRANSACTION_NOT_FOUND");
+    await expect(client.mutation(api.financialOperations.remove, {
+      operationId: state.foreignTransactionId,
+    })).rejects.toThrow("OPERATION_NOT_FOUND");
+    await expect(client.mutation(api.financialOperations.remove, {
+      operationId: state.missingTransactionId,
+    })).rejects.toThrow("OPERATION_NOT_FOUND");
   });
 });

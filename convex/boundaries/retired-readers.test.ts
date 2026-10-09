@@ -10,6 +10,8 @@ it.each([
   "history:archivePage",
   "transactions:listTransactions",
   "transactions:listTransactionsPaginated",
+  "transactions:forEventOperation",
+  "transactions:listTransactionCorrectionsPaginated",
   "monthlySpendingStats:monthPage",
 ])("does not expose the retired reader %s", async path => {
   const t = convexTest(schema, modules);
@@ -18,6 +20,11 @@ it.each([
 
 it.each([
   "monthlySpendingStats:captureUserMonth",
+  "transactions:createTransaction",
+  "transactions:contributeToBoiler",
+  "transactions:editTransaction",
+  "transactions:deleteTransaction",
+  "transactions:deleteTransactionCorrectionsBatch",
   "migrations:m20261006_160000_backfillLivePipeEvents",
   "migrations:m20261006_160001_backfillLifecycleEvents",
   "migrations:m20261006_160002_backfillTransactionEvents",

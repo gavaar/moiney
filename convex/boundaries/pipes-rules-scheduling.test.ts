@@ -529,7 +529,7 @@ describe("Convex boundaries: pipes, rules, and scheduling", () => {
       return { userId, pipeId };
     });
 
-    await t.withIdentity({ subject: userId }).mutation(api.transactions.createTransaction, {
+    await t.withIdentity({ subject: userId }).mutation(api.financialOperations.create, {
       title: "coffee refund",
       value: 250,
       date: 3000,
@@ -570,7 +570,7 @@ describe("Convex boundaries: pipes, rules, and scheduling", () => {
       return { userId, coffeeId, bankId };
     });
 
-    await t.withIdentity({ subject: userId }).mutation(api.transactions.createTransaction, {
+    await t.withIdentity({ subject: userId }).mutation(api.financialOperations.create, {
       title: "coffee refund",
       value: 250,
       date: 3000,
@@ -618,7 +618,7 @@ describe("Convex boundaries: pipes, rules, and scheduling", () => {
 
     await t
       .withIdentity({ subject: userId })
-      .mutation(api.transactions.createTransaction, {
+      .mutation(api.financialOperations.create, {
         title: "coffee",
         value: -300,
         date: 3000,
@@ -806,7 +806,7 @@ describe("Convex boundaries: pipes, rules, and scheduling", () => {
 
     await t
       .withIdentity({ subject: userId })
-      .mutation(api.transactions.createTransaction, {
+      .mutation(api.financialOperations.create, {
         title: "coffee refund",
         value: 250,
         date: 3000,

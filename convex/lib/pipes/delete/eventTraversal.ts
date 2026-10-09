@@ -23,17 +23,12 @@ export async function processEventDeletionPage(ctx: MutationCtx, job: Doc<"pipeD
     for (const role of roles) {
       const pipe = await ctx.db.get("pipes", role.pipeId);
       if (pipe && pipe.userId !== job.userId) throw new Error("Not authorized");
-      states[role.pipeId] = { status: pipe && !pipe.deletionJobId && !members.has(pipe._id) ? "survives" : "deleting", icon: pipe?.icon };
+      states[role.pipeId] = { status: pipe && !pipe.deletionJobId && !members.has(pipe._id) ? "survives" : "deleting" };
     }
     const disposition = planTransactionDisposition(snapshot, states, job.deleteTransactions);
-    const mirror = await ctx.db.query("transactions").withIndex("by_userId_operationId", q =>
-      q.eq("userId", job.userId).eq("operationId", entry.operationId)).unique();
     if (disposition.delete) {
       await deleteHistoryOperation(ctx, job.userId, entry.operationId);
-      if (mirror) await ctx.db.delete("transactions", mirror._id);
       await ctx.scheduler.runAfter(0, internal.financialOperations.deleteCorrectionsBatch, { operationId: entry.operationId });
-    } else if (mirror && Object.keys(disposition.patches).length) {
-      await ctx.db.patch("transactions", mirror._id, disposition.patches);
     }
   }
   return page;

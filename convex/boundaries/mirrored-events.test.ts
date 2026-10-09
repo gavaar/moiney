@@ -32,20 +32,20 @@ describe("Convex boundaries: mirrored event creation", () => {
     { structure: "external", value: 100 },
   ] as const)("creates a complete $structure operation at $value cents without applying mirror accounting twice", async ({ structure, value }) => {
     const { t, auth, userId, sourceId, targetId } = await setup();
-    const result = await auth.mutation(api.transactions.createTransaction, {
+    const result = await auth.mutation(api.financialOperations.create, {
       title: "  LuNcH  ", value, date: 1000, from: sourceId,
       ...(structure === "transfer" ? { to: targetId } : { paidFrom: targetId }),
     });
     const state = await t.run(async ctx => ({
-      transaction: await ctx.db.get("transactions", result.id),
+      transactions: await ctx.db.query("transactions").collect(),
       events: await ctx.db.query("events").collect(),
       source: await ctx.db.get("pipes", sourceId),
       target: await ctx.db.get("pipes", targetId),
       usage: await ctx.db.query("transactionTitleUsage").collect(),
     }));
     expect(state.events).toHaveLength(2);
-    const canonical = state.events.find(event => event._id === state.transaction?.operationId);
-    const mirror = state.events.find(event => event._id !== state.transaction?.operationId);
+    const canonical = state.events.find(event => event._id === event.operationId);
+    const mirror = state.events.find(event => event._id !== event.operationId);
     expect(canonical).toMatchObject({
       type: structure === "transfer" ? "transfer" : "third_party_transaction",
       userId, pipeId: sourceId, targetPipeId: targetId,
@@ -57,11 +57,8 @@ describe("Convex boundaries: mirrored event creation", () => {
       occurredAt: 1000, title: "lunch", value: -value, operationId: canonical?._id,
     });
     expect(canonical!._id).not.toBe(mirror!._id);
-    expect(state.transaction).toMatchObject({
-      from: sourceId, title: "lunch", value, date: 1000,
-      ...(structure === "transfer" ? { to: targetId, kind: "transfer" } : { paidFrom: targetId, kind: "expense" }),
-    });
-    expect(result).not.toHaveProperty("operationId");
+    expect(state.transactions).toEqual([]);
+    expect(result).toBeNull();
     expect(state.usage).toHaveLength(1);
     expect(state.usage[0]).toMatchObject({ userId, pipeId: sourceId, title: "lunch", count: 1 });
     if (structure === "transfer") {
@@ -83,7 +80,7 @@ describe("Convex boundaries: mirrored event creation", () => {
       await ctx.db.patch("pipes", sourceId, { fed: 0, spent: 0, contributedFed: 0 });
       await ctx.db.patch("pipes", targetId, { fed: 0, spent: 0, contributedFed: 0 });
     });
-    await auth.mutation(api.transactions.createTransaction, { title: "move", value, date: 1000, from: sourceId, to: targetId });
+    await auth.mutation(api.financialOperations.create, { title: "move", value, date: 1000, from: sourceId, to: targetId });
     const events = await t.run(ctx => ctx.db.query("events").collect());
     expect(events).toHaveLength(2);
     expect(events.find(event => event.pipeId === sourceId)).toMatchObject({ value });
@@ -96,7 +93,7 @@ describe("Convex boundaries: mirrored event creation", () => {
   it.each(["transfer", "external"] as const)("rejects a foreign %s target without partial events or accounting changes", async structure => {
     const { t, auth, sourceId, targetId, foreignUserId } = await setup();
     await t.run(ctx => ctx.db.patch("pipes", targetId, { userId: foreignUserId }));
-    await expect(auth.mutation(api.transactions.createTransaction, {
+    await expect(auth.mutation(api.financialOperations.create, {
       title: "lunch", value: -100, date: 1000, from: sourceId,
       ...(structure === "transfer" ? { to: targetId } : { paidFrom: targetId }),
     })).rejects.toThrow();

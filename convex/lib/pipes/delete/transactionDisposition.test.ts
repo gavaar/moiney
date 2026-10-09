@@ -4,14 +4,12 @@ import {
   type DeletionPipeState,
 } from "./transactionDisposition";
 
-const surviving = (icon = "pipe"): DeletionPipeState => ({
+const surviving = (): DeletionPipeState => ({
   status: "survives",
-  icon,
 });
 
-const deleting = (icon = "pipe"): DeletionPipeState => ({
+const deleting = (): DeletionPipeState => ({
   status: "deleting",
-  icon,
 });
 
 describe("planTransactionDisposition", () => {
@@ -21,35 +19,35 @@ describe("planTransactionDisposition", () => {
       transaction: { kind: "feed" as const, to: "deleted" },
       pipes: {},
       deleteTransactions: true,
-      expected: { delete: true, patches: {} },
+      expected: { delete: true },
     },
     {
       name: "deletes an ordinary expense whose source is deleting",
       transaction: { kind: "expense" as const, from: "deleted" },
-      pipes: { deleted: deleting("food") },
+      pipes: { deleted: deleting() },
       deleteTransactions: true,
-      expected: { delete: true, patches: {} },
+      expected: { delete: true },
     },
     {
       name: "preserves a pay-by-transfer expense when its category survives",
       transaction: { kind: "expense" as const, from: "category", paidFrom: "deleted" },
-      pipes: { category: surviving("category-icon"), deleted: deleting("payer-icon") },
+      pipes: { category: surviving(), deleted: deleting() },
       deleteTransactions: true,
-      expected: { delete: false, patches: { paidFromIcon: "payer-icon" } },
+      expected: { delete: false },
     },
     {
       name: "deletes a pay-by-transfer expense when both roles are gone",
       transaction: { kind: "expense" as const, from: "category", paidFrom: "deleted" },
-      pipes: { category: deleting("category-icon"), deleted: deleting("payer-icon") },
+      pipes: { category: deleting(), deleted: deleting() },
       deleteTransactions: true,
-      expected: { delete: true, patches: {} },
+      expected: { delete: true },
     },
     {
       name: "preserves a transfer when its destination survives",
       transaction: { kind: "transfer" as const, from: "deleted", to: "destination" },
-      pipes: { deleted: deleting("source-icon"), destination: surviving("destination-icon") },
+      pipes: { deleted: deleting(), destination: surviving() },
       deleteTransactions: true,
-      expected: { delete: false, patches: { fromIcon: "source-icon" } },
+      expected: { delete: false },
     },
   ])("$name", ({ transaction, pipes, deleteTransactions, expected }) => {
     expect(
@@ -57,16 +55,15 @@ describe("planTransactionDisposition", () => {
     ).toEqual(expected);
   });
 
-  it("stores icons for every missing role when history is preserved", () => {
+  it("retains history when requested even if every role is gone", () => {
     expect(
       planTransactionDisposition(
         { kind: "transfer", from: "source", to: "destination" },
-        { source: deleting("source-icon"), destination: {} },
+        { source: deleting(), destination: {} },
         false,
       ),
     ).toEqual({
       delete: false,
-      patches: { fromIcon: "source-icon" },
     });
   });
 });

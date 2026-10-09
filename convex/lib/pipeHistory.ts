@@ -3,36 +3,6 @@ import type { MutationCtx } from "../_generated/server";
 import { MAX_PIPES_PER_USER } from "./constants";
 import { syncPipeCreationHistory, type PipeLifecycleSnapshot } from "./events/lifecycle";
 
-function snapshotChanged(existing: Doc<"pipeCreationEvents">, snapshot: PipeLifecycleSnapshot) {
-  return existing.name !== snapshot.name || existing.icon !== snapshot.icon || existing.pipeType !== snapshot.pipeType ||
-    existing.parentName !== snapshot.parentName || existing.parentIcon !== snapshot.parentIcon ||
-    existing.occurredAt !== snapshot.occurredAt || existing.ancestorIds.join() !== snapshot.ancestorIds.join();
-}
-
-/** Legacy jobs still call this entry point; native events own the snapshot. */
-export async function refreshPipeCreationEvent(
-  ctx: MutationCtx,
-  pipe: Doc<"pipes">,
-  existing: Doc<"pipeCreationEvents">,
-  parent: Doc<"pipes"> | null,
-) {
-  const { snapshot } = await ensureLivePipeCreationHistory(ctx, pipe, parent);
-  if (snapshotChanged(existing, snapshot)) await ctx.db.patch("pipeCreationEvents", existing._id, snapshot);
-  return snapshot;
-}
-
-/** Dual-write only for installed clients and pre-cutover deletion jobs. */
-export async function ensurePipeCreationEvent(ctx: MutationCtx, pipe: Doc<"pipes">) {
-  const { snapshot } = await ensureLivePipeCreationHistory(ctx, pipe);
-  const existing = await ctx.db.query("pipeCreationEvents")
-    .withIndex("by_pipeId", (q) => q.eq("pipeId", pipe._id)).unique();
-  if (existing) {
-    if (snapshotChanged(existing, snapshot)) await ctx.db.patch("pipeCreationEvents", existing._id, snapshot);
-    return existing._id;
-  }
-  return ctx.db.insert("pipeCreationEvents", snapshot);
-}
-
 export async function ensureLivePipeCreationHistory(ctx: MutationCtx, pipe: Doc<"pipes">, knownParent?: Doc<"pipes"> | null) {
   const existing = await ctx.db.query("events").withIndex("by_userId_pipeId_type", q =>
     q.eq("userId", pipe.userId).eq("pipeId", pipe._id).eq("type", "pipe_creation")).unique();
