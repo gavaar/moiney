@@ -22,9 +22,7 @@ const PIPE_ID = "pipe-1" as Id<"pipes">;
 const mockCreateTransaction = vi.fn().mockResolvedValue(undefined);
 const mockContributeToBoiler = vi.fn().mockResolvedValue(null);
 const mockEditTransactionFn = vi.fn().mockResolvedValue(undefined);
-const mockInvalidateAll = vi.fn().mockResolvedValue(undefined);
-const mockAddTransaction = vi.fn().mockResolvedValue(undefined);
-const mockUpdateTransaction = vi.fn().mockResolvedValue(undefined);
+const mockInvalidateHistory = vi.fn().mockResolvedValue(undefined);
 
 const mockRecentTitles: string[] = [];
 vi.mock("convex/react", () => ({
@@ -40,10 +38,8 @@ vi.mock("convex/react", () => ({
 vi.mock("@convex/_generated/api", () => ({
   api: {
     pipes: {},
+    financialOperations: { edit: "editTransaction", create: "createTransaction", contributeToBoiler: "contributeToBoiler" },
     transactions: {
-      createTransaction: "createTransaction",
-      contributeToBoiler: "contributeToBoiler",
-      editTransaction: "editTransaction",
       listRecentTitles: "listRecentTitles",
     },
   },
@@ -108,11 +104,9 @@ vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
   },
 }));
 
-vi.mock("@features/transactions/cache/TransactionCacheContext", () => ({
-  useOptionalTransactionCache: () => ({
-    invalidateAll: mockInvalidateAll,
-    addTransaction: mockAddTransaction,
-    updateTransaction: mockUpdateTransaction,
+vi.mock("@features/transactions/cache/EventHistoryCacheContext", () => ({
+  useOptionalEventHistoryCache: () => ({
+    invalidateHistory: mockInvalidateHistory,
   }),
 }));
 
@@ -281,18 +275,18 @@ describe("buildCreateTransactionCommand", () => {
 
 describe("buildEditTransactionCommand", () => {
   it("builds an edit command with the supplied title and integer cents", () => {
-    const transactionId = "transaction-1" as Id<"transactions">;
+    const operationId = "transaction-1" as Id<"events">;
     const date = new Date(2026, 6, 21, 15, 45).getTime();
 
     expect(
       buildEditTransactionCommand({
-        transactionId,
+        operationId,
         title: " Lunch ",
         amount: -1250,
         date,
       }),
     ).toEqual({
-      transactionId,
+      operationId,
       title: " Lunch ",
       value: -1250,
       date,
@@ -542,7 +536,7 @@ describe("AmountForm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockRecentTitles.length = 0;
-    mockInvalidateAll.mockResolvedValue(undefined);
+    mockInvalidateHistory.mockResolvedValue(undefined);
   });
 
   describe("variant='feed'", () => {
@@ -658,12 +652,11 @@ describe("AmountForm", () => {
 
       await waitFor(() => {
         expect(onSuccess).toHaveBeenCalled();
-        expect(mockAddTransaction).toHaveBeenCalled();
-        expect(mockInvalidateAll).not.toHaveBeenCalled();
+        expect(mockInvalidateHistory).toHaveBeenCalledOnce();
       });
     });
 
-    it("adds the created transaction to the cache", async () => {
+    it("invalidates event history after creation", async () => {
       const created = {
         id: "created-1",
         createdAt: 10,
@@ -685,8 +678,7 @@ describe("AmountForm", () => {
       fireEvent.click(screen.getByTestId("submit-button"));
 
       await waitFor(() => {
-        expect(mockAddTransaction).toHaveBeenCalledWith(created);
-        expect(mockInvalidateAll).not.toHaveBeenCalled();
+        expect(mockInvalidateHistory).toHaveBeenCalledOnce();
       });
     });
 
@@ -816,7 +808,7 @@ describe("AmountForm", () => {
           value: 30000,
           date: date.getTime(),
         });
-        expect(mockAddTransaction).toHaveBeenCalledWith(created);
+        expect(mockInvalidateHistory).toHaveBeenCalledOnce();
       });
       vi.useRealTimers();
     });
@@ -849,7 +841,7 @@ describe("AmountForm", () => {
             currentFed: 10000,
           }),
         );
-        expect(mockAddTransaction).not.toHaveBeenCalled();
+        expect(mockInvalidateHistory).not.toHaveBeenCalled();
       });
     });
   });
@@ -1381,7 +1373,7 @@ describe("AmountForm", () => {
             title: "coffee",
             value: "-5",
             structure: { type: "expense", from: PIPE_ID },
-            transactionId: "transaction-1" as Id<"transactions">,
+            operationId: "transaction-1" as Id<"events">,
             date: new Date(2026, 6, 20).getTime(),
           }}
         />,
@@ -1402,7 +1394,7 @@ describe("AmountForm", () => {
             title: "coffee",
             value: "-5",
             structure: { type: "expense", from: PIPE_ID },
-            transactionId: "transaction-1" as Id<"transactions">,
+            operationId: "transaction-1" as Id<"events">,
             date: new Date(2026, 6, 20).getTime(),
             intent: "edit",
           }}
@@ -1544,7 +1536,7 @@ describe("AmountForm", () => {
               title: "coffee",
               value: "-5",
               structure: { type: "expense", from: PIPE_ID },
-              transactionId: "transaction-1" as Id<"transactions">,
+              operationId: "transaction-1" as Id<"events">,
               date: new Date(2026, 6, 20).getTime(),
               intent: "edit",
             }}
@@ -1566,7 +1558,7 @@ describe("AmountForm", () => {
               title: "coffee",
               value: "-5",
               structure: { type: "expense", from: PIPE_ID },
-              transactionId: "transaction-1" as Id<"transactions">,
+              operationId: "transaction-1" as Id<"events">,
               date: new Date(2026, 6, 20).getTime(),
               intent: "edit",
             }}
@@ -1593,7 +1585,7 @@ describe("AmountForm", () => {
                 from: "child-1" as Id<"pipes">,
                 paidFrom: "feed-2" as Id<"pipes">,
               },
-              transactionId: "tx-1" as Id<"transactions">,
+              operationId: "tx-1" as Id<"events">,
               date: new Date(2026, 6, 20).getTime(),
               intent: "edit",
             }}
@@ -1618,7 +1610,7 @@ describe("AmountForm", () => {
               title: "lunch",
               value: "-15",
               structure: { type: "expense", from: PIPE_ID },
-              transactionId: "tx-1" as Id<"transactions">,
+              operationId: "tx-1" as Id<"events">,
               date: date.getTime(),
               intent: "edit",
             }}
@@ -1639,7 +1631,7 @@ describe("AmountForm", () => {
 
         await waitFor(() => {
           expect(mockEditTransactionFn).toHaveBeenCalledWith({
-            transactionId: "tx-1",
+            operationId: "tx-1",
             title: "new lunch",
             value: 2000,
             date: date.getTime(),
@@ -1663,7 +1655,7 @@ describe("AmountForm", () => {
               title: "move money",
               value: "-15",
               structure: { type: "expense", from: PIPE_ID },
-              transactionId: "tx-1" as Id<"transactions">,
+              operationId: "tx-1" as Id<"events">,
               date: date.getTime(),
               intent: "edit",
             }}
@@ -1676,7 +1668,7 @@ describe("AmountForm", () => {
 
         await waitFor(() => {
           expect(mockEditTransactionFn).toHaveBeenCalledWith({
-            transactionId: "tx-1",
+            operationId: "tx-1",
             title: "move money",
             value: -1500,
             date: date.getTime(),
@@ -1687,7 +1679,7 @@ describe("AmountForm", () => {
         vi.useRealTimers();
       });
 
-      it("updates the edited transaction in the cache", async () => {
+      it("invalidates event history after editing", async () => {
         const updated = {
           id: "tx-1",
           createdAt: 1,
@@ -1710,7 +1702,7 @@ describe("AmountForm", () => {
               title: "lunch",
               value: "-15",
               structure: { type: "expense", from: PIPE_ID },
-              transactionId: "tx-1" as Id<"transactions">,
+              operationId: "tx-1" as Id<"events">,
               date: 1,
               intent: "edit",
             }}
@@ -1723,8 +1715,7 @@ describe("AmountForm", () => {
         fireEvent.click(screen.getByTestId("submit-button"));
 
         await waitFor(() => {
-          expect(mockUpdateTransaction).toHaveBeenCalledWith(updated);
-          expect(mockInvalidateAll).not.toHaveBeenCalled();
+          expect(mockInvalidateHistory).toHaveBeenCalledOnce();
         });
       });
 
@@ -1739,7 +1730,7 @@ describe("AmountForm", () => {
               title: "lunch",
               value: "-15",
               structure: { type: "expense", from: PIPE_ID },
-              transactionId: "tx-1" as Id<"transactions">,
+              operationId: "tx-1" as Id<"events">,
               date: 1,
               intent: "edit",
             }}
@@ -1810,7 +1801,7 @@ describe("AmountForm", () => {
               title: "lunch",
               value: "-15",
               structure: { type: "expense", from: PIPE_ID },
-              transactionId: "tx-1" as Id<"transactions">,
+              operationId: "tx-1" as Id<"events">,
               date: 1,
               intent: "edit",
             }}

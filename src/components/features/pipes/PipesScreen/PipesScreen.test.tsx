@@ -71,9 +71,6 @@ vi.mock("@features/pipes/FeedListScreen", () => ({
     <div data-testid="feed-order">{pipes.map((pipe: any) => pipe.id).join(",")}</div>
   ),
 }));
-vi.mock("@features/transactions/components/TransactionList", () => ({
-  TransactionList: () => <div data-testid="latest-list" />,
-}));
 vi.mock("@features/transactions/history/mixed-history-feed", () => ({
   MixedHistoryFeed: ({ filters, recent, enabled }: { filters?: { pipeIds?: string[] }; recent?: boolean; enabled?: boolean }) => {
     useEffect(() => { mocks.historyMounts(); }, []);
@@ -92,23 +89,8 @@ vi.mock("@ui/Icon", () => ({
   ),
   safeIconName: (name: string) => name,
 }));
-vi.mock("@features/transactions/context/TransactionsContext", () => ({
-  useTransactions: () => ({ transactions: [], isLoading: false }),
-  getSubtreePipeIds: (children: Map<string, { id: string }[]>, selected: string | null) => {
-    if (!selected) return null;
-    const ids: string[] = [];
-    const visit = (id: string) => {
-      ids.push(id);
-      children.get(id)?.forEach((child) => visit(child.id));
-    };
-    visit(selected);
-    return ids;
-  },
-}));
-vi.mock("@features/transactions/cache/TransactionCacheContext", () => ({
-  useTransactionCache: () => ({
-    cache: {},
-    read: () => mocks.historySnapshot,
+vi.mock("@features/transactions/cache/EventHistoryCacheContext", () => ({
+  useEventHistoryCache: () => ({
     eventHistory: mocks.historySnapshot,
   }),
 }));

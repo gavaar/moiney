@@ -4,9 +4,9 @@ import { useRouter } from "expo-router";
 import type { Id } from "@convex/_generated/dataModel";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import { colors } from "@/lib/styles";
-import { StackedTransactionItem } from "../components/TransactionList/components";
+import { StackedTransactionItem } from "../components/StackedTransactionItem";
 import { TransactionCorrectionHistoryModal } from "../components/TransactionCorrectionHistory/TransactionCorrectionHistoryModal";
-import type { TransactionHistoryFilters } from "../cache/useTransactionHistory";
+import type { HistoryFilters } from "./history-filters";
 import { groupMonthlyEventHistory, type DeletedPipeEntry, type MonthlyEventArchive } from "./event-archives";
 import type { EventHistoryRow, HistoryEntry } from "./event-groups";
 import { EventTransactionItem, eventTransactionPresentation } from "./event-transaction-item";
@@ -20,7 +20,7 @@ type Row = { key: string; depth: number } & (
 const monthFormatter = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
 const rowDate = (row: EventHistoryRow | MonthlyEventArchive) => row.kind === "group" || row.kind === "archive" ? row.latestDate : row.kind === "operation" ? row.operation.occurredAt : row.event.occurredAt;
 export type HistoryListProps = {
-  entries: HistoryEntry[]; deletedPipes: DeletedPipeEntry[]; filters: TransactionHistoryFilters;
+  entries: HistoryEntry[]; deletedPipes: DeletedPipeEntry[]; filters: HistoryFilters;
   isLoading: boolean; error: string | null; hasMore: boolean; isRefreshing: boolean;
   loadMore: () => void; refresh: () => void;
 };
@@ -32,7 +32,7 @@ export function HistoryList({ entries, deletedPipes: catalog, filters, isLoading
     ...catalog, ...entries.filter((entry): entry is DeletedPipeEntry => entry.type === "pipe_deletion"),
   ].map(entry => [entry.pipeId, entry])).values()], [catalog, entries]);
   const [expanded, setExpanded] = useState(new Set<string>());
-  const [selected, setSelected] = useState<{ id: Id<"transactions">; title: string } | null>(null);
+  const [selected, setSelected] = useState<{ id: Id<"events">; title: string } | null>(null);
   const rows = useMemo(() => {
     const top = groupMonthlyEventHistory(entries, deletedPipes, filters.pipeIds?.length ? filters.pipeIds : undefined);
     const result: Row[] = [];
@@ -84,6 +84,6 @@ export function HistoryList({ entries, deletedPipes: catalog, filters, isLoading
               onShowEditHistory={id => setSelected({ id, title: row.operation.title })} />}
         </View>;
       }} />
-    {selected ? <TransactionCorrectionHistoryModal visible transactionId={selected.id} transactionTitle={selected.title} onClose={() => setSelected(null)} /> : null}
+    {selected ? <TransactionCorrectionHistoryModal visible operationId={selected.id} transactionTitle={selected.title} onClose={() => setSelected(null)} /> : null}
   </View>;
 }

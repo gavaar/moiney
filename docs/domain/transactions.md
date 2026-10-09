@@ -4,9 +4,8 @@ Canonical transaction contracts. See the [decision index and status meanings](..
 [accounting](accounting.md), [deletion](deletion.md), [history cache](history-cache.md),
 and [reporting](reporting.md) for dependent contracts.
 
-The replacement [operation-centered event model](events.md) is in progress;
-the contracts below continue to govern legacy transaction readers and writers
-until cutover.
+The [operation-centered event model](events.md) owns transaction identity and
+persistence. The accounting and presentation contracts below govern those operations.
 
 ## D003: Transaction Involvement
 
@@ -74,9 +73,19 @@ Status: Implemented
 An edit updates the current snapshot and records one linked correction document
 with previous and current title, value, and date. Normal lists show only the
 current snapshot and expose an `Edited` history control. Correction history is
-paginated, authorized through the owning transaction, and displayed in a
+paginated, authorized through the complete canonical event operation, and displayed in a
 read-only modal. Corrections are not ordinary transaction rows and do not affect
 grouping.
+
+New corrections record only the exact canonical `operationId` atomically with
+the edited snapshot. Correction history, `Edited` metadata, and bounded cleanup
+use operation-owned corrections without resolving a legacy transaction.
+Every correction requires canonical operation linkage; see
+[correction ownership](events.md#correction-ownership).
+
+Edit/delete actions validate the complete canonical event operation and use its
+snapshot as the accounting source. Creation/repeat and boiler commands expose
+no transaction IDs. Financial persistence uses event operations only.
 
 Across rule-execution boundaries, edits apply their value delta to the current
 accounting period without restating historical periods. A delta changing logical
@@ -94,7 +103,7 @@ and tree separation before accounting effects.
 Missing and foreign pipes use the same non-disclosing expected error. Invalid
 topology uses stable error codes for a non-root destination, a source with
 children, and a destination in the source tree. Valid transfers conserve integer
-cents and create one transaction and one title-usage update.
+cents and create one financial operation and one title-usage update.
 
 ## D017: Transaction Structural Editing
 
@@ -155,10 +164,9 @@ the user directs the correction against current balances. Once reassigned, the
 transaction's new roles are treated as ordinary roles by subsequent edits and
 deletion, regardless of the earlier choice to apply replacement effects.
 
-Correction history records previous and current structure. Loaded
-[transaction caches](history-cache.md#d014-transaction-snapshot-cache) update
-history and recent entities immediately and invalidate selected-pipe snapshots
-affected by either old or new roles.
+Correction history records previous and current structure. Successful edits
+invalidate the shared [event History snapshot](history-cache.md#d014-event-history-snapshot-cache)
+and notify mounted History and ranking consumers to reload authoritative entries.
 
 ## D018: Quick Transaction Creation
 

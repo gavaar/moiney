@@ -43,8 +43,7 @@ it("publishes event-derived live metrics only after all pages, independently of 
     });
     await insertHistoryOperation(ctx, { canonicalEvent: { ...base, type: "transaction", value: 100 } });
     await insertHistoryOperation(ctx, { canonicalEvent: { ...base, pipeId: root, type: "feed", value: 1500 } });
-    // The old reader must not supply this divergent live report.
-    await ctx.db.insert("transactions", { userId, from: leaf, kind: "expense", title: "legacy", value: -9999, date: mocks.periodStart });
+    // Divergent legacy data must not contribute to the live event report.
     return { userId, root, leaf };
   });
   const auth = t.withIdentity({ subject: userId });
@@ -59,12 +58,8 @@ it("publishes event-derived live metrics only after all pages, independently of 
     cursor = result.continueCursor;
   }
   expect(pages).toHaveLength(4);
-  const legacy = await auth.query(api.monthlySpendingStats.monthPage, {
-    periodStart: mocks.periodStart, paginationOpts: { numItems: 100, cursor: null },
-  });
   mocks.pages = new Map([
     [getFunctionName(api.monthlySpendingStats.eventMonthPage), pages.slice(0, 1)],
-    [getFunctionName(api.monthlySpendingStats.monthPage), legacy.page],
   ]);
   mocks.allPipes = [
     { id: root, name: "Root", icon: "wallet", priority: 0, capacity: 0, fed: 2000, spent: 0 },

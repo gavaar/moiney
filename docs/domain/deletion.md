@@ -2,7 +2,7 @@
 
 Canonical deletion contracts. See the [decision index and status meanings](../domain-decisions.md#status-meanings),
 [accounting](accounting.md), [transaction involvement](transactions.md#d003-transaction-involvement),
-and [cache reconciliation](history-cache.md#d014-transaction-snapshot-cache).
+and [history invalidation](history-cache.md#d014-event-history-snapshot-cache).
 
 ## D002: Pipe Deletion And Transaction History
 
@@ -16,7 +16,8 @@ controls orphaned transaction history:
 - An ordinary expense is orphaned when its `from` does not survive.
 - A pay-by-transfer expense is orphaned when neither `from` nor `paidFrom` survives.
 - A transfer is orphaned when neither `from` nor `to` survives.
-- Unchecked: preserve all transactions and embed deleted-role icons on them.
+- Unchecked: preserve all financial operations; retained lifecycle snapshots
+  supply deleted-role icons.
 - Preserved transactions cannot be repeated while they involve a deleted pipe.
   They may be edited by replacing every invalid role under
   [D017](transactions.md#d017-transaction-structural-editing), or physically
@@ -36,12 +37,23 @@ not only the selected pipe's local values. Credit that signed balance exactly
 once to the immediate parent, if any. A deleted root has no parent to credit.
 This includes [D012 pending accounting](accounting.md#d012-pay-by-transfer-liquidity-and-logical-spending).
 
-An idempotent job freezes the subtree and processes role-indexed transaction
-pages and finalization in bounded scheduled batches. Embedded icons require no
-additional history reads. The job records completion for safe retries and
+An idempotent job freezes the subtree and processes indexed event perspectives
+in bounded scheduled batches. Each financial operation is validated completely
+and assigned to its first involved deletion member, so shared perspectives do
+not apply disposition twice. Retention considers every logical source,
+destination, and payer; removing an orphan removes the complete operation and
+schedules bounded operation-owned correction cleanup. Retained lifecycle events
+supply deleted-role presentation without transaction mirrors.
+The job records completion for safe retries and
 credits the planned balance exactly once. Title-usage cleanup remains owned by
 the existing stale-usage maintenance job. Finalization follows the
 [childless-root default](accounting.md#d020-childless-root-settlement-default).
+
+Jobs persist `historySource: "events"`. Active jobs without that marker are
+rejected rather than reinterpreting a retired transaction cursor. Legacy jobs
+may retain optional source, role, and cursor fields at rest; completed records
+remain safe to retry. Removing these persisted fields requires its own migration
+and does not authorize deleting job records. Public progress phase names remain stable.
 
 A new deletion cannot start in an accounting tree with an active deletion,
 including a frozen sibling branch: finalization may redistribute liquidity and

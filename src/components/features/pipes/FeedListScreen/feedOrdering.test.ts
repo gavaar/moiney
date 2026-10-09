@@ -25,7 +25,7 @@ function transaction(
   roles: Pick<TransactionModel, "from" | "to" | "paidFrom">,
 ): TransactionModel {
   return {
-    id: id as Id<"transactions">,
+    id: id as Id<"events">,
     createdAt: 0,
     title: id,
     value: -100,

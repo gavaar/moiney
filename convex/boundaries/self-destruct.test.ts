@@ -1,4 +1,5 @@
 // @vitest-environment edge-runtime
+import { readOperations } from "./financialFixtures.helpers";
 import { convexTest } from "convex-test";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import schema from "../schema";
@@ -20,7 +21,7 @@ afterEach(() => vi.useRealTimers());
 
 describe("creation-time rules", () => {
   it("creates the pipe, rule, and history event together and cancels the parent's rule when it gains children", async () => {
-    const { t, client, parentId } = await setup();
+    const { t, client, userId, parentId } = await setup();
     const child = await client.mutation(api.pipes.addPipe, {
       parentId, name: "Madrid", icon: "airplane", priority: 0, capacity: 10000,
       ruleConfig: { rule: "self_destruct", starting: deadline },
@@ -28,7 +29,8 @@ describe("creation-time rules", () => {
     expect(await t.run((ctx) => ctx.db.get("pipes", child))).toMatchObject({
       rule: "self_destruct", cronNextDate: deadline, cronInterval: { interval: 0.5, unit: "days" }, fed: 10000,
     });
-    expect(await t.run((ctx) => ctx.db.query("pipeCreationEvents").withIndex("by_pipeId", (q) => q.eq("pipeId", child)).unique())).not.toBeNull();
+    expect(await t.run((ctx) => ctx.db.query("events").withIndex("by_userId_pipeId_type", (q) =>
+      q.eq("userId", userId).eq("pipeId", child).eq("type", "pipe_creation")).unique())).not.toBeNull();
     await client.mutation(api.pipes.addPipe, { parentId: child, name: "Meals", icon: "food", priority: 0, capacity: 1000 });
     const formerLeaf = await t.run((ctx) => ctx.db.get("pipes", child));
     expect(formerLeaf?.rule).toBeUndefined();
@@ -43,7 +45,7 @@ describe("creation-time rules", () => {
       ruleConfig: { rule: "self_destruct", starting: now },
     })).rejects.toThrow("INVALID_SELF_DESTRUCT_DATE");
     expect(await t.run((ctx) => ctx.db.query("pipes").collect())).toHaveLength(1);
-    expect(await t.run((ctx) => ctx.db.query("pipeCreationEvents").collect())).toHaveLength(1);
+    expect(await t.run((ctx) => ctx.db.query("events").collect())).toHaveLength(1);
     expect(await t.run((ctx) => ctx.db.get("pipes", parentId))).toMatchObject({ fed: 10000, rule: "instant_settlement" });
   });
 
@@ -104,10 +106,10 @@ describe("scheduled self-destruct", () => {
       parentId, name: "Madrid", icon: "airplane", priority: 0, capacity: 10000,
       ruleConfig: { rule: "self_destruct", starting: deadline },
     });
-    await client.mutation(api.transactions.createTransaction, {
+    await client.mutation(api.financialOperations.create, {
       from: child, title: "hotel", value: -1000, date: now, ...(external ? { paidFrom: payer } : {}),
     });
-    await client.mutation(api.transactions.createTransaction, {
+    await client.mutation(api.financialOperations.create, {
       from: child, title: "refund", value: 200, date: now, ...(external ? { paidFrom: payer } : {}),
     });
     vi.setSystemTime(deadline);
@@ -138,8 +140,8 @@ describe("scheduled self-destruct", () => {
       parentId, name, icon: "airplane", priority: 0, capacity: 10000,
       ruleConfig: { rule: "self_destruct", starting: deadline },
     }));
-    await client.mutation(api.transactions.createTransaction, { from: children[0], title: "hotel", value: -2000, date: now });
-    await client.mutation(api.transactions.createTransaction, { from: children[1], title: "train", value: -1000, date: now });
+    await client.mutation(api.financialOperations.create, { from: children[0], title: "hotel", value: -2000, date: now });
+    await client.mutation(api.financialOperations.create, { from: children[1], title: "train", value: -1000, date: now });
     await t.mutation(internal.pipes.runDueCronRules, { now: deadline - 1 });
     await t.finishAllScheduledFunctions(vi.runAllTimers);
     expect(await t.run((ctx) => ctx.db.query("pipes").collect())).toHaveLength(3);
@@ -148,9 +150,7 @@ describe("scheduled self-destruct", () => {
     await t.finishAllScheduledFunctions(vi.runAllTimers);
     expect(await t.run((ctx) => ctx.db.query("pipes").collect())).toHaveLength(1);
     expect(await t.run((ctx) => ctx.db.get("pipes", parentId))).toMatchObject({ fed: 7000 });
-    expect(await t.run((ctx) => ctx.db.query("transactions").collect())).toHaveLength(2);
-    const events = await t.run((ctx) => ctx.db.query("pipeCreationEvents").collect());
-    expect(events.filter((event) => event.deletedAt !== undefined)).toHaveLength(2);
+    expect(await t.run((ctx) => readOperations(ctx))).toHaveLength(2);
     const unified = await t.run(ctx => ctx.db.query("events").collect());
     expect(unified.filter(event => event.type === "pipe_creation")).toHaveLength(3);
     expect(unified.filter(event => event.type === "pipe_deletion").map(event => event.pipeId).sort()).toEqual([...children].sort());

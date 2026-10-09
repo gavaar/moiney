@@ -4,6 +4,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { requireAuth } from "./lib/auth";
 import { historyEventResultValidator, pipeDeletionResultValidator } from "./lib/events/validators";
 import { pageLimit, validateDateRange } from "./lib/historyValidation";
+import { latestCorrectionEditedAt } from "./lib/events/corrections";
 
 const scopeFields = {
   pipeId: v.optional(v.id("pipes")),
@@ -31,9 +32,7 @@ function eventResult(event: Doc<"events">) {
   return { id: _id, createdAt: _creationTime, operationId, ...fields };
 }
 
-/** Preserve the shipped Edited control during transaction/event coexistence.
- * Reads each loaded operation's exact link once; never loads additional members.
- */
+/** Reads each loaded operation's latest correction once, without expanding entry windows. */
 async function financialEventResults(ctx: QueryCtx, events: Doc<"events">[]): Promise<Infer<typeof historyEventResultValidator>[]> {
   const edits = new Map<Id<"events">, Promise<number | undefined>>();
   return await Promise.all(events.map(async event => {
@@ -41,9 +40,7 @@ async function financialEventResults(ctx: QueryCtx, events: Doc<"events">[]): Pr
     if (event.type === "pipe_creation" || event.type === "pipe_deletion") return result;
     let edit = edits.get(result.operationId);
     if (!edit) {
-      edit = ctx.db.query("transactions")
-        .withIndex("by_userId_operationId", q => q.eq("userId", event.userId).eq("operationId", result.operationId))
-        .unique().then(transaction => transaction?.editedAt);
+      edit = latestCorrectionEditedAt(ctx, event.userId, result.operationId);
       edits.set(result.operationId, edit);
     }
     const editedAt = await edit;

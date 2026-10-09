@@ -130,7 +130,7 @@ export const getTransactionItemModel = (
     title: transaction.title,
     value: formatMoneyInput(transaction.value),
     structure: transactionStructureFromRoles(transaction),
-    transactionId: transaction.id,
+    operationId: transaction.id,
     date: transaction.date,
   } };
 };

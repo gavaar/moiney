@@ -1,4 +1,5 @@
 // @vitest-environment edge-runtime
+import { readOperations, createAndReadOperation, readOperation } from "./financialFixtures.helpers";
 import { convexTest } from "convex-test";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { api, internal } from "../_generated/api";
@@ -32,7 +33,6 @@ describe("Convex boundaries: unified pipe lifecycle events", () => {
       expect(event).not.toHaveProperty("title");
       expect(event).not.toHaveProperty("targetPipeId");
     }
-    expect(await t.run(ctx => ctx.db.query("transactions").collect())).toEqual([]);
   });
 
   it("retains distinct creation and deletion operations with final presentation and ancestry, including retries", async () => {
@@ -64,7 +64,7 @@ describe("Convex boundaries: unified pipe lifecycle events", () => {
       const fields = { userId, icon: "wallet", priority: 0, capacity: 1000, fed: 1000, spent: 0 };
       return { sourceId: await ctx.db.insert("pipes", { ...fields, name: "Travel" }), payerId: await ctx.db.insert("pipes", { ...fields, name: "Main" }) };
     });
-    const transaction = await auth.mutation(api.transactions.createTransaction, { title: "hotel", value: -100, date: 1000, from: sourceId, ...(shared ? { paidFrom: payerId } : {}) });
+    const transaction = await createAndReadOperation(t, auth, { title: "hotel", value: -100, date: 1000, from: sourceId, ...(shared ? { paidFrom: payerId } : {}) });
     const financial = await t.run(ctx => ctx.db.query("events").collect());
     await auth.mutation(api.pipes.startPipeDeletion, { pipeId: sourceId, deleteTransactions: true });
     await t.finishAllScheduledFunctions(vi.runAllTimers);
@@ -72,12 +72,11 @@ describe("Convex boundaries: unified pipe lifecycle events", () => {
     if (shared) {
       expect(events.filter(event => event.type === "transaction" || event.type === "third_party_transaction")).toEqual(financial);
       expect(events.filter(event => event.type === "pipe_creation" || event.type === "pipe_deletion")).toHaveLength(2);
-      expect(await t.run(ctx => ctx.db.get("transactions", transaction.id))).toMatchObject({ fromIcon: "wallet" });
+      expect(events.find(event => event.type === "pipe_creation")).toMatchObject({ pipeId: sourceId, icon: "wallet" });
       expect(await t.run(ctx => ctx.db.get("pipes", payerId))).toMatchObject({ fed: 900 });
     } else {
       expect(events).toEqual([]);
-      expect(await t.run(ctx => ctx.db.get("transactions", transaction.id))).toBeNull();
-      expect(await t.run(ctx => ctx.db.query("pipeCreationEvents").collect())).toEqual([]);
+      expect(await t.run(ctx => readOperation(ctx, transaction.id))).toBeNull();
     }
   });
 
@@ -87,7 +86,6 @@ describe("Convex boundaries: unified pipe lifecycle events", () => {
     await auth.mutation(api.pipes.startPipeDeletion, { pipeId: root, deleteTransactions: true });
     await t.finishAllScheduledFunctions(vi.runAllTimers);
     expect(await t.run(ctx => ctx.db.query("events").collect())).toEqual([]);
-    expect(await t.run(ctx => ctx.db.query("pipeCreationEvents").collect())).toEqual([]);
   });
 
   it("captures an unlinked legacy pipe's creation before removal and credits its signed balance only once", async () => {
@@ -115,14 +113,14 @@ describe("Convex boundaries: unified pipe lifecycle events", () => {
       const fields = { userId, icon: "wallet", priority: 0, capacity: 1000, fed: 1000, spent: 0 };
       return { source: await ctx.db.insert("pipes", { ...fields, name: "Trip" }), payer: await ctx.db.insert("pipes", { ...fields, name: "Main" }) };
     });
-    const transaction = await auth.mutation(api.transactions.createTransaction, { title: "hotel", value: -100, date: 1000, from: source, paidFrom: payer });
+    const transaction = await createAndReadOperation(t, auth, { title: "hotel", value: -100, date: 1000, from: source, paidFrom: payer });
     await auth.mutation(api.pipes.startPipeDeletion, { pipeId: payer, deleteTransactions: false });
     await t.finishAllScheduledFunctions(vi.runAllTimers);
     const payerHistory = await t.run(ctx => ctx.db.query("events").collect());
     expect(payerHistory).toHaveLength(4);
     await auth.mutation(api.pipes.startPipeDeletion, { pipeId: source, deleteTransactions: true });
     await t.finishAllScheduledFunctions(vi.runAllTimers);
-    expect(await t.run(ctx => ctx.db.get("transactions", transaction.id))).toBeNull();
+    expect(await t.run(ctx => readOperation(ctx, transaction.id))).toBeNull();
     expect(await t.run(ctx => ctx.db.query("events").collect())).toEqual(payerHistory.filter(event => event.type === "pipe_creation" || event.type === "pipe_deletion"));
   });
 
@@ -131,7 +129,7 @@ describe("Convex boundaries: unified pipe lifecycle events", () => {
     const root = await auth.mutation(api.pipes.addFeed, { name: "Travel", icon: "wallet" });
     const child = await auth.mutation(api.pipes.addPipe, { parentId: root, name: "Madrid", icon: "map", priority: 0, capacity: 0 });
     const job = await auth.mutation(api.pipes.startPipeDeletion, { pipeId: child, deleteTransactions: false });
-    for (let i = 0; i < 3; i++) await t.mutation(internal.pipes.processPipeDeletion, { jobId: job.jobId });
+    await t.mutation(internal.pipes.processPipeDeletion, { jobId: job.jobId });
     expect(await t.run(ctx => ctx.db.get("pipeDeletionJobs", job.jobId))).toMatchObject({ phase: "readyToFinalize" });
     await auth.mutation(api.pipes.updatePipe, { pipeId: root, name: "Trips", icon: "airplane" });
     await t.finishAllScheduledFunctions(vi.runAllTimers);
@@ -139,18 +137,17 @@ describe("Convex boundaries: unified pipe lifecycle events", () => {
     const childEvents = events.filter(event => event.pipeId === child);
     expect(childEvents).toHaveLength(2);
     for (const event of childEvents) expect(event).toMatchObject({ parentName: "Trips", parentIcon: "airplane" });
-    expect(await t.run(ctx => ctx.db.query("pipeCreationEvents").withIndex("by_pipeId", q => q.eq("pipeId", child)).unique())).toMatchObject({ parentName: "Trips", parentIcon: "airplane" });
   });
 
-  it("removes orphan events in the existing bounded transaction pages before finalizing", async () => {
+  it("removes orphan operations in bounded event pages before finalizing", async () => {
     const { t, auth, userId } = await setup();
     const source = await t.run(ctx => ctx.db.insert("pipes", { userId, name: "Trip", icon: "wallet", priority: 0, capacity: 1000, fed: 1000, spent: 0 }));
     for (let i = 0; i < 51; i++) {
-      await auth.mutation(api.transactions.createTransaction, { title: "hotel", value: -1, date: 1000 + i, from: source });
+      await auth.mutation(api.financialOperations.create, { title: "hotel", value: -1, date: 1000 + i, from: source });
     }
     const job = await auth.mutation(api.pipes.startPipeDeletion, { pipeId: source, deleteTransactions: true });
     await t.mutation(internal.pipes.processPipeDeletion, { jobId: job.jobId });
-    expect(await t.run(ctx => ctx.db.query("transactions").collect())).toHaveLength(1);
+    expect(await t.run(ctx => readOperations(ctx))).toHaveLength(1);
     expect(await t.run(ctx => ctx.db.query("events").collect())).toHaveLength(1);
     expect(await t.run(ctx => ctx.db.get("pipes", source))).toMatchObject({ deletionJobId: job.jobId });
     await t.finishAllScheduledFunctions(vi.runAllTimers);

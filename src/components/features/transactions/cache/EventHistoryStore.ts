@@ -1,9 +1,14 @@
 import type { HistoryEntry } from "../history/event-groups";
-import type { TransactionCacheStorage } from "./TransactionCacheStore";
 import { validateTransactionAmount } from "@domain/money/money";
 
 export type EventHistorySnapshot = { entries: HistoryEntry[]; complete: boolean; hasMore: boolean; updatedAt: number; generation: number };
 export const EMPTY_EVENT_HISTORY: EventHistorySnapshot = { entries: [], complete: false, hasMore: false, updatedAt: 0, generation: 0 };
+
+export type EventHistoryStorage = {
+  read: (key: string) => Promise<string | null>;
+  write: (key: string, value: string) => Promise<void>;
+  remove: (key: string) => Promise<void>;
+};
 
 export class EventHistoryStore {
   private entries: { entry: HistoryEntry; refreshedAt: number }[] = [];
@@ -11,13 +16,17 @@ export class EventHistoryStore {
   private writes: Promise<void> = Promise.resolve();
   private readonly storageKey: string;
 
-  constructor(private readonly accountKey: string, private readonly storage: TransactionCacheStorage) {
+  constructor(private readonly accountKey: string, private readonly storage: EventHistoryStorage) {
     this.storageKey = `event-history:${accountKey}`;
   }
 
   async hydrate() {
+    const generation = this.snapshot.generation;
+    // This account's transaction-only snapshot is no longer read or written.
+    await this.enqueue(() => this.storage.remove(this.accountKey));
     try {
       const serialized = await this.storage.read(this.storageKey);
+      if (generation !== this.snapshot.generation) return;
       const value: unknown = serialized ? JSON.parse(serialized) : null;
       if (!isRecord(value) || value.version !== 1 || value.accountKey !== this.accountKey ||
         !Array.isArray(value.entries) || value.entries.length > 300 ||

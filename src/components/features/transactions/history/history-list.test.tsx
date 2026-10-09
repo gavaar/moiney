@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
+import type { ReactNode } from "react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Id } from "@convex/_generated/dataModel";
@@ -9,6 +10,25 @@ import type { DeletedPipeEntry } from "./event-archives";
 
 const mocks = vi.hoisted(() => ({ query: vi.fn(), navigate: vi.fn() }));
 const client = { query: mocks.query };
+vi.mock("react-native", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("react-native")>()),
+  FlatList: <Item,>({ data, keyExtractor, renderItem, onEndReached, onRefresh, ListHeaderComponent, ListEmptyComponent, ListFooterComponent }: {
+    data: Item[];
+    keyExtractor: (item: Item) => string;
+    renderItem: (info: { item: Item }) => ReactNode;
+    onEndReached: () => void;
+    onRefresh: () => void;
+    ListHeaderComponent: ReactNode;
+    ListEmptyComponent: ReactNode;
+    ListFooterComponent: ReactNode;
+  }) => <div>
+    <button aria-label="Reach history end" onClick={onEndReached} />
+    <button aria-label="Refresh history" onClick={onRefresh} />
+    {ListHeaderComponent}
+    {data.length === 0 ? ListEmptyComponent : data.map(item => <div key={keyExtractor(item)}>{renderItem({ item })}</div>)}
+    {ListFooterComponent}
+  </div>,
+}));
 vi.mock("convex/react", () => ({ useConvex: () => client }));
 vi.mock("expo-router", () => ({ useRouter: () => ({ navigate: mocks.navigate }) }));
 vi.mock("@features/pipes/context/PipeCatalogContext", () => ({ usePipeCatalog: () => ({ pipesById: {} }) }));
@@ -25,7 +45,62 @@ const mirror: HistoryEntry = { ...expense, id: id("payment"), type: "transaction
 const props = { filters: {}, isLoading: false, isRefreshing: false, error: null, hasMore: false, loadMore: vi.fn(), refresh: vi.fn(), deletedPipes: [] as DeletedPipeEntry[] };
 
 describe("loaded event History interaction", () => {
-  beforeEach(() => { mocks.query.mockReset(); mocks.navigate.mockReset(); });
+  beforeEach(() => {
+    mocks.query.mockReset(); mocks.navigate.mockReset();
+    props.loadMore.mockReset(); props.refresh.mockReset();
+  });
+
+  it("shows an empty state only after loading finishes", () => {
+    const { rerender } = render(<HistoryList {...props} entries={[]} isLoading />);
+    expect(screen.getByRole("progressbar", { name: "Loading history" })).toBeTruthy();
+    expect(screen.queryByText("No history yet")).toBeNull();
+    rerender(<HistoryList {...props} entries={[]} />);
+    expect(screen.getByText("No history yet")).toBeTruthy();
+    expect(screen.queryByRole("progressbar")).toBeNull();
+  });
+
+  it("shows an accessible failure instead of an empty state", () => {
+    render(<HistoryList {...props} entries={[]} error="Unable to load history." />);
+    expect(screen.getByRole("alert").textContent).toBe("Unable to load history.");
+    expect(screen.queryByText("No history yet")).toBeNull();
+  });
+
+  it("keeps loaded history visible during loading and failures", () => {
+    const { rerender } = render(<HistoryList {...props} entries={[expense]} isLoading />);
+    expect(screen.getByText("hotel")).toBeTruthy();
+    rerender(<HistoryList {...props} entries={[expense]} error="Unable to load history." />);
+    expect(screen.getByText("hotel")).toBeTruthy();
+    expect(screen.getByRole("alert")).toBeTruthy();
+  });
+
+  it.each([
+    { hasMore: true, isLoading: false, error: null, expected: 1 },
+    { hasMore: false, isLoading: false, error: null, expected: 0 },
+    { hasMore: true, isLoading: true, error: null, expected: 0 },
+    { hasMore: true, isLoading: false, error: "Unable to load history.", expected: 0 },
+  ])("loads more only when available and not loading or failed ($expected calls)", ({ expected, ...state }) => {
+    render(<HistoryList {...props} {...state} entries={[expense]} />);
+    fireEvent.click(screen.getByRole("button", { name: "Reach history end" }));
+    expect(props.loadMore).toHaveBeenCalledTimes(expected);
+  });
+
+  it("allows explicit refresh after a failure", () => {
+    render(<HistoryList {...props} entries={[]} error="Unable to load history." />);
+    fireEvent.click(screen.getByRole("button", { name: "Refresh history" }));
+    expect(props.refresh).toHaveBeenCalledOnce();
+  });
+
+  it.each(["transaction-group-main", "transaction-group-disclosure"])("expands and collapses loaded title members through %s without reads", control => {
+    const other = { ...expense, id: id("other"), operationId: id("other"), value: -2000 };
+    render(<HistoryList {...props} entries={[expense, other]} />);
+    expect(screen.getByText("Hotel")).toBeTruthy();
+    expect(screen.getByText("-80.00")).toBeTruthy();
+    fireEvent.click(screen.getByTestId(control));
+    expect(screen.getAllByText("hotel")).toHaveLength(2);
+    fireEvent.click(screen.getByTestId(control));
+    expect(screen.queryByText("hotel")).toBeNull();
+    expect(mocks.query).not.toHaveBeenCalled();
+  });
 
   it("expands loaded shared operations under both deleted perspectives without a query", async () => {
     render(<HistoryList {...props} entries={[expense, mirror]} deletedPipes={[trip, payer]} />);

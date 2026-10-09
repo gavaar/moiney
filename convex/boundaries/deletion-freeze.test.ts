@@ -1,9 +1,12 @@
 // @vitest-environment edge-runtime
+import { insertOperation, readOperations, readOperation } from "./financialFixtures.helpers";
 import { convexTest } from "convex-test";
 import { describe, expect, it, vi } from "vitest";
 import { api, internal } from "../_generated/api";
 import schema from "../schema";
 import { modules } from "../test.setup";
+import { insertFinancialOperation } from "../lib/events/financial";
+import { transactionStructureFromRoles } from "../../domain/transactions";
 
 describe("Convex boundaries: deletion and freeze", () => {
   it("adds a child in one tree while an unrelated tree is frozen", async () => {
@@ -281,14 +284,8 @@ describe("Convex boundaries: deletion and freeze", () => {
         fed: 40,
         spent: 10,
       });
-      await ctx.db.insert("transactions", {
-        title: "preserved expense",
-        value: -10,
-        date: 1,
-        kind: "expense",
-        from: childId,
-        userId,
-      });
+      await insertFinancialOperation(ctx, { userId, title: "preserved expense", value: -10, occurredAt: 1,
+        structure: { type: "expense", from: childId } });
       return { userId, parentId, childId };
     });
 
@@ -310,14 +307,12 @@ describe("Convex boundaries: deletion and freeze", () => {
     expect(state.parent?.fed).toBe(130);
     expect(state.parent?.rule).toBe("instant_settlement");
     expect(state.child).toBeNull();
-    const history = await t
-      .withIdentity({ subject: userId })
-      .query(api.transactions.listTransactions, {});
-    expect(history[0]).toMatchObject({
+    const history = await t.run(ctx => ctx.db.query("events").collect());
+    expect(history.find(event => event.type === "transaction")).toMatchObject({
       title: "preserved expense",
-      from: childId,
-      fromIcon: "cafe",
+      pipeId: childId,
     });
+    expect(history.find(event => event.type === "pipe_creation")).toMatchObject({ pipeId: childId, icon: "cafe" });
     vi.useRealTimers();
   });
 
@@ -463,6 +458,9 @@ describe("Convex boundaries: deletion and freeze", () => {
         fed: 0,
         spent: 0,
       });
+      const deletedPartnerId = await ctx.db.insert("pipes", {
+        userId, parentId: deletedPipeId, name: "Deleted partner", icon: "cafe", priority: 0, capacity: 0, fed: 0, spent: 0,
+      });
       const transactions = [
         { title: "feed-deleted", kind: "feed" as const, to: deletedPipeId },
         {
@@ -486,7 +484,7 @@ describe("Convex boundaries: deletion and freeze", () => {
           title: "pay-both-deleted",
           kind: "expense" as const,
           from: deletedPipeId,
-          paidFrom: deletedPipeId,
+          paidFrom: deletedPartnerId,
         },
         {
           title: "transfer-to-survivor",
@@ -503,17 +501,14 @@ describe("Convex boundaries: deletion and freeze", () => {
         {
           title: "transfer-both-deleted",
           kind: "transfer" as const,
-          from: deletedPipeId,
+          from: deletedPartnerId,
           to: deletedPipeId,
         },
       ];
       for (const [index, transaction] of transactions.entries()) {
-        await ctx.db.insert("transactions", {
-          ...transaction,
-          userId,
-          value: -1,
-          date: index,
-        });
+        const value = transaction.kind === "feed" ? 1 : -1;
+        await insertFinancialOperation(ctx, { userId, title: transaction.title, value, occurredAt: index,
+          structure: transactionStructureFromRoles(transaction) });
       }
       return { userId, deletedPipeId };
     });
@@ -527,9 +522,9 @@ describe("Convex boundaries: deletion and freeze", () => {
     await t.finishAllScheduledFunctions(vi.runAllTimers);
 
     const transactions = await t.run((ctx) =>
-      ctx.db.query("transactions").collect(),
+      readOperations(ctx),
     );
-    expect(transactions.map((transaction) => transaction.title).sort()).toEqual(
+    expect(transactions.map((transaction) => transaction!.title).sort()).toEqual(
       [
         "pay-category-deleted",
         "pay-payer-deleted",
@@ -537,63 +532,53 @@ describe("Convex boundaries: deletion and freeze", () => {
         "transfer-to-survivor",
       ],
     );
-    expect(transactions).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          title: "pay-category-deleted",
-          fromIcon: "cafe",
-        }),
-        expect.objectContaining({
-          title: "pay-payer-deleted",
-          paidFromIcon: "cafe",
-        }),
-        expect.objectContaining({
-          title: "transfer-from-survivor",
-          toIcon: "cafe",
-        }),
-        expect.objectContaining({
-          title: "transfer-to-survivor",
-          fromIcon: "cafe",
-        }),
-      ]),
-    );
+    const events = await t.run(ctx => ctx.db.query("events").collect());
+    expect(events.find(event => event.type === "pipe_creation")).toMatchObject({ icon: "cafe" });
+    for (const title of ["pay-category-deleted", "pay-payer-deleted", "transfer-from-survivor", "transfer-to-survivor"]) {
+      expect(events.filter(event => "title" in event && event.title === title)).toHaveLength(2);
+    }
     vi.useRealTimers();
   });
 
   it("rejects new transactions against a frozen deletion subtree", async () => {
-    const t = convexTest(schema, modules);
-    const { userId, pipeId } = await t.run(async (ctx) => {
-      const userId = await ctx.db.insert("users", {
-        username: "alice",
-        email: "alice@example.com",
-        password: "hash",
+    vi.useFakeTimers();
+    try {
+      const t = convexTest(schema, modules);
+      const { userId, pipeId } = await t.run(async (ctx) => {
+        const userId = await ctx.db.insert("users", {
+          username: "alice",
+          email: "alice@example.com",
+          password: "hash",
+        });
+        const pipeId = await ctx.db.insert("pipes", {
+          userId,
+          name: "Frozen",
+          icon: "pipe",
+          priority: 0,
+          capacity: 100,
+          fed: 50,
+          spent: 0,
+        });
+        return { userId, pipeId };
       });
-      const pipeId = await ctx.db.insert("pipes", {
-        userId,
-        name: "Frozen",
-        icon: "pipe",
-        priority: 0,
-        capacity: 100,
-        fed: 50,
-        spent: 0,
+      const asUser = t.withIdentity({ subject: userId });
+
+      await asUser.mutation(api.pipes.startPipeDeletion, {
+        pipeId,
+        deleteTransactions: false,
       });
-      return { userId, pipeId };
-    });
-    const asUser = t.withIdentity({ subject: userId });
 
-    await asUser.mutation(api.pipes.startPipeDeletion, {
-      pipeId,
-      deleteTransactions: false,
-    });
-
-    await expect(
-      asUser.mutation(api.transactions.createTransaction, {
-        title: "new expense",
-        value: -10,
-        date: 100,
-        from: pipeId,
-      }),
-    ).rejects.toThrow("Pipe is being deleted");
+      await expect(
+        asUser.mutation(api.financialOperations.create, {
+          title: "new expense",
+          value: -10,
+          date: 100,
+          from: pipeId,
+        }),
+      ).rejects.toThrow("Pipe is being deleted");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("allows an expense in one root while an unrelated root is frozen", async () => {
@@ -637,18 +622,18 @@ describe("Convex boundaries: deletion and freeze", () => {
     const asUser = t.withIdentity({ subject: userId });
 
     await expect(
-      asUser.mutation(api.transactions.createTransaction, {
+      asUser.mutation(api.financialOperations.create, {
         title: "groceries",
         value: -40,
         date: 100,
         from: spendingId,
       }),
-    ).resolves.toMatchObject({ id: expect.anything() });
+    ).resolves.toBeNull();
 
     const state = await t.run(async (ctx) => ({
       frozen: await ctx.db.get("pipes", frozenId),
       spending: await ctx.db.get("pipes", spendingId),
-      transactions: await ctx.db.query("transactions").collect(),
+      transactions: await readOperations(ctx),
     }));
     expect(state.frozen?.deletionJobId).toBe(deletionJobId);
     expect(state.spending).toMatchObject({ fed: 300, spent: 65 });
@@ -705,18 +690,18 @@ describe("Convex boundaries: deletion and freeze", () => {
     const asUser = t.withIdentity({ subject: userId });
 
     await expect(
-      asUser.mutation(api.transactions.createTransaction, {
+      asUser.mutation(api.financialOperations.create, {
         title: "salary",
         value: 40,
         date: 100,
         to: destinationId,
       }),
-    ).resolves.toMatchObject({ id: expect.anything() });
+    ).resolves.toBeNull();
 
     const state = await t.run(async (ctx) => ({
       frozen: await ctx.db.get("pipes", frozenId),
       destination: await ctx.db.get("pipes", destinationId),
-      transactions: await ctx.db.query("transactions").collect(),
+      transactions: await readOperations(ctx),
     }));
     expect(state.frozen?.deletionJobId).toBe(deletionJobId);
     expect(state.destination).toMatchObject({ fed: 340, spent: 0 });
@@ -781,20 +766,20 @@ describe("Convex boundaries: deletion and freeze", () => {
     const asUser = t.withIdentity({ subject: userId });
 
     await expect(
-      asUser.mutation(api.transactions.createTransaction, {
+      asUser.mutation(api.financialOperations.create, {
         title: "move money",
         value: -40,
         date: 100,
         from: sourceId,
         to: destinationId,
       }),
-    ).resolves.toMatchObject({ id: expect.anything() });
+    ).resolves.toBeNull();
 
     const state = await t.run(async (ctx) => ({
       frozen: await ctx.db.get("pipes", frozenId),
       source: await ctx.db.get("pipes", sourceId),
       destination: await ctx.db.get("pipes", destinationId),
-      transactions: await ctx.db.query("transactions").collect(),
+      transactions: await readOperations(ctx),
     }));
     expect(state.frozen?.deletionJobId).toBe(deletionJobId);
     expect(state.source).toMatchObject({ fed: 260, spent: 0 });
@@ -863,20 +848,20 @@ describe("Convex boundaries: deletion and freeze", () => {
     const asUser = t.withIdentity({ subject: userId });
 
     await expect(
-      asUser.mutation(api.transactions.createTransaction, {
+      asUser.mutation(api.financialOperations.create, {
         title: "coffee",
         value: -40,
         date: 100,
         from: logicalId,
         paidFrom: payerId,
       }),
-    ).resolves.toMatchObject({ id: expect.anything() });
+    ).resolves.toBeNull();
 
     const state = await t.run(async (ctx) => ({
       frozen: await ctx.db.get("pipes", frozenId),
       logical: await ctx.db.get("pipes", logicalId),
       payer: await ctx.db.get("pipes", payerId),
-      transactions: await ctx.db.query("transactions").collect(),
+      transactions: await readOperations(ctx),
     }));
     expect(state.frozen?.deletionJobId).toBe(deletionJobId);
     expect(state.logical).toMatchObject({
@@ -1044,7 +1029,7 @@ describe("Convex boundaries: deletion and freeze", () => {
 
   it("allows an expense edit in one root while an unrelated root is frozen", async () => {
     const t = convexTest(schema, modules);
-    const { userId, frozenId, spendingId, transactionId, deletionJobId } =
+    const { userId, frozenId, spendingId, operationId, deletionJobId } =
       await t.run(async (ctx) => {
         const userId = await ctx.db.insert("users", {
           username: "alice",
@@ -1069,7 +1054,7 @@ describe("Convex boundaries: deletion and freeze", () => {
           fed: 300,
           spent: 25,
         });
-        const transactionId = await ctx.db.insert("transactions", {
+        const operationId = await insertOperation(ctx, {
           userId,
           title: "groceries",
           kind: "expense",
@@ -1091,27 +1076,27 @@ describe("Convex boundaries: deletion and freeze", () => {
           userId,
           frozenId,
           spendingId,
-          transactionId,
+          operationId,
           deletionJobId,
         };
       });
 
     await expect(
       t.withIdentity({ subject: userId }).mutation(
-        api.transactions.editTransaction,
+        api.financialOperations.edit,
         {
-          transactionId,
+          operationId,
           title: "groceries",
           value: -40,
           date: 100,
         },
       ),
-    ).resolves.toMatchObject({ id: expect.anything() });
+    ).resolves.toBeNull();
 
     const state = await t.run(async (ctx) => ({
       frozen: await ctx.db.get("pipes", frozenId),
       spending: await ctx.db.get("pipes", spendingId),
-      transaction: await ctx.db.get("transactions", transactionId),
+      transaction: await readOperation(ctx, operationId),
       corrections: await ctx.db.query("transactionCorrections").collect(),
     }));
     expect(state.frozen?.deletionJobId).toBe(deletionJobId);
@@ -1119,7 +1104,7 @@ describe("Convex boundaries: deletion and freeze", () => {
     expect(state.transaction).toMatchObject({ value: -40, editedAt: expect.any(Number) });
     expect(state.corrections).toEqual([
       expect.objectContaining({
-        transactionId,
+        operationId,
         previous: {
           title: "groceries",
           value: -20,
@@ -1140,7 +1125,7 @@ describe("Convex boundaries: deletion and freeze", () => {
 
   it("allows a feed edit in one root while an unrelated root is frozen", async () => {
     const t = convexTest(schema, modules);
-    const { userId, frozenId, destinationId, transactionId, deletionJobId } =
+    const { userId, frozenId, destinationId, operationId, deletionJobId } =
       await t.run(async (ctx) => {
         const userId = await ctx.db.insert("users", {
           username: "alice",
@@ -1165,7 +1150,7 @@ describe("Convex boundaries: deletion and freeze", () => {
           fed: 300,
           spent: 0,
         });
-        const transactionId = await ctx.db.insert("transactions", {
+        const operationId = await insertOperation(ctx, {
           userId,
           title: "salary",
           kind: "feed",
@@ -1187,27 +1172,27 @@ describe("Convex boundaries: deletion and freeze", () => {
           userId,
           frozenId,
           destinationId,
-          transactionId,
+          operationId,
           deletionJobId,
         };
       });
 
     await expect(
       t.withIdentity({ subject: userId }).mutation(
-        api.transactions.editTransaction,
+        api.financialOperations.edit,
         {
-          transactionId,
+          operationId,
           title: "salary",
           value: 140,
           date: 100,
         },
       ),
-    ).resolves.toMatchObject({ id: expect.anything() });
+    ).resolves.toBeNull();
 
     const state = await t.run(async (ctx) => ({
       frozen: await ctx.db.get("pipes", frozenId),
       destination: await ctx.db.get("pipes", destinationId),
-      transaction: await ctx.db.get("transactions", transactionId),
+      transaction: await readOperation(ctx, operationId),
       corrections: await ctx.db.query("transactionCorrections").collect(),
     }));
     expect(state.frozen?.deletionJobId).toBe(deletionJobId);
@@ -1215,7 +1200,7 @@ describe("Convex boundaries: deletion and freeze", () => {
     expect(state.transaction).toMatchObject({ value: 140, editedAt: expect.any(Number) });
     expect(state.corrections).toEqual([
       expect.objectContaining({
-        transactionId,
+        operationId,
         previous: {
           title: "salary",
           value: 100,
@@ -1241,7 +1226,7 @@ describe("Convex boundaries: deletion and freeze", () => {
       frozenId,
       sourceId,
       destinationId,
-      transactionId,
+      operationId,
       deletionJobId,
     } = await t.run(async (ctx) => {
       const userId = await ctx.db.insert("users", {
@@ -1276,7 +1261,7 @@ describe("Convex boundaries: deletion and freeze", () => {
         fed: 340,
         spent: 0,
       });
-      const transactionId = await ctx.db.insert("transactions", {
+      const operationId = await insertOperation(ctx, {
         userId,
         title: "move money",
         kind: "transfer",
@@ -1300,28 +1285,28 @@ describe("Convex boundaries: deletion and freeze", () => {
         frozenId,
         sourceId,
         destinationId,
-        transactionId,
+        operationId,
         deletionJobId,
       };
     });
 
     await expect(
       t.withIdentity({ subject: userId }).mutation(
-        api.transactions.editTransaction,
+        api.financialOperations.edit,
         {
-          transactionId,
+          operationId,
           title: "move money",
           value: -80,
           date: 100,
         },
       ),
-    ).resolves.toMatchObject({ id: expect.anything() });
+    ).resolves.toBeNull();
 
     const state = await t.run(async (ctx) => ({
       frozen: await ctx.db.get("pipes", frozenId),
       source: await ctx.db.get("pipes", sourceId),
       destination: await ctx.db.get("pipes", destinationId),
-      transaction: await ctx.db.get("transactions", transactionId),
+      transaction: await readOperation(ctx, operationId),
       corrections: await ctx.db.query("transactionCorrections").collect(),
     }));
     expect(state.frozen?.deletionJobId).toBe(deletionJobId);
@@ -1334,7 +1319,7 @@ describe("Convex boundaries: deletion and freeze", () => {
     });
     expect(state.corrections).toEqual([
       expect.objectContaining({
-        transactionId,
+        operationId,
         previous: {
           title: "move money",
           value: -40,
@@ -1362,7 +1347,7 @@ describe("Convex boundaries: deletion and freeze", () => {
       frozenId,
       logicalId,
       payerId,
-      transactionId,
+      operationId,
       deletionJobId,
     } = await t.run(async (ctx) => {
       const userId = await ctx.db.insert("users", {
@@ -1398,7 +1383,7 @@ describe("Convex boundaries: deletion and freeze", () => {
         fed: 260,
         spent: 0,
       });
-      const transactionId = await ctx.db.insert("transactions", {
+      const operationId = await insertOperation(ctx, {
         userId,
         title: "coffee",
         kind: "expense",
@@ -1422,28 +1407,28 @@ describe("Convex boundaries: deletion and freeze", () => {
         frozenId,
         logicalId,
         payerId,
-        transactionId,
+        operationId,
         deletionJobId,
       };
     });
 
     await expect(
       t.withIdentity({ subject: userId }).mutation(
-        api.transactions.editTransaction,
+        api.financialOperations.edit,
         {
-          transactionId,
+          operationId,
           title: "coffee",
           value: -80,
           date: 100,
         },
       ),
-    ).resolves.toMatchObject({ id: expect.anything() });
+    ).resolves.toBeNull();
 
     const state = await t.run(async (ctx) => ({
       frozen: await ctx.db.get("pipes", frozenId),
       logical: await ctx.db.get("pipes", logicalId),
       payer: await ctx.db.get("pipes", payerId),
-      transaction: await ctx.db.get("transactions", transactionId),
+      transaction: await readOperation(ctx, operationId),
       corrections: await ctx.db.query("transactionCorrections").collect(),
     }));
     expect(state.frozen?.deletionJobId).toBe(deletionJobId);
@@ -1459,7 +1444,7 @@ describe("Convex boundaries: deletion and freeze", () => {
     });
     expect(state.corrections).toEqual([
       expect.objectContaining({
-        transactionId,
+        operationId,
         previous: {
           title: "coffee",
           value: -40,
@@ -1482,7 +1467,7 @@ describe("Convex boundaries: deletion and freeze", () => {
 
   it("rejects editing a transaction in a frozen deletion subtree", async () => {
     const t = convexTest(schema, modules);
-    const { userId, pipeId, transactionId } = await t.run(async (ctx) => {
+    const { userId, pipeId, operationId } = await t.run(async (ctx) => {
       const userId = await ctx.db.insert("users", {
         username: "alice",
         email: "alice@example.com",
@@ -1497,7 +1482,7 @@ describe("Convex boundaries: deletion and freeze", () => {
         fed: 50,
         spent: 0,
       });
-      const transactionId = await ctx.db.insert("transactions", {
+      const operationId = await insertOperation(ctx, {
         userId,
         title: "old",
         kind: "expense",
@@ -1505,7 +1490,7 @@ describe("Convex boundaries: deletion and freeze", () => {
         date: 100,
         from: pipeId,
       });
-      return { userId, pipeId, transactionId };
+      return { userId, pipeId, operationId };
     });
     const asUser = t.withIdentity({ subject: userId });
 
@@ -1515,8 +1500,8 @@ describe("Convex boundaries: deletion and freeze", () => {
     });
 
     await expect(
-      asUser.mutation(api.transactions.editTransaction, {
-        transactionId,
+      asUser.mutation(api.financialOperations.edit, {
+        operationId,
         title: "new",
         value: -10,
         date: 200,
@@ -1526,7 +1511,7 @@ describe("Convex boundaries: deletion and freeze", () => {
 
   it("rejects editing a transaction that references another user's pipe", async () => {
     const t = convexTest(schema, modules);
-    const { userId, pipeId, transactionId } = await t.run(async (ctx) => {
+    const { userId, pipeId, operationId } = await t.run(async (ctx) => {
       const userId = await ctx.db.insert("users", {
         username: "alice",
         email: "alice@example.com",
@@ -1546,7 +1531,7 @@ describe("Convex boundaries: deletion and freeze", () => {
         fed: 500,
         spent: 100,
       });
-      const transactionId = await ctx.db.insert("transactions", {
+      const operationId = await insertOperation(ctx, {
         userId,
         title: "expense",
         kind: "expense",
@@ -1554,14 +1539,14 @@ describe("Convex boundaries: deletion and freeze", () => {
         date: 100,
         from: pipeId,
       });
-      return { userId, pipeId, transactionId };
+      return { userId, pipeId, operationId };
     });
 
     await expect(
       t.withIdentity({ subject: userId }).mutation(
-        api.transactions.editTransaction,
+        api.financialOperations.edit,
         {
-          transactionId,
+          operationId,
           title: "changed",
           value: -200,
           date: 200,
@@ -1571,7 +1556,7 @@ describe("Convex boundaries: deletion and freeze", () => {
 
     const state = await t.run(async (ctx) => ({
       pipe: await ctx.db.get("pipes", pipeId),
-      transaction: await ctx.db.get("transactions", transactionId),
+      transaction: await readOperation(ctx, operationId),
       corrections: await ctx.db.query("transactionCorrections").collect(),
     }));
     expect(state.pipe).toMatchObject({ fed: 500, spent: 100 });
@@ -1585,7 +1570,7 @@ describe("Convex boundaries: deletion and freeze", () => {
 
   it("rejects editing a transfer whose destination is in the source tree", async () => {
     const t = convexTest(schema, modules);
-    const { userId, sourceId, destinationId, transactionId } = await t.run(
+    const { userId, sourceId, destinationId, operationId } = await t.run(
       async (ctx) => {
         const userId = await ctx.db.insert("users", {
           username: "alice",
@@ -1611,7 +1596,7 @@ describe("Convex boundaries: deletion and freeze", () => {
           fed: 300,
           spent: 0,
         });
-        const transactionId = await ctx.db.insert("transactions", {
+        const operationId = await insertOperation(ctx, {
           userId,
           title: "legacy transfer",
           kind: "transfer",
@@ -1620,15 +1605,15 @@ describe("Convex boundaries: deletion and freeze", () => {
           from: sourceId,
           to: destinationId,
         });
-        return { userId, sourceId, destinationId, transactionId };
+        return { userId, sourceId, destinationId, operationId };
       },
     );
 
     await expect(
       t.withIdentity({ subject: userId }).mutation(
-        api.transactions.editTransaction,
+        api.financialOperations.edit,
         {
-          transactionId,
+          operationId,
           title: "legacy transfer",
           value: -200,
           date: 100,
@@ -1639,7 +1624,7 @@ describe("Convex boundaries: deletion and freeze", () => {
     const state = await t.run(async (ctx) => ({
       source: await ctx.db.get("pipes", sourceId),
       destination: await ctx.db.get("pipes", destinationId),
-      transaction: await ctx.db.get("transactions", transactionId),
+      transaction: await readOperation(ctx, operationId),
       corrections: await ctx.db.query("transactionCorrections").collect(),
     }));
     expect(state.source).toMatchObject({ fed: 300, spent: 0 });
@@ -1650,7 +1635,7 @@ describe("Convex boundaries: deletion and freeze", () => {
 
   it("requires a replacement when a transfer destination is no longer a root", async () => {
     const t = convexTest(schema, modules);
-    const { userId, sourceId, destinationId, transactionId } = await t.run(
+    const { userId, sourceId, destinationId, operationId } = await t.run(
       async (ctx) => {
         const userId = await ctx.db.insert("users", {
           username: "alice",
@@ -1685,7 +1670,7 @@ describe("Convex boundaries: deletion and freeze", () => {
           fed: 200,
           spent: 0,
         });
-        const transactionId = await ctx.db.insert("transactions", {
+        const operationId = await insertOperation(ctx, {
           userId,
           title: "legacy transfer",
           kind: "transfer",
@@ -1694,15 +1679,15 @@ describe("Convex boundaries: deletion and freeze", () => {
           from: sourceId,
           to: destinationId,
         });
-        return { userId, sourceId, destinationId, transactionId };
+        return { userId, sourceId, destinationId, operationId };
       },
     );
 
     await expect(
       t.withIdentity({ subject: userId }).mutation(
-        api.transactions.editTransaction,
+        api.financialOperations.edit,
         {
-          transactionId,
+          operationId,
           title: "legacy transfer",
           value: -200,
           date: 100,
@@ -1715,7 +1700,7 @@ describe("Convex boundaries: deletion and freeze", () => {
     const state = await t.run(async (ctx) => ({
       source: await ctx.db.get("pipes", sourceId),
       destination: await ctx.db.get("pipes", destinationId),
-      transaction: await ctx.db.get("transactions", transactionId),
+      transaction: await readOperation(ctx, operationId),
       corrections: await ctx.db.query("transactionCorrections").collect(),
     }));
     expect(state.source).toMatchObject({ fed: 500, spent: 0 });
@@ -1726,7 +1711,7 @@ describe("Convex boundaries: deletion and freeze", () => {
 
   it("requires a replacement when a transfer source has children", async () => {
     const t = convexTest(schema, modules);
-    const { userId, sourceId, destinationId, transactionId } = await t.run(
+    const { userId, sourceId, destinationId, operationId } = await t.run(
       async (ctx) => {
         const userId = await ctx.db.insert("users", {
           username: "alice",
@@ -1761,7 +1746,7 @@ describe("Convex boundaries: deletion and freeze", () => {
           fed: 200,
           spent: 0,
         });
-        const transactionId = await ctx.db.insert("transactions", {
+        const operationId = await insertOperation(ctx, {
           userId,
           title: "legacy transfer",
           kind: "transfer",
@@ -1770,15 +1755,15 @@ describe("Convex boundaries: deletion and freeze", () => {
           from: sourceId,
           to: destinationId,
         });
-        return { userId, sourceId, destinationId, transactionId };
+        return { userId, sourceId, destinationId, operationId };
       },
     );
 
     await expect(
       t.withIdentity({ subject: userId }).mutation(
-        api.transactions.editTransaction,
+        api.financialOperations.edit,
         {
-          transactionId,
+          operationId,
           title: "legacy transfer",
           value: -200,
           date: 100,
@@ -1789,7 +1774,7 @@ describe("Convex boundaries: deletion and freeze", () => {
     const state = await t.run(async (ctx) => ({
       source: await ctx.db.get("pipes", sourceId),
       destination: await ctx.db.get("pipes", destinationId),
-      transaction: await ctx.db.get("transactions", transactionId),
+      transaction: await readOperation(ctx, operationId),
       corrections: await ctx.db.query("transactionCorrections").collect(),
     }));
     expect(state.source).toMatchObject({ fed: 500, spent: 0 });

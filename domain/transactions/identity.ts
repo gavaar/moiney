@@ -6,12 +6,6 @@ type TransactionRoles = {
   paidFrom?: string;
 };
 
-type GroupableTransaction = TransactionRoles & {
-  kind?: TransactionKind;
-  title: string;
-  value: number;
-};
-
 export function deriveTransactionKind({
   from,
   to,
@@ -39,13 +33,4 @@ export function canonicalizeTransactionTitle(title: string): string {
   const canonicalTitle = title.trim().toLowerCase();
   if (!canonicalTitle) throw new Error("Transaction title cannot be empty");
   return canonicalTitle;
-}
-
-export function transactionGroupId(transaction: GroupableTransaction): string {
-  return JSON.stringify([
-    resolveTransactionKind(transaction),
-    transaction.title,
-    transaction.from ?? null,
-    transaction.to ?? null,
-  ]);
 }

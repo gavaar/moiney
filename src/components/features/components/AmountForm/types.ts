@@ -39,13 +39,13 @@ export type TransactionInitialState = {
   value: string;
 } & (
   | {
-      transactionId: Id<"transactions">;
+      operationId: Id<"events">;
       date: number;
       intent?: "repeat" | "edit";
       structure: TransactionStructure<Id<"pipes">>;
     }
   | {
-      transactionId?: never;
+      operationId?: never;
       date?: never;
       intent?: "create" | "repeat";
       structure?: TransactionStructure<Id<"pipes">>;

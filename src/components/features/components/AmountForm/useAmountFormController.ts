@@ -7,7 +7,7 @@ import { planTransactionEdit, type TransactionStructure } from "@domain/transact
 import { formatAmount } from "@/lib/format";
 import { useAlert } from "@ui/Alert";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
-import { useOptionalTransactionCache } from "@features/transactions/cache/TransactionCacheContext";
+import { useOptionalEventHistoryCache } from "@features/transactions/cache/EventHistoryCacheContext";
 import {
   buildCreateTransactionCommand,
   buildEditTransactionCommand,
@@ -65,10 +65,10 @@ export function useAmountFormController(props: AmountFormProps) {
   const [applyReplacementEffects, setApplyReplacementEffects] = useState(false);
 
   const showAlert = useAlert();
-  const transactionCache = useOptionalTransactionCache();
-  const createTransaction = useMutation(api.transactions.createTransaction);
-  const contributeToBoiler = useMutation(api.transactions.contributeToBoiler);
-  const editTransaction = useMutation(api.transactions.editTransaction);
+  const historyCache = useOptionalEventHistoryCache();
+  const createTransaction = useMutation(api.financialOperations.create);
+  const contributeToBoiler = useMutation(api.financialOperations.contributeToBoiler);
+  const editTransaction = useMutation(api.financialOperations.edit);
   const { allPipes, pipesById: catalogById } = usePipeCatalog();
   const pipesById: Readonly<Record<string, PipeModel>> = catalogById ?? EMPTY_PIPES_BY_ID;
   const recentTitles = useQuery(api.transactions.listRecentTitles, pipeId ? { pipeId } : "skip");
@@ -231,10 +231,10 @@ export function useAmountFormController(props: AmountFormProps) {
   }, [initialCurrentFedValue, isBoiler, isFeed]);
 
   const handleEditSubmit = useCallback(async () => {
-    if (!initialTransaction?.transactionId) return;
-    const transaction = await editTransaction(
+    if (!initialTransaction?.operationId) return;
+    await editTransaction(
       buildEditTransactionCommand({
-        transactionId: initialTransaction.transactionId,
+        operationId: initialTransaction.operationId,
         title,
         amount: parseMoney(value),
         date: date.getTime(),
@@ -247,16 +247,16 @@ export function useAmountFormController(props: AmountFormProps) {
         paidFromPipeId,
       }),
     );
-    await transactionCache?.updateTransaction(transaction);
+    await historyCache?.invalidateHistory();
     resetForm();
     onSuccess?.();
-  }, [applyReplacementEffects, date, editTransaction, initialStructure, initialTransaction, invalidPreviousPipeIds, onSuccess, paidFromPipeId, pipeId, resetForm, sentToPipeId, spendMode, title, transactionCache, value]);
+  }, [applyReplacementEffects, date, editTransaction, initialStructure, initialTransaction, invalidPreviousPipeIds, onSuccess, paidFromPipeId, pipeId, resetForm, sentToPipeId, spendMode, title, historyCache, value]);
 
   const handleRepeatSubmit = useCallback(async () => {
     if (!pipeId) return;
     const amount = parseMoney(value);
     if (isBoiler) {
-      const transaction = await contributeToBoiler({
+      const historyChanged = await contributeToBoiler({
         pipeId,
         title: title.trim(),
         value: amount,
@@ -265,12 +265,12 @@ export function useAmountFormController(props: AmountFormProps) {
           ? { currentFed: parsedCurrentFed }
           : {}),
       });
-      if (transaction) await transactionCache?.addTransaction(transaction);
+      if (historyChanged) await historyCache?.invalidateHistory();
       resetForm();
       onSuccess?.();
       return;
     }
-    const transaction = await createTransaction(
+    await createTransaction(
       buildCreateTransactionCommand({
         title,
         amount,
@@ -282,10 +282,10 @@ export function useAmountFormController(props: AmountFormProps) {
         paidFromPipeId,
       }),
     );
-    await transactionCache?.addTransaction(transaction);
+    await historyCache?.invalidateHistory();
     resetForm();
     onSuccess?.();
-  }, [contributeToBoiler, createTransaction, currentFedChanged, date, isBoiler, isFeed, onSuccess, paidFromPipeId, parsedCurrentFed, pipeId, resetForm, sentToPipeId, spendMode, title, transactionCache, value]);
+  }, [contributeToBoiler, createTransaction, currentFedChanged, date, isBoiler, isFeed, onSuccess, paidFromPipeId, parsedCurrentFed, pipeId, resetForm, sentToPipeId, spendMode, title, historyCache, value]);
 
   const handleSubmit = useCallback(async () => {
     if (!isValid || loading) return;

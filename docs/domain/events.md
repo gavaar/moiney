@@ -2,9 +2,9 @@
 
 Status: In progress
 
-This is the domain contract for unified event history. The existing persisted
-[transaction contracts](transactions.md) remain authoritative for legacy readers
-and writers until cutover. Event entries are current history snapshots, not an
+This is the domain contract for unified event history. The
+[transaction contracts](transactions.md) govern its accounting and presentation.
+Event entries are current history snapshots, not an
 event-sourcing log from which balances can be reconstructed.
 
 ## Identity And Ownership
@@ -17,20 +17,16 @@ insert, so the schema permits an absent `operationId` only for the initial
 insert within a mutation. Persistence fills it before committing; readers reject
 an entry missing it rather than treating incomplete identity as legacy data.
 
-While legacy transactions and events coexist, a legacy transaction's optional
-`operationId` links it to the canonical event. This link, not mutable titles,
-dates, or amounts, identifies the same action across both representations.
-Legacy public APIs retain transaction IDs until client cutover; the link is not
-part of their response contract.
+Financial persistence contains event operations, not transaction mirrors.
+Identity follows the exact canonical `operationId`, never mutable titles,
+dates, or amounts.
 
 An edit keeps the canonical entry's ID and replaces the complete operation
 snapshot atomically. A retained counterpart keeps its ID; changing between
-single-entry and paired structures adds or removes the counterpart. During
-coexistence, a meaningful edit to an unlinked legacy transaction materializes
-its current event snapshot without replaying historical accounting. A broken
-existing link is rejected rather than silently creating a replacement operation.
-Direct transaction deletion removes the complete linked operation in the same
-mutation as the legacy transaction. The inverse financial effect is applied
+single-entry and paired structures adds or removes the counterpart. Broken or
+incomplete operations reject rather than silently creating replacements.
+Direct transaction deletion removes the complete event operation atomically.
+The inverse financial effect is applied
 once under the [transaction deletion contract](transactions.md#d023-transaction-deletion),
 not independently for each event entry.
 
@@ -85,11 +81,8 @@ the account/month stream before presenting complete totals.
 
 The [monthly report metrics and capture policy](reporting.md#d016-monthly-spending-statistics)
 remain unchanged. Event backfills and reader cutover do not restate frozen reports
-or fill unavailable historical metrics. New scheduled captures aggregate events;
-event-backed reads and captures require completed event backfills. Transaction-backed
-capture continuations retain their original reader and cursor across deployment.
-Whichever chain finishes first freezes the month; every continuation checks for
-an existing capture before doing more work.
+or fill unavailable historical metrics. Scheduled captures aggregate events;
+every continuation checks for an existing capture before doing more work.
 
 Usage ranking collapses loaded entries by operation before applying the existing
 [source and tree usage rules](history-cache.md#d019-feed-list-ordering): a source is
@@ -112,6 +105,12 @@ Each pipe has at most one creation and one deletion operation. Both retained
 snapshots carry the final pipe and parent presentation after deletion; creation
 keeps the original occurrence date, while deletion uses the removal date.
 Lifecycle entries do not carry monetary values or transaction titles.
+Events own lifecycle identity, occurrence dates, and ancestry. Live-pipe refresh
+updates their presentation directly. Pipe-deletion jobs decide
+archive retention from financial events and capture final presentation before
+physical removal without separate lifecycle storage.
+The cursor-retirement gate is owned by
+[deletion](deletion.md#d002-pipe-deletion-and-transaction-history).
 
 ## Client Grouping
 
@@ -129,11 +128,16 @@ The operation row key is its `operationId`, whether its canonical entry is loade
 or not. Loaded canonical snapshots take precedence when both perspectives exist;
 repeated entry IDs retain the last supplied snapshot rather than adding counts.
 
-Financial display projections contain no legacy action ID. During coexistence,
-repeat, edit, delete, and correction-history actions resolve the exact owned
-operation through `transactions:forEventOperation` before using legacy APIs. A
-missing link makes the action unavailable; equal titles or amounts never repair
-it. Rendering and expansion perform no action-resolution queries.
+Financial display projections contain no legacy action ID. Repeat, edit, and
+delete read the complete owned canonical operation before opening their forms
+or confirmation. Mirrors cannot be action targets, and incomplete operations
+fail without writes. Edits and deletion use event snapshots for accounting,
+not transaction mirrors. Creation/repeat and boiler submissions use the
+same accounting policies without returning a transaction identity. Boiler
+commands signal whether financial history changed, so current-only corrections
+do not invalidate it. Correction history opens directly by canonical operation
+ID without resolving an action target. Rendering and expansion perform no
+action-resolution queries.
 
 ## Retrieval
 
@@ -163,9 +167,8 @@ the client uses its live pipe catalog for current presentation. A single-pipe
 query selects that pipe's own perspectives, not its target roles or descendants.
 Client scope expansion and preserved lifecycle ancestry own descendant/archive
 matching; callers can page separate pipe streams without an unbounded backend
-fan-out. Legacy history APIs remain available for installed clients until backend
-cutover. During coexistence, financial responses also include optional `editedAt`
-from the exact legacy link to preserve the `Edited` correction-history control.
+fan-out. Financial responses also include optional `editedAt` from the latest
+owned operation-linked correction to preserve the `Edited` history control.
 This metadata lookup is bounded to the loaded page and reused per operation;
 it neither adds members nor resolves missing mirrors.
 
@@ -202,34 +205,31 @@ Counts, Spent, and date bounds describe loaded matching members, not the complet
 pipe/month history. No separate archive reader, pagination, or full-summary scan
 is needed. Deletion-catalog reads supply identity and ancestry metadata only.
 
-## Backfill During Coexistence
+## Correction Ownership
 
-The migrations component owns pagination, resumability, and status. Run these
-internal migrations in order after deploying the dual-writers:
+Every persisted correction requires the exact canonical `operationId`; legacy
+transaction-ID linkage is not accepted. Previous/current snapshots and edit
+timestamps are retained independently of financial representation changes.
+Edits write the correction atomically with the operation snapshot. Reads and
+edit metadata follow the operation-owned contracts in [Retrieval](#retrieval),
+validating ownership and complete financial identity. Deleting an operation
+removes its corrections afterward in bounded scheduled batches.
 
-1. `migrations:m20261006_160000_backfillLivePipeEvents` captures live creation snapshots.
-2. `migrations:m20261006_160001_backfillLifecycleEvents` copies retained lifecycle history.
-3. `migrations:m20261006_160002_backfillTransactionEvents` materializes and links legacy financial
-   operations, including ones involving deleted pipes.
+Unexplained broken operation links require review, not identity inference from
+equal titles, values, or dates. Confirmed obsolete correction deletion remains
+a separately approved data operation.
 
-Use `bunx convex run <name> '{"dryRun":true}'` to check a batch before running
-`bunx convex run <name>`. A dry run rolls back all writes, including event
-insertions. It checks only one batch, not the complete dataset. Component status
-is available through `bunx convex run --component migrations lib:getStatus`.
-Use the CLI's `--prod` flag only when intentionally targeting production.
-Do not switch readers until all three migrations report completion.
+## Deployment Compatibility
 
-The passes are safe to resume or restart: lifecycle identity is per pipe/type,
-and existing transaction links are validated and retained. Invalid financial
-rows or broken links fail the batch atomically rather than being skipped or
-silently replaced. Backfill never replays accounting, resets balances or boiler
-principal, or alters correction records.
+The [old-app retirement inventory](../old-app-retirement.md) describes the
+inspected pre-retirement baseline, not the supported runtime or a runnable
+migration plan.
 
-For a retained snapshot whose pipe no longer exists and whose deletion date is
-missing, use the newest retained transaction date across `from`, `to`, and
-`paidFrom`, no earlier than creation; without retained transactions, use creation.
-Persist that inferred date so retries and later history edits do not move it.
-Retain known dates, final presentation, and deleted-descendant ancestry.
-
-Production backfills follow the
-[manual migration workflow](../backend.md#deployment-and-manual-migrations).
+Clients older than `0.5.0` are unsupported. Do not redeploy binaries that require
+legacy financial/lifecycle tables or transaction-ID correction contracts.
+A code rollback does not restore purged data. Restoring retired data requires
+an explicitly approved recovery plan using a pre-purge backup, never inferred
+identities or replayed accounting. [Deletion-job compatibility](deletion.md#d002-pipe-deletion-and-transaction-history)
+preserves completed-job retry safety. Subsequent
+data changes follow the [manual migration workflow](../backend.md#deployment-and-manual-migrations),
+without replaying accounting or restating frozen reports.

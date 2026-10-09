@@ -4,37 +4,22 @@ Canonical snapshot and ranking contracts. See the [decision index and status mea
 [transactions](transactions.md), [deletion](deletion.md), and [authentication](auth.md)
 for dependent contracts.
 
-## D014: Transaction Snapshot Cache
+## D014: Event History Snapshot Cache
 
 Status: Implemented
 
-Legacy transaction-only loaders use account-scoped persistent
-snapshots as stale, read-only sources. A valid snapshot suppresses live Convex
-query subscriptions on app open. One shared entity map is keyed by transaction
-ID, with separate ordered ID snapshots for history, recent, and selected-pipe
-scopes. Transaction-only History seeds 100 rows and loads further pages of 30
-on demand. Recent and selected-pipe transaction queries return at most 30 rows.
-Snapshot transactions persist until the cache reaches 300 unique entities, then
-least recently refreshed entries are evicted. Mixed History has the separate
-loading contract in [D021](#d021-pipe-creation-and-archived-history).
-
-Successful creation and editing return purpose-built rows and update the shared
-entity map in place. Creation updates only loaded history, recent, and
-selected-pipe snapshots relevant to any `from`, `to`, or `paidFrom` role; it does
-not create unseen partial snapshots. Editing updates and reorders every loaded
-snapshot containing the ID. See [D017](transactions.md#d017-transaction-structural-editing)
-for the in-progress structural-edit invalidation contract. Successful direct
-transaction deletion removes its ID from the entity map and every loaded
-snapshot and refreshes mounted mixed-history views.
-
-After asynchronous pipe deletion completes, one bounded request reconciles
-currently cached IDs, updates surviving rows, and removes absent IDs from the
-entity map and all snapshots.
+The client persists one account-scoped, read-only raw-event History snapshot.
+History and usage ranking share it; filtered History and Latest do not create
+separate persistent scopes. The visible History loading contract is in
+[D021](#d021-pipe-creation-and-archived-history).
 
 The server remains authoritative. Explicit refresh, cache misses, and load-more
-use one-shot reads and replace or reconcile cached rows with server results.
-Cache data never authorizes or decides mutations. Explicit logout clears the
-active account's cache. Entries are isolated by deployment and account identity.
+use one-shot event reads. Cache data never authorizes or decides mutations.
+Entries are isolated by deployment and account identity. Account changes expose
+only the new account's snapshot and clear the retired account's stored entries.
+Logout clears the active snapshot after any queued writes finish. Previously
+shipped transaction-only keys are removed per account during hydration; existing
+event snapshots keep their storage location.
 
 History filters apply to complete server history, not just the snapshot. They
 may combine an inclusive date range, case-insensitive title substring, and exact
@@ -53,8 +38,7 @@ filtered pages are scanned while their cursors advance so later matches remain
 visible. Unfiltered exhaustion is persisted in the snapshot. Failed load-more
 requests do not retry automatically on scroll; explicit refresh allows recovery.
 
-Event-based usage ranking has an account-scoped raw-entry History snapshot,
-isolated from legacy transaction snapshots. It retains distinct entry IDs even
+The snapshot retains distinct entry IDs even
 when entries share an operation ID; consumers collapse operations, not the cache.
 It seeds 100 stored entries and pages 30 at a time, retaining at most 300 entries
 by last refresh. Eviction invalidates membership so a missing recent head cannot
@@ -64,11 +48,13 @@ refresh preserves a valid loaded tail; an invalidated snapshot or an exhausted
 server head replaces membership instead.
 
 Financial creation, editing, direct deletion, and completed pipe deletion
-invalidate event snapshot membership, including when no legacy transaction IDs
-are cached. Mounted enabled consumers then reload authoritative entries; no
-transaction ID is synthesized from an event ID. Logout clears both snapshots,
-and retired-account requests cannot publish or persist entries for another
-account. Device-cache failures do not prevent event data from loading.
+invalidate event snapshot membership through an explicit history-invalidation
+boundary, without reconciling transaction entities. Generation invalidation and
+mutation notifications are synchronous, before device persistence completes.
+Mounted enabled consumers then reload authoritative entries. Older generations,
+including delayed hydration, cannot restore invalidated membership; retired-account
+callbacks cannot publish or persist new entries. Device-cache failures do not
+prevent event data from loading or turn a successful mutation into a failure.
 
 ## D018: Quick Creation Ranking
 
@@ -157,7 +143,5 @@ read independently. Main History retains all loaded entries even beyond the
 persistent cache's 300-entry limit. Account/filter changes and unmounting invalidate
 in-flight reads.
 
-During backfill, existing live pipes may lack creation events; their financial
-history remains available. Backfill is idempotent, uses original creation times,
-and captures the surviving ancestry. Frozen pipes are captured by deletion before
-removal. Pipes deleted before event support cannot generally be reconstructed.
+Frozen pipes are captured by deletion before removal. Pipes deleted before event
+support cannot generally be reconstructed.

@@ -17,9 +17,9 @@ import { InnerPipesScreen } from "@features/pipes/InnerPipesScreen";
 import { PipeTreeView } from "@features/pipes/PipeTreeView";
 import { FeedListScreen } from "@features/pipes/FeedListScreen";
 import { orderFeedsByEventTreeUsage } from "@features/transactions/history/event-usage";
-import { useTransactionCache } from "@features/transactions/cache/TransactionCacheContext";
+import { useEventHistoryCache } from "@features/transactions/cache/EventHistoryCacheContext";
 import { useEventHistory } from "@features/transactions/cache/useEventHistory";
-import { getSubtreePipeIds } from "@features/transactions/context/TransactionsContext";
+import { getSubtreePipeIds } from "@features/pipes/data/subtree";
 import { MixedHistoryFeed } from "@features/transactions/history/mixed-history-feed";
 
 export function PipesScreen({ openPipeId, onPipeOpened, onOpenCurrentReport }: { openPipeId?: string; onPipeOpened?: () => void; onOpenCurrentReport?: () => void } = {}) {
@@ -51,7 +51,7 @@ export function PipesScreen({ openPipeId, onPipeOpened, onOpenCurrentReport }: {
     }
     onPipeOpened?.();
   }, [allPipes, openPipeId, onPipeOpened, selectPipe]);
-  const { eventHistory: historySnapshot } = useTransactionCache();
+  const { eventHistory: historySnapshot } = useEventHistoryCache();
   const { entries: historyEntries } = useEventHistory(
     {
       enabled: historySnapshot.updatedAt > 0 && !treeMode && !selectedName,

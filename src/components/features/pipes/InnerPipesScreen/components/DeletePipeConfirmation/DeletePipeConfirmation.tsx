@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
-import { useConvex, useMutation, useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
-import type { Id } from "@convex/_generated/dataModel";
 import type {
   PipeModel,
 } from "@features/pipes/data/pipes";
@@ -13,7 +12,7 @@ import { ModalShell } from "@ui/Modal";
 import { colors } from "@/lib/styles";
 import { useAlert } from "@ui/Alert";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
-import { useOptionalTransactionCache } from "@features/transactions/cache/TransactionCacheContext";
+import { useOptionalEventHistoryCache } from "@features/transactions/cache/EventHistoryCacheContext";
 
 type Props = {
   visible: boolean;
@@ -54,8 +53,7 @@ export function DeletePipeConfirmation({ visible, onClose, pipeId, onDeleted }: 
   } | null>(null);
   const notifiedJobId = useRef<typeof jobId>(null);
   const showAlert = useAlert();
-  const transactionCache = useOptionalTransactionCache();
-  const convex = useConvex();
+  const historyCache = useOptionalEventHistoryCache();
   const startPipeDeletion = useMutation(api.pipes.startPipeDeletion);
   const deletionStatus = useQuery(
     api.pipes.getPipeDeletionStatus,
@@ -86,29 +84,17 @@ export function DeletePipeConfirmation({ visible, onClose, pipeId, onDeleted }: 
           completedDeletion.deleteTransactions ? " Orphaned history was deleted" : ""
         }`,
       );
-      const transactionIds = transactionCache?.cache
-        ? Object.keys(transactionCache.cache.entities) as Id<"transactions">[]
-        : [];
-      if (transactionCache && transactionIds.length > 0) {
-        void convex.query(api.transactions.listTransactionsByIds, { transactionIds })
-          .then((transactions) =>
-            transactionCache.reconcileTransactions(transactionIds, transactions),
-          )
-          .catch(() => transactionCache.invalidateAll());
-      } else if (transactionCache) {
-        void transactionCache.invalidateAll().catch(() => undefined);
-      }
+      void historyCache?.invalidateHistory().catch(() => undefined);
       onDeleted();
       onClose();
     }
   }, [
     completedDeletion,
     descendants.length,
-    convex,
     onClose,
     onDeleted,
     showAlert,
-    transactionCache,
+    historyCache,
   ]);
 
   const handleConfirm = async () => {

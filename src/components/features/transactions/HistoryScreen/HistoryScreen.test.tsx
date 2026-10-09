@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { HistoryScreen } from "./HistoryScreen";
 
 const mocks = vi.hoisted(() => ({
-  useTransactionHistory: vi.fn(),
+  renderHistoryFeed: vi.fn(),
 }));
 
 vi.mock("react-native-safe-area-context", () => ({
@@ -15,15 +15,9 @@ vi.mock("expo-router/react-navigation", () => ({ useIsFocused: () => true }));
 vi.mock("@features/app/AppScreenHeader", () => ({
   AppScreenHeader: ({ title }: { title: string }) => <h1>{title}</h1>,
 }));
-vi.mock("@features/transactions/TransactionListWithHistory", () => ({
-  TransactionListWithHistory: () => <div data-testid="history-list" />,
-}));
-vi.mock("@features/transactions/cache/useTransactionHistory", () => ({
-  useTransactionHistory: mocks.useTransactionHistory,
-}));
 vi.mock("@features/transactions/history/mixed-history-feed", () => ({
   MixedHistoryFeed: ({ filters }: any) => {
-    mocks.useTransactionHistory(filters);
+    mocks.renderHistoryFeed(filters);
     return <div data-testid="history-list" />;
   },
 }));
@@ -86,16 +80,7 @@ vi.mock("@ui/Button", () => ({
 
 describe("HistoryScreen filters", () => {
   beforeEach(() => {
-    mocks.useTransactionHistory.mockReset();
-    mocks.useTransactionHistory.mockReturnValue({
-      transactions: [],
-      error: null,
-      isLoading: false,
-      isRefreshing: false,
-      loadMore: vi.fn(),
-      loadMoreStatus: "Exhausted",
-      refresh: vi.fn(),
-    });
+    mocks.renderHistoryFeed.mockReset();
   });
 
   it("offers parents for archived descendant history and applies and clears draft filters", async () => {
@@ -109,11 +94,11 @@ describe("HistoryScreen filters", () => {
     await user.click(screen.getByRole("button", { name: "Groceries" }));
 
     const now = new Date();
-    expect(mocks.useTransactionHistory.mock.calls.at(-1)?.[0]).toEqual({
+    expect(mocks.renderHistoryFeed.mock.calls.at(-1)?.[0]).toEqual({
       fromDate: Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
     });
     await user.click(screen.getByRole("button", { name: "Apply filters" }));
-    expect(mocks.useTransactionHistory.mock.calls.at(-1)?.[0]).toEqual({
+    expect(mocks.renderHistoryFeed.mock.calls.at(-1)?.[0]).toEqual({
       fromDate: Date.UTC(2026, 0, 1),
       toDate: Date.UTC(2026, 1, 1, 23, 59, 59, 999),
       pipeIds: ["groceries"],
@@ -121,7 +106,7 @@ describe("HistoryScreen filters", () => {
     });
 
     await user.click(screen.getByRole("button", { name: "Clear filters" }));
-    expect(mocks.useTransactionHistory.mock.calls.at(-1)?.[0]).toEqual({});
+    expect(mocks.renderHistoryFeed.mock.calls.at(-1)?.[0]).toEqual({});
   });
 
   it("starts at the current month and keeps Clear empty when applying again", async () => {
@@ -132,12 +117,12 @@ describe("HistoryScreen filters", () => {
 
     expect(screen.getByRole("button", { name: "From date" }).getAttribute("data-value"))
       .toBe(new Date(start).toISOString());
-    expect(mocks.useTransactionHistory.mock.calls.at(-1)?.[0]).toEqual({ fromDate: start });
+    expect(mocks.renderHistoryFeed.mock.calls.at(-1)?.[0]).toEqual({ fromDate: start });
     await user.click(screen.getByRole("button", { name: "Clear filters" }));
     expect(screen.getByRole("button", { name: "From date" }).getAttribute("data-value"))
       .toBe("");
     await user.click(screen.getByRole("button", { name: "Apply filters" }));
-    expect(mocks.useTransactionHistory.mock.calls.at(-1)?.[0]).toEqual({});
+    expect(mocks.renderHistoryFeed.mock.calls.at(-1)?.[0]).toEqual({});
   });
 
   it("advances the untouched default filter and date control across UTC month rollover", () => {
@@ -145,11 +130,11 @@ describe("HistoryScreen filters", () => {
     vi.setSystemTime(Date.UTC(2026, 0, 31, 23, 59));
     try {
       render(<HistoryScreen />);
-      expect(mocks.useTransactionHistory.mock.calls.at(-1)?.[0]).toEqual({ fromDate: Date.UTC(2026, 0, 1) });
+      expect(mocks.renderHistoryFeed.mock.calls.at(-1)?.[0]).toEqual({ fromDate: Date.UTC(2026, 0, 1) });
 
       act(() => vi.advanceTimersByTime(2 * 60 * 1000));
 
-      expect(mocks.useTransactionHistory.mock.calls.at(-1)?.[0]).toEqual({ fromDate: Date.UTC(2026, 1, 1) });
+      expect(mocks.renderHistoryFeed.mock.calls.at(-1)?.[0]).toEqual({ fromDate: Date.UTC(2026, 1, 1) });
       expect(screen.getByRole("button", { name: "From date" }).getAttribute("data-value"))
         .toBe(new Date(Date.UTC(2026, 1, 1)).toISOString());
     } finally {
@@ -166,7 +151,7 @@ describe("HistoryScreen filters", () => {
 
       act(() => vi.advanceTimersByTime(2 * 60 * 1000));
 
-      expect(mocks.useTransactionHistory.mock.calls.at(-1)?.[0]).toEqual({});
+      expect(mocks.renderHistoryFeed.mock.calls.at(-1)?.[0]).toEqual({});
       expect(screen.getByRole("button", { name: "From date" }).getAttribute("data-value")).toBe("");
     } finally {
       vi.useRealTimers();
@@ -183,7 +168,7 @@ describe("HistoryScreen filters", () => {
 
       act(() => vi.advanceTimersByTime(2 * 60 * 1000));
 
-      expect(mocks.useTransactionHistory.mock.calls.at(-1)?.[0]).toEqual({
+      expect(mocks.renderHistoryFeed.mock.calls.at(-1)?.[0]).toEqual({
         fromDate: Date.UTC(2026, 0, 1), title: "coffee",
       });
       expect(screen.getByRole("button", { name: "From date" }).getAttribute("data-value"))

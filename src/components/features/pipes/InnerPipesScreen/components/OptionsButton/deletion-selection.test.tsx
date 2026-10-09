@@ -8,7 +8,7 @@ import { OptionsButton } from "./OptionsButton";
 const state = vi.hoisted(() => ({ complete: false }));
 const startDeletion = vi.fn().mockResolvedValue({ jobId: "job-1" });
 const query = vi.fn().mockResolvedValue([]);
-const reconcile = vi.fn().mockResolvedValue(undefined);
+const invalidateHistory = vi.fn().mockResolvedValue(undefined);
 const alert = { success: vi.fn(), error: vi.fn() };
 vi.mock("convex/react", () => ({
   useMutation: () => startDeletion,
@@ -17,9 +17,9 @@ vi.mock("convex/react", () => ({
     ? { phase: "complete", deleteTransactions: false } : undefined,
 }));
 vi.mock("@ui/Alert", () => ({ useAlert: () => alert }));
-vi.mock("@features/transactions/cache/TransactionCacheContext", () => ({
-  useOptionalTransactionCache: () => ({
-    cache: { entities: { "tx-1": {} } }, reconcileTransactions: reconcile, invalidateAll: vi.fn(),
+vi.mock("@features/transactions/cache/EventHistoryCacheContext", () => ({
+  useOptionalEventHistoryCache: () => ({
+    invalidateHistory,
   }),
 }));
 vi.mock("@ui/Popover", () => ({ Popover: ({ visible, children }: React.PropsWithChildren<{ visible: boolean }>) => visible ? children : null }));
@@ -57,5 +57,5 @@ it("stays at the surviving parent when catalog removal and deletion completion a
   await act(async () => rerender(<PipeSelectionProvider><Screen /></PipeSelectionProvider>));
   expect(screen.getByTestId("path").textContent).toBe("root,parent");
   expect(alert.success).toHaveBeenCalledTimes(1);
-  expect(reconcile).toHaveBeenCalledWith(["tx-1"], []);
+  expect(invalidateHistory).toHaveBeenCalledOnce();
 });

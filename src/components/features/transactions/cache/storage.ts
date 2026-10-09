@@ -1,1 +1,1 @@
-export { transactionCacheStorage } from "./storage.web";
+export { eventHistoryStorage } from "./storage.web";

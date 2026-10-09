@@ -33,7 +33,7 @@ Implemented. In particular, D017 remains In progress.
 | D011 | [Transaction edit history](domain/transactions.md#d011-transaction-edit-history) | Implemented |
 | D012 | [Pay-by-transfer liquidity and logical spending](domain/accounting.md#d012-pay-by-transfer-liquidity-and-logical-spending) | Implemented |
 | D013 | [Transfer pipe eligibility](domain/transactions.md#d013-transfer-pipe-eligibility) | Implemented |
-| D014 | [Transaction snapshot cache](domain/history-cache.md#d014-transaction-snapshot-cache) | Implemented |
+| D014 | [Event History snapshot cache](domain/history-cache.md#d014-event-history-snapshot-cache) | Implemented |
 | D015 | [Boiler feed pipes](domain/accounting.md#d015-boiler-feed-pipes) | Implemented |
 | D016 | [Monthly spending statistics](domain/reporting.md#d016-monthly-spending-statistics) | Implemented |
 | D017 | [Transaction structural editing](domain/transactions.md#d017-transaction-structural-editing) | In progress |

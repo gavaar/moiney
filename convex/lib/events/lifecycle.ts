@@ -2,7 +2,8 @@ import type { Doc, Id } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
 import { deleteHistoryOperation, insertHistoryOperation, replaceHistoryOperation } from "./persistence";
 
-export type PipeLifecycleSnapshot = Omit<Doc<"pipeCreationEvents">, "_id" | "_creationTime" | "deletedAt">;
+export type PipeLifecycleSnapshot = Omit<Extract<Doc<"events">, { type: "pipe_creation" }>,
+  "_id" | "_creationTime" | "operationId" | "type">;
 type LifecycleType = "pipe_creation" | "pipe_deletion";
 
 function lifecycleQuery(ctx: MutationCtx, userId: Id<"users">, pipeId: Id<"pipes">, type: LifecycleType) {
@@ -26,13 +27,13 @@ function lifecycleEntry(snapshot: PipeLifecycleSnapshot, type: LifecycleType, oc
 }
 
 /** Creation identity is per pipe; refresh its retained snapshot before physical deletion. */
-export async function syncPipeCreationHistory(ctx: MutationCtx, snapshot: PipeLifecycleSnapshot) {
-  const existing = await lifecycleQuery(ctx, snapshot.userId, snapshot.pipeId, "pipe_creation").unique();
+export async function syncPipeCreationHistory(ctx: MutationCtx, snapshot: PipeLifecycleSnapshot, knownEvent?: Doc<"events"> | null) {
+  const existing = knownEvent === undefined ? await lifecycleQuery(ctx, snapshot.userId, snapshot.pipeId, "pipe_creation").unique() : knownEvent;
   const entry = lifecycleEntry(snapshot, "pipe_creation", snapshot.occurredAt);
   if (!existing) {
     return (await insertHistoryOperation(ctx, { canonicalEvent: entry })).canonicalEvent.id;
   }
-  if (existing.type !== "pipe_creation" || existing.operationId !== existing._id) {
+  if (existing.type !== "pipe_creation" || existing.operationId !== existing._id || existing.userId !== snapshot.userId || existing.pipeId !== snapshot.pipeId) {
     throw new Error("Invalid pipe creation operation");
   }
   if (existing.name !== entry.name || existing.icon !== entry.icon ||

@@ -1,7 +1,7 @@
 # Authentication
 
 Canonical authentication contracts. See the [decision index and status meanings](../domain-decisions.md#status-meanings)
-and [account-scoped cache isolation and logout](history-cache.md#d014-transaction-snapshot-cache).
+and [account-scoped cache isolation and logout](history-cache.md#d014-event-history-snapshot-cache).
 
 ## D004: Username Canonicalization
 

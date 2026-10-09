@@ -69,8 +69,7 @@ const mockUsePipeSelection = vi.fn();
 const deleteMocks = vi.hoisted(() => ({
   confirm: vi.fn(),
   deleteTransaction: vi.fn(),
-  reconcileTransactions: vi.fn(),
-  invalidateAll: vi.fn(),
+  invalidateHistory: vi.fn(),
   showError: vi.fn(),
   showSuccess: vi.fn(),
 }));
@@ -86,10 +85,9 @@ vi.mock("@ui/Alert", () => ({
     success: deleteMocks.showSuccess,
   }),
 }));
-vi.mock("@features/transactions/cache/TransactionCacheContext", () => ({
-  useOptionalTransactionCache: () => ({
-    reconcileTransactions: deleteMocks.reconcileTransactions,
-    invalidateAll: deleteMocks.invalidateAll,
+vi.mock("@features/transactions/cache/EventHistoryCacheContext", () => ({
+  useOptionalEventHistoryCache: () => ({
+    invalidateHistory: deleteMocks.invalidateHistory,
   }),
 }));
 vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
@@ -116,7 +114,7 @@ vi.mock("@features/transactions/TransactionForm/TransactionForm", () => ({
     <div
       data-testid="amount-form"
       data-intent={initState?.intent ?? "repeat"}
-      data-transaction-id={initState?.transactionId}
+      data-operation-id={initState?.operationId}
       data-spent={initState?.spent}
       data-capacity={initState?.capacity}
       data-paid-from={
@@ -133,8 +131,7 @@ describe("TransactionItem", () => {
     vi.clearAllMocks();
     deleteMocks.confirm.mockResolvedValue(false);
     deleteMocks.deleteTransaction.mockResolvedValue(null);
-    deleteMocks.reconcileTransactions.mockResolvedValue(undefined);
-    deleteMocks.invalidateAll.mockResolvedValue(undefined);
+    deleteMocks.invalidateHistory.mockResolvedValue(undefined);
     mockUsePipeSelection.mockReturnValue({
       pipesById: { [pipeInfo.id]: pipeInfo },
       childrenByParent: new Map(),
@@ -147,26 +144,27 @@ describe("TransactionItem", () => {
       .toContain("cart-outline");
   });
 
-  it("resolves an event presentation only on action and opens edit with the real transaction ID", async () => {
+  it("reads a complete event operation only on action and opens edit with its operation ID", async () => {
     const { id: _id, ...presentation } = baseTx;
     const resolveTransaction = vi.fn().mockResolvedValue(baseTx);
     render(<TransactionItem transaction={presentation} resolveTransaction={resolveTransaction} />);
     expect(resolveTransaction).not.toHaveBeenCalled();
     fireEvent.click(screen.getByLabelText("Edit shopping mall"));
-    await waitFor(() => expect(screen.getByTestId("amount-form").getAttribute("data-transaction-id")).toBe(baseTx.id));
+    await waitFor(() => expect(screen.getByTestId("amount-form").getAttribute("data-operation-id")).toBe(baseTx.id));
     expect(screen.getByTestId("amount-form").getAttribute("data-intent")).toBe("edit");
   });
 
-  it("resolves delete and correction-history actions without inventing a transaction ID", async () => {
+  it("opens correction history directly while reading the complete delete operation", async () => {
     const { id: _id, ...presentation } = baseTx;
     const resolveTransaction = vi.fn().mockResolvedValue(baseTx);
     const history = vi.fn();
     deleteMocks.confirm.mockResolvedValue(true);
     render(<TransactionItem transaction={{ ...presentation, editedAt: 2 }} resolveTransaction={resolveTransaction} onShowEditHistory={history} />);
     fireEvent.click(screen.getByLabelText("View edit history for shopping mall"));
-    await waitFor(() => expect(history).toHaveBeenCalledWith(baseTx.id));
+    expect(history).toHaveBeenCalledOnce();
+    expect(resolveTransaction).not.toHaveBeenCalled();
     fireEvent.click(screen.getByLabelText("Delete shopping mall"));
-    await waitFor(() => expect(deleteMocks.deleteTransaction).toHaveBeenCalledWith({ transactionId: baseTx.id }));
+    await waitFor(() => expect(deleteMocks.deleteTransaction).toHaveBeenCalledWith({ operationId: baseTx.id }));
   });
 
   it("reports a missing action target and discards resolution after the row unmounts", async () => {
@@ -176,15 +174,14 @@ describe("TransactionItem", () => {
     fireEvent.click(screen.getByText("Shopping mall"));
     await waitFor(() => expect(deleteMocks.showError).toHaveBeenCalledWith("Transaction is no longer available. Pull to refresh."));
     unmount();
-    let finish!: (value: typeof baseTx) => void;
+    let finish!: (value: typeof baseTx | null) => void;
     resolveTransaction.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
-    const history = vi.fn();
-    const next = render(<TransactionItem transaction={{ ...presentation, editedAt: 2 }} resolveTransaction={resolveTransaction} onShowEditHistory={history} />);
-    fireEvent.click(screen.getByLabelText("View edit history for shopping mall"));
+    const next = render(<TransactionItem transaction={presentation} resolveTransaction={resolveTransaction} />);
+    fireEvent.click(screen.getByText("Shopping mall"));
     next.unmount();
-    finish(baseTx);
+    finish(null);
     await Promise.resolve();
-    expect(history).not.toHaveBeenCalled();
+    expect(deleteMocks.showError).toHaveBeenCalledOnce();
   });
 
   it("renders the transaction title with first letter capitalized", () => {
@@ -279,9 +276,9 @@ describe("TransactionItem", () => {
     fireEvent.click(screen.getByLabelText("Delete shopping mall"));
 
     await waitFor(() => expect(deleteMocks.deleteTransaction).toHaveBeenCalledWith({
-      transactionId: baseTx.id,
+      operationId: baseTx.id,
     }));
-    expect(deleteMocks.reconcileTransactions).toHaveBeenCalledWith([baseTx.id], []);
+    expect(deleteMocks.invalidateHistory).toHaveBeenCalledOnce();
     expect(deleteMocks.showSuccess).toHaveBeenCalledWith("Transaction deleted");
   });
 
@@ -293,18 +290,18 @@ describe("TransactionItem", () => {
     fireEvent.click(screen.getByLabelText("Delete shopping mall"));
 
     await waitFor(() => expect(deleteMocks.showError).toHaveBeenCalledWith("Error: blocked"));
-    expect(deleteMocks.reconcileTransactions).not.toHaveBeenCalled();
+    expect(deleteMocks.invalidateHistory).not.toHaveBeenCalled();
   });
 
-  it("invalidates stale cache data when persistence fails after server deletion", async () => {
+  it("reports server deletion success even if history invalidation fails", async () => {
     deleteMocks.confirm.mockResolvedValue(true);
-    deleteMocks.reconcileTransactions.mockRejectedValue(new Error("storage failed"));
+    deleteMocks.invalidateHistory.mockRejectedValue(new Error("storage failed"));
     render(<TransactionItem transaction={baseTx} />);
 
     fireEvent.click(screen.getByLabelText("Delete shopping mall"));
 
-    await waitFor(() => expect(deleteMocks.invalidateAll).toHaveBeenCalledOnce());
-    expect(deleteMocks.showSuccess).toHaveBeenCalledWith("Transaction deleted");
+    await waitFor(() => expect(deleteMocks.showSuccess).toHaveBeenCalledWith("Transaction deleted"));
+    expect(deleteMocks.invalidateHistory).toHaveBeenCalledOnce();
     expect(deleteMocks.showError).not.toHaveBeenCalled();
   });
 
@@ -321,7 +318,7 @@ describe("TransactionItem", () => {
 
     fireEvent.click(screen.getByTestId("transaction-edit-history"));
 
-    expect(onShowEditHistory).toHaveBeenCalledWith(transaction.id);
+    expect(onShowEditHistory).toHaveBeenCalledOnce();
   });
 
   it("renders positive value without sign", () => {

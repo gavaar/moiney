@@ -7,7 +7,7 @@ import { modules } from "./test.setup";
 import { insertFinancialOperation } from "./lib/events/financial";
 import { insertHistoryOperation } from "./lib/events/persistence";
 
-it("scheduled captures use event snapshots, not legacy rows, without restating frozen reports", async () => {
+it("scheduled captures use event snapshots without restating frozen reports", async () => {
   const t = convexTest(schema, modules);
   const periodStart = Date.UTC(2026, 5, 1);
   const userId = await t.run(async ctx => {
@@ -15,7 +15,6 @@ it("scheduled captures use event snapshots, not legacy rows, without restating f
     const pipeId = await ctx.db.insert("pipes", { userId, name: "Root", icon: "wallet", priority: 0, fed: 1000, spent: 0, capacity: 1000 });
     await insertFinancialOperation(ctx, { userId, occurredAt: periodStart, title: "Event only", value: -100,
       structure: { type: "expense", from: pipeId } });
-    await ctx.db.insert("transactions", { userId, title: "Legacy only", value: -9999, date: periodStart, kind: "expense", from: pipeId });
     return userId;
   });
   await t.mutation(internal.monthlySpendingStats.capturePreviousMonth, { now: Date.UTC(2026, 6, 1, 5) });
@@ -32,28 +31,35 @@ it("scheduled captures use event snapshots, not legacy rows, without restating f
   expect(await t.withIdentity({ subject: userId }).query(api.monthlySpendingStats.getMine, { periodStart })).toEqual(report);
 });
 
-it.each([false, true])("preserves transaction capture continuations across cutover (event capture already finished: %s)", async eventCaptureFinished => {
+it.each([false, true])("keeps event capture continuations idempotent (another capture already finished: %s)", async anotherCaptureFinished => {
   const t = convexTest(schema, modules);
   const periodStart = Date.UTC(2026, 5, 1);
   const periodEnd = Date.UTC(2026, 6, 1);
   const userId = await t.run(async ctx => {
     const userId = await ctx.db.insert("users", { username: "continuation", email: "continuation@example.com", password: "hash" });
     const pipeId = await ctx.db.insert("pipes", { userId, name: "Root", icon: "wallet", priority: 0, fed: 0, spent: 0, capacity: 0 });
-    for (let i = 0; i < 101; i++) await ctx.db.insert("transactions", {
-      userId, from: pipeId, title: "Legacy", kind: "expense", value: -100, date: periodStart + i,
+    for (let i = 0; i < 101; i++) await insertFinancialOperation(ctx, {
+      userId, title: "Event", value: -100, occurredAt: periodStart + i, structure: { type: "expense", from: pipeId },
     });
-    await insertFinancialOperation(ctx, { userId, title: "Event", value: -500, occurredAt: periodStart, structure: { type: "expense", from: pipeId } });
     return userId;
   });
-  await t.mutation(internal.monthlySpendingStats.captureUserMonth, { userId, periodStart, periodEnd });
+  await t.mutation(internal.monthlySpendingStats.captureUserEventMonth, { userId, periodStart, periodEnd });
   expect(await t.run(ctx => ctx.db.query("monthlySpendingStats").collect())).toEqual([]);
-  if (eventCaptureFinished) await t.mutation(internal.monthlySpendingStats.captureUserEventMonth, { userId, periodStart, periodEnd });
+  if (anotherCaptureFinished) {
+    await t.run(async ctx => {
+      await ctx.db.insert("monthlySpendingStats", { userId, periodStart,
+        grossSpendingCents: 500, refundCents: 0, spendingTransactionCount: 1,
+        refundTransactionCount: 0, largestSpendingTransactionCents: 500 });
+      // A continuation must stop before reading a now-invalid event stream.
+      for (const event of await ctx.db.query("events").collect()) await ctx.db.delete("events", event._id);
+    });
+  }
   vi.useFakeTimers();
   try { await t.finishAllScheduledFunctions(vi.runAllTimers); } finally { vi.useRealTimers(); }
   const stats = await t.run(ctx => ctx.db.query("monthlySpendingStats").collect());
   expect(stats).toHaveLength(1);
-  expect(stats[0]).toMatchObject({ grossSpendingCents: eventCaptureFinished ? 500 : 10100,
-    spendingTransactionCount: eventCaptureFinished ? 1 : 101 });
+  expect(stats[0]).toMatchObject({ grossSpendingCents: anotherCaptureFinished ? 500 : 10100,
+    spendingTransactionCount: anotherCaptureFinished ? 1 : 101 });
 });
 
 it("exhausts event pages before capture, counts logical spending once, and retains deleted-pipe activity", async () => {
@@ -87,7 +93,6 @@ it("exhausts event pages before capture, counts logical spending once, and retai
     spendingTransactionCount: 101, refundTransactionCount: 1, volumeCents: 4800, producedCents: 4800,
     mostRepeatedTransaction: { title: "hotel", count: 102, netSpendingCents: 10075 }, offenders: [] });
   expect(await t.run(ctx => ctx.db.get("pipes", ids.root))).toMatchObject({ fed: 5000, spent: 200 });
-  expect(await t.run(ctx => ctx.db.query("transactions").collect())).toEqual([]);
 });
 
 it("captures the previous UTC month's spending once for every user", async () => {
@@ -119,11 +124,6 @@ it("captures the previous UTC month's spending once for every user", async () =>
       { kind: "expense" as const, value: -9_999, date: juneStart - 1 },
       { kind: "expense" as const, value: -9_999, date: julyStart },
     ]) {
-      await ctx.db.insert("transactions", {
-        ...transaction,
-        title: "test transaction",
-        userId: activeUserId,
-      });
       await insertFinancialOperation(ctx, { userId: activeUserId, title: "test transaction", value: transaction.value, occurredAt: transaction.date,
         structure: transaction.kind === "feed" ? { type: "feed", to: source } : transaction.kind === "transfer"
           ? { type: "transfer", from: source, to: target } : { type: "expense", from: source } });
@@ -256,7 +256,6 @@ it("freezes the top overspending leaves by net logical expenses and capacity at 
     const payer = await ctx.db.insert("pipes", { userId, parentId: root, name: "Payer", icon: "cash", priority: 2, capacity: 200, fed: 0, spent: 0 });
     const debt = await ctx.db.insert("pipes", { userId, parentId: root, name: "Debt", icon: "cash", priority: 3, capacity: -1_000, fed: 0, spent: 0 });
     for (const [value, from, paidFrom] of [[-900, leaf, payer], [200, leaf, payer], [-150, payer, undefined], [-200, debt, undefined]] as const) {
-      await ctx.db.insert("transactions", { userId, title: "Spend", kind: "expense", date: juneStart, value, from, ...(paidFrom ? { paidFrom } : {}) });
       await insertFinancialOperation(ctx, { userId, title: "Spend", value, occurredAt: juneStart,
         structure: paidFrom ? { type: "payByTransfer", from, paidFrom } : { type: "expense", from } });
     }
@@ -289,14 +288,6 @@ it("finishes paginated capture and preserves the frozen result on rerun", async 
     const root = await ctx.db.insert("pipes", { userId: id, name: "Root", icon: "bank", priority: 1, capacity: 0, fed: 0, spent: 0 });
     const leaf = await ctx.db.insert("pipes", { userId: id, parentId: root, name: "Recurring", icon: "cash", priority: 1, capacity: 10_000, fed: 0, spent: 0 });
     for (let index = 0; index < 101; index += 1) {
-      await ctx.db.insert("transactions", {
-        title: index === 100 ? "expense 0" : `expense ${index}`,
-        value: -100,
-        date: juneStart + index,
-        kind: "expense",
-        userId: id,
-        from: leaf,
-      });
       await insertFinancialOperation(ctx, { userId: id, title: index === 100 ? "expense 0" : `expense ${index}`,
         value: -100, occurredAt: juneStart + index, structure: { type: "expense", from: leaf } });
     }
@@ -308,15 +299,11 @@ it("finishes paginated capture and preserves the frozen result on rerun", async 
   await t.finishAllScheduledFunctions(vi.runAllTimers);
   vi.useRealTimers();
 
-  await t.run((ctx) =>
-    ctx.db.insert("transactions", {
-      title: "late entry",
-      value: -50_000,
-      date: juneStart,
-      kind: "expense",
-      userId,
-    }),
-  );
+  await t.run(async ctx => {
+    const leaf = (await ctx.db.query("pipes").collect()).find(pipe => pipe.parentId)!;
+    await insertFinancialOperation(ctx, { userId, title: "late entry", value: -50_000, occurredAt: juneStart,
+      structure: { type: "expense", from: leaf._id } });
+  });
   await t.mutation(internal.monthlySpendingStats.capturePreviousMonth, { now });
   vi.useFakeTimers();
   await t.finishAllScheduledFunctions(vi.runAllTimers);
@@ -459,26 +446,31 @@ it("returns bounded live monthly aggregates for the owner without persisting a c
   const userId = await t.run(async (ctx) => {
     const userId = await ctx.db.insert("users", { username: "live", email: "live@example.com", password: "hash" });
     const other = await ctx.db.insert("users", { username: "other-live", email: "other-live@example.com", password: "hash" });
-    for (const [value, owner] of [[-600, userId], [100, userId], [-99_000, other]] as const) {
-      await ctx.db.insert("transactions", { userId: owner, title: "Spending", kind: "expense", date: periodStart + 1, value });
+    const fields = { name: "Root", icon: "wallet", priority: 0, fed: 0, spent: 0, capacity: 0 };
+    const source = await ctx.db.insert("pipes", { ...fields, userId });
+    const foreignSource = await ctx.db.insert("pipes", { ...fields, userId: other });
+    for (const [value, owner, pipeId] of [[-600, userId, source], [100, userId, source], [-99_000, other, foreignSource]] as const) {
+      await insertFinancialOperation(ctx, { userId: owner, title: "Spending", value, occurredAt: periodStart + 1,
+        structure: { type: "expense", from: pipeId } });
     }
-    await ctx.db.insert("transactions", { userId, title: "Previous month", kind: "expense", date: Date.UTC(2026, 4, 10), value: -250 });
+    await insertFinancialOperation(ctx, { userId, title: "Previous month", value: -250, occurredAt: Date.UTC(2026, 4, 10),
+      structure: { type: "expense", from: source } });
     return userId;
   });
   vi.useFakeTimers();
   vi.setSystemTime(Date.UTC(2026, 5, 15));
   try {
-    await expect(t.query(api.monthlySpendingStats.monthPage, { periodStart, paginationOpts: { numItems: 1, cursor: null } })).rejects.toThrow("Not authenticated");
+    await expect(t.query(api.monthlySpendingStats.eventMonthPage, { periodStart, paginationOpts: { numItems: 1, cursor: null } })).rejects.toThrow("Not authenticated");
     const owner = t.withIdentity({ subject: userId });
-    const first = await owner.query(api.monthlySpendingStats.monthPage, { periodStart, paginationOpts: { numItems: 1, cursor: null } });
-    const second = await owner.query(api.monthlySpendingStats.monthPage, { periodStart, paginationOpts: { numItems: 1, cursor: first.continueCursor } });
+    const first = await owner.query(api.monthlySpendingStats.eventMonthPage, { periodStart, paginationOpts: { numItems: 1, cursor: null } });
+    const second = await owner.query(api.monthlySpendingStats.eventMonthPage, { periodStart, paginationOpts: { numItems: 1, cursor: first.continueCursor } });
     expect([...first.page, ...second.page].map((entry) => entry.summary.grossSpendingCents - entry.summary.refundCents).reduce((a, b) => a + b)).toBe(500);
     expect(second.isDone).toBe(true);
     expect(await t.run((ctx) => ctx.db.query("monthlySpendingStats").collect())).toEqual([]);
     vi.setSystemTime(Date.UTC(2026, 6, 15));
-    const previous = await owner.query(api.monthlySpendingStats.monthPage, { periodStart: Date.UTC(2026, 4, 1), paginationOpts: { numItems: 1, cursor: null } });
+    const previous = await owner.query(api.monthlySpendingStats.eventMonthPage, { periodStart: Date.UTC(2026, 4, 1), paginationOpts: { numItems: 1, cursor: null } });
     expect(previous.page[0].summary.grossSpendingCents).toBe(250);
-    await expect(owner.query(api.monthlySpendingStats.monthPage, { periodStart: periodStart + 1, paginationOpts: { numItems: 1, cursor: null } })).rejects.toThrow("Invalid period start");
+    await expect(owner.query(api.monthlySpendingStats.eventMonthPage, { periodStart: periodStart + 1, paginationOpts: { numItems: 1, cursor: null } })).rejects.toThrow("Invalid period start");
   } finally {
     vi.useRealTimers();
   }

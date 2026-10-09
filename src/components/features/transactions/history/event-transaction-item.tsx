@@ -18,10 +18,15 @@ export function eventTransactionPresentation(operation: FinancialOperation, dele
 
 export function EventTransactionItem({ operation, deletedPipes, onShowEditHistory }: {
   operation: FinancialOperation; deletedPipes: readonly DeletedPipeEntry[];
-  onShowEditHistory: (id: Id<"transactions">) => void;
+  onShowEditHistory: (id: Id<"events">) => void;
 }) {
   const client = useConvex();
   const transaction = useMemo(() => eventTransactionPresentation(operation, deletedPipes), [operation, deletedPipes]);
-  const resolveTransaction = useCallback(() => client.query(api.transactions.forEventOperation, { operationId: operation.id }), [client, operation.id]);
-  return <TransactionItem transaction={transaction} resolveTransaction={resolveTransaction} onShowEditHistory={onShowEditHistory} />;
+  const resolveTransaction = useCallback(async () => {
+    const snapshot = await client.query(api.financialOperations.get, { operationId: operation.id });
+    if (!snapshot) return null;
+    const { operationId: id, ...facts } = snapshot;
+    return { ...facts, id };
+  }, [client, operation.id]);
+  return <TransactionItem transaction={transaction} resolveTransaction={resolveTransaction} onShowEditHistory={() => onShowEditHistory(operation.id)} />;
 }

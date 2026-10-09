@@ -6,7 +6,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ErrorBoundary } from "@ui/ErrorBoundary";
 import { AlertProvider } from "@ui/Alert";
 import { AuthProvider, getConvexClient } from "@/lib/auth";
-import { TransactionCacheProvider } from "@features/transactions/cache/TransactionCacheContext";
+import { EventHistoryCacheProvider } from "@features/transactions/cache/EventHistoryCacheContext";
 import { ConfirmModalProvider } from "@ui/ConfirmModal";
 
 export default function RootLayout() {
@@ -16,7 +16,7 @@ export default function RootLayout() {
     <ErrorBoundary>
       <ConvexProvider client={convexClient}>
         <AuthProvider>
-          <TransactionCacheProvider>
+          <EventHistoryCacheProvider>
             <SafeAreaProvider>
               <AlertProvider>
                 <ConfirmModalProvider>
@@ -28,7 +28,7 @@ export default function RootLayout() {
                 </ConfirmModalProvider>
               </AlertProvider>
             </SafeAreaProvider>
-          </TransactionCacheProvider>
+          </EventHistoryCacheProvider>
         </AuthProvider>
       </ConvexProvider>
     </ErrorBoundary>

@@ -13,12 +13,12 @@ import { getTransactionDeletionWarning } from "./transactionDeletion.model";
 import { useConfirmWithModal } from "@ui/ConfirmModal";
 import { useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
-import { useOptionalTransactionCache } from "@features/transactions/cache/TransactionCacheContext";
+import { useOptionalEventHistoryCache } from "@features/transactions/cache/EventHistoryCacheContext";
 import { useAlert } from "@ui/Alert";
 
 type TransactionItemProps = ({ transaction: TransactionModel; resolveTransaction?: never } |
   { transaction: TransactionPresentation; resolveTransaction: () => Promise<TransactionModel | null> }) & {
-  onShowEditHistory?: (transactionId: TransactionModel["id"]) => void;
+  onShowEditHistory?: () => void;
 };
 
 const DATE_FORMAT: Intl.DateTimeFormatOptions = {
@@ -29,8 +29,8 @@ const DATE_FORMAT: Intl.DateTimeFormatOptions = {
 export function TransactionItem({ transaction, resolveTransaction, onShowEditHistory }: TransactionItemProps) {
   const { pipesById, childrenByParent, isLoading: isPipeCatalogLoading, isPaidFromEligible } = usePipeCatalog();
   const confirmWithModal = useConfirmWithModal();
-  const deleteTransaction = useMutation(api.transactions.deleteTransaction);
-  const transactionCache = useOptionalTransactionCache();
+  const deleteTransaction = useMutation(api.financialOperations.remove);
+  const historyCache = useOptionalEventHistoryCache();
   const showAlert = useAlert();
 
   const [formIntent, setFormIntent] = useState<"repeat" | "edit" | null>(null);
@@ -91,7 +91,7 @@ export function TransactionItem({ transaction, resolveTransaction, onShowEditHis
 
     setIsDeleting(true);
     try {
-      await deleteTransaction({ transactionId: row.id });
+      await deleteTransaction({ operationId: row.id });
     } catch (error) {
       showAlert.error(`${error}`);
       setIsDeleting(false);
@@ -99,13 +99,9 @@ export function TransactionItem({ transaction, resolveTransaction, onShowEditHis
     }
 
     try {
-      await transactionCache?.reconcileTransactions([row.id], []);
+      await historyCache?.invalidateHistory();
     } catch {
-      try {
-        await transactionCache?.invalidateAll();
-      } catch {
-        // The server deletion succeeded; the next cache refresh remains authoritative.
-      }
+      // The server deletion succeeded; the next history refresh remains authoritative.
     }
     showAlert.success("Transaction deleted");
     setIsDeleting(false);
@@ -171,7 +167,7 @@ export function TransactionItem({ transaction, resolveTransaction, onShowEditHis
           accessibilityRole="button"
           accessibilityLabel={`View edit history for ${transaction.title}`}
           disabled={isResolving}
-          onPress={() => withTransaction(row => onShowEditHistory(row.id))}
+          onPress={onShowEditHistory}
         >
           <Icon name="history" size={15} color={colors.muted} />
           <Text className="text-muted text-[10px]">Edited</Text>

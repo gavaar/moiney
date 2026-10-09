@@ -14,7 +14,7 @@ const pipesById = { food, bank, savings } as any;
 
 function transaction(values: Partial<TransactionModel>): TransactionModel {
   return {
-    id: "tx" as Id<"transactions">,
+    id: "operation" as Id<"events">,
     createdAt: 0,
     title: "transaction",
     value: -5000,

@@ -5,7 +5,7 @@ import { assertAmountLimit } from "../../../domain/money";
 import type { RuleConfiguration } from "../../../domain/pipes/rules";
 import { rulePatch } from "./ruleConfig";
 import { MAX_PIPES_PER_USER } from "../constants";
-import { ensurePipeCreationEvent } from "../pipeHistory";
+import { ensureLivePipeCreationHistory } from "../pipeHistory";
 import { assertPipeNotDeleting } from "./delete";
 import { executePipeRule, reconcileAffectedPipeRoots } from "./pipes";
 
@@ -60,7 +60,7 @@ export async function addFeedOperation(
     contributedFed,
     rule: "instant_settlement",
   });
-  await ensurePipeCreationEvent(ctx, (await ctx.db.get("pipes", pipeId))!);
+  await ensureLivePipeCreationHistory(ctx, (await ctx.db.get("pipes", pipeId))!);
   return pipeId;
 }
 
@@ -117,7 +117,7 @@ export async function addPipeOperation(
     cronInterval: undefined,
   });
   await reconcileAffectedPipeRoots(ctx, [command.parentId]);
-  await ensurePipeCreationEvent(ctx, (await ctx.db.get("pipes", childId))!);
+  await ensureLivePipeCreationHistory(ctx, (await ctx.db.get("pipes", childId))!);
   return childId;
 }
 

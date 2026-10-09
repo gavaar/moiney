@@ -1,12 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useConvex } from "convex/react";
 import { api } from "@convex/_generated/api";
-import { useTransactionCache } from "./TransactionCacheContext";
+import { useEventHistoryCache } from "./EventHistoryCacheContext";
 
 /** Unfiltered raw-entry snapshot for usage ranking; never a mutation model. */
 export function useEventHistory(options: { enabled?: boolean; minimumCachedRows?: number } = {}) {
   const client = useConvex();
-  const { accountKey, isHydrating, mutationVersion, eventHistory, mergeEventHead, appendEventHistory } = useTransactionCache();
+  const { accountKey, isHydrating, mutationVersion, eventHistory, mergeEventHead, appendEventHistory } = useEventHistoryCache();
   const enabled = options.enabled ?? true;
   const minimumCachedRows = options.minimumCachedRows ?? 100;
   const [revision, setRevision] = useState(0);
