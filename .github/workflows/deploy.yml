@@ -27,36 +27,58 @@ jobs:
       - name: Verify tests and types
         run: bun run verify
 
+      - name: Read app version and check release immutability
+        id: app-version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION=$(node -p "require('./app.json').expo.version")
+          PUBLISHED=$(bun run scripts/check-app-release-cli.ts)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "published=$PUBLISHED" >> "$GITHUB_OUTPUT"
+
       - name: Deploy Convex backend to production
+        if: steps.app-version.outputs.published != 'true'
         run: bunx convex deploy
         env:
           CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_PROD_DEPLOY_KEY }}
 
       - uses: expo/expo-github-action@v8
+        if: steps.app-version.outputs.published != 'true'
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Build APK (EAS)
+        if: steps.app-version.outputs.published != 'true'
         run: eas build --platform android --profile preview --non-interactive --json > eas-build.json
 
       - name: Download APK
+        if: steps.app-version.outputs.published != 'true'
         run: |
           BUILD_ID=$(node -e "const b=JSON.parse(require('fs').readFileSync('eas-build.json','utf8'));const id=Array.isArray(b)?b[0].id:b.id;console.log(id)")
           APK_PATH=$(eas build:download --build-id "$BUILD_ID" --json --non-interactive | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>console.log(JSON.parse(d).path))")
           mkdir -p apk
           mv "$APK_PATH" apk/moiney.apk
 
-      - name: Read app version
-        id: app-version
-        run: |
-          VERSION=$(node -p "require('./app.json').expo.version")
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-
       - name: Create GitHub Release
+        if: steps.app-version.outputs.published != 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.app-version.outputs.version }}
           name: ${{ steps.app-version.outputs.version }}
+          target_commitish: ${{ github.sha }}
           files: apk/moiney.apk
           prerelease: true
+          fail_on_unmatched_files: true
+          overwrite_files: false
+
+      - name: Publish app release metadata
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_PROD_DEPLOY_KEY }}
+          APP_VERSION: ${{ steps.app-version.outputs.version }}
+        run: |
+          DOWNLOAD_URL="https://github.com/gavaar/moiney/releases/download/$APP_VERSION/moiney.apk"
+          curl --fail --location --head --retry 3 "$DOWNLOAD_URL"
+          ARGS=$(node -e 'console.log(JSON.stringify({latestAppVersion: process.env.APP_VERSION, downloadUrl: `https://github.com/gavaar/moiney/releases/download/${process.env.APP_VERSION}/moiney.apk`}))')
+          bunx convex run appRelease:publish "$ARGS" --prod

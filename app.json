@@ -2,7 +2,7 @@
   "expo": {
     "name": "moiney",
     "slug": "moiney",
-    "version": "0.5.0",
+    "version": "0.5.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "moiney",
@@ -28,7 +28,14 @@
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store",
+      [
+        "expo-secure-store",
+        { "faceIDPermission": "Allow Moiney to use Face ID for biometric login." }
+      ],
+      [
+        "expo-local-authentication",
+        { "faceIDPermission": "Allow Moiney to use Face ID for biometric login." }
+      ],
       "expo-status-bar",
       [
         "expo-image-picker",

@@ -38,6 +38,8 @@ consumer disappears, using the same migration discipline where required.
 
 ## Deployment And Manual Migrations
 
+App publication and client update policy are defined in [App Updates](app-updates.md).
+
 GitHub Actions deploys the backend and builds the app without running backfills.
 Deploy compatible old/new contracts first, then run migrations manually and
 verify completion before a follow-up reader cutover or legacy-code removal.

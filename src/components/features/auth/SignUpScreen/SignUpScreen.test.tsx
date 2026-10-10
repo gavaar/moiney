@@ -18,6 +18,10 @@ vi.mock("@/lib/auth", () => ({
   useAuth: () => ({ signUp: mocks.signUp }),
 }));
 
+vi.mock("@features/app/AppScreenHeader", () => ({
+  MoineyVers: () => null,
+}));
+
 vi.mock("@ui/Button", () => ({
   Button: ({ title, disabled, onPress }: any) => (
     <button disabled={disabled} onClick={onPress}>

@@ -14,7 +14,7 @@ const options = [
 describe("Input toggle", () => {
   it("exposes a boolean value, optional callback, and exactly two labeled icons", () => {
     type Props = Extract<InputProps, { type: "toggle" }>;
-    type Option = { label: string; icon: IconName };
+    type Option = { label: string; icon: IconName; selectedBackgroundClassName?: string };
     expectTypeOf<Props["value"]>().toEqualTypeOf<boolean>();
     expectTypeOf<Props["onChange"]>().toEqualTypeOf<((value: boolean) => void) | undefined>();
     expectTypeOf<Props["options"]>().toEqualTypeOf<readonly [Option, Option]>();

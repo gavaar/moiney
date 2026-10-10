@@ -12,6 +12,10 @@ const correctionFields = {
 };
 
 export default defineSchema({
+  appMetadata: defineTable({
+    latestAppVersion: v.string(),
+    downloadUrl: v.string(),
+  }),
   events: defineTable(historyEventValidator)
     .index("by_operationId", ["operationId"])
     .index("by_userId_pipeId_type", ["userId", "pipeId", "type"])

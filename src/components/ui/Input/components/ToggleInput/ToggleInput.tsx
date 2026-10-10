@@ -4,7 +4,7 @@ import type { IconName } from "@ui/Icon";
 import { SlideToggle } from "@ui/SlideToggle";
 import { InputError, useInputValidation } from "../../useInputValidation";
 
-type ToggleOption = { label: string; icon: IconName };
+type ToggleOption = { label: string; icon: IconName; selectedBackgroundClassName?: string };
 
 type Props = {
   value: boolean;

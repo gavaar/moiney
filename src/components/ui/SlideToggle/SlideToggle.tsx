@@ -6,6 +6,7 @@ type ToggleOption = {
   value: string;
   label: string;
   icon: IconName;
+  selectedBackgroundClassName?: string;
 };
 
 type Props = {
@@ -34,7 +35,7 @@ export function SlideToggle({ options, value, onChange, disabled }: Props) {
               "flex-row items-center justify-center p-1",
               index === 0 && "rounded-l-[7px]",
               index === options.length - 1 && "rounded-r-[7px]",
-              isActive ? "bg-primary" : "",
+              isActive ? (option.selectedBackgroundClassName ?? "bg-primary") : "",
             )}
           >
             <Icon name={option.icon} size={16} color={isActive ? colors.text : colors.muted} />

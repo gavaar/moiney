@@ -26,6 +26,8 @@ their interfaces. Text inputs do not expose `defaultValue` or `onChangeText`.
 
 Toggle inputs take two labeled icon options: the first represents `false`,
 the second `true`. The selected label is displayed beside the toggle.
+Each option may supply `selectedBackgroundClassName`; otherwise the selected
+segment uses the shared primary background.
 
 Select inputs accept `renderItem(item)` for custom option content. Their optional
 `presentation` is `"modal"` by default; `"inline"` shows a bounded, virtualized

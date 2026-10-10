@@ -8,6 +8,8 @@ import { AlertProvider } from "@ui/Alert";
 import { AuthProvider, getConvexClient } from "@/lib/auth";
 import { EventHistoryCacheProvider } from "@features/transactions/cache/EventHistoryCacheContext";
 import { ConfirmModalProvider } from "@ui/ConfirmModal";
+import { AppUpdateProvider } from "@features/app/updates/AppUpdateProvider";
+import { BiometricLoginOffer } from "@features/auth/BiometricLoginOffer/BiometricLoginOffer";
 
 export default function RootLayout() {
   const convexClient = getConvexClient();
@@ -18,15 +20,18 @@ export default function RootLayout() {
         <AuthProvider>
           <EventHistoryCacheProvider>
             <SafeAreaProvider>
-              <AlertProvider>
-                <ConfirmModalProvider>
-                  <StatusBar style="light" />
-                  <Stack screenOptions={{
-                    headerShown: false,
-                    contentStyle: { backgroundColor: "#111111" },
-                  }} />
-                </ConfirmModalProvider>
-              </AlertProvider>
+              <StatusBar style="light" />
+              <AppUpdateProvider>
+                <AlertProvider>
+                  <ConfirmModalProvider>
+                    <Stack screenOptions={{
+                      headerShown: false,
+                      contentStyle: { backgroundColor: "#111111" },
+                    }} />
+                    <BiometricLoginOffer />
+                  </ConfirmModalProvider>
+                </AlertProvider>
+              </AppUpdateProvider>
             </SafeAreaProvider>
           </EventHistoryCacheProvider>
         </AuthProvider>
