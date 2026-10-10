@@ -28,7 +28,14 @@
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store",
+      [
+        "expo-secure-store",
+        { "faceIDPermission": "Allow Moiney to use Face ID for biometric login." }
+      ],
+      [
+        "expo-local-authentication",
+        { "faceIDPermission": "Allow Moiney to use Face ID for biometric login." }
+      ],
       "expo-status-bar",
       [
         "expo-image-picker",

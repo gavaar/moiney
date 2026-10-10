@@ -4,14 +4,15 @@ import { Input } from "@ui/Input";
 import { useAuth } from "@/lib/auth";
 import { useForm } from "@/lib/forms";
 import { Link } from "expo-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { colors } from "@/lib/styles";
 import { AuthScreenLayout } from "@features/auth/AuthScreenLayout";
 import { MoineyVers } from "@features/app/AppScreenHeader";
 
 export function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
-  const { login } = useAuth();
+  const { login, biometrics } = useAuth();
+  const attemptedBiometrics = useRef(false);
 
   const { values, setField, errors, loading, handleSubmit } = useForm({
     initialValues: { username: "", password: "" },
@@ -22,9 +23,16 @@ export function LoginScreen() {
       return e;
     },
     onSubmit: async (v) => {
+      attemptedBiometrics.current = true;
       await login(v.username, v.password);
     },
   });
+
+  useEffect(() => {
+    if (loading || biometrics.loading || biometrics.busy || !biometrics.available || !biometrics.enabled || attemptedBiometrics.current) return;
+    attemptedBiometrics.current = true;
+    void biometrics.login();
+  }, [biometrics, loading]);
 
   return (
     <AuthScreenLayout
@@ -32,14 +40,14 @@ export function LoginScreen() {
       subtitle="Welcome back to moiney"
       footer={
         <View className="items-center">
-          <Link
+          {!biometrics.busy && <Link
             href="/sign-up"
             replace
             style={{ color: colors.secondary }}
             className="text-sm font-medium"
           >
             Don&apos;t have an account? Sign Up
-          </Link>
+          </Link>}
           < MoineyVers />
         </View>
       }
@@ -63,11 +71,16 @@ export function LoginScreen() {
       />
 
       {errors.form ? <Text className="text-sm text-error">{errors.form}</Text> : null}
+      {biometrics.error ? <Text accessibilityRole="alert" className="text-sm text-error">{biometrics.error}</Text> : null}
+
+      {biometrics.available && biometrics.enabled ? (
+        <Button title="Use biometrics" loading={biometrics.busy} disabled={loading} onPress={() => void biometrics.login()} />
+      ) : null}
 
       <Button
         title="Sign In"
         loading={loading}
-        disabled={!values.username || !values.password}
+        disabled={biometrics.busy || !values.username || !values.password}
         onPress={handleSubmit}
       />
     </AuthScreenLayout>

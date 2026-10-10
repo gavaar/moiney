@@ -13,6 +13,7 @@ import {
   removeAccountKey,
 } from "./storage";
 import { toUserFriendly } from "@/lib/errors";
+import { useBiometricLogin } from "./biometrics/useBiometricLogin";
 
 let _client: ConvexReactClient | null = null;
 export function getConvexClient(): ConvexReactClient {
@@ -31,6 +32,7 @@ type AuthContextValue = {
   login: (username: string, password: string) => Promise<void>;
   signUp: (username: string, email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  biometrics: Omit<ReturnType<typeof useBiometricLogin>, "offerAfterLogin">;
 };
 
 function cacheAccountKey(username: string): string {
@@ -132,21 +134,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
   }, [handleAuthChange]);
 
+  const signIn = useCallback(async (username: string, password: string) => {
+    const result = await getConvexClient().action(api.auth.signIn, { username, password });
+    const nextAccountKey = cacheAccountKey(username);
+    await storeRefreshToken(result.refreshToken);
+    await storeAccountKey(nextAccountKey);
+    if (result.accessToken) {
+      await storeAccessToken(result.accessToken);
+    }
+    setAccountKey(nextAccountKey);
+    getConvexClient().setAuth(fetchTokenFn, handleAuthChange);
+  }, [handleAuthChange]);
+
+  const verifyCredentials = useCallback(async (username: string, password: string) => {
+    // Reuse the rate-limited password check without installing a new session.
+    // Its temporary session is revoked immediately, including during sign-out.
+    const client = getConvexClient();
+    const result = await client.action(api.auth.signIn, { username, password });
+    await client.action(api.auth.signOut, { refreshToken: result.refreshToken });
+  }, []);
+
+  const { offerAfterLogin, ...biometrics } = useBiometricLogin(signIn, isAuthenticated ? accountKey : null, verifyCredentials);
+  const { dismissOffer } = biometrics;
+
   const login = useCallback(async (username: string, password: string) => {
     try {
-      const result = await getConvexClient().action(api.auth.signIn, { username, password });
-      const nextAccountKey = cacheAccountKey(username);
-      await storeRefreshToken(result.refreshToken);
-      await storeAccountKey(nextAccountKey);
-      if (result.accessToken) {
-        await storeAccessToken(result.accessToken);
-      }
-      setAccountKey(nextAccountKey);
-      getConvexClient().setAuth(fetchTokenFn, handleAuthChange);
+      await signIn(username, password);
+      await offerAfterLogin({ accountKey: cacheAccountKey(username), username: username.trim().toLowerCase(), password });
     } catch (e) {
       toUserFriendly(e);
     }
-  }, [handleAuthChange]);
+  }, [offerAfterLogin, signIn]);
 
   const signUp = useCallback(async (username: string, email: string, password: string) => {
     try {
@@ -159,12 +177,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       setAccountKey(nextAccountKey);
       getConvexClient().setAuth(fetchTokenFn, handleAuthChange);
+      await offerAfterLogin({ accountKey: nextAccountKey, username: username.trim().toLowerCase(), password });
     } catch (e) {
       toUserFriendly(e);
     }
-  }, [handleAuthChange]);
+  }, [handleAuthChange, offerAfterLogin]);
 
   const signOut = useCallback(async () => {
+    await dismissOffer(false);
     try {
       const token = await getRefreshToken();
       if (token) {
@@ -178,11 +198,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAccountKey(null);
       setIsAuthenticated(false);
     }
-  }, []);
+  }, [dismissOffer]);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ isLoading, isAuthenticated, accountKey, login, signUp, signOut }),
-    [isLoading, isAuthenticated, accountKey, login, signUp, signOut],
+    () => ({ isLoading, isAuthenticated, accountKey, login, signUp, signOut, biometrics }),
+    [isLoading, isAuthenticated, accountKey, login, signUp, signOut, biometrics],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import { AppScreenHeader } from "@features/app/AppScreenHeader";
 import { SignOutButton } from "@features/account/SignOutButton";
 import { ProfileView } from "@features/profile/ProfileView/ProfileView";
+import { Button } from "@ui/Button";
 
 export default function Profile() {
   const router = useRouter();
@@ -14,6 +15,7 @@ export default function Profile() {
 
       <ScrollView className="flex-1" contentContainerClassName="items-center flex-1 pt-8 gap-8">
         <ProfileView />
+        <Button title="Settings" icon="settings-outline" variant="outline" onPress={() => router.push("/settings")} />
         <SignOutButton onSignedOut={() => router.replace("/login")} />
       </ScrollView>
     </SafeAreaView>

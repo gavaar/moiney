@@ -9,6 +9,7 @@ import { AuthProvider, getConvexClient } from "@/lib/auth";
 import { EventHistoryCacheProvider } from "@features/transactions/cache/EventHistoryCacheContext";
 import { ConfirmModalProvider } from "@ui/ConfirmModal";
 import { AppUpdateProvider } from "@features/app/updates/AppUpdateProvider";
+import { BiometricLoginOffer } from "@features/auth/BiometricLoginOffer/BiometricLoginOffer";
 
 export default function RootLayout() {
   const convexClient = getConvexClient();
@@ -27,6 +28,7 @@ export default function RootLayout() {
                       headerShown: false,
                       contentStyle: { backgroundColor: "#111111" },
                     }} />
+                    <BiometricLoginOffer />
                   </ConfirmModalProvider>
                 </AlertProvider>
               </AppUpdateProvider>
