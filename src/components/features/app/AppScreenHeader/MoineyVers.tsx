@@ -1,31 +1,22 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Linking, Pressable, Text, View } from "react-native";
 import { expo } from "@/../app.json";
-import { getLatestMoineyRelease, type LatestMoineyRelease } from "@/lib/githubReleases";
+import { getUpdateKind } from "@domain/releases/version";
+import { useLatestAppRelease } from "../updates/AppUpdateProvider";
+import { AppUpdateMessage } from "../updates/AppUpdateMessage";
 import { Icon } from "@ui/Icon";
 import { ModalShell } from "@ui/Modal";
 import { colors } from "@/lib/styles";
 
 export function MoineyVers() {
-  const [latestRelease, setLatestRelease] = useState<LatestMoineyRelease | null>(null);
+  const latestRelease = useLatestAppRelease();
   const [showOutdatedModal, setShowOutdatedModal] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    void getLatestMoineyRelease().then((release) => {
-      if (!cancelled) setLatestRelease(release);
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const isOutdated = latestRelease !== null && latestRelease.name !== expo.version;
+  const [downloadFailed, setDownloadFailed] = useState(false);
+  const isOutdated = latestRelease !== null && getUpdateKind(expo.version, latestRelease.latestAppVersion) === "optional";
 
   const openLatestRelease = () => {
-    if (latestRelease) void Linking.openURL(latestRelease.url);
+    setDownloadFailed(false);
+    if (latestRelease) void Linking.openURL(latestRelease.downloadUrl).catch(() => setDownloadFailed(true));
   };
 
   return (
@@ -55,18 +46,8 @@ export function MoineyVers() {
       >
         <View className="gap-4">
           <Text className="text-lg font-bold text-text">Update available</Text>
-          <Text testID="outdated-app-message" className="text-base text-text">
-            your app is out of date, please get the newest app from{" "}
-            <Text
-              accessibilityRole="link"
-              accessibilityLabel="Open latest GitHub release"
-              className="text-primary underline"
-              onPress={openLatestRelease}
-            >
-              GitHub
-            </Text>
-            {" "}({latestRelease?.name}).
-          </Text>
+          {latestRelease ? <AppUpdateMessage release={latestRelease} onDownload={openLatestRelease} /> : null}
+          {downloadFailed ? <Text accessibilityRole="alert" className="text-base text-error">Could not open the download. Please try again.</Text> : null}
         </View>
       </ModalShell>
     </>
