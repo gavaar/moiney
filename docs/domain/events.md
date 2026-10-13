@@ -120,6 +120,15 @@ Counts represent loaded operations, not mirror entries; lifecycle operations
 remain separate from financial title groups. Grouped amounts follow that scoped
 presentation contract, not global reporting contributions.
 
+Clients recognize event types explicitly. Unknown types from newer backends are
+ignored by History rows, archives, usage ranking, and device snapshots; they are
+never interpreted as expenses or other known operations. Hydration preserves
+valid recognized entries when a snapshot also contains unknown types. This is a
+client forward-compatibility boundary, not permission for backend financial
+commands to accept unknown operations. Pagination follows the
+[cursor/completion contract](history-cache.md#d014-event-history-snapshot-cache),
+not the number of recognized entries in a page.
+
 A mirror-only page can project the original structural source, target, and value
 for display. A payment counterpart projects its logical expense/refund, keeping
 that sign even in a payer-only scope. This is a presentation model, not an invented

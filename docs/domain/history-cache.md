@@ -32,11 +32,12 @@ removes that default and restores unfiltered History.
 [D021](#d021-pipe-creation-and-archived-history) extends pipe
 matching to archived ancestry and creation-event names.
 
-Pagination completes without an error when the server reports completion, an
-unfiltered page is empty, or the continuation cursor stops advancing. Empty
-filtered pages are scanned while their cursors advance so later matches remain
-visible. Unfiltered exhaustion is persisted in the snapshot. Failed load-more
-requests do not retry automatically on scroll; explicit refresh allows recovery.
+Pagination completes without an error when the server reports completion or the
+continuation cursor is missing or stops advancing. Empty pages, including pages
+with only [unknown event types](events.md#client-grouping), are scanned while
+their cursors advance so later recognized matches remain visible. Unfiltered
+exhaustion is persisted in the snapshot. Failed load-more requests do not retry
+automatically on scroll; explicit refresh allows recovery.
 
 The snapshot retains distinct entry IDs even
 when entries share an operation ID; consumers collapse operations, not the cache.

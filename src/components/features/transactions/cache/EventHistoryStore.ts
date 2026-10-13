@@ -1,4 +1,4 @@
-import type { HistoryEntry } from "../history/event-groups";
+import { isKnownHistoryEventType, recognizedHistoryEntries, type HistoryEntry } from "../history/event-types";
 import { validateTransactionAmount } from "@domain/money/money";
 
 export type EventHistorySnapshot = { entries: HistoryEntry[]; complete: boolean; hasMore: boolean; updatedAt: number; generation: number };
@@ -30,9 +30,11 @@ export class EventHistoryStore {
       const value: unknown = serialized ? JSON.parse(serialized) : null;
       if (!isRecord(value) || value.version !== 1 || value.accountKey !== this.accountKey ||
         !Array.isArray(value.entries) || value.entries.length > 300 ||
-        !value.entries.every(isCachedEntry) || new Set(value.entries.map(item => item.entry.id)).size !== value.entries.length ||
         typeof value.hasMore !== "boolean" || typeof value.complete !== "boolean" || !finite(value.updatedAt)) return;
-      this.entries = value.entries;
+      const entries = value.entries.filter(item => !(isRecord(item) && isRecord(item.entry) &&
+        typeof item.entry.type === "string" && !isKnownHistoryEventType(item.entry.type)));
+      if (!entries.every(isCachedEntry) || new Set(entries.map(item => item.entry.id)).size !== entries.length) return;
+      this.entries = entries;
       this.snapshot = { entries: this.entries.map(item => item.entry).sort(compareEntries), complete: value.complete, hasMore: value.hasMore, updatedAt: value.updatedAt, generation: this.snapshot.generation };
     } catch {
       // Device cache failures are cache misses, not server-data failures.
@@ -65,7 +67,7 @@ export class EventHistoryStore {
 
   private write(entries: HistoryEntry[], hasMore: boolean, now: number, preserve: boolean) {
     const byId = new Map((preserve ? this.entries : []).map(item => [item.entry.id, item]));
-    for (const entry of entries) byId.set(entry.id, { entry, refreshedAt: now });
+    for (const entry of recognizedHistoryEntries(entries)) byId.set(entry.id, { entry, refreshedAt: now });
     const ordered = [...byId.values()].sort((a, b) => b.refreshedAt - a.refreshedAt || compareEntries(a.entry, b.entry));
     this.entries = ordered.slice(0, 300);
     this.snapshot = {

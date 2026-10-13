@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useConvex } from "convex/react";
-import { api } from "@convex/_generated/api";
 import { useEventHistoryCache } from "./EventHistoryCacheContext";
+import { createEventHistoryReader } from "../history/event-history-data";
 
 /** Unfiltered raw-entry snapshot for usage ranking; never a mutation model. */
 export function useEventHistory(options: { enabled?: boolean; minimumCachedRows?: number } = {}) {
@@ -29,7 +29,8 @@ export function useEventHistory(options: { enabled?: boolean; minimumCachedRows?
     if (isHydrating) return;
     let active = true;
     let busy = false;
-    let cursor: string | null = null;
+    const reader = createEventHistoryReader(client, {}, []);
+    let seeded = false;
     let failed = false;
     const generation = snapshot.current.generation;
     const isCurrent = () => active && currentKey.current === key;
@@ -40,20 +41,17 @@ export function useEventHistory(options: { enabled?: boolean; minimumCachedRows?
       try {
         // Hydrated snapshots intentionally do not persist Convex cursors. Reseed
         // the head before continuing and deduplicate overlaps in the store.
-        if (head || cursor === null) {
-          const page = await client.query(api.events.list, { limit: 100 });
+        if (head || !seeded) {
+          const page = await reader.next(100);
           if (!isCurrent()) return;
-          const done = page.isDone || !page.cursor || page.events.length === 0;
-          cursor = done ? null : page.cursor;
-          if (head) await mergeEventHead(page.events, !done, generation);
-          else await appendEventHistory(page.events, !done, generation);
-          if (!isCurrent() || head || done) return;
+          seeded = true;
+          if (head) await mergeEventHead(page.entries, !page.isDone, generation);
+          else await appendEventHistory(page.entries, !page.isDone, generation);
+          if (!isCurrent() || head || page.isDone) return;
         }
-        const page = await client.query(api.events.list, { limit: 30, cursor: cursor ?? undefined });
+        const page = await reader.next(30);
         if (!isCurrent()) return;
-        const done = page.isDone || !page.cursor || page.cursor === cursor || page.events.length === 0;
-        cursor = done ? null : page.cursor;
-        await appendEventHistory(page.events, !done, generation);
+        await appendEventHistory(page.entries, !page.isDone, generation);
       } catch {
         if (isCurrent()) {
           failed = true;
@@ -66,7 +64,7 @@ export function useEventHistory(options: { enabled?: boolean; minimumCachedRows?
         }
       }
     };
-    const scope = { more: () => { void load(false); }, cancel: () => { active = false; } };
+    const scope = { more: () => { void load(false); }, cancel: () => { active = false; reader.cancel(); } };
     controller.current = scope;
     const enough = snapshot.current.complete && (!snapshot.current.hasMore || snapshot.current.entries.length >= minimumCachedRows);
     if (enabled && accountKey && (!enough || revision > 0)) void load(true);

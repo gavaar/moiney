@@ -3,6 +3,7 @@ import { api } from "@convex/_generated/api";
 import type { HistoryFilters } from "./history-filters";
 import type { HistoryEntry } from "./event-groups";
 import type { DeletedPipeEntry } from "./event-archives";
+import { recognizedHistoryEntries } from "./event-types";
 
 export async function readDeletedPipes(client: ConvexReactClient, isActive: () => boolean) {
   const entries: DeletedPipeEntry[] = [];
@@ -36,9 +37,9 @@ export async function readLatestEvents(client: ConvexReactClient, filters: Histo
     const pages = await Promise.all(pipeIds.slice(offset, offset + 8).map(pipeId =>
       client.query(api.events.latest, pipeId ? { pipeId } : {})));
     if (!isActive()) throw new Error("History read cancelled");
-    entries = mergeHistoryEntries(entries, pages.flat()).slice(0, 30);
+    entries = mergeStoredEntries(entries, pages.flat()).slice(0, 30);
   }
-  return entries;
+  return recognizedHistoryEntries(entries);
 }
 
 /** Only the main stream supplies visible members; the catalog supplies scope metadata. */
@@ -61,10 +62,11 @@ export function createEventHistoryReader(client: ConvexReactClient, filters: His
           ...(filters.toDate === undefined ? {} : { toDate: filters.toDate }), ...(title ? { title } : {}),
         });
         if (cancelled) throw new Error("History read cancelled");
-        done = page.isDone || !page.cursor || visited.has(page.cursor) || (!title && page.events.length === 0);
+        done = page.isDone || !page.cursor || visited.has(page.cursor);
         if (page.cursor) visited.add(page.cursor);
         cursor = page.cursor ?? undefined;
-        const entries = scope ? page.events.filter(entry => scope.has(entry.pipeId)) : page.events;
+        const recognized = recognizedHistoryEntries(page.events);
+        const entries = scope ? recognized.filter(entry => scope.has(entry.pipeId)) : recognized;
         if (entries.length || done) return { entries, isDone: done };
       }
       return { entries: [], isDone: true };
@@ -73,6 +75,10 @@ export function createEventHistoryReader(client: ConvexReactClient, filters: His
 }
 
 export function mergeHistoryEntries(current: readonly HistoryEntry[], incoming: readonly HistoryEntry[]) {
+  return recognizedHistoryEntries(mergeStoredEntries(current, incoming));
+}
+
+function mergeStoredEntries(current: readonly HistoryEntry[], incoming: readonly HistoryEntry[]) {
   return [...new Map([...current, ...incoming].map(entry => [entry.id, entry])).values()]
     .sort((a, b) => b.occurredAt - a.occurredAt || b.createdAt - a.createdAt || b.id.localeCompare(a.id));
 }

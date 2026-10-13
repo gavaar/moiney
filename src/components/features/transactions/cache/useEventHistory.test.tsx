@@ -24,6 +24,39 @@ function mount(disk: EventHistoryStorage, options: { enabled?: boolean; minimumC
 describe("unfiltered event History cache loader", () => {
   beforeEach(() => { mocks.query.mockReset(); mocks.accountKey = "alice"; });
 
+  it("does not mark the shared snapshot exhausted at unknown-only or empty advancing pages", async () => {
+    const future: HistoryEntry = JSON.parse(JSON.stringify({
+      id: "future", operationId: "future", pipeId: "source", createdAt: 2, occurredAt: 2, type: "future_event",
+    }));
+    mocks.query.mockImplementation(async (_ref, args) => {
+      if (!args.cursor) return { events: [future], cursor: "empty", isDone: false };
+      if (args.cursor === "empty") return { events: [], cursor: "known", isDone: false };
+      return { events: [entry("known")], cursor: null, isDone: true };
+    });
+    const { result } = mount(storage());
+    await waitFor(() => expect(result.current.entries).toEqual([entry("known")]));
+    expect(result.current.hasMore).toBe(false);
+    expect(result.current.error).toBeNull();
+    expect(mocks.query).toHaveBeenCalledTimes(3);
+  });
+
+  it("loads past unknown-only continuation pages without dropping the recognized head", async () => {
+    const future: HistoryEntry = JSON.parse(JSON.stringify({
+      id: "future", operationId: "future", pipeId: "source", createdAt: 3, occurredAt: 3, type: "future_event",
+    }));
+    mocks.query.mockImplementation(async (_ref, args) => {
+      if (!args.cursor) return { events: [entry("head", 2)], cursor: "future", isDone: false };
+      if (args.cursor === "future") return { events: [future], cursor: "known", isDone: false };
+      return { events: [entry("tail", 1)], cursor: null, isDone: true };
+    });
+    const { result } = mount(storage(), { minimumCachedRows: 0 });
+    await waitFor(() => expect(result.current.entries).toEqual([entry("head", 2)]));
+    act(() => result.current.loadMore());
+    await waitFor(() => expect(result.current.entries).toEqual([entry("head", 2), entry("tail", 1)]));
+    expect(result.current.hasMore).toBe(false);
+    expect(mocks.query).toHaveBeenCalledTimes(3);
+  });
+
   it("uses hydrated raw event entries without a server request and preserves mirror identities", async () => {
     const disk = storage();
     const seed = new EventHistoryStore("alice", disk);
@@ -178,7 +211,7 @@ describe("unfiltered event History cache loader", () => {
     expect(old.read().complete).toBe(false);
   });
 
-  it("treats stalled cursors and empty unfiltered pages as exhaustion", async () => {
+  it("treats a stalled cursor as exhaustion even when its page is empty", async () => {
     mocks.query.mockResolvedValueOnce({ events: [entry("one")], cursor: "same", isDone: false }).mockResolvedValueOnce({ events: [], cursor: "same", isDone: false });
     const { result } = mount(storage(), { minimumCachedRows: 0 });
     await waitFor(() => expect(result.current.entries).toHaveLength(1));
