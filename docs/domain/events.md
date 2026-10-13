@@ -90,7 +90,8 @@ For [contingency coverage](accounting.md#d023-settlement-time-contingency-covera
 the canonical `settlement` belongs to the source and its `settlement_coverage`
 counterpart belongs to the donor. Both share the operation ID, cause, and time.
 Each carries its own before/after balances and reciprocal `coverage` containing
-positive integer cents, the other pipe's ID/presentation, and before/after balances.
+positive safe-integer cents, the other pipe's ID/presentation, and before/after balances.
+Coverage is an aggregate outcome, not subject to the individual transaction-value ceiling.
 Source `before` preserves original spending, before coverage. Donor `after`
 captures increased tracked spending without settling its rule or changing funding.
 Complete operation validation rejects missing or inconsistent counterparts.

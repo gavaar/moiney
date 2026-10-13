@@ -1,7 +1,8 @@
 // @vitest-environment edge-runtime
 import { convexTest } from "convex-test";
 import { afterEach, expect, it, vi } from "vitest";
-import { api } from "../_generated/api";
+import { api, internal } from "../_generated/api";
+import { MAX_AMOUNT } from "../../domain/money";
 import schema from "../schema";
 import { modules } from "../test.setup";
 
@@ -34,6 +35,27 @@ it("applies coverage once through spent, then settles, and records reciprocal so
   expect(mirror).toMatchObject({ type: "settlement_coverage", operationId: event.id, pipeId: donor, before: { spent: 4000 }, after: { spent: 6000 },
     coverage: { amountCents: 2000, pipeId: source, name: "Groceries", before: event.before, after: event.after } });
   expect((await auth.query(api.events.latest, {})).filter(entry => entry.operationId === event.id)).toHaveLength(2);
+});
+
+it.each(["manual", "cron"] as const)("records aggregate coverage beyond the transaction limit during %s settlement", async cause => {
+  const { t, auth, userId, source, donor } = await setup();
+  await t.run(async ctx => {
+    await ctx.db.patch("pipes", source, { capacity: -MAX_AMOUNT, spent: MAX_AMOUNT, fed: 0, pendingFedAdjustment: 0,
+      ...(cause === "cron" ? { rule: "cron", cronNextDate: Date.now() - 86400000, cronInterval: { interval: 1, unit: "days" } } : {}) });
+    await ctx.db.patch("pipes", donor, { capacity: MAX_AMOUNT, fed: MAX_AMOUNT, spent: -MAX_AMOUNT });
+  });
+  const total = () => t.run(async ctx => (await ctx.db.query("pipes").withIndex("by_userId", q => q.eq("userId", userId)).collect())
+    .reduce((sum, pipe) => sum + pipe.fed + (pipe.pendingFedAdjustment ?? 0) - pipe.spent, 0));
+  const before = await total();
+  if (cause === "manual") await auth.mutation(api.pipes.executePipeRuleNow, { pipeId: source });
+  else await t.mutation(internal.pipes.runDueCronRules, { now: Date.now() });
+  const [event] = await auth.query(api.events.latest, { pipeId: source });
+  const [mirror] = await auth.query(api.events.latest, { pipeId: donor });
+  expect(event).toMatchObject({ type: "settlement", cause, after: { fed: MAX_AMOUNT, spent: 0 },
+    coverage: { amountCents: 2 * MAX_AMOUNT, before: { spent: -MAX_AMOUNT }, after: { spent: MAX_AMOUNT } } });
+  expect(mirror).toMatchObject({ type: "settlement_coverage", operationId: event.operationId, coverage: { amountCents: 2 * MAX_AMOUNT } });
+  expect(await total()).toBe(before);
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
 });
 
 it("conserves total settled funding and preserves the source's original expense attribution", async () => {

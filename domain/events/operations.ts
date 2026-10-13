@@ -1,4 +1,4 @@
-import { assertAmountLimit, validateTransactionAmount } from "../money/money";
+import { validateTransactionAmount } from "../money/money";
 import type { FinancialEvent, HistoryEvent, HistoryOperation, PaymentTransactionEvent, SettlementBalance } from "./types";
 
 function sameBalance(a: SettlementBalance, b: SettlementBalance): boolean {
@@ -45,10 +45,13 @@ export function historyOperationFromEvents<PipeId extends string, EventId extend
   const counterpart = events.find((entry) => entry.id !== event.id);
   if (event.type === "settlement" && event.coverage) {
     const coverage = event.coverage;
-    assertAmountLimit(coverage.amountCents);
+    // Coverage aggregates debt and liquidity; it is not an individual transaction.
+    if (!Number.isSafeInteger(coverage.amountCents) || coverage.amountCents <= 0) {
+      throw new Error("Coverage requires positive safe integer cents");
+    }
     if (counterpart?.type !== "settlement_coverage" || counterpart.pipeId !== event.coverage.pipeId ||
       counterpart.coverage.pipeId !== event.pipeId || counterpart.cause !== event.cause ||
-      counterpart.coverage.amountCents !== coverage.amountCents || event.pipeId === counterpart.pipeId || coverage.amountCents <= 0 ||
+      counterpart.coverage.amountCents !== coverage.amountCents || event.pipeId === counterpart.pipeId ||
       counterpart.name !== coverage.name || counterpart.icon !== coverage.icon ||
       counterpart.coverage.name !== event.name || counterpart.coverage.icon !== event.icon ||
       !sameBalance(counterpart.before, coverage.before) || !sameBalance(counterpart.after, coverage.after) ||
