@@ -60,9 +60,9 @@ remains silent.
 
 ## D023: Settlement-time Contingency Coverage
 
-Status: In progress
+Status: Implemented
 
-The target contract is coverage at settlement, not when an expense is created.
+Coverage applies at settlement, not when an expense is created.
 A source can select a same-tree leaf sibling, or a leaf sibling of one of its
 ancestors, as its contingency donor. The selector and authoritative backend
 validation must use the same eligible-target list. Missing/cyclic ancestry,
@@ -99,6 +99,14 @@ funding equally, capped by each claim's demand. Unused shares are redistributed;
 integer-cent remainders go to ascending source IDs, independent of input order.
 The scheduler owns grouping by occurrence, priority, and donor; the allocator
 must not combine unrelated groups. Duplicate source claims are invalid.
+
+Scheduled groups run in ascending occurrence date, then ascending priority.
+Coverage for the complete group is applied before its settlement rules, including
+a donor's own scheduled rule when it is in that group. Earlier groups consume
+liquidity before later groups; redistribution follows all scheduled rule effects.
+A cron query page triggers a bounded account snapshot rather than limiting its
+claimants, so pagination cannot split a sharing group. Frozen accounting trees
+retain their due schedules without coverage or settlement writes.
 
 ## D012: Pay-by-transfer Liquidity And Logical Spending
 

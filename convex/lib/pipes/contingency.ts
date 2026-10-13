@@ -10,7 +10,7 @@ async function loadTopology(ctx: MutationCtx, userId: Id<"users">) {
   if (pipes.length > MAX_PIPES_PER_USER) throw new ConvexError({ code: "PIPE_LIMIT_REACHED" });
   return pipes;
 }
-function eligibility(pipes: readonly Doc<"pipes">[]) {
+export function preparePipeContingencyEligibility(pipes: readonly Doc<"pipes">[]) {
   return prepareContingencyEligibility(pipes.map(pipe => ({
     id: pipe._id, parentId: pipe.parentId, rule: pipe.rule,
     contingencyPipeId: pipe.contingencyPipeId, blocked: pipe.deletionJobId !== undefined,
@@ -19,7 +19,7 @@ function eligibility(pipes: readonly Doc<"pipes">[]) {
 export async function assertContingencyTarget(
   ctx: MutationCtx, userId: Id<"users">, sourceId: Id<"pipes">, targetId: Id<"pipes">,
 ) {
-  if (!eligibility(await loadTopology(ctx, userId))(sourceId).includes(targetId)) throw new ConvexError({ code: "INVALID_CONTINGENCY_TARGET" });
+  if (!preparePipeContingencyEligibility(await loadTopology(ctx, userId))(sourceId).includes(targetId)) throw new ConvexError({ code: "INVALID_CONTINGENCY_TARGET" });
 }
 
 export type AppliedContingencyCoverage = { amountCents: number; before: Doc<"pipes">; after: Doc<"pipes"> };
@@ -28,7 +28,7 @@ export type AppliedContingencyCoverage = { amountCents: number; before: Doc<"pip
 export async function applyContingencyCoverage(ctx: MutationCtx, source: Doc<"pipes">): Promise<AppliedContingencyCoverage | undefined> {
   if (!source.contingencyPipeId || source.rule === "instant_settlement" || source.rule === "self_destruct") return;
   const pipes = await loadTopology(ctx, source.userId);
-  if (!eligibility(pipes)(source._id).includes(source.contingencyPipeId)) return;
+  if (!preparePipeContingencyEligibility(pipes)(source._id).includes(source.contingencyPipeId)) return;
   const donor = pipes.find(pipe => pipe._id === source.contingencyPipeId)!;
   const amountCents = calculateContingencyCoverage(source, donor);
   if (amountCents === 0) return;

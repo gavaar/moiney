@@ -42,4 +42,4 @@ Implemented. In particular, D017 remains In progress.
 | D020 | [Childless root settlement default](domain/accounting.md#d020-childless-root-settlement-default) | Implemented |
 | D021 | [Pipe creation and archived history](domain/history-cache.md#d021-pipe-creation-and-archived-history) | In progress |
 | D022 | [Self-destruct rules](domain/accounting.md#d022-self-destruct-rules) | Implemented |
-| D023 | [Settlement-time contingency coverage](domain/accounting.md#d023-settlement-time-contingency-coverage) | In progress |
+| D023 | [Settlement-time contingency coverage](domain/accounting.md#d023-settlement-time-contingency-coverage) | Implemented |
