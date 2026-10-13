@@ -1,5 +1,6 @@
 import type { Id } from "@convex/_generated/dataModel";
 import { groupHistoryEvents, type EventHistoryRow, type HistoryEntry } from "./event-groups";
+import { recognizedHistoryEntries } from "./event-types";
 
 export type DeletedPipeEntry = Extract<HistoryEntry, { type: "pipe_deletion" }>;
 export type EventArchiveSummary = { count: number; spent: number; oldestDate: number | null; latestDate: number | null };
@@ -28,7 +29,7 @@ export function groupMonthlyEventHistory(
 ): (EventHistoryRow | MonthlyEventArchive)[] {
   const scope = visiblePipeIds === undefined ? undefined : new Set(visiblePipeIds);
   const deleted = new Map([...entries.filter((entry): entry is DeletedPipeEntry => entry.type === "pipe_deletion"), ...deletedPipes].map(entry => [entry.pipeId, entry]));
-  const uniqueEntries = new Map(entries.map(entry => [entry.id, entry]));
+  const uniqueEntries = new Map(recognizedHistoryEntries(entries).map(entry => [entry.id, entry]));
   const ordinary: HistoryEntry[] = [];
   const archives = new Map<string, { event: DeletedPipeEntry; month: string; entries: HistoryEntry[] }>();
   for (const entry of uniqueEntries.values()) {

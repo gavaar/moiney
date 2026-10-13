@@ -33,6 +33,77 @@ describe("loaded event History", () => {
     mocks.appendEventHistory.mockReset().mockResolvedValue(undefined);
   });
 
+  it("continues through unknown-only and empty advancing pages to recognized history", async () => {
+    const future: HistoryEntry = JSON.parse(JSON.stringify({
+      id: "future", operationId: "future", pipeId: "source", createdAt: 2000, occurredAt: 2000, type: "future_event",
+    }));
+    mocks.query.mockImplementation(async (ref, args) => {
+      if (getFunctionName(ref) === "events:deletedPipes") return respond(ref);
+      if (!args.cursor) return { events: [future], cursor: "empty", isDone: false };
+      if (args.cursor === "empty") return { events: [], cursor: "known", isDone: false };
+      return { events: [expense()], cursor: null, isDone: true };
+    });
+    const { result } = renderHook(() => useMixedHistory());
+    await waitFor(() => expect(result.current.entries).toEqual([expense()]));
+    expect(result.current.hasMore).toBe(false);
+    expect(mocks.mergeEventHead).toHaveBeenCalledWith([expense()], false, 0);
+    expect(mocks.query).toHaveBeenCalledTimes(4);
+  });
+
+  it("omits unknown Latest entries without scanning past the bounded window", async () => {
+    const future: HistoryEntry = JSON.parse(JSON.stringify({
+      id: "future", operationId: "future", pipeId: "source", createdAt: 2000, occurredAt: 2000, type: "future_event",
+    }));
+    mocks.query.mockImplementation(async ref => getFunctionName(ref) === "events:latest" ? [future, expense()] : respond(ref));
+    const { result } = renderHook(() => useMixedHistory({}, { recent: true }));
+    await waitFor(() => expect(result.current.entries).toEqual([expense()]));
+    expect(mocks.query).toHaveBeenCalledTimes(2);
+    expect(result.current.hasMore).toBe(false);
+  });
+
+  it("applies the combined Latest stored-entry cutoff before skipping unknown types", async () => {
+    const future: HistoryEntry = JSON.parse(JSON.stringify({
+      id: "future", operationId: "future", pipeId: "a", createdAt: 201, occurredAt: 201, type: "future_event",
+    }));
+    const newest = [future, ...Array.from({ length: 29 }, (_, index) => expense(`a-${index}`, "a", 200 - index))];
+    const older = Array.from({ length: 30 }, (_, index) => expense(`b-${index}`, "b", 100 - index));
+    mocks.query.mockImplementation(async (ref, args) => getFunctionName(ref) === "events:deletedPipes"
+      ? respond(ref) : args.pipeId === "a" ? newest : older);
+    const { result } = renderHook(() => useMixedHistory({ pipeIds: [pipe("a"), pipe("b")] }, { recent: true }));
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.entries).toEqual(newest.slice(1));
+    expect(mocks.query).toHaveBeenCalledTimes(3);
+  });
+
+  it.each(["missing", "stalled", "cyclic"])("stops unknown-only scanning when its cursor is %s", async termination => {
+    const future: HistoryEntry = JSON.parse(JSON.stringify({
+      id: "future", operationId: "future", pipeId: "source", createdAt: 2, occurredAt: 2, type: "future_event",
+    }));
+    mocks.query.mockImplementation(async (ref, args) => {
+      if (getFunctionName(ref) === "events:deletedPipes") return respond(ref);
+      const cursor = !args.cursor ? "next" : termination === "missing" ? null
+        : termination === "cyclic" && args.cursor === "next" ? "other" : "next";
+      return { events: [future], cursor, isDone: false };
+    });
+    const { result } = renderHook(() => useMixedHistory());
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.entries).toEqual([]);
+    expect(result.current.hasMore).toBe(false);
+    expect(result.current.error).toBeNull();
+    expect(mocks.query).toHaveBeenCalledTimes(termination === "cyclic" ? 4 : 3);
+  });
+
+  it("does not scan another unknown-only page after the view is unmounted", async () => {
+    let finish!: (value: { events: HistoryEntry[]; cursor: string; isDone: false }) => void;
+    mocks.query.mockImplementation(ref => getFunctionName(ref) === "events:deletedPipes"
+      ? Promise.resolve(respond(ref)) : new Promise(resolve => { finish = resolve; }));
+    const { unmount } = renderHook(() => useMixedHistory());
+    await waitFor(() => expect(mocks.query).toHaveBeenCalledTimes(2));
+    unmount();
+    await act(async () => finish({ events: [JSON.parse(JSON.stringify({ type: "future_event" }))], cursor: "next", isDone: false }));
+    expect(mocks.query).toHaveBeenCalledTimes(2);
+  });
+
   it("loads raw event pages and seeds ranking only for unfiltered main History", async () => {
     const { result, rerender } = renderHook(() => useMixedHistory());
     await waitFor(() => expect(result.current.entries).toEqual([expense()]));

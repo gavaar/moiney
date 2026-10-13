@@ -1,8 +1,7 @@
-import type { FunctionReturnType } from "convex/server";
-import type { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
+import { recognizedHistoryEntries, type HistoryEntry } from "./event-types";
 
-export type HistoryEntry = FunctionReturnType<typeof api.events.list>["events"][number];
+export type { HistoryEntry } from "./event-types";
 type FinancialEntry = Extract<HistoryEntry, { title: string }>;
 type LifecycleEntry = Exclude<HistoryEntry, FinancialEntry>;
 
@@ -83,7 +82,7 @@ export function groupHistoryEvents(
   visiblePipeIds?: readonly Id<"pipes">[],
 ): EventHistoryRow[] {
   const scope = visiblePipeIds === undefined ? undefined : new Set(visiblePipeIds);
-  const uniqueEntries = new Map(entries.map(entry => [entry.id, entry]));
+  const uniqueEntries = new Map(recognizedHistoryEntries(entries).map(entry => [entry.id, entry]));
   const operations = new Map<Id<"events">, FinancialEntry[]>();
   const rows: EventHistoryRow[] = [];
   for (const entry of uniqueEntries.values()) {
