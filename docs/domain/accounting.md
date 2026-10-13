@@ -58,6 +58,41 @@ explicit execution clock.
 and scheduled execution without adding expenditure. Automatic instant settlement
 remains silent.
 
+## D023: Settlement-time Contingency Coverage
+
+Status: In progress
+
+The target contract is coverage at settlement, not when an expense is created.
+A source can select a same-tree leaf sibling, or a leaf sibling of one of its
+ancestors, as its contingency donor. The selector and authoritative backend
+validation must use the same eligible-target list. Missing/cyclic ancestry,
+non-leaf sources, and blocked sources, donors, or ancestry are ineligible.
+`instant_settlement` sources cannot request coverage; self-destruct executes
+deletion rather than settlement. A donor cannot itself have a contingency donor,
+and a pipe already serving as a donor cannot request coverage. Several sources
+may share one donor, but contingency chains are prohibited.
+
+For a source and eligible donor, in whole integer cents:
+
+- `demand = max(0, source.spent - source.capacity)`
+- `available = max(0, donor.fed - donor.spent)`
+- `coverage = min(demand, available)`
+
+Negative capacity can represent historical debt, so coverage is not capped by
+current spending and can apply when spending is zero. Pending external payment
+adjustments do not increase donor availability.
+
+Coverage subtracts from source `spent` and adds to donor `spent` before applying
+the source's settlement rule. It does not additionally transfer `fed`. Original
+expenses remain wholly attributed to the source in history and reporting;
+coverage is permanent, and subsequent refunds do not reclaim it.
+
+One donor's claims at the same scheduled occurrence and priority share available
+funding equally, capped by each claim's demand. Unused shares are redistributed;
+integer-cent remainders go to ascending source IDs, independent of input order.
+The scheduler owns grouping by occurrence, priority, and donor; the allocator
+must not combine unrelated groups. Duplicate source claims are invalid.
+
 ## D012: Pay-by-transfer Liquidity And Logical Spending
 
 Status: Implemented
