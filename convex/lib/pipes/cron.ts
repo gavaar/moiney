@@ -1,11 +1,16 @@
 import type { Doc, Id } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
 import {
+  allocateContingencyCoverage,
   calculatePipeRulePatch,
   recalculatePipes,
 } from "../../../domain/pipes";
 import { countDueCronOccurrences } from "../../../domain/scheduling";
 import { MAX_PIPES_PER_USER } from "../constants";
+import { recordSettlementHistory } from "../events/settlement";
+import { assertAmountLimit } from "../../../domain/money";
+import { ConvexError } from "convex/values";
+import { preparePipeContingencyEligibility, type AppliedContingencyCoverage } from "./contingency";
 
 const CRON_CANDIDATE_PAGE_SIZE = 500;
 // Four maximum-size user snapshots keep the aggregate read/write set bounded.
@@ -133,11 +138,12 @@ function countDueOccurrences(pipe: Doc<"pipes">, now: number): number {
   );
 }
 
-function calculateUserCronPatches(
+type CronSettlement = { before: Doc<"pipes">; after: Doc<"pipes">; coverage?: AppliedContingencyCoverage };
+
+function calculateUserCronPlan(
   pipes: Doc<"pipes">[],
-  candidates: Doc<"pipes">[],
   now: number,
-): Map<Id<"pipes">, CronAccountingPatch> {
+): { patches: Map<Id<"pipes">, CronAccountingPatch>; settlements: CronSettlement[] } {
   const { originalById, rootByPipeId, pipesByRoot } = indexPipesByRoot(pipes);
   const workingById = new Map(
     pipes.map((pipe) => [pipe._id, { ...pipe } as Doc<"pipes">]),
@@ -150,25 +156,52 @@ function calculateUserCronPatches(
   }
 
   const affectedRoots = new Set<Id<"pipes">>();
-  for (const candidate of candidates) {
-    const current = originalById.get(candidate._id);
-    if (!current || current.rule !== "cron") continue;
-
-    const rootId = rootByPipeId.get(current._id);
-    if (!rootId || blockedRoots.has(rootId)) continue;
-
-    const dueOccurrences = countDueOccurrences(current, now);
-    if (dueOccurrences === 0) continue;
-
-    const patch = calculatePipeRulePatch(current, {
-      now,
-      capUpdateValue:
-        current.capUpdateValue == null
-          ? undefined
-          : current.capUpdateValue * dueOccurrences,
-    });
-    workingById.set(current._id, { ...current, ...patch });
-    affectedRoots.add(rootId);
+  const settlements: CronSettlement[] = [];
+  const eligible = preparePipeContingencyEligibility(pipes);
+  // Query pages are only user triggers. The bounded snapshot owns complete groups.
+  const due = pipes.filter(pipe => countDueOccurrences(pipe, now) > 0 && !blockedRoots.has(rootByPipeId.get(pipe._id)!))
+    .sort((a, b) => a.cronNextDate! - b.cronNextDate! || a.priority - b.priority || (a._id < b._id ? -1 : a._id > b._id ? 1 : 0));
+  const groups = new Map<string, Doc<"pipes">[]>();
+  for (const pipe of due) {
+    const key = `${pipe.cronNextDate}:${pipe.priority}`;
+    const group = groups.get(key) ?? [];
+    group.push(pipe);
+    groups.set(key, group);
+  }
+  for (const group of groups.values()) {
+    const claimsByDonor = new Map<Id<"pipes">, Doc<"pipes">[]>();
+    for (const pipe of group) {
+      const donorId = pipe.contingencyPipeId;
+      if (!donorId || !eligible(pipe._id).includes(donorId)) continue;
+      const claims = claimsByDonor.get(donorId) ?? [];
+      claims.push(workingById.get(pipe._id)!);
+      claimsByDonor.set(donorId, claims);
+    }
+    const coverages = new Map<Id<"pipes">, AppliedContingencyCoverage>();
+    for (const [donorId, claims] of claimsByDonor) {
+      const allocated = allocateContingencyCoverage(claims.map(pipe => ({ sourceId: pipe._id, capacity: pipe.capacity, spent: pipe.spent, rule: pipe.rule })), workingById.get(donorId)!);
+      for (const { sourceId, coverageCents } of allocated) {
+        const before = workingById.get(donorId)!;
+        const after = { ...before, spent: assertAmountLimit(before.spent + coverageCents) };
+        assertAmountLimit(workingById.get(sourceId)!.spent - coverageCents);
+        workingById.set(donorId, after);
+        coverages.set(sourceId, { amountCents: coverageCents, before, after });
+      }
+    }
+    // All coverage in this group precedes rule execution, including a due donor's.
+    for (const pipe of group) {
+      const current = workingById.get(pipe._id)!;
+      const coverage = coverages.get(pipe._id);
+      const covered = coverage ? { ...current, spent: current.spent - coverage.amountCents } : current;
+      const patch = calculatePipeRulePatch(covered, {
+        now,
+        capUpdateValue: current.capUpdateValue == null ? undefined : current.capUpdateValue * countDueOccurrences(current, now),
+      });
+      const after = { ...current, ...patch };
+      workingById.set(current._id, after);
+      settlements.push({ before: current, after, ...(coverage ? { coverage } : {}) });
+      affectedRoots.add(rootByPipeId.get(current._id)!);
+    }
   }
 
   for (const rootId of affectedRoots) {
@@ -191,7 +224,7 @@ function calculateUserCronPatches(
       if (Object.keys(patch).length > 0) patches.set(pipe._id, patch);
     }
   }
-  return patches;
+  return { patches, settlements };
 }
 
 async function loadCronCandidates(
@@ -264,15 +297,16 @@ export async function runDueCronRulesOperation(
     const userPipes = await ctx.db
       .query("pipes")
       .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .take(MAX_PIPES_PER_USER);
+      .take(MAX_PIPES_PER_USER + 1);
+    if (userPipes.length > MAX_PIPES_PER_USER) throw new ConvexError({ code: "PIPE_LIMIT_REACHED" });
     snapshotPipeCount += userPipes.length;
 
-    for (const [pipeId, patch] of calculateUserCronPatches(
-      userPipes,
-      userCandidates,
-      now,
-    )) {
+    const plan = calculateUserCronPlan(userPipes, now);
+    for (const [pipeId, patch] of plan.patches) {
       patches.set(pipeId, patch);
+    }
+    for (const settlement of plan.settlements) {
+      await recordSettlementHistory(ctx, settlement.before, settlement.after, "cron", now, settlement.coverage);
     }
   }
 

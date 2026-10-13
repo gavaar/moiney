@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Id } from "@convex/_generated/dataModel";
 import { groupHistoryEvents, type HistoryEntry } from "./event-groups";
+import { getFrequentlyUsedEventSourcePipeIds } from "./event-usage";
 
 const pipe = (id: string) => id as Id<"pipes">;
 const eventId = (id: string) => id as Id<"events">;
@@ -25,6 +26,47 @@ function external(id: string, value = -100, payer = "payer"): HistoryEntry[] {
 }
 
 describe("event operation and title grouping", () => {
+  it("collapses coverage globally but preserves the donor perspective in a pipe scope and on partial pages", () => {
+    const before = { capacity: 4000, fed: 4000, spent: 7000, pendingFedAdjustment: 0 };
+    const after = { ...before, spent: 0, fed: -1000 };
+    const donorBefore = { capacity: 6000, fed: 6000, spent: 4000, pendingFedAdjustment: 0 };
+    const donorAfter = { ...donorBefore, spent: 6000 };
+    const canonical: Extract<HistoryEntry, { type: "settlement" }> = {
+      id: eventId("covered"), operationId: eventId("covered"), createdAt: june, occurredAt: june,
+      type: "settlement", pipeId: pipe("source"), name: "Source", icon: "pipe", cause: "manual", before, after,
+      coverage: { amountCents: 2000, pipeId: pipe("donor"), name: "Donor", icon: "shield", before: donorBefore, after: donorAfter },
+    };
+    const mirror: Extract<HistoryEntry, { type: "settlement_coverage" }> = {
+      ...canonical, id: eventId("mirror"), type: "settlement_coverage", pipeId: pipe("donor"), name: "Donor", icon: "shield",
+      before: donorBefore, after: donorAfter,
+      coverage: { amountCents: 2000, pipeId: pipe("source"), name: "Source", icon: "pipe", before, after },
+    };
+    for (const entries of [[canonical, mirror], [mirror, canonical]]) {
+      expect(groupHistoryEvents(entries)).toEqual([{ kind: "settlement", id: canonical.operationId, event: canonical }]);
+      expect(groupHistoryEvents(entries, [pipe("donor")])).toEqual([{ kind: "settlement", id: canonical.operationId, event: mirror }]);
+    }
+    expect(groupHistoryEvents([mirror], [pipe("donor")])).toEqual([{ kind: "settlement", id: canonical.operationId, event: mirror }]);
+    expect(groupHistoryEvents([mirror])).toMatchObject([{ kind: "settlement", event: { type: "settlement", pipeId: pipe("source"), before, after } }]);
+    expect(getFrequentlyUsedEventSourcePipeIds([canonical, mirror])).toEqual([]);
+    const updatedSource = { ...canonical, name: "Updated source" };
+    const updatedDonor = { ...mirror, name: "Updated donor" };
+    expect(groupHistoryEvents([canonical, updatedSource])).toEqual([{ kind: "settlement", id: canonical.operationId, event: updatedSource }]);
+    expect(groupHistoryEvents([mirror, updatedDonor], [pipe("donor")])).toEqual([{ kind: "settlement", id: canonical.operationId, event: updatedDonor }]);
+  });
+  it("keeps settlements as separate pipe-scoped rows without adding usage or expense groups", () => {
+    const event: Extract<HistoryEntry, { type: "settlement" }> = {
+      id: eventId("settled"), operationId: eventId("settled"), createdAt: june + 1,
+      occurredAt: june, pipeId: pipe("source"), type: "settlement", name: "Source", icon: "wallet",
+      cause: "manual", before: { capacity: 4000, fed: 4000, spent: 3000, pendingFedAdjustment: 0 },
+      after: { capacity: 4000, fed: 1000, spent: 0, pendingFedAdjustment: 0 },
+    };
+    expect(groupHistoryEvents([event, expense("one"), expense("two")])).toMatchObject([
+      { kind: "settlement", event }, { kind: "group", count: 2, totalValue: -200 },
+    ]);
+    expect(groupHistoryEvents([event], [pipe("other")])).toEqual([]);
+    expect(groupHistoryEvents([event, event], [pipe("source")])).toHaveLength(1);
+    expect(getFrequentlyUsedEventSourcePipeIds([event])).toEqual([]);
+  });
   it.each([-100, 100])("collapses transfers by exact operation identity at %s cents, not matching fields", value => {
     const rows = groupHistoryEvents([...transfer("one", value), ...transfer("two", value)]);
     expect(rows).toHaveLength(1);

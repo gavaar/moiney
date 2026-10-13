@@ -54,6 +54,60 @@ An overdue cron execution settles once, applies `capUpdateValue` multiplied by
 the number of due occurrences, and advances `cronNextDate` once beyond the
 explicit execution clock.
 
+[Settlement history](events.md#settlement-outcomes) records manual, spending-limit,
+and scheduled execution without adding expenditure. Automatic instant settlement
+remains silent.
+
+## D023: Settlement-time Contingency Coverage
+
+Status: Implemented
+
+Coverage applies at settlement, not when an expense is created.
+A source can select a same-tree leaf sibling, or a leaf sibling of one of its
+ancestors, as its contingency donor. The selector and authoritative backend
+validation must use the same eligible-target list. Missing/cyclic ancestry,
+non-leaf sources, and blocked sources, donors, or ancestry are ineligible.
+`instant_settlement` sources cannot request coverage; self-destruct executes
+deletion rather than settlement. A donor cannot itself have a contingency donor,
+and a pipe already serving as a donor cannot request coverage. Several sources
+may share one donor, but contingency chains are prohibited.
+
+The optional `pipes.contingencyPipeId` stores the selection; absence means no
+contingency. Pipe edits distinguish omission (unchanged), an eligible pipe ID
+(set), and `null` (clear). Configuration does not move money. Becoming a parent
+clears the pipe's own selection and selections that name it as donor. Switching
+a source to `instant_settlement` or `self_destruct` clears its selection; donor
+deletion clears surviving references at finalization.
+
+For a source and eligible donor, in whole integer cents:
+
+- `demand = max(0, source.spent - source.capacity)`
+- `available = max(0, donor.fed - donor.spent)`
+- `coverage = min(demand, available)`
+
+Negative capacity can represent historical debt, so coverage is not capped by
+current spending and can apply when spending is zero. Pending external payment
+adjustments do not increase donor availability.
+
+Coverage subtracts from source `spent` and adds to donor `spent` before applying
+the source's settlement rule. It does not additionally transfer `fed`. Original
+expenses remain wholly attributed to the source in history and reporting;
+coverage is permanent, and subsequent refunds do not reclaim it.
+
+One donor's claims at the same scheduled occurrence and priority share available
+funding equally, capped by each claim's demand. Unused shares are redistributed;
+integer-cent remainders go to ascending source IDs, independent of input order.
+The scheduler owns grouping by occurrence, priority, and donor; the allocator
+must not combine unrelated groups. Duplicate source claims are invalid.
+
+Scheduled groups run in ascending occurrence date, then ascending priority.
+Coverage for the complete group is applied before its settlement rules, including
+a donor's own scheduled rule when it is in that group. Earlier groups consume
+liquidity before later groups; redistribution follows all scheduled rule effects.
+A cron query page triggers a bounded account snapshot rather than limiting its
+claimants, so pagination cannot split a sharing group. Frozen accounting trees
+retain their due schedules without coverage or settlement writes.
+
 ## D012: Pay-by-transfer Liquidity And Logical Spending
 
 Status: Implemented

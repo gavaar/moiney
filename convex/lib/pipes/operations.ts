@@ -1,5 +1,5 @@
 import { ConvexError } from "convex/values";
-import type { Id } from "../../_generated/dataModel";
+import type { Doc, Id } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
 import { assertAmountLimit } from "../../../domain/money";
 import type { RuleConfiguration } from "../../../domain/pipes/rules";
@@ -8,11 +8,12 @@ import { MAX_PIPES_PER_USER } from "../constants";
 import { ensureLivePipeCreationHistory } from "../pipeHistory";
 import { assertPipeNotDeleting } from "./delete";
 import { executePipeRule, reconcileAffectedPipeRoots } from "./pipes";
+import { assertContingencyTarget } from "./contingency";
 
 async function checkPipeLimit(
   ctx: MutationCtx,
   userId: Id<"users">,
-): Promise<void> {
+): Promise<Doc<"pipes">[]> {
   const pipes = await ctx.db
     .query("pipes")
     .withIndex("by_userId", (q) => q.eq("userId", userId))
@@ -20,6 +21,7 @@ async function checkPipeLimit(
   if (pipes.length >= MAX_PIPES_PER_USER) {
     throw new ConvexError({ code: "PIPE_LIMIT_REACHED" });
   }
+  return pipes;
 }
 
 export type AddFeedCommand = {
@@ -86,7 +88,7 @@ export async function addPipeOperation(
   }
   assertPipeNotDeleting(parent);
 
-  await checkPipeLimit(ctx, userId);
+  const allPipes = await checkPipeLimit(ctx, userId);
 
   const settledFed =
     parent.fed + (parent.pendingFedAdjustment ?? 0) - parent.spent;
@@ -115,7 +117,13 @@ export async function addPipeOperation(
     capUpdateValue: undefined,
     cronNextDate: undefined,
     cronInterval: undefined,
+    contingencyPipeId: undefined,
   });
+  for (const source of allPipes) {
+    if (source.contingencyPipeId === parent._id) {
+      await ctx.db.patch("pipes", source._id, { contingencyPipeId: undefined });
+    }
+  }
   await reconcileAffectedPipeRoots(ctx, [command.parentId]);
   await ensureLivePipeCreationHistory(ctx, (await ctx.db.get("pipes", childId))!);
   return childId;
@@ -143,7 +151,10 @@ export async function updatePipeRuleOperation(
   }
   const patch = rulePatch(pipe, command, now);
   if (!patch) return null;
-  await ctx.db.patch("pipes", command.pipeId, patch);
+  await ctx.db.patch("pipes", command.pipeId, {
+    ...patch,
+    ...(patch.rule === "instant_settlement" || patch.rule === "self_destruct" ? { contingencyPipeId: undefined } : {}),
+  });
   await reconcileAffectedPipeRoots(ctx, [command.pipeId]);
   return null;
 }
@@ -155,6 +166,7 @@ export type UpdatePipeCommand = {
   description?: string | null;
   priority?: number;
   capacity?: number;
+  contingencyPipeId?: Id<"pipes"> | null;
 };
 
 export async function updatePipeOperation(
@@ -169,6 +181,12 @@ export async function updatePipeOperation(
   assertPipeNotDeleting(pipe);
 
   const patch: Record<string, unknown> = {};
+  if (command.contingencyPipeId !== undefined) {
+    if (command.contingencyPipeId !== null) {
+      await assertContingencyTarget(ctx, userId, pipe._id, command.contingencyPipeId);
+    }
+    patch.contingencyPipeId = command.contingencyPipeId ?? undefined;
+  }
   if (command.name !== undefined) patch.name = command.name;
   if (command.icon !== undefined) patch.icon = command.icon;
   if (command.description !== undefined) {
@@ -199,7 +217,7 @@ export async function executePipeRuleNowOperation(
   assertPipeNotDeleting(pipe);
 
   if (pipe.rule === "self_destruct") throw new ConvexError({ code: "SELF_DESTRUCT_CANNOT_RUN_MANUALLY" });
-  await executePipeRule(ctx, pipeId, { pipe, now });
+  await executePipeRule(ctx, pipeId, { pipe, now, cause: "manual" });
   await reconcileAffectedPipeRoots(ctx, [pipeId]);
   return null;
 }

@@ -24,6 +24,19 @@ function mount(disk: EventHistoryStorage, options: { enabled?: boolean; minimumC
 describe("unfiltered event History cache loader", () => {
   beforeEach(() => { mocks.query.mockReset(); mocks.accountKey = "alice"; });
 
+  it("keeps settlement entries in the shared raw History snapshot even when ranking seeds it", async () => {
+    const settlement: Extract<HistoryEntry, { type: "settlement" }> = {
+      id: "settled" as Id<"events">, operationId: "settled" as Id<"events">,
+      pipeId: "source" as Id<"pipes">, createdAt: 1, occurredAt: 1,
+      type: "settlement", name: "Coffee", icon: "cafe", cause: "manual",
+      before: { fed: 4000, spent: 3000, capacity: 4000, pendingFedAdjustment: 0 },
+      after: { fed: 1000, spent: 0, capacity: 4000, pendingFedAdjustment: 0 },
+    };
+    mocks.query.mockResolvedValue({ events: [settlement], cursor: null, isDone: true });
+    const { result } = mount(storage());
+    await waitFor(() => expect(result.current.entries).toEqual([settlement]));
+  });
+
   it("does not mark the shared snapshot exhausted at unknown-only or empty advancing pages", async () => {
     const future: HistoryEntry = JSON.parse(JSON.stringify({
       id: "future", operationId: "future", pipeId: "source", createdAt: 2, occurredAt: 2, type: "future_event",

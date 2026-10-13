@@ -68,9 +68,45 @@ export type FinancialEvent<PipeId extends string = string, EventId extends strin
   | ThirdPartyTransactionEvent<PipeId, EventId>
   | TransferEvent<PipeId, EventId>;
 
+export type SettlementCause = "manual" | "spend_overflow" | "cron";
+export type SettlementBalance = {
+  capacity: number;
+  fed: number;
+  spent: number;
+  pendingFedAdjustment: number;
+};
+export type SettlementCoverage<PipeId extends string = string> = {
+  amountCents: number;
+  pipeId: PipeId;
+  name: string;
+  icon: string;
+  before: SettlementBalance;
+  after: SettlementBalance;
+};
+export type SettlementEvent<PipeId extends string = string, EventId extends string = string> =
+  EventIdentity<PipeId, EventId> & {
+    type: "settlement";
+    coverage?: SettlementCoverage<PipeId>;
+    name: string;
+    icon: string;
+    cause: SettlementCause;
+    before: SettlementBalance;
+    after: SettlementBalance;
+    title?: never;
+    value?: never;
+    targetPipeId?: never;
+  };
+export type SettlementCoverageEvent<PipeId extends string = string, EventId extends string = string> =
+  Omit<SettlementEvent<PipeId, EventId>, "type" | "coverage"> & {
+    type: "settlement_coverage";
+    coverage: SettlementCoverage<PipeId>;
+  };
+
 export type HistoryEvent<PipeId extends string = string, EventId extends string = string> =
   | FinancialEvent<PipeId, EventId>
-  | PipeLifecycleEvent<PipeId, EventId>;
+  | PipeLifecycleEvent<PipeId, EventId>
+  | SettlementEvent<PipeId, EventId>
+  | SettlementCoverageEvent<PipeId, EventId>;
 
 /** A complete operation for writes, not a potentially partial history page. */
 export type HistoryOperation<PipeId extends string = string, EventId extends string = string> =
@@ -78,8 +114,13 @@ export type HistoryOperation<PipeId extends string = string, EventId extends str
     canonicalEvent:
       | FeedEvent<PipeId, EventId>
       | OrdinaryTransactionEvent<PipeId, EventId>
-      | PipeLifecycleEvent<PipeId, EventId>;
+      | PipeLifecycleEvent<PipeId, EventId>
+      | (SettlementEvent<PipeId, EventId> & { coverage?: never });
     counterpart?: never;
+  }
+  | {
+    canonicalEvent: SettlementEvent<PipeId, EventId> & { coverage: SettlementCoverage<PipeId> };
+    counterpart: SettlementCoverageEvent<PipeId, EventId>;
   }
   | {
     canonicalEvent: TransferEvent<PipeId, EventId>;

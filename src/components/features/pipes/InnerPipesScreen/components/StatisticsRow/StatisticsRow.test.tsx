@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import { colors } from "@/lib/styles";
 import userEvent from "@testing-library/user-event";
 import { StatisticsRow } from "./StatisticsRow";
 
@@ -31,8 +32,8 @@ vi.mock("@ui/Popover", () => ({
 }));
 
 vi.mock("@ui/Icon", () => ({
-  Icon: ({ name, testID }: any) => (
-    <span data-testid={testID ?? "icon"} data-name={name} />
+  Icon: ({ name, testID, color }: any) => (
+    <span data-testid={testID ?? "icon"} data-name={name} data-color={color} />
   ),
 }));
 
@@ -76,6 +77,102 @@ describe("StatisticsRow", () => {
         "The monthly expected amount is 900.00. After 400.00 in currently tracked spending, 500.00 remains. Spending before the last settlement is not included; this is not your available balance or carried-forward capacity.",
       ),
     ).toBeDefined();
+  });
+
+  it.each([
+    { capacity: 4000, spent: 7000, donorFed: 6000, donorSpent: 4000, amount: "20.00" },
+    { capacity: -3000, spent: 0, donorFed: 6000, donorSpent: 1000, amount: "30.00" },
+    { capacity: 4000, spent: 1000, donorFed: 6000, donorSpent: 0, amount: "0.00" },
+  ])("shows current coverage of $amount and explains settlement-time use", async ({ capacity, spent, donorFed, donorSpent, amount }) => {
+    mockPipesById.test_pipe_id = { ...mockPipesById.test_pipe_id, parentId: "root", capacity, spent, fed: 0, contingencyPipeId: "donor" };
+    mockPipesById.root = { id: "root" };
+    mockPipesById.donor = { id: "donor", parentId: "root", name: "Reserve", icon: "wallet", fed: donorFed, spent: donorSpent, capacity: 6000 };
+    renderStatistics({ spent });
+    const pill = screen.getByRole("button", { name: `Possible coverage, ${amount}` });
+    expect(within(pill).getByTestId("icon").getAttribute("data-color")).toBe(colors.warning);
+    await userEvent.setup().click(pill);
+    expect(screen.getByText(new RegExp(`Reserve could cover ${amount.replace(".", "\\.")} if this pipe settled now`))).toBeTruthy();
+    expect(screen.getByText(/not reserved/)).toBeTruthy();
+  });
+
+  it("updates the estimate with donor balances and hides it when the donor becomes ineligible", () => {
+    mockPipesById.test_pipe_id = { ...mockPipesById.test_pipe_id, parentId: "root", capacity: 4000, spent: 7000, fed: 0, contingencyPipeId: "donor" };
+    mockPipesById.root = { id: "root" };
+    mockPipesById.donor = { id: "donor", parentId: "root", name: "Reserve", icon: "wallet", fed: 6000, spent: 4000, capacity: 6000 };
+    const { rerender } = renderStatistics();
+    expect(screen.getByRole("button", { name: "Possible coverage, 20.00" })).toBeTruthy();
+    mockPipesById.donor.spent = 6000;
+    rerender(<StatisticsRow {...baseProps} now={Date.now()} />);
+    expect(screen.getByRole("button", { name: "Possible coverage, 0.00" })).toBeTruthy();
+    mockPipesById.donor.deletionJobId = "deletion";
+    rerender(<StatisticsRow {...baseProps} now={Date.now()} />);
+    expect(screen.queryByRole("button", { name: /Possible coverage/ })).toBeNull();
+  });
+
+  it("does not show coverage without a selected donor", () => {
+    renderStatistics();
+    expect(screen.queryByRole("button", { name: /Possible coverage/ })).toBeNull();
+  });
+
+  it.each([
+    { fed: 6000, spent: 4000, sourceSpent: 7000, amount: "20.00" },
+    { fed: 10000, spent: 0, sourceSpent: 5500, amount: "30.00" },
+    { fed: 6000, spent: 6000, sourceSpent: 7000, amount: "0.00" },
+    { fed: 6000, spent: 0, sourceSpent: 3000, amount: "0.00" },
+  ])("shows donor coverage of $amount without counting shared funding twice", async ({ fed, spent, sourceSpent, amount }) => {
+    mockPipesById.test_pipe_id = { ...mockPipesById.test_pipe_id, parentId: "root", fed, spent, capacity: 6000 };
+    mockPipesById.root = { id: "root" };
+    mockPipesById.groceries = { id: "groceries", parentId: "root", name: "Groceries", capacity: 4000, spent: sourceSpent, fed: 4000, contingencyPipeId: "test_pipe_id" };
+    mockPipesById.rent = { id: "rent", parentId: "root", name: "Rent", capacity: 4000, spent: sourceSpent, fed: 4000, contingencyPipeId: "test_pipe_id" };
+    // An instant-settlement source's stale selection must not increase the estimate.
+    mockPipesById.instant = { id: "instant", parentId: "root", name: "Instant", capacity: 0, spent: 10000, fed: 0, rule: "instant_settlement", contingencyPipeId: "test_pipe_id" };
+    renderStatistics({ fed, spent });
+    const pill = screen.getByRole("button", { name: `Possible coverage provided, ${amount}` });
+    expect(within(pill).getByTestId("icon").getAttribute("data-color")).toBe(colors.warning);
+    await userEvent.setup().click(pill);
+    expect(screen.getByText(new RegExp(`could provide ${amount.replace(".", "\\.")} in total`))).toBeTruthy();
+    expect(screen.getByText(/Groceries, Rent/)).toBeTruthy();
+    expect(screen.getByText(/not reserved/)).toBeTruthy();
+  });
+
+  it("updates donor coverage with source debt and hides it during tree freezes or after the last selection is cleared", () => {
+    mockPipesById.test_pipe_id = { ...mockPipesById.test_pipe_id, parentId: "root", fed: 6000, spent: 0, capacity: 6000 };
+    mockPipesById.root = { id: "root" };
+    mockPipesById.source = { id: "source", parentId: "root", name: "Groceries", capacity: -3000, spent: 0, fed: 0, contingencyPipeId: "test_pipe_id" };
+    mockPipesById.sibling = { id: "sibling", parentId: "root" };
+    const { rerender } = renderStatistics();
+    expect(screen.getByRole("button", { name: "Possible coverage provided, 30.00" })).toBeTruthy();
+    mockPipesById.source.capacity = -5000;
+    rerender(<StatisticsRow {...baseProps} now={Date.now()} />);
+    expect(screen.getByRole("button", { name: "Possible coverage provided, 50.00" })).toBeTruthy();
+    mockPipesById.sibling.deletionJobId = "deletion";
+    rerender(<StatisticsRow {...baseProps} now={Date.now()} />);
+    expect(screen.queryByRole("button", { name: /Possible coverage provided/ })).toBeNull();
+    delete mockPipesById.sibling.deletionJobId;
+    rerender(<StatisticsRow {...baseProps} now={Date.now()} />);
+    expect(screen.getByRole("button", { name: "Possible coverage provided, 50.00" })).toBeTruthy();
+    delete mockPipesById.source.contingencyPipeId;
+    rerender(<StatisticsRow {...baseProps} now={Date.now()} />);
+    expect(screen.queryByRole("button", { name: /Possible coverage provided/ })).toBeNull();
+  });
+
+  it("hides coverage during sibling deletion, restores it afterward, and ignores freezes in other trees", () => {
+    mockPipesById.test_pipe_id = { ...mockPipesById.test_pipe_id, parentId: "root", capacity: 4000, spent: 7000, fed: 0, contingencyPipeId: "donor" };
+    mockPipesById.root = { id: "root" };
+    mockPipesById.donor = { id: "donor", parentId: "root", name: "Reserve", icon: "wallet", fed: 6000, spent: 4000, capacity: 6000 };
+    mockPipesById.sibling = { id: "sibling", parentId: "root" };
+    mockPipesById.deleting = { id: "deleting", parentId: "sibling", deletionJobId: "deletion" };
+    const { rerender } = renderStatistics();
+    expect(screen.queryByRole("button", { name: /Possible coverage/ })).toBeNull();
+
+    delete mockPipesById.deleting.deletionJobId;
+    rerender(<StatisticsRow {...baseProps} now={Date.now()} />);
+    expect(screen.getByRole("button", { name: "Possible coverage, 20.00" })).toBeTruthy();
+
+    mockPipesById.otherRoot = { id: "otherRoot" };
+    mockPipesById.otherDeleting = { id: "otherDeleting", parentId: "otherRoot", deletionJobId: "otherDeletion" };
+    rerender(<StatisticsRow {...baseProps} now={Date.now()} />);
+    expect(screen.getByRole("button", { name: "Possible coverage, 20.00" })).toBeTruthy();
   });
 
   it("shows a negative remaining expected amount after exceeding the target", () => {

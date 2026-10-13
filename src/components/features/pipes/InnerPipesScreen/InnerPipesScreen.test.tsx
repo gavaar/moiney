@@ -169,6 +169,24 @@ describe("InnerPipesScreen", () => {
     expect(screen.queryByTestId("bar-capacity-fill")).toBeNull();
   });
 
+  it("uses the same shared donor estimate in the spent bar and the coverage pill", () => {
+    const root = { ...childPipe1, id: "root", name: "Main" };
+    const donor = { ...childPipe1, id: "donor", parentId: "root", name: "Reserve", fed: 10000, capacity: 10000, spent: 4000 };
+    const source = { ...childPipe2, parentId: "root", fed: 4000, capacity: 4000, spent: 8000, contingencyPipeId: "donor" };
+    const allPipes = [root, donor, source];
+    mockUsePipeSelection.mockReturnValue({
+      ...baseMock, selectedPipePath: ["root", "donor"], selectedPipe: donor,
+      allPipes, pipesById: Object.fromEntries(allPipes.map(pipe => [pipe.id, pipe])),
+      childrenByParent: new Map([["root", [donor, source]]]),
+    });
+    render(<InnerPipesScreen />);
+    expect(screen.getByTestId("bar-spent-fill").style.width).toBe("40%");
+    expect(screen.getByTestId("bar-spent-coverage-fill").style.left).toBe("40%");
+    expect(screen.getByTestId("bar-spent-coverage-fill").style.width).toBe("40%");
+    expect(screen.getByText("80.00")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Possible coverage provided, 40.00" })).toBeTruthy();
+  });
+
   it("uses boiler contributions for detail bars and growth", () => {
     mockUsePipeSelection.mockReturnValue({
       ...baseMock,

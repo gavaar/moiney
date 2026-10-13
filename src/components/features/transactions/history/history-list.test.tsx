@@ -32,7 +32,7 @@ vi.mock("react-native", async (importOriginal) => ({
 vi.mock("convex/react", () => ({ useConvex: () => client }));
 vi.mock("expo-router", () => ({ useRouter: () => ({ navigate: mocks.navigate }) }));
 vi.mock("@features/pipes/context/PipeCatalogContext", () => ({ usePipeCatalog: () => ({ pipesById: {} }) }));
-vi.mock("@ui/Icon", () => ({ Icon: () => null, safeIconName: (name: string) => name }));
+vi.mock("@ui/Icon", () => ({ Icon: ({ name }: { name: string }) => <span data-testid={name} />, safeIconName: (name: string) => name }));
 vi.mock("../components/TransactionItem", () => ({ TransactionItem: ({ transaction }: { transaction: { title: string } }) => <span>{transaction.title}</span> }));
 vi.mock("../components/TransactionCorrectionHistory/TransactionCorrectionHistoryModal", () => ({ TransactionCorrectionHistoryModal: () => null }));
 const pipe = (id: string) => id as Id<"pipes">;
@@ -42,12 +42,61 @@ const trip: DeletedPipeEntry = { id: id("deleted-trip"), operationId: id("delete
 const payer: DeletedPipeEntry = { ...trip, id: id("deleted-payer"), operationId: id("deleted-payer"), pipeId: pipe("payer"), name: "Main" };
 const expense: Extract<HistoryEntry, { type: "third_party_transaction" }> = { id: id("shared"), operationId: id("shared"), type: "third_party_transaction", title: "hotel", occurredAt: june, createdAt: june, value: -6000, pipeId: trip.pipeId, targetPipeId: payer.pipeId };
 const mirror: HistoryEntry = { ...expense, id: id("payment"), type: "transaction", pipeId: payer.pipeId, targetPipeId: trip.pipeId, value: 6000 };
+const settlement: Extract<HistoryEntry, { type: "settlement" }> = {
+  id: id("settlement"), operationId: id("settlement"), pipeId: trip.pipeId, type: "settlement",
+  occurredAt: june, createdAt: june, name: "Madrid", icon: "airplane", cause: "manual",
+  before: { capacity: 4000, fed: 4000, spent: 3000, pendingFedAdjustment: 500 },
+  after: { capacity: 5000, fed: 1500, spent: 0, pendingFedAdjustment: 0 },
+};
 const props = { filters: {}, isLoading: false, isRefreshing: false, error: null, hasMore: false, loadMore: vi.fn(), refresh: vi.fn(), deletedPipes: [] as DeletedPipeEntry[] };
 
 describe("loaded event History interaction", () => {
   beforeEach(() => {
     mocks.query.mockReset(); mocks.navigate.mockReset();
     props.loadMore.mockReset(); props.refresh.mockReset();
+  });
+
+  it("opens read-only settlement details in the selected pipe without financial reads or navigation", async () => {
+    render(<HistoryList {...props} entries={[settlement]} filters={{ pipeIds: [trip.pipeId] }} />);
+    expect(screen.getByTestId("gesture-tap-hold")).toBeTruthy();
+    expect(screen.queryByText("Cycle completed")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "View Madrid settlement" }));
+    expect(screen.getByText("Manually settled")).toBeTruthy();
+    expect(screen.queryByText(/Configured rule/)).toBeNull();
+    expect(screen.getByLabelText("Capacity before settlement: 40.00")).toBeTruthy();
+    expect(screen.getByLabelText("Spent before settlement: 30.00")).toBeTruthy();
+    expect(screen.getByLabelText("Paid from elsewhere: 5.00")).toBeTruthy();
+    expect(screen.getByLabelText("Leftover funding: 15.00")).toBeTruthy();
+    expect(screen.getByLabelText("New capacity: 50.00")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Repeat|Edit|Delete|Close/i })).toBeNull();
+    expect(mocks.query).not.toHaveBeenCalled();
+    expect(mocks.navigate).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByTestId("modal-backdrop"));
+    expect(screen.queryByText("Manually settled")).toBeNull();
+  });
+
+  it.each([
+    { cause: "manual", icon: "gesture-tap-hold", label: "Manually settled" },
+    { cause: "spend_overflow", icon: "pipe-leak", label: "Settled on spending limit" },
+    { cause: "cron", icon: "timer-outline", label: "Scheduled settlement" },
+  ] satisfies { cause: typeof settlement.cause; icon: string; label: string }[])(
+    "shows the execution icon for the actual $cause cause", ({ cause, icon, label }) => {
+      render(<HistoryList {...props} entries={[{ ...settlement, cause }]} />);
+      expect(screen.getByTestId(icon)).toBeTruthy();
+      expect(screen.getByTestId("airplane")).toBeTruthy();
+      expect(screen.queryByText(label)).toBeNull();
+    },
+  );
+
+  it("exposes settlement-only deleted archives without counting settlement as expenditure", async () => {
+    render(<HistoryList {...props} entries={[settlement]} deletedPipes={[trip]} />);
+    expect(screen.getByText("Spent: 0.00")).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Expand Madrid history" }));
+    expect(screen.getByTestId("gesture-tap-hold")).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "View Madrid settlement" }));
+    expect(screen.getByText("Manually settled")).toBeTruthy();
+    expect(mocks.navigate).not.toHaveBeenCalled();
+    expect(mocks.query).not.toHaveBeenCalled();
   });
 
   it("shows an empty state only after loading finishes", () => {

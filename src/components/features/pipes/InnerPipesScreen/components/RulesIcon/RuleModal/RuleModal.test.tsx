@@ -16,6 +16,7 @@ const h = vi.hoisted(() => ({
   },
   updatePipeRule: vi.fn(),
   executePipeRuleNow: vi.fn(),
+  invalidateHistory: vi.fn().mockResolvedValue(undefined),
   showAlert: { success: vi.fn(), error: vi.fn() },
   usePipeSelection: vi.fn(),
 }));
@@ -26,6 +27,9 @@ vi.mock("convex/react", () => ({
     ref === h.api.pipes.updatePipeRule ? h.updatePipeRule : h.executePipeRuleNow,
 }));
 vi.mock("@ui/Alert", () => ({ useAlert: () => h.showAlert }));
+vi.mock("@features/transactions/cache/EventHistoryCacheContext", () => ({
+  useOptionalEventHistoryCache: () => ({ invalidateHistory: h.invalidateHistory }),
+}));
 vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
   usePipeCatalog: () => h.usePipeSelection(),
 }));
@@ -301,6 +305,17 @@ describe("RuleModal", () => {
     renderModal(basePipe(), onClose);
     await clickAndFlush(screen.getByText("Run now"));
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it("refreshes settlement history after manual execution without turning cache failures into rule failures", async () => {
+    const onClose = vi.fn();
+    h.invalidateHistory.mockRejectedValueOnce(new Error("Device storage unavailable"));
+    renderModal(basePipe(), onClose);
+    await clickAndFlush(screen.getByText("Run now"));
+    expect(h.invalidateHistory).toHaveBeenCalledOnce();
+    expect(h.showAlert.success).toHaveBeenCalledWith("Rule executed");
+    expect(h.showAlert.error).not.toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalledOnce();
   });
 
   it("calls updatePipeRule with instant_settlement and keeps the modal open", async () => {

@@ -29,6 +29,27 @@ const errorRgba = hexToRgba(colors.error, "CC");
 const primaryBgRgba = hexToRgba(colors.primary, "11");
 
 describe("Liquidity", () => {
+  it("extends actual spending with a separate possible-coverage segment", () => {
+    render(<Liquidity fed={10000} capacity={10000} spent={4000} coverageProvidedCents={4000} />);
+    expect(screen.getByTestId("spent-bar").style.width).toBe("40%");
+    const coverage = screen.getByTestId("coverage-provided-bar");
+    expect(coverage.style.left).toBe("40%");
+    expect(coverage.style.width).toBe("40%");
+    expect(coverage.style.backgroundColor).toBe(hexToRgb(colors.warningMuted));
+    expect(screen.getByTestId("fed-bar").style.width).toBe("100%");
+  });
+
+  it.each([0, 10000, 12000])("does not show a coverage segment without available coverage at spent %s", spent => {
+    render(<Liquidity fed={10000} capacity={10000} spent={spent} coverageProvidedCents={0} />);
+    expect(screen.queryByTestId("coverage-provided-bar")).toBeNull();
+  });
+
+  it("shows coverage without actual spending", () => {
+    render(<Liquidity fed={10000} capacity={10000} spent={0} coverageProvidedCents={4000} />);
+    expect(screen.queryByTestId("spent-bar")).toBeNull();
+    expect(screen.getByTestId("coverage-provided-bar").style.left).toBe("0%");
+    expect(screen.getByTestId("coverage-provided-bar").style.width).toBe("40%");
+  });
   describe("conditional rendering", () => {
     it("renders all three bars when all values are non-zero", () => {
       render(<Liquidity fed={100} capacity={80} spent={40} />);

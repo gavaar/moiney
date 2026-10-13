@@ -10,6 +10,36 @@ const toRgb = (hex: string) => {
 };
 
 describe("PipeBars", () => {
+  it("splits projected spending into actual spending and possible coverage with one combined amount", () => {
+    render(<PipeBars fed={10000} capacity={10000} spent={4000} expected={10000} coverageProvidedCents={4000} />);
+    expect(screen.getByTestId("bar-spent-fill").style.width).toBe("40%");
+    expect(screen.getByTestId("bar-spent-fill").style.backgroundColor).toBe(toRgb(colors.error));
+    const coverage = screen.getByTestId("bar-spent-coverage-fill");
+    expect(coverage.style.left).toBe("40%");
+    expect(coverage.style.width).toBe("40%");
+    expect(coverage.style.backgroundColor).toBe(toRgb(colors.warningMuted));
+    expect(screen.getByText("80.00")).toBeTruthy();
+    expect(screen.queryByText(/spent \+/)).toBeNull();
+  });
+
+  it("does not show a warning segment at zero coverage", () => {
+    render(<PipeBars fed={10000} capacity={10000} spent={10000} expected={10000} coverageProvidedCents={0} />);
+    expect(screen.queryByTestId("bar-spent-coverage-fill")).toBeNull();
+    expect(screen.getByTestId("bar-spent-fill").style.width).toBe("100%");
+  });
+
+  it("keeps refunds green and distinct from possible coverage", () => {
+    render(<PipeBars fed={10000} capacity={10000} spent={-4000} expected={10000} coverageProvidedCents={4000} />);
+    expect(screen.getByTestId("bar-spent-fill").style.backgroundColor).toBe(toRgb(colors.primary));
+    expect(screen.getByTestId("bar-spent-coverage-fill").style.left).toBe("0%");
+    expect(screen.getByText("0.00")).toBeTruthy();
+  });
+
+  it("shows a coverage-only spent row for an instant-settlement donor", () => {
+    render(<PipeBars fed={10000} capacity={10000} spent={0} expected={10000} rule="instant_settlement" coverageProvidedCents={4000} />);
+    expect(screen.getByTestId("bar-spent-coverage-fill").style.width).toBe("40%");
+    expect(screen.getByText("40.00")).toBeTruthy();
+  });
   it("shows fed before expected and spent without displaying or scaling by capacity", () => {
     const { container } = render(
       <PipeBars fed={5000} spent={1000} capacity={100000} expected={10000} />,

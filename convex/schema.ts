@@ -112,6 +112,7 @@ export default defineSchema({
     capacity: v.number(),
     fed: v.number(),
     spent: v.number(),
+    contingencyPipeId: v.optional(v.id("pipes")),
     pendingFedAdjustment: v.optional(v.number()),
     sourceType: v.optional(
       v.union(v.literal("feed"), v.literal("boiler")),

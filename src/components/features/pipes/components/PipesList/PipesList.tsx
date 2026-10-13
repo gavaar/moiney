@@ -4,6 +4,7 @@ import { PipeBox, type ChildSnapshot } from "@features/pipes/components/PipeBox"
 import { Popover } from "@ui/Popover";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import type { PipeModel } from "@features/pipes/data/pipes";
+import { prepareContingencyPreview } from "@features/pipes/data/contingencyPreview";
 import { usePipeViewPreferences } from "@features/pipes/preferences/usePipeViewPreferences";
 import { MinimizedPipe } from "./MinimizedPipe";
 
@@ -47,6 +48,7 @@ export const PipesList = memo(function PipesList({
   compactAction,
 }: PipesListProps) {
   const { childrenByParent, allPipes } = usePipeCatalog();
+  const contingencyPreview = prepareContingencyPreview(allPipes ?? []);
   const { ready, minimized, minimize, maximize } = usePipeViewPreferences(allPipes?.map((pipe) => pipe.id));
   const [menuPipe, setMenuPipe] = useState<Pipe | null>(null);
   const anchorRef = useRef<View>(null);
@@ -75,6 +77,7 @@ export const PipesList = memo(function PipesList({
   return (
     <ScrollView className="flex-1" contentContainerStyle={{ flexGrow:1, gap: 8 }}>
       {ready && fullPipes.map((item, idx) => {
+        const coverage = contingencyPreview.forSource(item.id);
         const childBoxes: ChildSnapshot[] | undefined = (childrenByParent.get(item.id) ?? []).map((child) => ({
           icon: child.icon,
           capacity: child.capacity ?? 0,
@@ -101,6 +104,9 @@ export const PipesList = memo(function PipesList({
               }
               fed={item.fed}
               spent={item.spent}
+              coverageDonor={coverage?.donor}
+              coverageAmountCents={coverage?.amountCents}
+              coverageProvidedCents={contingencyPreview.forDonor(item.id)?.amountCents}
               showPriority={priority && item.priority !== fullPipes[idx - 1]?.priority}
               {...{ children: childBoxes }}
               onPress={() => onSelectPipe?.(item.id)}

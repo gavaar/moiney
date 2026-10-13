@@ -12,7 +12,7 @@ export const list = query({
     const userId = await requireAuth(ctx);
     const operation = await readHistoryOperation(ctx, userId, args.operationId);
     if (!operation || operation.canonicalEvent.id !== args.operationId ||
-      operation.canonicalEvent.type === "pipe_creation" || operation.canonicalEvent.type === "pipe_deletion") {
+      operation.canonicalEvent.type === "pipe_creation" || operation.canonicalEvent.type === "pipe_deletion" || operation.canonicalEvent.type === "settlement") {
       throw new ConvexError({ code: "OPERATION_NOT_FOUND" });
     }
     const numItems = args.paginationOpts.numItems;

@@ -124,6 +124,7 @@ export const updatePipe = mutation({
     name: v.optional(v.string()),
     icon: v.optional(v.string()),
     description: v.optional(v.union(v.string(), v.null())),
+    contingencyPipeId: v.optional(v.union(v.id("pipes"), v.null())),
     priority: v.optional(v.number()),
     capacity: v.optional(v.number()),
   },

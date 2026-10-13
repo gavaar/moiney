@@ -4,6 +4,8 @@ import type { api } from "@convex/_generated/api";
 export type HistoryEntry = FunctionReturnType<typeof api.events.list>["events"][number];
 
 const supportedTypes: Record<HistoryEntry["type"], true> = {
+  settlement: true,
+  settlement_coverage: true,
   feed: true,
   transaction: true,
   third_party_transaction: true,

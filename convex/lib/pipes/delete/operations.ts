@@ -194,6 +194,11 @@ export async function processPipeDeletionOperation(
           ? { ...pipe, fed: pipe.fed + job.initialBalance }
           : pipe,
       );
+    for (const pipe of remainingPipes) {
+      if (pipe.contingencyPipeId && deletedIds.has(pipe.contingencyPipeId)) {
+        await ctx.db.patch("pipes", pipe._id, { contingencyPipeId: undefined });
+      }
+    }
     const restoredRulePipeId =
       job.parentPipeId &&
       remainingPipes.some(

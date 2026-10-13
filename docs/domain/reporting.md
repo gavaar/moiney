@@ -7,6 +7,22 @@ Canonical reporting contracts. See the [decision index and status meanings](../d
 
 Status: Implemented
 
+An eligible selected contingency donor appears on full liquidity bars, not
+minimized tiles. The "Possible coverage" statistic uses current balances and the
+[D023 coverage policy](accounting.md#d023-settlement-time-contingency-coverage),
+including zero coverage. It estimates a settlement now, not reserved funding or
+a guaranteed scheduled share; changing balances and competing settlements can
+reduce actual coverage. Coverage previews are hidden while any member of the
+accounting tree is frozen for deletion, because settlement is unavailable.
+The donor's "Possible coverage provided" statistic estimates the total if all
+eligible pipes selecting it settled now against its one shared funding pool,
+not the sum of independent source estimates. It follows the same zero-value,
+freeze, and non-reservation semantics.
+Full liquidity bars and the detail spent row draw this donor estimate as a
+separate muted-warning segment alongside actual spending, keeping the normal
+spending colors. Their numeric spending label shows `spent + possible coverage`;
+this is a projection, not an accounting write. Minimized tiles remain actual-only.
+
 [D008 execution](accounting.md#d008-rule-execution-and-cap-update) owns rule
 settlement; this section owns derived pipe-detail statistics.
 

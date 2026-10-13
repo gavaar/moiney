@@ -2,7 +2,7 @@ import { useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
-import { type IconName, Icon } from "@ui/Icon";
+import { type IconName, Icon, safeIconName } from "@ui/Icon";
 import { Input } from "@ui/Input";
 import { ModalShell } from "@ui/Modal";
 import { Button } from "@ui/Button";
@@ -11,6 +11,7 @@ import { type Id } from "@convex/_generated/dataModel";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import { colors } from "@/lib/styles";
 import { formatMoneyInput, parseMoney } from "@domain/money";
+import { prepareContingencyEligibility } from "@domain/pipes";
 
 type EditPipeModalProps = {
   visible: boolean;
@@ -19,7 +20,7 @@ type EditPipeModalProps = {
 };
 
 export function EditPipeModal({ visible, onClose, pipeId }: EditPipeModalProps) {
-  const { pipesById } = usePipeCatalog();
+  const { pipesById, allPipes } = usePipeCatalog();
   const pipe = pipesById?.[pipeId];
 
   const [name, setName] = useState(pipe?.name ?? "");
@@ -30,6 +31,14 @@ export function EditPipeModal({ visible, onClose, pipeId }: EditPipeModalProps) 
     pipe ? formatMoneyInput(pipe.capacity) : "",
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [contingencyPipeId, setContingencyPipeId] = useState(pipe?.contingencyPipeId ?? null);
+  const [contingencyChanged, setContingencyChanged] = useState(false);
+  const eligibleIds = prepareContingencyEligibility((allPipes ?? []).map(item => ({
+    id: item.id, parentId: item.parentId, rule: item.rule,
+    contingencyPipeId: item.contingencyPipeId, blocked: item.deletionJobId !== undefined,
+  })))(pipeId);
+  const contingencyOptions = (allPipes ?? []).filter(item => eligibleIds.includes(item.id));
+  const invalidContingency = contingencyPipeId !== null && !eligibleIds.includes(contingencyPipeId);
   const showAlert = useAlert();
   const updatePipe = useMutation(api.pipes.updatePipe);
 
@@ -40,7 +49,7 @@ export function EditPipeModal({ visible, onClose, pipeId }: EditPipeModalProps) 
   };
 
   const handleSubmit = async () => {
-    if (validateName(name) !== undefined || isSubmitting) return;
+    if (validateName(name) !== undefined || (contingencyChanged && invalidContingency) || isSubmitting) return;
 
     setIsSubmitting(true);
     try {
@@ -51,6 +60,7 @@ export function EditPipeModal({ visible, onClose, pipeId }: EditPipeModalProps) 
         description: description.trim() === "" ? null : description,
         priority,
         capacity: capacity ? parseMoney(capacity) : undefined,
+        ...(contingencyChanged ? { contingencyPipeId } : {}),
       });
       onClose();
     } catch (error) {
@@ -101,6 +111,28 @@ export function EditPipeModal({ visible, onClose, pipeId }: EditPipeModalProps) 
             </View>
           </View>
 
+          {contingencyOptions.length > 0 || contingencyPipeId ? (
+            <Input
+              type="select"
+              label="Contingency"
+              value={contingencyPipeId ?? "none"}
+              items={[{ id: "none", name: "No contingency", icon: "shield" }, ...contingencyOptions]}
+              onChange={(selectedId: string) => {
+                setContingencyPipeId(contingencyOptions.find(item => item.id === selectedId)?.id ?? null);
+                setContingencyChanged(true);
+              }}
+              renderItem={item => (
+                <View className="flex-row items-center gap-2">
+                  <Icon name={safeIconName(item.icon)} size={20} color={colors.muted} />
+                  <Text className="text-text flex-1" numberOfLines={1}>{item.name}</Text>
+                </View>
+              )}
+            />
+          ) : null}
+          {invalidContingency ? (
+            <Text className="text-error text-sm">Selected contingency is no longer eligible. Choose another or clear it.</Text>
+          ) : null}
+
           <Input type="icon" label="Icon" value={icon} onChange={setIcon} />
 
           <Input
@@ -115,7 +147,7 @@ export function EditPipeModal({ visible, onClose, pipeId }: EditPipeModalProps) 
       </ScrollView>
 
       <View className="mt-4">
-        <Button title="Submit" loading={isSubmitting} onPress={handleSubmit} disabled={validateName(name) !== undefined} />
+        <Button title="Submit" loading={isSubmitting} onPress={handleSubmit} disabled={validateName(name) !== undefined || (contingencyChanged && invalidContingency)} />
       </View>
     </ModalShell>
   );

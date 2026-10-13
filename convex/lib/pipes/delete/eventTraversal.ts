@@ -14,6 +14,10 @@ export async function processEventDeletionPage(ctx: MutationCtx, job: Doc<"pipeD
   for (const entry of page.page) {
     if (entry.type === "pipe_creation" || entry.type === "pipe_deletion") continue;
     if (!entry.operationId) throw new Error("History event is missing its operation ID");
+    if (entry.type === "settlement" || entry.type === "settlement_coverage") {
+      if (job.deleteTransactions) await deleteHistoryOperation(ctx, job.userId, entry.operationId);
+      continue;
+    }
     const snapshot = await readFinancialSnapshot(ctx, job.userId, entry.operationId);
     const roles = transactionRoleEntries(snapshot);
     // Assign shared operations to their first deleted member, not every perspective.

@@ -22,7 +22,7 @@ export async function readFinancialSnapshot(ctx: QueryCtx, userId: Id<"users">, 
   if (!canonical || canonical.userId !== userId) throw new ConvexError({ code: "OPERATION_NOT_FOUND" });
   const operation = historyOperationFromEvents(entries.map(historyEventFromDocument));
   const event = operation.canonicalEvent;
-  if (event.type === "pipe_creation" || event.type === "pipe_deletion") throw new ConvexError({ code: "OPERATION_NOT_FOUND" });
+  if (event.type === "pipe_creation" || event.type === "pipe_deletion" || event.type === "settlement") throw new ConvexError({ code: "OPERATION_NOT_FOUND" });
   return {
     operationId, _creationTime: canonical._creationTime,
     title: event.title, value: event.value, date: event.occurredAt,
