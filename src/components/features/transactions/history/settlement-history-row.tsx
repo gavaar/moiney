@@ -113,6 +113,7 @@ export function SettlementDetailsModal({ event, onClose }: SettlementPresentatio
         {!mirror && leftoverOverspending > 0 ? <AmountBar label="Leftover overspending" amount={leftoverOverspending} scale={scale} color={colors.errorMuted} /> : null}
         {!mirror && pending !== 0 ? <AmountBar label={pending > 0 ? "Paid from elsewhere" : "Refunded elsewhere"}
           amount={Math.abs(pending)} scale={scale} color={colors.muted} /> : null}
+        <Text className="text-muted text-xs">{mirror ? "After coverage" : "After settlement"}</Text>
         {mirror ? <AmountBar label="Spent after coverage" amount={event.after.spent} scale={scale} color={colors.errorMuted} /> : null}
         <AmountBar label={mirror ? "Available funding" : "Leftover funding"} amount={funding} scale={scale} color={colors.primaryMuted} />
         <AmountBar label={mirror ? "Capacity after coverage" : "New capacity"} amount={event.after.capacity} scale={scale} color={colors.secondary} />

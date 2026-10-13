@@ -60,6 +60,8 @@ it("renders coverage inline with the real manual, shield, and donor icons", () =
 
 it("shows original capacity/spending, coverage, uncovered overspending, and signed outcome amounts", () => {
   render(<SettlementDetailsModal event={{ ...event, coverage }} onClose={() => {}} />);
+  expect(screen.getByText("Before settlement")).toBeTruthy();
+  expect(screen.getByText("After settlement")).toBeTruthy();
   expect(screen.getByText("Manually settled")).toBeTruthy();
   expect(screen.queryByText(/Configured rule/)).toBeNull();
   expect(screen.getByLabelText("Capacity before settlement: 40.00")).toBeTruthy();
@@ -99,6 +101,7 @@ it("presents the donor mirror as coverage, not a second settlement of the donor"
   expect(screen.getByText("Covered for")).toBeTruthy();
   expect(screen.getByLabelText("20.00 covered for Groceries")).toBeTruthy();
   expect(screen.getByText("Before coverage")).toBeTruthy();
+  expect(screen.getByText("After coverage")).toBeTruthy();
   expect(screen.getByLabelText("Spent after coverage: 40.00")).toBeTruthy();
   expect(screen.getByLabelText("Available funding: 20.00")).toBeTruthy();
   expect(screen.getByLabelText("Capacity after coverage: 60.00")).toBeTruthy();
