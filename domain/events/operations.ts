@@ -33,7 +33,7 @@ export function historyOperationFromEvents<PipeId extends string, EventId extend
     throw new Error("Inconsistent operation identity");
   }
   for (const entry of events) {
-    if (entry.type !== "pipe_creation" && entry.type !== "pipe_deletion") {
+    if (entry.type !== "pipe_creation" && entry.type !== "pipe_deletion" && entry.type !== "settlement") {
       validateTransactionAmount(entry.value, entry.type === "feed" ? "feed" : "transaction");
     }
   }

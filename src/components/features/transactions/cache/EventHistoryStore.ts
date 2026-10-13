@@ -97,10 +97,18 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value);
 }
 function finite(value: unknown): value is number { return typeof value === "number" && Number.isFinite(value); }
+function isSettlementBalance(value: unknown) {
+  return isRecord(value) && [value.capacity, value.fed, value.spent, value.pendingFedAdjustment].every(Number.isSafeInteger);
+}
 function isCachedEntry(value: unknown): value is { entry: HistoryEntry; refreshedAt: number } {
   if (!isRecord(value) || !finite(value.refreshedAt) || !isRecord(value.entry)) return false;
   const entry = value.entry;
   if (![entry.id, entry.operationId, entry.pipeId].every(id => typeof id === "string" && id.length > 0) || !finite(entry.createdAt) || !finite(entry.occurredAt)) return false;
+  if (entry.type === "settlement") {
+    return typeof entry.name === "string" && typeof entry.icon === "string" &&
+      ["manual", "spend_overflow", "cron"].includes(String(entry.cause)) &&
+      isSettlementBalance(entry.before) && isSettlementBalance(entry.after);
+  }
   if (entry.type === "pipe_creation" || entry.type === "pipe_deletion") {
     return typeof entry.name === "string" && typeof entry.icon === "string" &&
       ["feed", "boiler", "pipe"].includes(String(entry.pipeType)) &&

@@ -37,7 +37,7 @@ async function financialEventResults(ctx: QueryCtx, events: Doc<"events">[]): Pr
   const edits = new Map<Id<"events">, Promise<number | undefined>>();
   return await Promise.all(events.map(async event => {
     const result = eventResult(event);
-    if (event.type === "pipe_creation" || event.type === "pipe_deletion") return result;
+    if (event.type === "pipe_creation" || event.type === "pipe_deletion" || event.type === "settlement") return result;
     let edit = edits.get(result.operationId);
     if (!edit) {
       edit = latestCorrectionEditedAt(ctx, event.userId, result.operationId);

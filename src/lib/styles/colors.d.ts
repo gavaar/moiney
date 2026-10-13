@@ -3,6 +3,7 @@ declare const colors: {
   primaryMuted: "#7BAF99";
   primaryDark: "#3A8C6B";
   secondary: "#4D94CC";
+  secondaryMuted: "#1B2B39",
   accent: "#A270D4";
   accentMuted: "#A689BF";
   warning: "#D4A04A";

@@ -776,7 +776,7 @@ describe("runDueCronRules", () => {
 
     await (runDueCronRules as any)._handler(ctx, { now: NOW });
 
-    expect(ctx.db.patch).toHaveBeenCalledTimes(1);
+    expect(ctx.db.patch.mock.calls.filter((call: unknown[]) => call[0] === "pipes")).toHaveLength(1);
     expect(ctx.db.patch).toHaveBeenCalledWith("pipes", "pipe-1", {
       fed: 300,
       spent: 0,

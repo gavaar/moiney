@@ -23,6 +23,7 @@ import type * as lib_events_financial from "../lib/events/financial.js";
 import type * as lib_events_financialSnapshot from "../lib/events/financialSnapshot.js";
 import type * as lib_events_lifecycle from "../lib/events/lifecycle.js";
 import type * as lib_events_persistence from "../lib/events/persistence.js";
+import type * as lib_events_settlement from "../lib/events/settlement.js";
 import type * as lib_events_validators from "../lib/events/validators.js";
 import type * as lib_historyValidation from "../lib/historyValidation.js";
 import type * as lib_jwt from "../lib/jwt.js";
@@ -73,6 +74,7 @@ declare const fullApi: ApiFromModules<{
   "lib/events/financialSnapshot": typeof lib_events_financialSnapshot;
   "lib/events/lifecycle": typeof lib_events_lifecycle;
   "lib/events/persistence": typeof lib_events_persistence;
+  "lib/events/settlement": typeof lib_events_settlement;
   "lib/events/validators": typeof lib_events_validators;
   "lib/historyValidation": typeof lib_historyValidation;
   "lib/jwt": typeof lib_jwt;

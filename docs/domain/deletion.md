@@ -16,7 +16,7 @@ controls orphaned transaction history:
 - An ordinary expense is orphaned when its `from` does not survive.
 - A pay-by-transfer expense is orphaned when neither `from` nor `paidFrom` survives.
 - A transfer is orphaned when neither `from` nor `to` survives.
-- Unchecked: preserve all financial operations; retained lifecycle snapshots
+- Unchecked: preserve all financial operations and settlement events; retained lifecycle snapshots
   supply deleted-role icons.
 - Preserved transactions cannot be repeated while they involve a deleted pipe.
   They may be edited by replacing every invalid role under
@@ -30,6 +30,10 @@ checkbox unchecked, the event is retained even without transactions. With it
 checked, retain an event only when involved transactions survive the deletion;
 otherwise remove it with the orphan history. Former ancestors provide archive
 visibility, not surviving monetary roles for transaction retention.
+
+Settlement events retain their own presentation and accounting snapshots when
+history is preserved. The checked option removes the deleted pipe's settlement
+operations in the same bounded event traversal, without reversing their effects.
 
 Before deletion, compute the selected subtree's aggregate
 `fed + (pendingFedAdjustment ?? 0) - spent`, using the derived subtree totals,

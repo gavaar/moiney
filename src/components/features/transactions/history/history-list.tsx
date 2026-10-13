@@ -8,9 +8,10 @@ import { StackedTransactionItem } from "../components/StackedTransactionItem";
 import { TransactionCorrectionHistoryModal } from "../components/TransactionCorrectionHistory/TransactionCorrectionHistoryModal";
 import type { HistoryFilters } from "./history-filters";
 import { groupMonthlyEventHistory, type DeletedPipeEntry, type MonthlyEventArchive } from "./event-archives";
-import type { EventHistoryRow, HistoryEntry } from "./event-groups";
+import type { EventHistoryRow, HistoryEntry, SettlementEntry } from "./event-groups";
 import { EventTransactionItem, eventTransactionPresentation } from "./event-transaction-item";
 import { PipeHistoryRow } from "./pipe-history-row";
+import { SettlementDetailsModal, SettlementHistoryRow } from "./settlement-history-row";
 
 type Row = { key: string; depth: number } & (
   { kind: "month"; month: string } |
@@ -33,6 +34,7 @@ export function HistoryList({ entries, deletedPipes: catalog, filters, isLoading
   ].map(entry => [entry.pipeId, entry])).values()], [catalog, entries]);
   const [expanded, setExpanded] = useState(new Set<string>());
   const [selected, setSelected] = useState<{ id: Id<"events">; title: string } | null>(null);
+  const [selectedSettlement, setSelectedSettlement] = useState<SettlementEntry | null>(null);
   const rows = useMemo(() => {
     const top = groupMonthlyEventHistory(entries, deletedPipes, filters.pipeIds?.length ? filters.pipeIds : undefined);
     const result: Row[] = [];
@@ -69,6 +71,13 @@ export function HistoryList({ entries, deletedPipes: catalog, filters, isLoading
         if (item.kind === "archive") return <PipeHistoryRow event={item.archive.event} expanded={expanded.has(item.key)}
           summary={item.archive.loadedSummary} date={item.archive.latestDate} onPress={() => toggle(item.key)} />;
         const row = item.row;
+        if (row.kind === "settlement") {
+          const pipe = pipesById?.[row.event.pipeId];
+          const event = pipe ? { ...row.event, name: pipe.name, icon: pipe.icon } : row.event;
+          return <View style={{ marginLeft: item.depth * 16 }}>
+            <SettlementHistoryRow event={event} onPress={() => setSelectedSettlement(event)} />
+          </View>;
+        }
         if (row.kind === "lifecycle") {
           const pipe = pipesById?.[row.event.pipeId];
           const parent = pipe?.parentId ? pipesById?.[pipe.parentId] : undefined;
@@ -85,5 +94,6 @@ export function HistoryList({ entries, deletedPipes: catalog, filters, isLoading
         </View>;
       }} />
     {selected ? <TransactionCorrectionHistoryModal visible operationId={selected.id} transactionTitle={selected.title} onClose={() => setSelected(null)} /> : null}
+    {selectedSettlement ? <SettlementDetailsModal event={selectedSettlement} onClose={() => setSelectedSettlement(null)} /> : null}
   </View>;
 }

@@ -17,7 +17,7 @@ export async function createAndReadOperation(t: Test, client: Client, args: Func
   const before = new Set(await t.run(async ctx => (await ctx.db.query("events").collect()).map(event => event._id)));
   await client.mutation(api.financialOperations.create, args);
   const operationId = await t.run(async ctx => (await ctx.db.query("events").collect())
-    .find(event => !before.has(event._id) && event.operationId === event._id)!._id);
+    .find(event => !before.has(event._id) && event.operationId === event._id && "title" in event)!._id);
   const snapshot = await client.query(api.financialOperations.get, { operationId });
   if (!snapshot) throw new Error("Created operation is missing");
   return { ...snapshot, id: operationId };
@@ -28,7 +28,7 @@ export async function contributeAndReadOperation(t: Test, client: Client, args: 
   const historyChanged = await client.mutation(api.financialOperations.contributeToBoiler, args);
   if (!historyChanged) return null;
   const operationId = await t.run(async ctx => (await ctx.db.query("events").collect())
-    .find(event => !before.has(event._id) && event.operationId === event._id)!._id);
+    .find(event => !before.has(event._id) && event.operationId === event._id && "title" in event)!._id);
   const snapshot = await client.query(api.financialOperations.get, { operationId });
   if (!snapshot) throw new Error("Contribution operation is missing");
   return { ...snapshot, id: operationId };
@@ -44,7 +44,7 @@ export async function readOperation(ctx: MutationCtx, operationId: Id<"events">)
 
 export async function readOperations(ctx: MutationCtx) {
   const events = await ctx.db.query("events").collect();
-  const financial = events.filter(event => event.operationId === event._id && event.type !== "pipe_creation" && event.type !== "pipe_deletion");
+  const financial = events.filter(event => event.operationId === event._id && "title" in event);
   return Promise.all(financial.map(async event => {
     const snapshot = await readOperation(ctx, event._id);
     if (!snapshot) throw new Error("Financial operation disappeared");

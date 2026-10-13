@@ -199,7 +199,7 @@ export async function executePipeRuleNowOperation(
   assertPipeNotDeleting(pipe);
 
   if (pipe.rule === "self_destruct") throw new ConvexError({ code: "SELF_DESTRUCT_CANNOT_RUN_MANUALLY" });
-  await executePipeRule(ctx, pipeId, { pipe, now });
+  await executePipeRule(ctx, pipeId, { pipe, now, cause: "manual" });
   await reconcileAffectedPipeRoots(ctx, [pipeId]);
   return null;
 }

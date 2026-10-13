@@ -3,7 +3,8 @@ import { recognizedHistoryEntries, type HistoryEntry } from "./event-types";
 
 export type { HistoryEntry } from "./event-types";
 type FinancialEntry = Extract<HistoryEntry, { title: string }>;
-type LifecycleEntry = Exclude<HistoryEntry, FinancialEntry>;
+type LifecycleEntry = Extract<HistoryEntry, { type: "pipe_creation" | "pipe_deletion" }>;
+export type SettlementEntry = Extract<HistoryEntry, { type: "settlement" }>;
 
 type Operation<Entry = FinancialEntry> = Entry extends FinancialEntry
   ? Omit<Entry, "id" | "operationId"> & { id: Id<"events">; entries: FinancialEntry[] }
@@ -13,6 +14,7 @@ export type FinancialOperation = Operation;
 export type EventHistoryRow =
   | { kind: "operation"; id: Id<"events">; operation: FinancialOperation }
   | { kind: "lifecycle"; id: Id<"events">; event: LifecycleEntry }
+  | { kind: "settlement"; id: Id<"events">; event: SettlementEntry }
   | {
     kind: "group";
     id: string;
@@ -88,6 +90,10 @@ export function groupHistoryEvents(
   for (const entry of uniqueEntries.values()) {
     if (entry.type === "pipe_creation" || entry.type === "pipe_deletion") {
       if (!scope || scope.has(entry.pipeId)) rows.push({ kind: "lifecycle", id: entry.operationId, event: entry });
+      continue;
+    }
+    if (entry.type === "settlement") {
+      if (!scope || scope.has(entry.pipeId)) rows.push({ kind: "settlement", id: entry.operationId, event: entry });
       continue;
     }
     const members = operations.get(entry.operationId);

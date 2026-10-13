@@ -6,6 +6,7 @@ import {
 } from "../../../domain/pipes";
 import { countDueCronOccurrences } from "../../../domain/scheduling";
 import { MAX_PIPES_PER_USER } from "../constants";
+import { recordSettlementHistory } from "../events/settlement";
 
 const CRON_CANDIDATE_PAGE_SIZE = 500;
 // Four maximum-size user snapshots keep the aggregate read/write set bounded.
@@ -133,11 +134,11 @@ function countDueOccurrences(pipe: Doc<"pipes">, now: number): number {
   );
 }
 
-function calculateUserCronPatches(
+function calculateUserCronPlan(
   pipes: Doc<"pipes">[],
   candidates: Doc<"pipes">[],
   now: number,
-): Map<Id<"pipes">, CronAccountingPatch> {
+): { patches: Map<Id<"pipes">, CronAccountingPatch>; settlements: { before: Doc<"pipes">; after: Doc<"pipes"> }[] } {
   const { originalById, rootByPipeId, pipesByRoot } = indexPipesByRoot(pipes);
   const workingById = new Map(
     pipes.map((pipe) => [pipe._id, { ...pipe } as Doc<"pipes">]),
@@ -150,6 +151,7 @@ function calculateUserCronPatches(
   }
 
   const affectedRoots = new Set<Id<"pipes">>();
+  const settlements: { before: Doc<"pipes">; after: Doc<"pipes"> }[] = [];
   for (const candidate of candidates) {
     const current = originalById.get(candidate._id);
     if (!current || current.rule !== "cron") continue;
@@ -168,6 +170,7 @@ function calculateUserCronPatches(
           : current.capUpdateValue * dueOccurrences,
     });
     workingById.set(current._id, { ...current, ...patch });
+    settlements.push({ before: current, after: { ...current, ...patch } });
     affectedRoots.add(rootId);
   }
 
@@ -191,7 +194,7 @@ function calculateUserCronPatches(
       if (Object.keys(patch).length > 0) patches.set(pipe._id, patch);
     }
   }
-  return patches;
+  return { patches, settlements };
 }
 
 async function loadCronCandidates(
@@ -267,12 +270,12 @@ export async function runDueCronRulesOperation(
       .take(MAX_PIPES_PER_USER);
     snapshotPipeCount += userPipes.length;
 
-    for (const [pipeId, patch] of calculateUserCronPatches(
-      userPipes,
-      userCandidates,
-      now,
-    )) {
+    const plan = calculateUserCronPlan(userPipes, userCandidates, now);
+    for (const [pipeId, patch] of plan.patches) {
       patches.set(pipeId, patch);
+    }
+    for (const settlement of plan.settlements) {
+      await recordSettlementHistory(ctx, settlement.before, settlement.after, "cron", now);
     }
   }
 

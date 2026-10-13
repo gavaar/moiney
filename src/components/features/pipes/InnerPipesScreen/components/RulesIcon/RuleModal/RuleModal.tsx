@@ -13,6 +13,7 @@ import { colors } from "@/lib/styles";
 import { buildRuleFields, createRuleDraft, mergeRuleDraft, ruleDraftValues, validateRuleDraft } from "@features/pipes/rules/rule-form";
 import { buildRuleUpdateCommand, getActionConfig, hasRuleDiff } from "@features/pipes/rules/helpers";
 import { useRuleClock } from "@features/pipes/rules/use-rule-clock";
+import { useOptionalEventHistoryCache } from "@features/transactions/cache/EventHistoryCacheContext";
 
 type Props = { visible: boolean; onClose: () => void; pipeId: PipeModel["id"] };
 
@@ -22,6 +23,7 @@ export function RuleModal({ visible, onClose, pipeId }: Props) {
   const showAlert = useAlert();
   const updatePipeRule = useMutation(api.pipes.updatePipeRule);
   const executePipeRuleNow = useMutation(api.pipes.executePipeRuleNow);
+  const historyCache = useOptionalEventHistoryCache();
   const [draft, setDraft] = useState(() => createRuleDraft(pipe));
   const [isBusy, setIsBusy] = useState(false);
   const validationTime = useRuleClock(visible && (draft.selectedRule === "cron" || draft.selectedRule === "self_destruct"));
@@ -50,6 +52,7 @@ export function RuleModal({ visible, onClose, pipeId }: Props) {
         if (isCron || isSelfDestruct) onClose();
       } else {
         await executePipeRuleNow({ pipeId });
+        void historyCache?.invalidateHistory().catch(() => undefined);
         showAlert.success("Rule executed");
         onClose();
       }

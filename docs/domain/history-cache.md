@@ -48,7 +48,7 @@ after hydration reseeds the head and deduplicates overlapping entry IDs. A head
 refresh preserves a valid loaded tail; an invalidated snapshot or an exhausted
 server head replaces membership instead.
 
-Financial creation, editing, direct deletion, and completed pipe deletion
+Financial creation, editing, direct deletion, manual settlement, and completed pipe deletion
 invalidate event snapshot membership through an explicit history-invalidation
 boundary, without reconciling transaction entities. Generation invalidation and
 mutation notifications are synchronous, before device persistence completes.
@@ -109,7 +109,7 @@ and capacities are not event fields and are not reconstructed from transactions.
 
 Deletion preserves the last pipe and parent presentation. An archive expands
 into its loaded members instead of navigating. When its month contains no loaded
-financial operations, it remains a non-expandable muted record dated by its
+financial operations or settlements, it remains a non-expandable muted record dated by its
 loaded lifecycle entry. Each operation appears once per involved pipe's archive
 and may appear in multiple archives; shared operations with surviving own-pipe
 perspectives also remain in ordinary history. Missing legacy lifecycle history

@@ -15,6 +15,9 @@ const lifecycleFields = {
   parentName: v.optional(v.string()),
   parentIcon: v.optional(v.string()),
 };
+const settlementBalance = v.object({
+  capacity: v.number(), fed: v.number(), spent: v.number(), pendingFedAdjustment: v.number(),
+});
 function eventValidator<Identity extends PropertyValidators, Financial extends PropertyValidators>(identityFields: Identity, financialFields: Financial) {
   const financial = { ...identityFields, title: v.string(), value: v.number(), ...financialFields };
   const lifecycle = { ...identityFields, ...lifecycleFields };
@@ -26,6 +29,10 @@ function eventValidator<Identity extends PropertyValidators, Financial extends P
     v.object({ ...financial, type: v.literal("transfer"), targetPipeId: v.id("pipes") }),
     v.object({ ...lifecycle, type: v.literal("pipe_creation") }),
     v.object({ ...lifecycle, type: v.literal("pipe_deletion") }),
+    v.object({ ...identityFields, type: v.literal("settlement"), name: v.string(), icon: v.string(),
+      cause: v.union(v.literal("manual"), v.literal("spend_overflow"), v.literal("cron")),
+      before: settlementBalance, after: settlementBalance,
+    }),
   );
 }
 

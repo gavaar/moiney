@@ -8,7 +8,7 @@ export type EventFinancialContribution = {
 };
 
 export function eventFinancialContribution(event: HistoryEvent): EventFinancialContribution {
-  if (event.type !== "pipe_creation" && event.type !== "pipe_deletion") {
+  if (event.type !== "pipe_creation" && event.type !== "pipe_deletion" && event.type !== "settlement") {
     validateTransactionAmount(event.value, event.type === "feed" ? "feed" : "transaction");
   }
   const spendingValue = event.type === "third_party_transaction" ||

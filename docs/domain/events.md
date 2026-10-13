@@ -30,7 +30,7 @@ The inverse financial effect is applied
 once under the [transaction deletion contract](transactions.md#d023-transaction-deletion),
 not independently for each event entry.
 
-Feeds, ordinary expenses/refunds, creations, and deletions have one entry.
+Feeds, ordinary expenses/refunds, creations, deletions, and settlements have one entry.
 Transfers and externally paid expenses/refunds have two. Creation and deletion
 are separate operations; archived history relates them through pipe identity,
 not a shared operation ID.
@@ -56,6 +56,7 @@ readable; they are not complete operations suitable for accounting writes.
 | `transfer` | One side of an internal transfer | Required | Neither |
 | `pipe_creation` | Non-accounting pipe creation | Forbidden | Neither |
 | `pipe_deletion` | Non-accounting pipe deletion | Forbidden | Neither |
+| `settlement` | Read-only settlement outcome | Forbidden | Neither |
 
 Financial values use the existing [integer-cent bounds](accounting.md#d001-monetary-representation).
 Feeds are positive. Logical expenses are negative and refunds positive; other
@@ -68,6 +69,31 @@ values are signed history values, **not** independent accounting deltas. The
 existing [external settlement contract](accounting.md#d012-pay-by-transfer-liquidity-and-logical-spending)
 still governs financial effects. Income/spending classification uses each
 entry's own facts and never requires a mirror lookup.
+
+### Settlement Outcomes
+
+Manual execution, automatic spending-limit execution, and scheduled execution
+record a settlement atomically with the rule's accounting changes. Automatic
+`instant_settlement` does not create an event; explicitly running that rule
+manually does. The cause records how execution started, independently of the
+configured rule. An overdue cron run records one settlement, not one per missed
+occurrence; advancing its schedule prevents duplicate events on retries.
+
+Each entry retains the pipe's name and icon, execution cause and time,
+and before/after `capacity`, `fed`, `spent`, and `pendingFedAdjustment` values.
+Missing legacy pending adjustment is represented as zero in the snapshot without
+backfilling the pipe. Snapshots describe direct rule effects before subsequent
+tree redistribution, not a reconstruction of current balances.
+
+Settlement entries have no transaction title or value, do not participate in
+expense grouping or usage ranking, and cannot be repeated, edited, or deleted
+through financial-operation commands. Tapping a row opens read-only details.
+Rows use a muted secondary surface, a white border, and a compact icon-led layout.
+The cause icon reflects actual execution: a manual gesture or the triggering rule,
+not merely the pipe's configured rule. Read-only details label the cause as
+“Manually settled”, “Settled on spending limit”, or “Scheduled settlement” and
+compare pre-settlement capacity/spending with the recorded outcome. Signed
+balances stay visible; pending external refunds are distinct from external payments.
 
 ## Reporting And Usage Ranking
 
@@ -89,8 +115,9 @@ Usage ranking collapses loaded entries by operation before applying the existing
 the original structural transfer source or logical spender, not a loaded payer
 counterpart. Feeds have no source usage; lifecycle entries have no usage. Each
 financial operation counts once per involved live root, including feeds and
-externally paid operations. Ties use recent operation order; unused roots retain
-their catalog order. No missing operation members are fetched for ranking.
+externally paid operations. Settlements have no usage. Ties use recent operation
+order; unused roots retain their catalog order. No missing operation members are
+fetched for ranking.
 
 ## Responsibilities
 
@@ -116,9 +143,9 @@ The cursor-retirement gate is owned by
 
 The client collapses loaded entries by exact `operationId` before applying the
 [same-title/UTC-month grouping rules](transactions.md#d009-transaction-identity-and-grouping).
-Counts represent loaded operations, not mirror entries; lifecycle operations
-remain separate from financial title groups. Grouped amounts follow that scoped
-presentation contract, not global reporting contributions.
+Counts represent loaded operations, not mirror entries; lifecycle and settlement
+operations remain separate from financial title groups. Grouped amounts follow
+that scoped presentation contract, not global reporting contributions.
 
 Clients recognize event types explicitly. Unknown types from newer backends are
 ignored by History rows, archives, usage ranking, and device snapshots; they are
@@ -198,10 +225,11 @@ operations can appear in multiple deleted-pipe archives and in ordinary history
 for surviving own-pipe perspectives. Those overlapping archive totals are not
 global totals.
 
-Archive counts include financial operations once per pipe, including feeds and
-transfers. Spent is net logical expense spending, including payer-visible
+Archive counts include financial operations and settlements once per pipe,
+including feeds and transfers. Settlements can expand a settlement-only archive
+but add zero Spent. Spent is net logical expense spending, including payer-visible
 expenses/refunds with their logical sign; feeds, transfers, and lifecycle entries
-contribute zero. Summary date bounds describe matching financial operations.
+contribute zero. Summary date bounds describe matching financial operations and settlements.
 Title grouping remains inside each archive under the client grouping contract.
 
 Archives use only the entries already returned by the main history loader.

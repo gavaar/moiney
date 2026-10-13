@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Id } from "@convex/_generated/dataModel";
 import { groupHistoryEvents, type HistoryEntry } from "./event-groups";
+import { getFrequentlyUsedEventSourcePipeIds } from "./event-usage";
 
 const pipe = (id: string) => id as Id<"pipes">;
 const eventId = (id: string) => id as Id<"events">;
@@ -25,6 +26,20 @@ function external(id: string, value = -100, payer = "payer"): HistoryEntry[] {
 }
 
 describe("event operation and title grouping", () => {
+  it("keeps settlements as separate pipe-scoped rows without adding usage or expense groups", () => {
+    const event: Extract<HistoryEntry, { type: "settlement" }> = {
+      id: eventId("settled"), operationId: eventId("settled"), createdAt: june + 1,
+      occurredAt: june, pipeId: pipe("source"), type: "settlement", name: "Source", icon: "wallet",
+      cause: "manual", before: { capacity: 4000, fed: 4000, spent: 3000, pendingFedAdjustment: 0 },
+      after: { capacity: 4000, fed: 1000, spent: 0, pendingFedAdjustment: 0 },
+    };
+    expect(groupHistoryEvents([event, expense("one"), expense("two")])).toMatchObject([
+      { kind: "settlement", event }, { kind: "group", count: 2, totalValue: -200 },
+    ]);
+    expect(groupHistoryEvents([event], [pipe("other")])).toEqual([]);
+    expect(groupHistoryEvents([event, event], [pipe("source")])).toHaveLength(1);
+    expect(getFrequentlyUsedEventSourcePipeIds([event])).toEqual([]);
+  });
   it.each([-100, 100])("collapses transfers by exact operation identity at %s cents, not matching fields", value => {
     const rows = groupHistoryEvents([...transfer("one", value), ...transfer("two", value)]);
     expect(rows).toHaveLength(1);

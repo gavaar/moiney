@@ -17,6 +17,28 @@ function storage(): EventHistoryStorage & { values: Map<string, string> } {
 }
 
 describe("event History snapshots", () => {
+  it("hydrates settlement snapshots and rejects malformed settlement balances", async () => {
+    const disk = storage();
+    const store = new EventHistoryStore("alice", disk);
+    const settlement: Extract<HistoryEntry, { type: "settlement" }> = {
+      id: "settlement" as Id<"events">, operationId: "settlement" as Id<"events">,
+      pipeId: "source" as Id<"pipes">, occurredAt: 1, createdAt: 1,
+      type: "settlement", name: "Coffee", icon: "cafe", cause: "manual",
+      before: { capacity: -4000, fed: -4000, spent: 1000, pendingFedAdjustment: 0 },
+      after: { capacity: -4000, fed: -5000, spent: 0, pendingFedAdjustment: 0 },
+    };
+    await store.mergeHead([settlement], false, 1);
+    const next = new EventHistoryStore("alice", disk);
+    await next.hydrate();
+    expect(next.read()).toMatchObject({ entries: [settlement], complete: true });
+    const key = "event-history:alice";
+    const serialized = JSON.parse(disk.values.get(key)!);
+    serialized.entries[0].entry.after.fed = 0.5;
+    disk.values.set(key, JSON.stringify(serialized));
+    const malformed = new EventHistoryStore("alice", disk);
+    await malformed.hydrate();
+    expect(malformed.read().complete).toBe(false);
+  });
   it("removes the retired transaction key while preserving event snapshots and other accounts", async () => {
     const disk = storage();
     disk.values.set("alice", "legacy transaction cache");

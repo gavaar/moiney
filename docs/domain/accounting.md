@@ -54,6 +54,10 @@ An overdue cron execution settles once, applies `capUpdateValue` multiplied by
 the number of due occurrences, and advances `cronNextDate` once beyond the
 explicit execution clock.
 
+[Settlement history](events.md#settlement-outcomes) records manual, spending-limit,
+and scheduled execution without adding expenditure. Automatic instant settlement
+remains silent.
+
 ## D012: Pay-by-transfer Liquidity And Logical Spending
 
 Status: Implemented

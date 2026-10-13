@@ -13,6 +13,11 @@ export type MonthlyEventArchive = {
 function summarizeRows(rows: EventHistoryRow[]): EventArchiveSummary {
   const summary: EventArchiveSummary = { count: 0, spent: 0, oldestDate: null, latestDate: null };
   for (const row of rows) {
+    if (row.kind === "settlement") {
+      summary.count++;
+      summary.oldestDate = Math.min(summary.oldestDate ?? row.event.occurredAt, row.event.occurredAt);
+      summary.latestDate = Math.max(summary.latestDate ?? row.event.occurredAt, row.event.occurredAt);
+    }
     const operations = row.kind === "group" ? row.operations : row.kind === "operation" ? [row.operation] : [];
     for (const operation of operations) {
       summary.count++;
