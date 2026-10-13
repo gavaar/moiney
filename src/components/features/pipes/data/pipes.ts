@@ -10,6 +10,7 @@ export type CronInterval = {
 export type PipeModel = {
   id: Id<"pipes">;
   parentId?: Id<"pipes">;
+  contingencyPipeId?: Id<"pipes">;
   name: string;
   icon: string;
   description?: string;
@@ -39,6 +40,7 @@ export function normalizePipe(pipe: Doc<"pipes">): PipeModel {
   };
 
   if (pipe.parentId !== undefined) normalized.parentId = pipe.parentId;
+  if (pipe.contingencyPipeId !== undefined) normalized.contingencyPipeId = pipe.contingencyPipeId;
   if (pipe.description !== undefined) normalized.description = pipe.description;
   if (pipe.pendingFedAdjustment !== undefined) {
     normalized.pendingFedAdjustment = pipe.pendingFedAdjustment;

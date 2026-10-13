@@ -961,6 +961,7 @@ describe("addPipe", () => {
       "capUpdateValue",
       "cronNextDate",
       "cronInterval",
+      "contingencyPipeId",
     ]);
     expect(parentPatch).toMatchObject({ capacity: 0, spent: 0 });
   });

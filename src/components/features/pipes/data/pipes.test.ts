@@ -9,6 +9,7 @@ describe("normalizePipe", () => {
       _creationTime: 123,
       userId: "user-1" as Id<"users">,
       parentId: "parent-1" as Id<"pipes">,
+      contingencyPipeId: "reserve-1" as Id<"pipes">,
       name: "Groceries",
       icon: "cart-outline",
       description: "Daily spending",
@@ -29,6 +30,7 @@ describe("normalizePipe", () => {
     expect(normalizePipe(persisted)).toEqual({
       id: "pipe-1",
       parentId: "parent-1",
+      contingencyPipeId: "reserve-1",
       name: "Groceries",
       icon: "cart-outline",
       description: "Daily spending",

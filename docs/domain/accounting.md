@@ -72,6 +72,13 @@ deletion rather than settlement. A donor cannot itself have a contingency donor,
 and a pipe already serving as a donor cannot request coverage. Several sources
 may share one donor, but contingency chains are prohibited.
 
+The optional `pipes.contingencyPipeId` stores the selection; absence means no
+contingency. Pipe edits distinguish omission (unchanged), an eligible pipe ID
+(set), and `null` (clear). Configuration does not move money. Becoming a parent
+clears the pipe's own selection and selections that name it as donor. Switching
+a source to `instant_settlement` or `self_destruct` clears its selection; donor
+deletion clears surviving references at finalization.
+
 For a source and eligible donor, in whole integer cents:
 
 - `demand = max(0, source.spent - source.capacity)`

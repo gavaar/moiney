@@ -35,7 +35,7 @@ export function SettlementHistoryRow({ event, coverage, onPress }: SettlementPre
   return <Pressable accessibilityRole="button"
     accessibilityLabel={`View ${event.name} settlement${coverage ? `: ${coverageDescription(coverage)}` : ""}`}
     accessibilityHint={causes[event.cause]} onPress={onPress}
-    className="flex-1 rounded-2xl border bg-secondaryMuted px-2 py-2" style={{ borderColor: colors.text }}>
+    className="rounded-2xl border bg-secondaryMuted px-2 py-2" style={{ borderColor: colors.text }}>
     <View className="flex-row items-center gap-1">
       <Icon name={safeIconName(event.icon)} size={16} color={colors.muted} />
       <Text numberOfLines={1} className="text-text text-sm max-w-20 shrink">{event.name}</Text>

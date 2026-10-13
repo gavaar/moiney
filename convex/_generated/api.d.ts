@@ -30,6 +30,7 @@ import type * as lib_jwt from "../lib/jwt.js";
 import type * as lib_jwtPublic from "../lib/jwtPublic.js";
 import type * as lib_password from "../lib/password.js";
 import type * as lib_pipeHistory from "../lib/pipeHistory.js";
+import type * as lib_pipes_contingency from "../lib/pipes/contingency.js";
 import type * as lib_pipes_cron from "../lib/pipes/cron.js";
 import type * as lib_pipes_delete_contracts from "../lib/pipes/delete/contracts.js";
 import type * as lib_pipes_delete_eventTraversal from "../lib/pipes/delete/eventTraversal.js";
@@ -81,6 +82,7 @@ declare const fullApi: ApiFromModules<{
   "lib/jwtPublic": typeof lib_jwtPublic;
   "lib/password": typeof lib_password;
   "lib/pipeHistory": typeof lib_pipeHistory;
+  "lib/pipes/contingency": typeof lib_pipes_contingency;
   "lib/pipes/cron": typeof lib_pipes_cron;
   "lib/pipes/delete/contracts": typeof lib_pipes_delete_contracts;
   "lib/pipes/delete/eventTraversal": typeof lib_pipes_delete_eventTraversal;
