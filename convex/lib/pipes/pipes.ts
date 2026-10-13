@@ -3,6 +3,7 @@ import type { MutationCtx } from "../../_generated/server";
 import { calculatePipeRulePatch, recalculatePipes } from "../../../domain/pipes";
 import type { SettlementCause } from "../../../domain/events";
 import { recordSettlementHistory } from "../events/settlement";
+import { applyContingencyCoverage } from "./contingency";
 
 export async function executePipeRule(
   ctx: MutationCtx,
@@ -18,10 +19,12 @@ export async function executePipeRule(
   const pipe = cachedPipe ?? (await ctx.db.get("pipes", pipeId));
   if (!pipe) throw new Error("Pipe not found");
 
-  const patch = calculatePipeRulePatch(pipe, { now, capUpdateValue: opts.capUpdateValue });
-  await ctx.db.patch("pipes", pipeId, patch);
   const cause = opts.cause ?? (pipe.rule === "spend_overflow" ? "spend_overflow" : undefined);
-  if (cause) await recordSettlementHistory(ctx, pipe, { ...pipe, ...patch }, cause, now);
+  const coverage = cause ? await applyContingencyCoverage(ctx, pipe) : undefined;
+  const covered = coverage ? { ...pipe, spent: pipe.spent - coverage.amountCents } : pipe;
+  const patch = calculatePipeRulePatch(covered, { now, capUpdateValue: opts.capUpdateValue });
+  await ctx.db.patch("pipes", pipeId, patch);
+  if (cause) await recordSettlementHistory(ctx, pipe, { ...pipe, ...patch }, cause, now, coverage);
 }
 
 // ── DB operations ──

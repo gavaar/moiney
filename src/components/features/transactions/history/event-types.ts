@@ -5,6 +5,7 @@ export type HistoryEntry = FunctionReturnType<typeof api.events.list>["events"][
 
 const supportedTypes: Record<HistoryEntry["type"], true> = {
   settlement: true,
+  settlement_coverage: true,
   feed: true,
   transaction: true,
   third_party_transaction: true,

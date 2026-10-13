@@ -26,6 +26,33 @@ function external(id: string, value = -100, payer = "payer"): HistoryEntry[] {
 }
 
 describe("event operation and title grouping", () => {
+  it("collapses coverage globally but preserves the donor perspective in a pipe scope and on partial pages", () => {
+    const before = { capacity: 4000, fed: 4000, spent: 7000, pendingFedAdjustment: 0 };
+    const after = { ...before, spent: 0, fed: -1000 };
+    const donorBefore = { capacity: 6000, fed: 6000, spent: 4000, pendingFedAdjustment: 0 };
+    const donorAfter = { ...donorBefore, spent: 6000 };
+    const canonical: Extract<HistoryEntry, { type: "settlement" }> = {
+      id: eventId("covered"), operationId: eventId("covered"), createdAt: june, occurredAt: june,
+      type: "settlement", pipeId: pipe("source"), name: "Source", icon: "pipe", cause: "manual", before, after,
+      coverage: { amountCents: 2000, pipeId: pipe("donor"), name: "Donor", icon: "shield", before: donorBefore, after: donorAfter },
+    };
+    const mirror: Extract<HistoryEntry, { type: "settlement_coverage" }> = {
+      ...canonical, id: eventId("mirror"), type: "settlement_coverage", pipeId: pipe("donor"), name: "Donor", icon: "shield",
+      before: donorBefore, after: donorAfter,
+      coverage: { amountCents: 2000, pipeId: pipe("source"), name: "Source", icon: "pipe", before, after },
+    };
+    for (const entries of [[canonical, mirror], [mirror, canonical]]) {
+      expect(groupHistoryEvents(entries)).toEqual([{ kind: "settlement", id: canonical.operationId, event: canonical }]);
+      expect(groupHistoryEvents(entries, [pipe("donor")])).toEqual([{ kind: "settlement", id: canonical.operationId, event: mirror }]);
+    }
+    expect(groupHistoryEvents([mirror], [pipe("donor")])).toEqual([{ kind: "settlement", id: canonical.operationId, event: mirror }]);
+    expect(groupHistoryEvents([mirror])).toMatchObject([{ kind: "settlement", event: { type: "settlement", pipeId: pipe("source"), before, after } }]);
+    expect(getFrequentlyUsedEventSourcePipeIds([canonical, mirror])).toEqual([]);
+    const updatedSource = { ...canonical, name: "Updated source" };
+    const updatedDonor = { ...mirror, name: "Updated donor" };
+    expect(groupHistoryEvents([canonical, updatedSource])).toEqual([{ kind: "settlement", id: canonical.operationId, event: updatedSource }]);
+    expect(groupHistoryEvents([mirror, updatedDonor], [pipe("donor")])).toEqual([{ kind: "settlement", id: canonical.operationId, event: updatedDonor }]);
+  });
   it("keeps settlements as separate pipe-scoped rows without adding usage or expense groups", () => {
     const event: Extract<HistoryEntry, { type: "settlement" }> = {
       id: eventId("settled"), operationId: eventId("settled"), createdAt: june + 1,

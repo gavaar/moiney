@@ -30,8 +30,8 @@ The inverse financial effect is applied
 once under the [transaction deletion contract](transactions.md#d023-transaction-deletion),
 not independently for each event entry.
 
-Feeds, ordinary expenses/refunds, creations, deletions, and settlements have one entry.
-Transfers and externally paid expenses/refunds have two. Creation and deletion
+Feeds, ordinary expenses/refunds, creations, deletions, and uncovered settlements have one entry.
+Transfers, externally paid expenses/refunds, and covered settlements have two. Creation and deletion
 are separate operations; archived history relates them through pipe identity,
 not a shared operation ID.
 
@@ -57,13 +57,14 @@ readable; they are not complete operations suitable for accounting writes.
 | `pipe_creation` | Non-accounting pipe creation | Forbidden | Neither |
 | `pipe_deletion` | Non-accounting pipe deletion | Forbidden | Neither |
 | `settlement` | Read-only settlement outcome | Forbidden | Neither |
+| `settlement_coverage` | Donor's read-only coverage outcome | Forbidden | Neither |
 
 Financial values use the existing [integer-cent bounds](accounting.md#d001-monetary-representation).
 Feeds are positive. Logical expenses are negative and refunds positive; other
 financial entries are nonzero. Root refunds remain transactions, not feeds:
 financial meaning cannot depend on looking up a live pipe.
 
-Paired entries have distinct IDs, the same account, operation ID, occurrence
+Paired financial entries have distinct IDs, the same account, operation ID, occurrence
 date and title, reversed pipe/target identities, and opposite values. Their
 values are signed history values, **not** independent accounting deltas. The
 existing [external settlement contract](accounting.md#d012-pay-by-transfer-liquidity-and-logical-spending)
@@ -84,6 +85,21 @@ and before/after `capacity`, `fed`, `spent`, and `pendingFedAdjustment` values.
 Missing legacy pending adjustment is represented as zero in the snapshot without
 backfilling the pipe. Snapshots describe direct rule effects before subsequent
 tree redistribution, not a reconstruction of current balances.
+
+For [contingency coverage](accounting.md#d023-settlement-time-contingency-coverage),
+the canonical `settlement` belongs to the source and its `settlement_coverage`
+counterpart belongs to the donor. Both share the operation ID, cause, and time.
+Each carries its own before/after balances and reciprocal `coverage` containing
+positive integer cents, the other pipe's ID/presentation, and before/after balances.
+Source `before` preserves original spending, before coverage. Donor `after`
+captures increased tracked spending without settling its rule or changing funding.
+Complete operation validation rejects missing or inconsistent counterparts.
+
+Global history collapses coverage to the source perspective, even on a donor-only
+loaded page; donor-scoped history shows the provided-coverage perspective. Partial
+pages need no counterpart fetch. Archived history preserves this distinction and
+deleted-ancestor visibility. Deletion with history removal removes both entries
+without reversing coverage; preservation retains both snapshots.
 
 Settlement entries have no transaction title or value, do not participate in
 expense grouping or usage ranking, and cannot be repeated, edited, or deleted

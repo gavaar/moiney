@@ -17,6 +17,41 @@ function storage(): EventHistoryStorage & { values: Map<string, string> } {
 }
 
 describe("event History snapshots", () => {
+  it("hydrates both coverage perspectives and rejects malformed coverage amounts or snapshots", async () => {
+    const disk = storage();
+    const store = new EventHistoryStore("alice", disk);
+    const balance = { capacity: 4000, fed: 4000, spent: 7000, pendingFedAdjustment: 0 };
+    const coverage = { amountCents: 2000, pipeId: "donor" as Id<"pipes">, name: "Donor", icon: "shield", before: balance, after: balance };
+    const event: Extract<HistoryEntry, { type: "settlement" }> = {
+      id: "settlement" as Id<"events">, operationId: "settlement" as Id<"events">,
+      pipeId: "source" as Id<"pipes">, occurredAt: 1, createdAt: 1, type: "settlement", name: "Source", icon: "pipe", cause: "manual",
+      before: balance, after: balance, coverage,
+    };
+    const mirror: Extract<HistoryEntry, { type: "settlement_coverage" }> = {
+      ...event, id: "mirror" as Id<"events">, type: "settlement_coverage", pipeId: coverage.pipeId,
+      coverage: { ...coverage, pipeId: event.pipeId, name: event.name, icon: event.icon },
+    };
+    await store.mergeHead([event, mirror], false, 1);
+    const hydrated = new EventHistoryStore("alice", disk);
+    await hydrated.hydrate();
+    expect(hydrated.read().complete).toBe(true);
+    expect(hydrated.read().entries).toHaveLength(2);
+    const valid = disk.values.get("event-history:alice")!;
+    for (const amount of [0, -1, 0.5]) {
+      const corrupted = JSON.parse(valid);
+      corrupted.entries[0].entry.coverage.amountCents = amount;
+      disk.values.set("event-history:alice", JSON.stringify(corrupted));
+      const malformed = new EventHistoryStore("alice", disk);
+      await malformed.hydrate();
+      expect(malformed.read().complete).toBe(false);
+    }
+    const corrupted = JSON.parse(valid);
+    corrupted.entries[0].entry.coverage.before.fed = 0.5;
+    disk.values.set("event-history:alice", JSON.stringify(corrupted));
+    const malformed = new EventHistoryStore("alice", disk);
+    await malformed.hydrate();
+    expect(malformed.read().complete).toBe(false);
+  });
   it("hydrates settlement snapshots and rejects malformed settlement balances", async () => {
     const disk = storage();
     const store = new EventHistoryStore("alice", disk);

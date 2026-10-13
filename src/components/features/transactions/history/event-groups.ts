@@ -4,7 +4,35 @@ import { recognizedHistoryEntries, type HistoryEntry } from "./event-types";
 export type { HistoryEntry } from "./event-types";
 type FinancialEntry = Extract<HistoryEntry, { title: string }>;
 type LifecycleEntry = Extract<HistoryEntry, { type: "pipe_creation" | "pipe_deletion" }>;
-export type SettlementEntry = Extract<HistoryEntry, { type: "settlement" }>;
+export type SettlementEntry = Extract<HistoryEntry, { type: "settlement" | "settlement_coverage" }>;
+
+/** Each stored perspective is self-contained, including on a mirror-only page. */
+export function collapseSettlementPerspectives(entries: readonly HistoryEntry[], visiblePipeIds?: readonly Id<"pipes">[]): HistoryEntry[] {
+  const result: HistoryEntry[] = [];
+  const settlements = new Map<Id<"events">, SettlementEntry[]>();
+  for (const entry of new Map(entries.map(entry => [entry.id, entry])).values()) {
+    if (entry.type !== "settlement" && entry.type !== "settlement_coverage") { result.push(entry); continue; }
+    const members = settlements.get(entry.operationId) ?? [];
+    members.push(entry);
+    settlements.set(entry.operationId, members);
+  }
+  const scope = visiblePipeIds === undefined ? undefined : new Set(visiblePipeIds);
+  for (const members of settlements.values()) {
+    let event = members[0];
+    const sourceId = event.type === "settlement" ? event.pipeId : event.coverage.pipeId;
+    const donorId = event.type === "settlement_coverage" ? event.pipeId : event.coverage?.pipeId;
+    const sourceView = !scope || scope.has(sourceId);
+    if (!sourceView && (!donorId || !scope?.has(donorId))) continue;
+    event = members.find(entry => sourceView === (entry.type === "settlement")) ?? event;
+    if (sourceView === (event.type === "settlement")) { result.push(event); continue; }
+    const coverage = event.coverage!;
+    result.push({ ...event, type: sourceView ? "settlement" : "settlement_coverage",
+      pipeId: coverage.pipeId, name: coverage.name, icon: coverage.icon, before: coverage.before, after: coverage.after,
+      coverage: { amountCents: coverage.amountCents, pipeId: event.pipeId, name: event.name, icon: event.icon, before: event.before, after: event.after },
+    });
+  }
+  return result;
+}
 
 type Operation<Entry = FinancialEntry> = Entry extends FinancialEntry
   ? Omit<Entry, "id" | "operationId"> & { id: Id<"events">; entries: FinancialEntry[] }
@@ -84,7 +112,7 @@ export function groupHistoryEvents(
   visiblePipeIds?: readonly Id<"pipes">[],
 ): EventHistoryRow[] {
   const scope = visiblePipeIds === undefined ? undefined : new Set(visiblePipeIds);
-  const uniqueEntries = new Map(recognizedHistoryEntries(entries).map(entry => [entry.id, entry]));
+  const uniqueEntries = new Map(collapseSettlementPerspectives(recognizedHistoryEntries(entries), visiblePipeIds).map(entry => [entry.id, entry]));
   const operations = new Map<Id<"events">, FinancialEntry[]>();
   const rows: EventHistoryRow[] = [];
   for (const entry of uniqueEntries.values()) {
@@ -92,7 +120,7 @@ export function groupHistoryEvents(
       if (!scope || scope.has(entry.pipeId)) rows.push({ kind: "lifecycle", id: entry.operationId, event: entry });
       continue;
     }
-    if (entry.type === "settlement") {
+    if (entry.type === "settlement" || entry.type === "settlement_coverage") {
       if (!scope || scope.has(entry.pipeId)) rows.push({ kind: "settlement", id: entry.operationId, event: entry });
       continue;
     }

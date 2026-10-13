@@ -88,16 +88,22 @@ async function applyTransactionAccountingPlan(
         (pipe.contributedFed ?? 0) + delta.contributedFedDelta;
     }
     await ctx.db.patch("pipes", delta.pipeId, patch);
-    const newSpent = patch.spent ?? pipe.spent;
+  }
+  // Rules may now mutate a contingency donor that also participates in this plan.
+  // Commit every net transaction delta first, then read current balances for rules.
+  for (const delta of plan.deltas) {
+    if (delta.spentDelta === 0) continue;
+    const pipe = await ctx.db.get("pipes", delta.pipeId);
+    if (!pipe) throw new Error("Pipe not found");
     if (
       shouldTriggerPipeRule(
         pipe.rule,
         delta.spentDelta,
-        newSpent,
+        pipe.spent,
         pipe.capacity,
       )
     ) {
-      await executePipeRule(ctx, delta.pipeId);
+      await executePipeRule(ctx, delta.pipeId, { pipe });
     }
   }
   await reconcileAffectedPipeRoots(ctx, plan.affectedPipeIds, getPipe);

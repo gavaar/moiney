@@ -100,14 +100,20 @@ function finite(value: unknown): value is number { return typeof value === "numb
 function isSettlementBalance(value: unknown) {
   return isRecord(value) && [value.capacity, value.fed, value.spent, value.pendingFedAdjustment].every(Number.isSafeInteger);
 }
+function isSettlementCoverage(value: unknown) {
+  return isRecord(value) && Number.isSafeInteger(value.amountCents) && typeof value.amountCents === "number" && value.amountCents > 0 &&
+    typeof value.pipeId === "string" && value.pipeId.length > 0 && typeof value.name === "string" && typeof value.icon === "string" &&
+    isSettlementBalance(value.before) && isSettlementBalance(value.after);
+}
 function isCachedEntry(value: unknown): value is { entry: HistoryEntry; refreshedAt: number } {
   if (!isRecord(value) || !finite(value.refreshedAt) || !isRecord(value.entry)) return false;
   const entry = value.entry;
   if (![entry.id, entry.operationId, entry.pipeId].every(id => typeof id === "string" && id.length > 0) || !finite(entry.createdAt) || !finite(entry.occurredAt)) return false;
-  if (entry.type === "settlement") {
+  if (entry.type === "settlement" || entry.type === "settlement_coverage") {
     return typeof entry.name === "string" && typeof entry.icon === "string" &&
       ["manual", "spend_overflow", "cron"].includes(String(entry.cause)) &&
-      isSettlementBalance(entry.before) && isSettlementBalance(entry.after);
+       isSettlementBalance(entry.before) && isSettlementBalance(entry.after) &&
+       (entry.coverage === undefined ? entry.type === "settlement" : isSettlementCoverage(entry.coverage));
   }
   if (entry.type === "pipe_creation" || entry.type === "pipe_deletion") {
     return typeof entry.name === "string" && typeof entry.icon === "string" &&

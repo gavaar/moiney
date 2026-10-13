@@ -150,8 +150,10 @@ Ordinary expenses and transfers may convert among ordinary expense, transfer,
 and pay-by-transfer structures. Structural edits apply the complete old-to-new
 accounting transition to the current period, without restating historical
 periods or [captured monthly summaries](reporting.md#d016-monthly-spending-statistics).
-One net plan applies at most one accounting patch per pipe, triggers rules once
-from net logical spending, and reconciles affected roots once. When all old
+One net plan applies at most one accounting patch per pipe before any rules run,
+then triggers rules once from net logical spending using current balances, and
+reconciles affected roots once. This prevents a later transaction patch from
+overwriting contingency coverage applied to another participating pipe. When all old
 roles remain eligible, old effects are reversed and new effects applied. When
 one or more old roles became invalid, those roles are not reversed and a single
 off-by-default choice determines whether the submitted transaction's effects

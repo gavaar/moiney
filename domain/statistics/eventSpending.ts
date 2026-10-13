@@ -5,7 +5,7 @@ export function summarizeMonthlyEventSpending(events: readonly HistoryEvent[]) {
   const transactions: { kind: "feed" | "expense"; title: string; value: number; from?: string }[] = [];
   for (const event of events) {
     const contribution = eventFinancialContribution(event);
-    if (event.type === "pipe_creation" || event.type === "pipe_deletion" || event.type === "settlement") continue;
+    if (event.type === "pipe_creation" || event.type === "pipe_deletion" || event.type === "settlement" || event.type === "settlement_coverage") continue;
     if (contribution.incomeCents > 0) {
       transactions.push({ kind: "feed", title: event.title, value: contribution.incomeCents });
     } else if (contribution.grossSpendingCents > 0 || contribution.refundCents > 0) {
