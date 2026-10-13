@@ -7,6 +7,7 @@ module.exports = {
   accent: "#A270D4",
   accentMuted: "#A689BF",
   warning: "#D4A04A",
+  warningMuted: "#8C6B35",
   error: "#C05959",
   errorMuted: "#B77979",
   errorDark: "#8B3D3D",

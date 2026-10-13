@@ -1,10 +1,11 @@
 import { colors } from '@/lib/styles';
 import { View } from 'react-native';
 
-export function Liquidity({ fed, capacity, spent }: { fed: number; capacity: number; spent: number }) {
-  const biggest = Math.max(1, Math.abs(fed), Math.abs(capacity), Math.abs(spent));
+export function Liquidity({ fed, capacity, spent, coverageProvidedCents = 0 }: { fed: number; capacity: number; spent: number; coverageProvidedCents?: number }) {
+  const coverageStart = Math.max(0, spent);
+  const biggest = Math.max(1, Math.abs(fed), Math.abs(capacity), Math.abs(spent), coverageStart + coverageProvidedCents);
   const hasNegative = fed < 0 || capacity < 0;
-  const hasPositive = fed > 0 || capacity > 0;
+  const hasPositive = fed > 0 || capacity > 0 || coverageProvidedCents > 0;
 
   return (
     <View testID="liquidity" className="flex-1 relative">
@@ -104,6 +105,16 @@ export function Liquidity({ fed, capacity, spent }: { fed: number; capacity: num
                 }}
               />
             )}
+            {coverageProvidedCents > 0 ? (
+              <View
+                testID="coverage-provided-bar"
+                style={{
+                  position: 'absolute', left: `${(coverageStart / biggest) * 100}%`, top: 0, bottom: 0,
+                  width: `${(coverageProvidedCents / biggest) * 100}%`,
+                  backgroundColor: colors.warningMuted,
+                }}
+              />
+            ) : null}
           </View>
         )}
       </View>

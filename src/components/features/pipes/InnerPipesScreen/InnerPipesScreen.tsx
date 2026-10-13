@@ -4,6 +4,7 @@ import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import type { PipeModel } from "@features/pipes/data/pipes";
 import { expectedMonthlyCapacity } from "@features/pipes/data/expectedCapacity";
+import { prepareContingencyPreview } from "@features/pipes/data/contingencyPreview";
 import {
   PipesList,
   type Pipe as PipesListPipe,
@@ -21,7 +22,7 @@ import { useRuleClock } from "@features/pipes/rules/use-rule-clock";
 export function InnerPipesScreen() {
   const [compactRulePipeId, setCompactRulePipeId] = useState<PipeModel["id"] | null>(null);
   const { selectedPipe, selectedPipePath, selectPipe } = usePipeSelection();
-  const { childrenByParent } = usePipeCatalog();
+  const { childrenByParent, allPipes } = usePipeCatalog();
 
   const fed = selectedPipe?.fed ?? 0;
   const spent = selectedPipe?.spent ?? 0;
@@ -34,6 +35,7 @@ export function InnerPipesScreen() {
   const isDeleting = Boolean(selectedPipe?.deletionJobId);
 
   const selectedId = selectedPipePath[selectedPipePath.length - 1];
+  const coverageProvided = selectedId ? prepareContingencyPreview(allPipes ?? []).forDonor(selectedId) : undefined;
   const children = childrenByParent.get(selectedId) ?? [];
   const ruleNow = useRuleClock(Boolean(selectedPipe));
   const expected = selectedPipe
@@ -81,6 +83,7 @@ export function InnerPipesScreen() {
           pendingFedAdjustment={pendingFedAdjustment}
           rule={selectedPipe?.rule}
           sourceType={selectedPipe?.sourceType}
+          coverageProvidedCents={coverageProvided?.amountCents}
         />
         <View className="flex-row items-center gap-2 px-5 pb-2">
           <View className="flex-1">

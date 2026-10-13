@@ -11,6 +11,7 @@ type PipeBarsProps = {
   pendingFedAdjustment?: number;
   rule?: PipeRule;
   sourceType?: "feed" | "boiler";
+  coverageProvidedCents?: number;
 };
 
 // todo: unify BarRow and FedBarRow into a single component that can handle both cases, since they share a lot of logic and styling.
@@ -20,18 +21,20 @@ function BarRow({
   maxAbs,
   color,
   dashed,
+  coverageProvidedCents = 0,
 }: {
   label: string;
   value: number;
   maxAbs: number;
   color: string;
   dashed?: boolean;
+  coverageProvidedCents?: number;
 }) {
   const w = `${(Math.abs(value) / maxAbs) * 100}%` as DimensionValue;
   const anchorClass = value < 0 ? "right-0" : "left-0";
 
   return (
-    <View className="flex-row items-center">
+    <View className="flex-row items-center" accessible={coverageProvidedCents > 0} accessibilityLabel={coverageProvidedCents > 0 ? `${formatAmount(value)} spent, ${formatAmount(coverageProvidedCents)} possible coverage provided` : undefined}>
       <Text className="text-muted text-xs w-16">{label}</Text>
       <View className="flex-1 relative h-1">
         <View
@@ -55,9 +58,23 @@ function BarRow({
                 }
           }
         />
+        {coverageProvidedCents > 0 ? (
+          <View
+            testID={`bar-${label}-coverage-fill`}
+            className="absolute"
+            style={{
+              left: `${(Math.max(0, value) / maxAbs) * 100}%`,
+              width: `${(coverageProvidedCents / maxAbs) * 100}%`,
+              top: 0,
+              bottom: 0,
+              backgroundColor: colors.warningMuted,
+              borderRadius: 1,
+            }}
+          />
+        ) : null}
       </View>
       <Text className="text-xs w-16 text-right text-text">
-        {formatAmount(value)}
+        {formatAmount(value + coverageProvidedCents)}
       </Text>
     </View>
   );
@@ -124,13 +141,15 @@ export function PipeBars({
   pendingFedAdjustment = 0,
   rule,
   sourceType,
+  coverageProvidedCents = 0,
 }: PipeBarsProps) {
-  const showSpent = rule !== "instant_settlement";
+  const showSpent = rule !== "instant_settlement" || coverageProvidedCents > 0;
   const maxAbs = Math.max(
     1,
     Math.abs(fed),
     sourceType === "boiler" ? Math.abs(capacity) : 0,
     showSpent ? Math.abs(spent) : 0,
+    showSpent && coverageProvidedCents > 0 ? Math.abs(spent) + coverageProvidedCents : 0,
     Math.abs(expected),
   );
   return (
@@ -164,6 +183,7 @@ export function PipeBars({
           value={spent}
           maxAbs={maxAbs}
           color={spent < 0 ? colors.primary : colors.error}
+          coverageProvidedCents={coverageProvidedCents}
         />
       ) : null}
     </View>

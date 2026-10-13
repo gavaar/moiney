@@ -7,6 +7,7 @@ import { formatAmount } from "@/lib/format";
 import { getDaysInMonth } from "@/lib/dates";
 import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
+import { prepareContingencyPreview } from "@features/pipes/data/contingencyPreview";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -18,7 +19,7 @@ type StatItem = {
   ref: RefObject<View | null>;
   icon: IconName;
   testID?: string;
-  tone?: "external" | "growth-negative" | "growth-non-negative";
+  tone?: "external" | "growth-negative" | "growth-non-negative" | "warning";
 };
 
 type Props = {
@@ -74,6 +75,8 @@ export function StatisticsRow({
   const cronRef = useRef<View>(null);
   const externalRef = useRef<View>(null);
   const growthRef = useRef<View>(null);
+  const coverageRef = useRef<View>(null);
+  const coverageProvidedRef = useRef<View>(null);
   const { selectedPipePath } = usePipeSelection();
   const { pipesById } = usePipeCatalog();
 
@@ -82,6 +85,9 @@ export function StatisticsRow({
       ? selectedPipePath[selectedPipePath.length - 1]
       : null;
   const currentPipe = selectedId && pipesById ? pipesById[selectedId] : null;
+  const preview = prepareContingencyPreview(Object.values(pipesById ?? {}));
+  const coverage = selectedId ? preview.forSource(selectedId) : undefined;
+  const coverageProvided = selectedId ? preview.forDonor(selectedId) : undefined;
 
   const daysLeft =
     currentPipe?.rule === "cron" && currentPipe.cronNextDate != null
@@ -89,6 +95,24 @@ export function StatisticsRow({
       : null;
 
   const stats: StatItem[] = [
+      ...(coverageProvided ? [{
+        displayValue: formatAmount(coverageProvided.amountCents),
+        title: "Possible coverage provided",
+        tone: "warning" as const,
+        description: `This pipe could provide ${formatAmount(coverageProvided.amountCents)} in total if all eligible pipes selecting it settled now (${coverageProvided.sources.map(source => source.name).join(", ")}). They share this pipe's unspent funding to cover spending above capacity or carried-forward debt. Original expenses stay attributed to those pipes.`,
+        guidance: "This funding is not reserved. Actual coverage depends on changing balances and settlement order, including scheduled sharing.",
+        icon: "shield" as IconName,
+        ref: coverageProvidedRef,
+      }] : []),
+      ...(coverage ? [{
+        displayValue: formatAmount(coverage.amountCents),
+        title: "Possible coverage",
+        tone: "warning" as const,
+        description: `${coverage.donor.name} could cover ${formatAmount(coverage.amountCents)} if this pipe settled now, using its unspent funding to cover spending above capacity or carried-forward debt. Coverage is applied only at settlement; your original expenses remain attributed to this pipe.`,
+        guidance: "This funding is not reserved. Changing balances and sharing with other scheduled settlements can reduce actual coverage.",
+        icon: "shield" as IconName,
+        ref: coverageRef,
+      }] : []),
       ...(sourceType !== "boiler"
         ? [
             {
@@ -183,7 +207,9 @@ export function StatisticsRow({
                   ? "border-secondary/70 bg-secondary/10"
                   : stat.tone === "external"
                     ? "border-accent/70 bg-accent/10"
-                    : "border-muted/50",
+                    : stat.tone === "warning"
+                      ? "border-warning/70 bg-warning/10"
+                      : "border-muted/50",
             )}
             accessibilityRole="button"
             accessibilityLabel={`${stat.title}, ${stat.displayValue}`}
@@ -199,7 +225,9 @@ export function StatisticsRow({
                     ? colors.secondary
                     : stat.tone === "external"
                       ? colors.accent
-                      : colors.text
+                      : stat.tone === "warning"
+                        ? colors.warning
+                        : colors.text
               }
             />
             <Text
@@ -211,7 +239,9 @@ export function StatisticsRow({
                     ? "text-secondary"
                     : stat.tone === "external"
                       ? "text-accent"
-                      : "text-text",
+                      : stat.tone === "warning"
+                        ? "text-warning"
+                        : "text-text",
               )}
             >
               {stat.displayValue}
