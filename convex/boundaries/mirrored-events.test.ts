@@ -12,12 +12,26 @@ async function setup() {
     const userId = await ctx.db.insert("users", { username: "alice", email: "alice@example.com", password: "hash" });
     const foreignUserId = await ctx.db.insert("users", { username: "bob", email: "bob@example.com", password: "hash" });
     const sourceId = await ctx.db.insert("pipes", {
-      userId, name: "Source", icon: "wallet-outline", priority: 0,
-      capacity: 10000, fed: 1000, spent: 200, sourceType: "boiler", contributedFed: 1000,
+      userId,
+      name: "Source",
+      icon: "wallet-outline",
+      priority: 0,
+      capacity: 10000,
+      fed: 1000,
+      spent: 200,
+      sourceType: "boiler",
+      contributedFed: 1000,
     });
     const targetId = await ctx.db.insert("pipes", {
-      userId, name: "Target", icon: "water-boiler", priority: 0,
-      capacity: 10000, fed: 500, spent: 100, sourceType: "boiler", contributedFed: 500,
+      userId,
+      name: "Target",
+      icon: "water-boiler",
+      priority: 0,
+      capacity: 10000,
+      fed: 500,
+      spent: 100,
+      sourceType: "boiler",
+      contributedFed: 500,
     });
     return { userId, foreignUserId, sourceId, targetId };
   });
@@ -33,7 +47,10 @@ describe("Convex boundaries: mirrored event creation", () => {
   ] as const)("creates a complete $structure operation at $value cents without applying mirror accounting twice", async ({ structure, value }) => {
     const { t, auth, userId, sourceId, targetId } = await setup();
     const result = await auth.mutation(api.financialOperations.create, {
-      title: "  LuNcH  ", value, date: 1000, from: sourceId,
+      title: "  LuNcH  ",
+      value,
+      date: 1000,
+      from: sourceId,
       ...(structure === "transfer" ? { to: targetId } : { paidFrom: targetId }),
     });
     const state = await t.run(async ctx => ({
@@ -47,13 +64,23 @@ describe("Convex boundaries: mirrored event creation", () => {
     const mirror = state.events.find(event => event._id !== event.operationId);
     expect(canonical).toMatchObject({
       type: structure === "transfer" ? "transfer" : "third_party_transaction",
-      userId, pipeId: sourceId, targetPipeId: targetId,
-      occurredAt: 1000, title: "lunch", value, operationId: canonical?._id,
+      userId,
+      pipeId: sourceId,
+      targetPipeId: targetId,
+      occurredAt: 1000,
+      title: "lunch",
+      value,
+      operationId: canonical?._id,
     });
     expect(mirror).toMatchObject({
       type: structure === "transfer" ? "transfer" : "transaction",
-      userId, pipeId: targetId, targetPipeId: sourceId,
-      occurredAt: 1000, title: "lunch", value: -value, operationId: canonical?._id,
+      userId,
+      pipeId: targetId,
+      targetPipeId: sourceId,
+      occurredAt: 1000,
+      title: "lunch",
+      value: -value,
+      operationId: canonical?._id,
     });
     expect(canonical!._id).not.toBe(mirror!._id);
     expect(result).toBeNull();
@@ -92,7 +119,10 @@ describe("Convex boundaries: mirrored event creation", () => {
     const { t, auth, sourceId, targetId, foreignUserId } = await setup();
     await t.run(ctx => ctx.db.patch("pipes", targetId, { userId: foreignUserId }));
     await expect(auth.mutation(api.financialOperations.create, {
-      title: "lunch", value: -100, date: 1000, from: sourceId,
+      title: "lunch",
+      value: -100,
+      date: 1000,
+      from: sourceId,
       ...(structure === "transfer" ? { to: targetId } : { paidFrom: targetId }),
     })).rejects.toThrow();
     expect(await t.run(ctx => ctx.db.query("events").collect())).toEqual([]);

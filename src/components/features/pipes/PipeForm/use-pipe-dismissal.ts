@@ -9,8 +9,13 @@ export function usePipeDismissal(onClose: () => void) {
   }, []);
   const requestClose = async () => {
     if (state.current.busy) return;
-    if (!state.current.dirty || await confirm({ title: "Discard changes?", message: "Your unsaved pipe changes will be lost.",
-      confirmLabel: "Discard changes", cancelLabel: "Keep editing", destructive: true })) onClose();
+    if (!state.current.dirty || await confirm({
+      title: "Discard changes?",
+      message: "Your unsaved pipe changes will be lost.",
+      confirmLabel: "Discard changes",
+      cancelLabel: "Keep editing",
+      destructive: true
+    })) onClose();
   };
   return { onDismissStateChange, requestClose };
 }

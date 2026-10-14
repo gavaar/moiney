@@ -32,12 +32,8 @@ it("summarizes expenditure without counting feeds or transfers", () => {
 });
 
 it("ranks the three largest individual expenses across pages, including ties", () => {
-  const first = summarizeMonthlySpending([
-    { kind: "expense", value: -900 }, { kind: "expense", value: -300 }, { kind: "expense", value: 500 },
-  ]);
-  const second = summarizeMonthlySpending([
-    { kind: "expense", value: -900 }, { kind: "expense", value: -700 }, { kind: "feed", value: 50_000 },
-  ]);
+  const first = summarizeMonthlySpending([{ kind: "expense", value: -900 }, { kind: "expense", value: -300 }, { kind: "expense", value: 500 },]);
+  const second = summarizeMonthlySpending([{ kind: "expense", value: -900 }, { kind: "expense", value: -700 }, { kind: "feed", value: 50_000 },]);
   expect(mergeMonthlySpending(first, second).nextLargestSpendingCents).toEqual([900, 700]);
 });
 
@@ -110,9 +106,7 @@ it("treats a debt pipe's negative capacity as a zero expenditure ceiling", () =>
   expect(rankMonthlyOffenders([
     { id: "root", name: "Root", capacity: 0 },
     { id: "debt", parentId: "root", name: "Debt", capacity: -1_000 },
-  ], [{ pipeId: "debt", netSpendingCents: 200 }])).toEqual([
-    { pipeId: "debt", name: "Debt", netSpendingCents: 200, capacityCents: 0, overageCents: 200 },
-  ]);
+  ], [{ pipeId: "debt", netSpendingCents: 200 }])).toEqual([{ pipeId: "debt", name: "Debt", netSpendingCents: 200, capacityCents: 0, overageCents: 200 },]);
   expect(rankMonthlyOffenders([
     { id: "root", name: "Root", capacity: 0 },
     { id: "debt", parentId: "root", name: "Debt", capacity: -1_000 },

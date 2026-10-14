@@ -49,8 +49,13 @@ export function PipeForm(props: PipeFormProps) {
   const owner = pipes.find(item => item.id === draft.ownerId);
   const leaf = !pipe || !all.some(item => item.parentId === pipe.id);
   const dirty = isPipeDraftDirty(draft, baseline, leaf);
-  const topology = all.map(item => ({ id: item.id, parentId: item.parentId, rule: item.rule,
-    contingencyPipeId: item.contingencyPipeId, blocked: Boolean(item.deletionJobId) }));
+  const topology = all.map(item => ({
+    id: item.id,
+    parentId: item.parentId,
+    rule: item.rule,
+    contingencyPipeId: item.contingencyPipeId,
+    blocked: Boolean(item.deletionJobId)
+  }));
   const intendedRule = ruleDraftValues(draft).selectedRule;
   const rule = intendedRule === "none" ? undefined : intendedRule;
   const eligibleIds = pipe
@@ -100,8 +105,13 @@ export function PipeForm(props: PipeFormProps) {
     setSubmitError(undefined);
     try {
       if (pipe) await updatePipe(pipeUpdateFromDraft(pipe, draft, all, leaf));
-      else if (owner) await addPipe({ parentId: owner.id, name: draft.name.trim(), description: draft.description || undefined,
-        icon: draft.icon || "pipe", priority: draft.priority, capacity: draft.capacity ? parseMoney(draft.capacity) : 0,
+      else if (owner) await addPipe({
+        parentId: owner.id,
+        name: draft.name.trim(),
+        description: draft.description || undefined,
+        icon: draft.icon || "pipe",
+        priority: draft.priority,
+        capacity: draft.capacity ? parseMoney(draft.capacity) : 0,
         ...(draft.selectedRule === "none" ? {} : { ruleConfig: ruleConfigurationFromDraft(draft) }),
         ...(draft.contingencyPipeId ? { contingencyPipeId: contingencyOptions.find(item => item.id === draft.contingencyPipeId)!.id } : {}),
       });
@@ -135,9 +145,19 @@ export function PipeForm(props: PipeFormProps) {
 
   return <View className="gap-4" style={{ flexShrink: 1 }}>
     <Form key={formVersion}
-      pages={buildPipeForm({ pipes, disabled: busy, loading: isLoading, draft, now: validationTime, editing, leaf,
-        allowSelfDestruct: !editing || Boolean(pipe?.parentId), contingencyOptions, invalidContingency,
-        removalPending: Boolean(pipe?.contingencyPipeId && ruleDisallowsContingency(draft.selectedRule)) })}
+      pages={buildPipeForm({
+        pipes,
+        disabled: busy,
+        loading: isLoading,
+        draft,
+        now: validationTime,
+        editing,
+        leaf,
+        allowSelfDestruct: !editing || Boolean(pipe?.parentId),
+        contingencyOptions,
+        invalidContingency,
+        removalPending: Boolean(pipe?.contingencyPipeId && ruleDisallowsContingency(draft.selectedRule))
+      })}
       value={{ ...draft, contingencyPipeId: draft.contingencyPipeId ?? "none" }} onChange={handleChange}
       navigation={{ step: activeStep, onChange: step => { if (!busy) setActiveStep(step); } }}
       header={<View className="flex-row items-center gap-2 border-b border-muted/20 p-2"

@@ -17,26 +17,38 @@ describe("monthly event archives", () => {
   it("collapses covered settlements globally, but retains donor archives and deleted-ancestor visibility", () => {
     const balance = { capacity: 4000, fed: 4000, spent: 7000, pendingFedAdjustment: 0 };
     const source: Extract<HistoryEntry, { type: "settlement" }> = {
-      id: event("covered"), operationId: event("covered"), pipeId: pipe("source"), occurredAt: june, createdAt: june,
-      type: "settlement", name: "Source", icon: "pipe", cause: "manual", before: balance, after: balance,
+      id: event("covered"),
+      operationId: event("covered"),
+      pipeId: pipe("source"),
+      occurredAt: june,
+      createdAt: june,
+      type: "settlement",
+      name: "Source",
+      icon: "pipe",
+      cause: "manual",
+      before: balance,
+      after: balance,
       coverage: { amountCents: 2000, pipeId: pipe("donor"), name: "Donor", icon: "shield", before: balance, after: balance },
     };
     const donor: Extract<HistoryEntry, { type: "settlement_coverage" }> = {
-      ...source, id: event("mirror"), pipeId: pipe("donor"), type: "settlement_coverage", name: "Donor", icon: "shield",
+      ...source,
+      id: event("mirror"),
+      pipeId: pipe("donor"),
+      type: "settlement_coverage",
+      name: "Donor",
+      icon: "shield",
       coverage: { ...source.coverage!, pipeId: source.pipeId, name: source.name, icon: source.icon },
     };
     const catalog = [deleted("source", ["old-root"]), deleted("donor", ["old-root"])];
     expect(groupMonthlyEventHistory([source, donor], catalog)).toHaveLength(1);
-    expect(groupMonthlyEventHistory([source, donor], catalog, [pipe("donor")])).toMatchObject([
-      { kind: "archive", pipeId: pipe("donor"), loadedSummary: { count: 1, spent: 0 }, rows: [{ kind: "settlement", event: { type: "settlement_coverage" } }] },
-    ]);
-    expect(groupMonthlyEventHistory([source, donor], catalog, [pipe("old-root")])).toMatchObject([
-      { kind: "archive", pipeId: pipe("source"), loadedSummary: { count: 1, spent: 0 } },
-    ]);
+    expect(groupMonthlyEventHistory([source, donor], catalog, [pipe("donor")])).toMatchObject([{ kind: "archive", pipeId: pipe("donor"), loadedSummary: { count: 1, spent: 0 }, rows: [{ kind: "settlement", event: { type: "settlement_coverage" } }] },]);
+    expect(groupMonthlyEventHistory([source, donor], catalog, [pipe("old-root")])).toMatchObject([{ kind: "archive", pipeId: pipe("source"), loadedSummary: { count: 1, spent: 0 } },]);
   });
   it("groups by deleted pipe and UTC month, keeping title groups inside each archive", () => {
     const rows = groupMonthlyEventHistory([
-      expense("a", "child"), expense("b", "child"), expense("c", "other"),
+      expense("a", "child"),
+      expense("b", "child"),
+      expense("c", "other"),
       expense("july", "child", Date.UTC(2026, 6, 1)),
     ], [deleted("child"), deleted("other")]);
     expect(rows).toHaveLength(3);
@@ -78,7 +90,8 @@ describe("monthly event archives", () => {
 
   it("counts refunds, payer perspectives, feeds, and transfers correctly without using global contributions", () => {
     const entries: HistoryEntry[] = [
-      expense("expense", "payer", june, -100), expense("refund", "payer", june, 20),
+      expense("expense", "payer", june, -100),
+      expense("refund", "payer", june, 20),
       { ...expense("external", "payer", june, 60), operationId: event("logical"), targetPipeId: pipe("source") },
       { ...expense("external-refund", "payer", june, -10), operationId: event("logical-refund"), targetPipeId: pipe("source") },
       { ...expense("feed", "payer", june, 500), type: "feed" },

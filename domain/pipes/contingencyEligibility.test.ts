@@ -59,9 +59,12 @@ describe("contingency target eligibility", () => {
 
   it("fails closed for orphaned or cyclic ancestry", () => {
     const malformed = [
-      { id: "orphan", parentId: "missing" }, { id: "orphan-sibling", parentId: "missing" },
-      { id: "cycle-a", parentId: "cycle-b" }, { id: "cycle-b", parentId: "cycle-a" },
-      { id: "cycle-child", parentId: "cycle-a" }, { id: "self-cycle", parentId: "self-cycle" },
+      { id: "orphan", parentId: "missing" },
+      { id: "orphan-sibling", parentId: "missing" },
+      { id: "cycle-a", parentId: "cycle-b" },
+      { id: "cycle-b", parentId: "cycle-a" },
+      { id: "cycle-child", parentId: "cycle-a" },
+      { id: "self-cycle", parentId: "self-cycle" },
     ];
     for (const pipes of [[...topology, ...malformed], [...topology, ...malformed].reverse()]) {
       const eligible = prepareContingencyEligibility(pipes);

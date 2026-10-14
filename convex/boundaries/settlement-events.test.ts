@@ -15,9 +15,17 @@ async function setup() {
   const { userId, pipeId } = await t.run(async ctx => {
     const userId = await ctx.db.insert("users", { username: "alice", email: "alice@example.com", password: "hash" });
     const pipeId = await ctx.db.insert("pipes", {
-      userId, name: "Coffee", icon: "cafe", priority: 0,
-      capacity: 4000, fed: 4000, spent: 3000, pendingFedAdjustment: 500,
-      rule: "cron", capUpdateValue: 4000, cronNextDate: Date.UTC(2026, 10, 1, 5),
+      userId,
+      name: "Coffee",
+      icon: "cafe",
+      priority: 0,
+      capacity: 4000,
+      fed: 4000,
+      spent: 3000,
+      pendingFedAdjustment: 500,
+      rule: "cron",
+      capUpdateValue: 4000,
+      cronNextDate: Date.UTC(2026, 10, 1, 5),
       cronInterval: { interval: 1, unit: "months" },
     });
     return { userId, pipeId };
@@ -59,8 +67,12 @@ describe("Convex boundaries: settlement history", () => {
     const history = await auth.query(api.events.latest, { pipeId });
     expect(history).toHaveLength(1);
     expect(history[0]).toMatchObject({
-      type: "settlement", cause: "manual", pipeId, occurredAt: now,
-      name: "Coffee", icon: "cafe",
+      type: "settlement",
+      cause: "manual",
+      pipeId,
+      occurredAt: now,
+      name: "Coffee",
+      icon: "cafe",
       before: { capacity: 4000, fed: 4000, spent: 3000, pendingFedAdjustment: 500 },
       after: { capacity: 5000, fed: 1500, spent: 0, pendingFedAdjustment: 0 },
     });
@@ -78,7 +90,8 @@ describe("Convex boundaries: settlement history", () => {
     const { t, auth, userId, pipeId, now } = await setup();
     await t.run(async ctx => {
       const parentId = await ctx.db.insert("pipes", { userId, name: "Main", icon: "wallet", priority: 0, capacity: 0, fed: 2000, spent: 0 });
-      await ctx.db.patch("pipes", pipeId, { parentId,
+      await ctx.db.patch("pipes", pipeId, {
+        parentId,
         ...(cause === "cron" ? { cronNextDate: Date.UTC(2026, 9, 1, 5) } : {}),
         ...(cause === "spend_overflow" ? { rule: "spend_overflow", spent: 0, pendingFedAdjustment: 0 } : {}),
       });
@@ -100,7 +113,8 @@ describe("Convex boundaries: settlement history", () => {
     const history = await auth.query(api.events.latest, { pipeId });
     expect(history).toHaveLength(2);
     expect(history.find(event => event.type === "settlement")).toMatchObject({
-      cause: "spend_overflow", occurredAt: now,
+      cause: "spend_overflow",
+      occurredAt: now,
       before: { fed: 4000, spent: 5000, capacity: 4000, pendingFedAdjustment: 0 },
       after: { fed: -1000, spent: 0, capacity: 3000, pendingFedAdjustment: 0 },
     });
@@ -114,7 +128,9 @@ describe("Convex boundaries: settlement history", () => {
     const history = await auth.query(api.events.latest, { pipeId });
     expect(history).toHaveLength(1);
     expect(history[0]).toMatchObject({
-      type: "settlement", cause: "cron", occurredAt: now,
+      type: "settlement",
+      cause: "cron",
+      occurredAt: now,
       before: { capacity: 4000, spent: 3000 },
       after: { capacity: 9000, spent: 0 },
     });

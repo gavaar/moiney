@@ -23,10 +23,16 @@ function sameValue(left: unknown, right: unknown) {
 }
 
 export function createPipeDraft(pipe?: PipeModel, ownerId: string | null = null): PipeDraft {
-  return { ...createRuleDraft(pipe), ownerId: pipe?.parentId ?? ownerId,
-    name: pipe?.name ?? "", description: pipe?.description ?? "", icon: pipe ? safeIconName(pipe.icon) : "pipe",
-    priority: pipe?.priority ?? 0, capacity: pipe ? formatMoneyInput(pipe.capacity) : "",
-    contingencyPipeId: pipe?.contingencyPipeId ?? null };
+  return {
+    ...createRuleDraft(pipe),
+    ownerId: pipe?.parentId ?? ownerId,
+    name: pipe?.name ?? "",
+    description: pipe?.description ?? "",
+    icon: pipe ? safeIconName(pipe.icon) : "pipe",
+    priority: pipe?.priority ?? 0,
+    capacity: pipe ? formatMoneyInput(pipe.capacity) : "",
+    contingencyPipeId: pipe?.contingencyPipeId ?? null
+  };
 }
 
 export function ruleDisallowsContingency(rule: string) {
@@ -53,9 +59,15 @@ export function changePipeEdits(live: PipeDraft, edits: Partial<PipeDraft>, next
 
 export function hasPipeRuleChanges(draft: RuleDraft, pipe: PipeModel): boolean {
   const values = ruleDraftValues(draft);
-  return hasRuleDiff({ pipe, selectedRule: values.selectedRule, isCron: values.selectedRule === "cron",
-    capNumber: values.effectiveCron.capUpdateValue, interval: values.effectiveCron.interval,
-    unit: values.effectiveCron.unit, starting: values.starting });
+  return hasRuleDiff({
+    pipe,
+    selectedRule: values.selectedRule,
+    isCron: values.selectedRule === "cron",
+    capNumber: values.effectiveCron.capUpdateValue,
+    interval: values.effectiveCron.interval,
+    unit: values.effectiveCron.unit,
+    starting: values.starting
+  });
 }
 
 export function isPipeDraftDirty(draft: PipeDraft, baseline: PipeDraft, leaf = true): boolean {
@@ -67,8 +79,8 @@ export function isPipeDraftDirty(draft: PipeDraft, baseline: PipeDraft, leaf = t
 function isRuleDraftDirty(draft: RuleDraft, baseline: RuleDraft): boolean {
   const relevantRuleKeys = draft.selectedRule === "none" ? ["selectedRule"] as const
     : draft.selectedRule === "self_destruct" ? ["selectedRule", "deletionDate"] as const
-    : draft.selectedRule === "cron" ? RULE_KEYS.filter(key => key !== "deletionDate")
-    : ["selectedRule", "capValue"] as const;
+      : draft.selectedRule === "cron" ? RULE_KEYS.filter(key => key !== "deletionDate")
+        : ["selectedRule", "capValue"] as const;
   return relevantRuleKeys.some(key => !sameValue(draft[key], baseline[key]));
 }
 

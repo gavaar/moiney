@@ -38,12 +38,22 @@ function SelectableTransactionForm({ pipeId, initState, onSuccess }: Props) {
     spent: selected?.spent ?? initState.spent,
     capacity: selected?.capacity ?? initState.capacity,
   } : {
-    intent: "create", pipeName: selected?.name ?? "", pipeIcon: selected?.icon ?? "pipe-disconnected",
-    spent: selected?.spent, capacity: selected?.capacity, title: "", value: "-",
+    intent: "create",
+    pipeName: selected?.name ?? "",
+    pipeIcon: selected?.icon ?? "pipe-disconnected",
+    spent: selected?.spent,
+    capacity: selected?.capacity,
+    title: "",
+    value: "-",
   };
 
   return <AmountForm variant="transaction" pipeId={selected?.id ?? null} initState={initial} onSuccess={onSuccess}
-    sourcePicker={{ pipes, groups, loading: isLoading || historyLoading, activeStep, onStepChange: setActiveStep,
+    sourcePicker={{
+      pipes,
+      groups,
+      loading: isLoading || historyLoading,
+      activeStep,
+      onStepChange: setActiveStep,
       onSelect: id => { setSelectedId(id); setActiveStep(1); },
     }} />;
 }

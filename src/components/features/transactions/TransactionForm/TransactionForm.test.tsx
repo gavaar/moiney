@@ -21,14 +21,22 @@ vi.mock("convex/react", () => ({ useMutation: (api: string) => api === "edit" ? 
 vi.mock("@convex/_generated/api", () => ({ api: { financialOperations: { edit: "edit", create: "create", contributeToBoiler: "boiler" }, transactions: { listRecentTitles: "titles" } } }));
 vi.mock("@ui/Alert", () => ({ useAlert: () => ({ error: vi.fn() }) }));
 vi.mock("@features/transactions/cache/EventHistoryCacheContext", () => ({ useOptionalEventHistoryCache: () => null }));
-vi.mock("@features/pipes/context/PipeCatalogContext", () => ({ usePipeCatalog: () => ({
-  allPipes: [root, source, other, investment, investmentLeaf], childrenByParent: new Map([[root.id, [source]], [investment.id, [investmentLeaf]]]), isLoading: false,
-  pipesById: { [root.id]: root, [source.id]: source, [other.id]: other, [investment.id]: investment, [investmentLeaf.id]: investmentLeaf },
-}) }));
+vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
+  usePipeCatalog: () => ({
+    allPipes: [root, source, other, investment, investmentLeaf],
+    childrenByParent: new Map([[root.id, [source]], [investment.id, [investmentLeaf]]]),
+    isLoading: false,
+    pipesById: { [root.id]: root, [source.id]: source, [other.id]: other, [investment.id]: investment, [investmentLeaf.id]: investmentLeaf },
+  })
+}));
 
 const initial = {
-  operationId: "operation" as Id<"events">, date: Date.UTC(2025, 1, 3),
-  pipeName: source.name, pipeIcon: source.icon, title: "Lunch", value: "-5.00",
+  operationId: "operation" as Id<"events">,
+  date: Date.UTC(2025, 1, 3),
+  pipeName: source.name,
+  pipeIcon: source.icon,
+  title: "Lunch",
+  value: "-5.00",
   structure: { type: "payByTransfer" as const, from: source.id, paidFrom: other.id },
 };
 

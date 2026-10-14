@@ -5,11 +5,31 @@ const before = { capacity: 4000, fed: 4000, spent: 7000, pendingFedAdjustment: 0
 const after = { ...before, spent: 0, fed: -1000 };
 const donorBefore = { capacity: 6000, fed: 6000, spent: 4000, pendingFedAdjustment: 0 };
 const donorAfter = { ...donorBefore, spent: 6000 };
-const source: SettlementEvent = { id: "source-event", operationId: "source-event", userId: "owner", pipeId: "source",
-  occurredAt: 1, type: "settlement", name: "Source", icon: "pipe", cause: "manual", before, after,
-  coverage: { amountCents: 2000, pipeId: "donor", name: "Donor", icon: "shield", before: donorBefore, after: donorAfter } };
-const mirror: SettlementCoverageEvent = { ...source, id: "donor-event", type: "settlement_coverage", pipeId: "donor", name: "Donor", icon: "shield",
-  before: donorBefore, after: donorAfter, coverage: { amountCents: 2000, pipeId: "source", name: "Source", icon: "pipe", before, after } };
+const source: SettlementEvent = {
+  id: "source-event",
+  operationId: "source-event",
+  userId: "owner",
+  pipeId: "source",
+  occurredAt: 1,
+  type: "settlement",
+  name: "Source",
+  icon: "pipe",
+  cause: "manual",
+  before,
+  after,
+  coverage: { amountCents: 2000, pipeId: "donor", name: "Donor", icon: "shield", before: donorBefore, after: donorAfter }
+};
+const mirror: SettlementCoverageEvent = {
+  ...source,
+  id: "donor-event",
+  type: "settlement_coverage",
+  pipeId: "donor",
+  name: "Donor",
+  icon: "shield",
+  before: donorBefore,
+  after: donorAfter,
+  coverage: { amountCents: 2000, pipeId: "source", name: "Source", icon: "pipe", before, after }
+};
 
 it("requires a complete reciprocal coverage operation and resolves either entry order", () => {
   expect(historyOperationFromEvents([source, mirror])).toEqual({ canonicalEvent: source, counterpart: mirror });

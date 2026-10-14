@@ -22,10 +22,21 @@ describe("pipe wizard saves", () => {
 
   it("atomically changes details, capacity, rule and contingency against the intended rule", async () => {
     const { t, auth, source, donor } = await setup();
-    await auth.mutation(api.pipes.updatePipe, { pipeId: source, name: "Updated", capacity: -100,
-      ruleConfig: { rule: "spend_overflow", capUpdateValue: 200 }, contingencyPipeId: donor });
-    expect(await t.run(ctx => ctx.db.get("pipes", source))).toMatchObject({ name: "Updated", capacity: -100,
-      rule: "spend_overflow", capUpdateValue: 200, contingencyPipeId: donor, spent: 0 });
+    await auth.mutation(api.pipes.updatePipe, {
+      pipeId: source,
+      name: "Updated",
+      capacity: -100,
+      ruleConfig: { rule: "spend_overflow", capUpdateValue: 200 },
+      contingencyPipeId: donor
+    });
+    expect(await t.run(ctx => ctx.db.get("pipes", source))).toMatchObject({
+      name: "Updated",
+      capacity: -100,
+      rule: "spend_overflow",
+      capUpdateValue: 200,
+      contingencyPipeId: donor,
+      spent: 0
+    });
     const pipes = await t.run(ctx => ctx.db.query("pipes").collect());
     expect(pipes.reduce((sum, pipe) => sum + pipe.fed - pipe.spent, 0)).toBe(1000);
   });
@@ -33,8 +44,13 @@ describe("pipe wizard saves", () => {
   it("rolls back every field when the combined save has an invalid donor", async () => {
     const { t, auth, source, root } = await setup();
     const before = await t.run(ctx => ctx.db.get("pipes", source));
-    await expect(auth.mutation(api.pipes.updatePipe, { pipeId: source, name: "Updated", capacity: 400,
-      ruleConfig: { rule: "spend_overflow" }, contingencyPipeId: root })).rejects.toMatchObject({ data: { code: "INVALID_CONTINGENCY_TARGET" } });
+    await expect(auth.mutation(api.pipes.updatePipe, {
+      pipeId: source,
+      name: "Updated",
+      capacity: 400,
+      ruleConfig: { rule: "spend_overflow" },
+      contingencyPipeId: root
+    })).rejects.toMatchObject({ data: { code: "INVALID_CONTINGENCY_TARGET" } });
     expect(await t.run(ctx => ctx.db.get("pipes", source))).toEqual(before);
   });
 
@@ -42,23 +58,38 @@ describe("pipe wizard saves", () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(Date.UTC(2026, 8, 3, 12));
     const { t, auth, source } = await setup();
-    await auth.mutation(api.pipes.updatePipe, { pipeId: source, capacity: 300,
-      ruleConfig: { rule: "cron", capUpdateValue: 100, interval: 1, unit: "days", starting: Date.UTC(2026, 8, 1, 12) } });
+    await auth.mutation(api.pipes.updatePipe, {
+      pipeId: source,
+      capacity: 300,
+      ruleConfig: { rule: "cron", capUpdateValue: 100, interval: 1, unit: "days", starting: Date.UTC(2026, 8, 1, 12) }
+    });
     expect(await t.run(ctx => ctx.db.get("pipes", source))).toMatchObject({ capacity: 500, cronNextDate: Date.UTC(2026, 8, 4, 5) });
   });
 
   it("creates a child with its contingency atomically", async () => {
     const { t, auth, root, donor } = await setup();
-    const child = await auth.mutation(api.pipes.addPipe, { parentId: root, name: "Child", icon: "pipe", priority: 0,
-      capacity: 100, contingencyPipeId: donor });
+    const child = await auth.mutation(api.pipes.addPipe, {
+      parentId: root,
+      name: "Child",
+      icon: "pipe",
+      priority: 0,
+      capacity: 100,
+      contingencyPipeId: donor
+    });
     expect(await t.run(ctx => ctx.db.get("pipes", child))).toMatchObject({ contingencyPipeId: donor });
   });
 
   it("rolls back child creation and owner resets when the donor is invalid", async () => {
     const { t, auth, source, root } = await setup();
     const before = await t.run(ctx => ctx.db.query("pipes").collect());
-    await expect(auth.mutation(api.pipes.addPipe, { parentId: source, name: "Child", icon: "pipe", priority: 0,
-      capacity: 100, contingencyPipeId: root })).rejects.toMatchObject({ data: { code: "INVALID_CONTINGENCY_TARGET" } });
+    await expect(auth.mutation(api.pipes.addPipe, {
+      parentId: source,
+      name: "Child",
+      icon: "pipe",
+      priority: 0,
+      capacity: 100,
+      contingencyPipeId: root
+    })).rejects.toMatchObject({ data: { code: "INVALID_CONTINGENCY_TARGET" } });
     expect(await t.run(ctx => ctx.db.query("pipes").collect())).toEqual(before);
   });
 
@@ -73,8 +104,13 @@ describe("pipe wizard saves", () => {
 
   it("preserves a live cron schedule and capacity on details-only edits", async () => {
     const { t, auth, source } = await setup();
-    const schedule = { rule: "cron" as const, capacity: 700, capUpdateValue: 200,
-      cronNextDate: Date.UTC(2099, 0, 1, 5), cronInterval: { interval: 1, unit: "months" as const } };
+    const schedule = {
+      rule: "cron" as const,
+      capacity: 700,
+      capUpdateValue: 200,
+      cronNextDate: Date.UTC(2099, 0, 1, 5),
+      cronInterval: { interval: 1, unit: "months" as const }
+    };
     await t.run(ctx => ctx.db.patch("pipes", source, schedule));
     await auth.mutation(api.pipes.updatePipe, { pipeId: source, name: "Updated" });
     expect(await t.run(ctx => ctx.db.get("pipes", source))).toMatchObject(schedule);
@@ -101,8 +137,12 @@ describe("pipe wizard saves", () => {
     const before = await t.run(ctx => ctx.db.get("pipes", source));
     await expect(auth.mutation(api.pipes.updatePipe, { pipeId: root, name: "Updated", ruleConfig: { rule: "self_destruct", starting: Date.UTC(2099, 0, 1) } }))
       .rejects.toMatchObject({ data: { code: "SELF_DESTRUCT_REQUIRES_CHILD_LEAF" } });
-    await expect(auth.mutation(api.pipes.updatePipe, { pipeId: source, capacity: 500, name: "Updated",
-      ruleConfig: { rule: "cron", interval: 0, unit: "days", starting: Date.now() } })).rejects.toThrow();
+    await expect(auth.mutation(api.pipes.updatePipe, {
+      pipeId: source,
+      capacity: 500,
+      name: "Updated",
+      ruleConfig: { rule: "cron", interval: 0, unit: "days", starting: Date.now() }
+    })).rejects.toThrow();
     expect(await t.run(ctx => ctx.db.get("pipes", source))).toEqual(before);
   });
 });

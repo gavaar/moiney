@@ -18,8 +18,11 @@ it("links corrections only to the canonical operation", async () => {
   await auth.mutation(api.financialOperations.edit, { operationId, title: "dinner", value: -150, date: 2 });
   const corrections = await t.run(ctx => ctx.db.query("transactionCorrections").collect());
   expect(corrections).toHaveLength(1);
-  expect(corrections[0]).toMatchObject({ operationId,
-    previous: { title: "lunch", value: -100, date: 1 }, current: { title: "dinner", value: -150, date: 2 } });
+  expect(corrections[0]).toMatchObject({
+    operationId,
+    previous: { title: "lunch", value: -100, date: 1 },
+    current: { title: "dinner", value: -150, date: 2 }
+  });
   expect(corrections[0]).not.toHaveProperty("transactionId");
   expect(await auth.query(api.operationCorrections.list, {
     operationId, paginationOpts: { numItems: 10, cursor: null },

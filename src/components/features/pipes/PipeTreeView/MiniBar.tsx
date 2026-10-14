@@ -43,7 +43,9 @@ export function MiniBar({
             <View
               testID="mini-bar-negative-fed"
               style={{
-                position: "absolute", right: 0, top: 0,
+                position: "absolute",
+                right: 0,
+                top: 0,
                 width: pHalf(Math.abs(fed)),
                 backgroundColor: colors.error,
                 height: 8,
@@ -54,7 +56,9 @@ export function MiniBar({
             <View
               testID="mini-bar-negative-spent"
               style={{
-                position: "absolute", right: 0, top: 0,
+                position: "absolute",
+                right: 0,
+                top: 0,
                 width: pHalf(spent),
                 backgroundColor: `${colors.errorBright}CC`,
                 height: 8,

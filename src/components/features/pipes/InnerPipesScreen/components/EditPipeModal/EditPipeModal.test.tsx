@@ -55,12 +55,24 @@ describe("EditPipeModal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     const pipe = (key: string, name: string, parentId?: string): PipeModel => ({
-      id: id(key), name, parentId: parentId ? id(parentId) : undefined, icon: "pipe", description: "Old description",
-      priority: 1, capacity: 100, fed: 0, spent: 0,
+      id: id(key),
+      name,
+      parentId: parentId ? id(parentId) : undefined,
+      icon: "pipe",
+      description: "Old description",
+      priority: 1,
+      capacity: 100,
+      fed: 0,
+      spent: 0,
     });
-    allPipes = [pipe("root", "Root"), pipe("pipe-1", "Groceries", "root"), pipe("reserve", "Reserve", "root"),
+    allPipes = [
+      pipe("root", "Root"),
+      pipe("pipe-1", "Groceries", "root"),
+      pipe("reserve", "Reserve", "root"),
       { ...pipe("chained", "Chained", "root"), contingencyPipeId: id("reserve") },
-      pipe("branch", "Branch", "root"), pipe("cousin", "Cousin", "branch")];
+      pipe("branch", "Branch", "root"),
+      pipe("cousin", "Cousin", "branch")
+    ];
   });
 
   it("validates the name on blur and clears its error during correction", () => {
@@ -175,16 +187,26 @@ describe("EditPipeModal", () => {
     fireEvent.click(screen.getByRole("button", { name: "Previous step" }));
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Food" } });
     fireEvent.click(screen.getByText("Submit"));
-    await waitFor(() => expect(updatePipe).toHaveBeenCalledWith({ pipeId: "pipe-1", name: "Food", capacity: -200,
-      ruleConfig: { rule: "spend_overflow", capUpdateValue: undefined } }));
+    await waitFor(() => expect(updatePipe).toHaveBeenCalledWith({
+      pipeId: "pipe-1",
+      name: "Food",
+      capacity: -200,
+      ruleConfig: { rule: "spend_overflow", capUpdateValue: undefined }
+    }));
   });
 
   it("refreshes untouched fields without losing edits or overwriting live capacity and schedules", async () => {
     const onClose = vi.fn();
     const { rerender } = render(<EditPipeModal visible pipeId={id("pipe-1")} onClose={onClose} />);
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Food" } });
-    allPipes[1] = { ...allPipes[1], capacity: 500, description: "Live description", rule: "cron",
-      cronNextDate: Date.UTC(2099, 1, 1, 5), cronInterval: { interval: 1, unit: "months" } };
+    allPipes[1] = {
+      ...allPipes[1],
+      capacity: 500,
+      description: "Live description",
+      rule: "cron",
+      cronNextDate: Date.UTC(2099, 1, 1, 5),
+      cronInterval: { interval: 1, unit: "months" }
+    };
     rerender(<EditPipeModal visible pipeId={id("pipe-1")} onClose={onClose} />);
     expect(screen.getByLabelText("Name").getAttribute("value")).toBe("Food");
     expect(screen.getByDisplayValue("Live description")).toBeTruthy();
@@ -281,16 +303,23 @@ describe("EditPipeModal", () => {
   });
 
   it("preserves an edited cap update while following an untouched live cron date", async () => {
-    allPipes[1] = { ...allPipes[1], rule: "cron", capUpdateValue: 100,
-      cronNextDate: Date.UTC(2099, 0, 1, 5), cronInterval: { interval: 1, unit: "months" } };
+    allPipes[1] = {
+      ...allPipes[1],
+      rule: "cron",
+      capUpdateValue: 100,
+      cronNextDate: Date.UTC(2099, 0, 1, 5),
+      cronInterval: { interval: 1, unit: "months" }
+    };
     const { rerender } = render(<EditPipeModal visible initialStep={3} pipeId={id("pipe-1")} onClose={vi.fn()} />);
     fireEvent.change(screen.getByLabelText("Cap update"), { target: { value: "2" } });
     allPipes[1] = { ...allPipes[1], capacity: 200, cronNextDate: Date.UTC(2099, 1, 1, 5) };
     rerender(<EditPipeModal visible initialStep={3} pipeId={id("pipe-1")} onClose={vi.fn()} />);
     expect(screen.getByLabelText("Cap update").getAttribute("value")).toBe("2");
     fireEvent.click(screen.getByText("Submit"));
-    await waitFor(() => expect(updatePipe).toHaveBeenCalledWith({ pipeId: "pipe-1",
-      ruleConfig: { rule: "cron", capUpdateValue: 200, interval: 1, unit: "months", starting: Date.UTC(2099, 1, 1, 5) } }));
+    await waitFor(() => expect(updatePipe).toHaveBeenCalledWith({
+      pipeId: "pipe-1",
+      ruleConfig: { rule: "cron", capUpdateValue: 200, interval: 1, unit: "months", starting: Date.UTC(2099, 1, 1, 5) }
+    }));
   });
 
   it("does not replace an unfamiliar saved icon during a name-only edit", async () => {

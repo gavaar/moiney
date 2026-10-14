@@ -19,8 +19,12 @@ const settlementBalance = v.object({
   capacity: v.number(), fed: v.number(), spent: v.number(), pendingFedAdjustment: v.number(),
 });
 const settlementCoverage = v.object({
-  amountCents: v.number(), pipeId: v.id("pipes"), name: v.string(), icon: v.string(),
-  before: settlementBalance, after: settlementBalance,
+  amountCents: v.number(),
+  pipeId: v.id("pipes"),
+  name: v.string(),
+  icon: v.string(),
+  before: settlementBalance,
+  after: settlementBalance,
 });
 function eventValidator<Identity extends PropertyValidators, Financial extends PropertyValidators>(identityFields: Identity, financialFields: Financial) {
   const financial = { ...identityFields, title: v.string(), value: v.number(), ...financialFields };
@@ -33,14 +37,25 @@ function eventValidator<Identity extends PropertyValidators, Financial extends P
     v.object({ ...financial, type: v.literal("transfer"), targetPipeId: v.id("pipes") }),
     v.object({ ...lifecycle, type: v.literal("pipe_creation") }),
     v.object({ ...lifecycle, type: v.literal("pipe_deletion") }),
-    v.object({ ...identityFields, type: v.literal("settlement"), name: v.string(), icon: v.string(),
+    v.object({
+      ...identityFields,
+      type: v.literal("settlement"),
+      name: v.string(),
+      icon: v.string(),
       cause: v.union(v.literal("manual"), v.literal("spend_overflow"), v.literal("cron")),
-      before: settlementBalance, after: settlementBalance,
+      before: settlementBalance,
+      after: settlementBalance,
       coverage: v.optional(settlementCoverage),
     }),
-    v.object({ ...identityFields, type: v.literal("settlement_coverage"), name: v.string(), icon: v.string(),
+    v.object({
+      ...identityFields,
+      type: v.literal("settlement_coverage"),
+      name: v.string(),
+      icon: v.string(),
       cause: v.union(v.literal("manual"), v.literal("spend_overflow"), v.literal("cron")),
-      before: settlementBalance, after: settlementBalance, coverage: settlementCoverage,
+      before: settlementBalance,
+      after: settlementBalance,
+      coverage: settlementCoverage,
     }),
   );
 }

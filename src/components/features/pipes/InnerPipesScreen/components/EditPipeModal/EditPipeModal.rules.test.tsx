@@ -193,9 +193,11 @@ describe("EditPipeModal rule step", () => {
     await clickAndFlush(screen.getByText("Submit"));
 
     expect(h.updatePipeRule).toHaveBeenCalledWith(
-      expect.objectContaining({ ruleConfig: expect.objectContaining({
-        capUpdateValue: 10000, interval: 1, unit: "months",
-      }) }),
+      expect.objectContaining({
+        ruleConfig: expect.objectContaining({
+          capUpdateValue: 10000, interval: 1, unit: "months",
+        })
+      }),
     );
   });
 
@@ -369,8 +371,13 @@ describe("EditPipeModal rule step", () => {
     expect(h.updatePipeRule).toHaveBeenCalledWith(
       expect.objectContaining({
         pipeId: pId("pipe-1"),
-        ruleConfig: { rule: "cron", interval: 2, unit: "months", capUpdateValue: 5000,
-          starting: expect.any(Number) },
+        ruleConfig: {
+          rule: "cron",
+          interval: 2,
+          unit: "months",
+          capUpdateValue: 5000,
+          starting: expect.any(Number)
+        },
       }),
     );
     expect(onClose).toHaveBeenCalled();
@@ -380,7 +387,7 @@ describe("EditPipeModal rule step", () => {
     renderModal(
       basePipe({
         rule: "cron",
-      capUpdateValue: 5000,
+        capUpdateValue: 5000,
         cronInterval: { interval: 1, unit: "months" },
         cronNextDate: Date.UTC(2026, 0, 15, 12),
       }),

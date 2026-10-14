@@ -95,7 +95,8 @@ export function StatisticsRow({
       : null;
 
   const stats: StatItem[] = [
-      ...(coverageProvided ? [{
+    ...(coverageProvided ? [
+      {
         displayValue: formatAmount(coverageProvided.amountCents),
         title: "Possible coverage provided",
         tone: "warning" as const,
@@ -103,8 +104,10 @@ export function StatisticsRow({
         guidance: "This funding is not reserved. Actual coverage depends on changing balances and settlement order, including scheduled sharing.",
         icon: "shield" as IconName,
         ref: coverageProvidedRef,
-      }] : []),
-      ...(coverage ? [{
+      }
+    ] : []),
+    ...(coverage ? [
+      {
         displayValue: formatAmount(coverage.amountCents),
         title: "Possible coverage",
         tone: "warning" as const,
@@ -112,85 +115,86 @@ export function StatisticsRow({
         guidance: "This funding is not reserved. Changing balances and sharing with other scheduled settlements can reduce actual coverage.",
         icon: "shield" as IconName,
         ref: coverageRef,
-      }] : []),
-      ...(sourceType !== "boiler"
-        ? [
-            {
-              displayValue: formatAmount(expected - spent),
-              title: "Remaining expected",
-              description: `The monthly expected amount is ${formatAmount(expected)}. After ${formatAmount(spent)} in currently tracked spending, ${formatAmount(expected - spent)} remains. Spending before the last settlement is not included; this is not your available balance or carried-forward capacity.`,
-              icon: "circle-half-full" as IconName,
-              ref: remainingExpectedRef,
-            },
-          ]
-        : []),
-      {
-        displayValue: formatAmount(Math.round(spent / currentDay)),
-        title: "Spent this month per day",
-        description: `An average of ${formatAmount(Math.round(spent / currentDay))} was spent per day over ${currentDay} days in this pipe this month.`,
-        icon: "calculate",
-        ref: stmpdRef,
-      },
-      {
-        displayValue: formatAmount(Math.round(accumulatedSpend)),
-        title: "Accumulated spend this month",
-        description: `You can spend ${formatAmount(Math.round(accumulatedSpend))}. This month expects ${formatAmount(expected)} to be spent, which adds up to ${formatAmount(Math.round(dailyExpected))} spendable per day. Given you have already spent ${formatAmount(spent)}, you can spend up to today ${formatAmount(Math.round(accumulatedSpend))}.`,
-        guidance: accumulatedSpend < 0
-          ? daysUntilPositive !== null &&
+      }
+    ] : []),
+    ...(sourceType !== "boiler"
+      ? [
+        {
+          displayValue: formatAmount(expected - spent),
+          title: "Remaining expected",
+          description: `The monthly expected amount is ${formatAmount(expected)}. After ${formatAmount(spent)} in currently tracked spending, ${formatAmount(expected - spent)} remains. Spending before the last settlement is not included; this is not your available balance or carried-forward capacity.`,
+          icon: "circle-half-full" as IconName,
+          ref: remainingExpectedRef,
+        },
+      ]
+      : []),
+    {
+      displayValue: formatAmount(Math.round(spent / currentDay)),
+      title: "Spent this month per day",
+      description: `An average of ${formatAmount(Math.round(spent / currentDay))} was spent per day over ${currentDay} days in this pipe this month.`,
+      icon: "calculate",
+      ref: stmpdRef,
+    },
+    {
+      displayValue: formatAmount(Math.round(accumulatedSpend)),
+      title: "Accumulated spend this month",
+      description: `You can spend ${formatAmount(Math.round(accumulatedSpend))}. This month expects ${formatAmount(expected)} to be spent, which adds up to ${formatAmount(Math.round(dailyExpected))} spendable per day. Given you have already spent ${formatAmount(spent)}, you can spend up to today ${formatAmount(Math.round(accumulatedSpend))}.`,
+      guidance: accumulatedSpend < 0
+        ? daysUntilPositive !== null &&
             daysUntilPositive <= daysInMonth - currentDay
-            ? `This value will be positive again in ${daysUntilPositive} ${daysUntilPositive === 1 ? "day" : "days"}.`
-            : "You should not spend anymore from this pipe this month."
-            : undefined,
-        icon: "playlist-add",
-        ref: astmRef,
-      },
-      ...(sourceType === "boiler"
-        ? [
-            {
-              displayValue: growthLabel,
-              title: "Growth",
-              description: `This pipe has received ${formatAmount(contributedFed)} value, but now holds ${formatAmount(fed)}, meaning it has grown ${growthLabel}.`,
-              icon: "trending-up" as IconName,
-              ref: growthRef,
-              testID: "boiler-growth-chip",
-              tone:
+          ? `This value will be positive again in ${daysUntilPositive} ${daysUntilPositive === 1 ? "day" : "days"}.`
+          : "You should not spend anymore from this pipe this month."
+        : undefined,
+      icon: "playlist-add",
+      ref: astmRef,
+    },
+    ...(sourceType === "boiler"
+      ? [
+        {
+          displayValue: growthLabel,
+          title: "Growth",
+          description: `This pipe has received ${formatAmount(contributedFed)} value, but now holds ${formatAmount(fed)}, meaning it has grown ${growthLabel}.`,
+          icon: "trending-up" as IconName,
+          ref: growthRef,
+          testID: "boiler-growth-chip",
+          tone:
                 growth !== null && growth < 0
                   ? ("growth-negative" as const)
                   : ("growth-non-negative" as const),
-            },
-          ]
-        : []),
-      ...(daysLeft != null
-        ? [
-            {
-              displayValue: String(daysLeft),
-              title: "Days left",
-              description: "Days left until this pipe resets",
-              icon: "timer-outline" as IconName,
-              ref: cronRef,
-            },
-          ]
-        : []),
-      ...(pendingFedAdjustment !== 0
-        ? [
-            {
-              displayValue: formatSignedAmount(pendingFedAdjustment),
-              title:
+        },
+      ]
+      : []),
+    ...(daysLeft != null
+      ? [
+        {
+          displayValue: String(daysLeft),
+          title: "Days left",
+          description: "Days left until this pipe resets",
+          icon: "timer-outline" as IconName,
+          ref: cronRef,
+        },
+      ]
+      : []),
+    ...(pendingFedAdjustment !== 0
+      ? [
+        {
+          displayValue: formatSignedAmount(pendingFedAdjustment),
+          title:
                 pendingFedAdjustment > 0
                   ? "Paid elsewhere"
                   : "Refunded elsewhere",
-              description:
+          description:
                 pendingFedAdjustment > 0
                   ? `This spending counts toward this pipe, but another pipe paid for it. The next rule run will add ${formatAmount(Math.abs(pendingFedAdjustment))} to this pipe's fed balance.`
                   : `This refund reduces this pipe's spending, but another pipe received it. The next rule run will subtract ${formatAmount(Math.abs(pendingFedAdjustment))} from this pipe's fed balance.`,
-              icon: "swap-horizontal-outline" as IconName,
-              ref: externalRef,
-              testID: "external-adjustment-chip",
-              tone: "external" as const,
-            },
-          ]
-        : []),
-    ];
+          icon: "swap-horizontal-outline" as IconName,
+          ref: externalRef,
+          testID: "external-adjustment-chip",
+          tone: "external" as const,
+        },
+      ]
+      : []),
+  ];
 
   return (
     <View className="flex-row flex-wrap items-center justify-center gap-1">

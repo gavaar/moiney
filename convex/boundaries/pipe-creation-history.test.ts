@@ -32,8 +32,13 @@ describe("pipe creation history", () => {
       const pipeId = await ctx.db.insert("pipes", { ...fields, name: "Madrid" });
       const payer = await ctx.db.insert("pipes", { ...fields, name: "Main" });
       const { id: eventId } = await ensureLivePipeCreationHistory(ctx, (await ctx.db.get("pipes", pipeId))!);
-      await insertFinancialOperation(ctx, { userId, title: "hotel", value: -6000, occurredAt: 2000,
-        structure: shared ? { type: "payByTransfer", from: pipeId, paidFrom: payer } : { type: "expense", from: pipeId } });
+      await insertFinancialOperation(ctx, {
+        userId,
+        title: "hotel",
+        value: -6000,
+        occurredAt: 2000,
+        structure: shared ? { type: "payByTransfer", from: pipeId, paidFrom: payer } : { type: "expense", from: pipeId }
+      });
       return { userId, pipeId, eventId };
     });
     const job = await t.run((ctx) => startPipeDeletionOperation(ctx, userId, {
@@ -73,7 +78,10 @@ describe("pipe creation history", () => {
     const events = await t.run((ctx) => ctx.db.query("events").collect());
     expect(events).toHaveLength(4);
     expect(events.find((event) => event.pipeId === child && event.type === "pipe_deletion")).toMatchObject({
-      ancestorIds: [root], name: "Madrid trip", icon: "airplane", parentName: "Travel",
+      ancestorIds: [root],
+      name: "Madrid trip",
+      icon: "airplane",
+      parentName: "Travel",
       occurredAt: expect.any(Number),
     });
     expect(await t.run((ctx) => ctx.db.get("pipes", root))).toBeNull();
@@ -98,8 +106,11 @@ describe("pipe creation history", () => {
     }));
     expect(state.events).toHaveLength(3);
     expect(state.events.find((event) => event.pipeId === child)).toMatchObject({
-      ancestorIds: [root, parent], occurredAt: state.pipe!._creationTime,
-      name: "Madrid", icon: "map", pipeType: "pipe",
+      ancestorIds: [root, parent],
+      occurredAt: state.pipe!._creationTime,
+      name: "Madrid",
+      icon: "map",
+      pipeType: "pipe",
     });
     expect(state.events.find((event) => event.pipeId === root && event.type === "pipe_creation")).toMatchObject({ ancestorIds: [] });
     expect(state.events.every(event => event.type === "pipe_creation")).toBe(true);

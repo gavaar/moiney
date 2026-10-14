@@ -15,8 +15,18 @@ async function setup() {
     const userId = await ctx.db.insert("users", { username: "alice", email: "alice@example.com", password: "hash" });
     const root = await ctx.db.insert("pipes", { userId, name: "Main", icon: "wallet", priority: 0, capacity: 0, fed: 0, spent: 0 });
     const donor = await ctx.db.insert("pipes", { userId, parentId: root, name: "Reserve", icon: "shield", priority: 1, capacity: 6000, fed: 6000, spent: 4000 });
-    const source = await ctx.db.insert("pipes", { userId, parentId: root, name: "Groceries", icon: "cart-outline", priority: 0,
-      capacity: 4000, fed: 4000, spent: 7000, pendingFedAdjustment: 500, contingencyPipeId: donor });
+    const source = await ctx.db.insert("pipes", {
+      userId,
+      parentId: root,
+      name: "Groceries",
+      icon: "cart-outline",
+      priority: 0,
+      capacity: 4000,
+      fed: 4000,
+      spent: 7000,
+      pendingFedAdjustment: 500,
+      contingencyPipeId: donor
+    });
     return { userId, root, source, donor };
   });
   return { t, auth: t.withIdentity({ subject: ids.userId }), ...ids };
@@ -30,18 +40,33 @@ it("applies coverage once through spent, then settles, and records reciprocal so
   const [event] = await auth.query(api.events.latest, { pipeId: source });
   if (event.type !== "settlement") throw new Error("Expected settlement");
   const [mirror] = await auth.query(api.events.latest, { pipeId: donor });
-  expect(event).toMatchObject({ type: "settlement", before: { spent: 7000, fed: 4000 }, after: { spent: 0, fed: -500 },
-    coverage: { amountCents: 2000, pipeId: donor, name: "Reserve", icon: "shield", before: { spent: 4000, fed: 6000 }, after: { spent: 6000, fed: 6000 } } });
-  expect(mirror).toMatchObject({ type: "settlement_coverage", operationId: event.id, pipeId: donor, before: { spent: 4000 }, after: { spent: 6000 },
-    coverage: { amountCents: 2000, pipeId: source, name: "Groceries", before: event.before, after: event.after } });
+  expect(event).toMatchObject({
+    type: "settlement",
+    before: { spent: 7000, fed: 4000 },
+    after: { spent: 0, fed: -500 },
+    coverage: { amountCents: 2000, pipeId: donor, name: "Reserve", icon: "shield", before: { spent: 4000, fed: 6000 }, after: { spent: 6000, fed: 6000 } }
+  });
+  expect(mirror).toMatchObject({
+    type: "settlement_coverage",
+    operationId: event.id,
+    pipeId: donor,
+    before: { spent: 4000 },
+    after: { spent: 6000 },
+    coverage: { amountCents: 2000, pipeId: source, name: "Groceries", before: event.before, after: event.after }
+  });
   expect((await auth.query(api.events.latest, {})).filter(entry => entry.operationId === event.id)).toHaveLength(2);
 });
 
 it.each(["manual", "cron"] as const)("records aggregate coverage beyond the transaction limit during %s settlement", async cause => {
   const { t, auth, userId, source, donor } = await setup();
   await t.run(async ctx => {
-    await ctx.db.patch("pipes", source, { capacity: -MAX_AMOUNT, spent: MAX_AMOUNT, fed: 0, pendingFedAdjustment: 0,
-      ...(cause === "cron" ? { rule: "cron", cronNextDate: Date.now() - 86400000, cronInterval: { interval: 1, unit: "days" } } : {}) });
+    await ctx.db.patch("pipes", source, {
+      capacity: -MAX_AMOUNT,
+      spent: MAX_AMOUNT,
+      fed: 0,
+      pendingFedAdjustment: 0,
+      ...(cause === "cron" ? { rule: "cron", cronNextDate: Date.now() - 86400000, cronInterval: { interval: 1, unit: "days" } } : {})
+    });
     await ctx.db.patch("pipes", donor, { capacity: MAX_AMOUNT, fed: MAX_AMOUNT, spent: -MAX_AMOUNT });
   });
   const total = () => t.run(async ctx => (await ctx.db.query("pipes").withIndex("by_userId", q => q.eq("userId", userId)).collect())
@@ -51,8 +76,12 @@ it.each(["manual", "cron"] as const)("records aggregate coverage beyond the tran
   else await t.mutation(internal.pipes.runDueCronRules, { now: Date.now() });
   const [event] = await auth.query(api.events.latest, { pipeId: source });
   const [mirror] = await auth.query(api.events.latest, { pipeId: donor });
-  expect(event).toMatchObject({ type: "settlement", cause, after: { fed: MAX_AMOUNT, spent: 0 },
-    coverage: { amountCents: 2 * MAX_AMOUNT, before: { spent: -MAX_AMOUNT }, after: { spent: MAX_AMOUNT } } });
+  expect(event).toMatchObject({
+    type: "settlement",
+    cause,
+    after: { fed: MAX_AMOUNT, spent: 0 },
+    coverage: { amountCents: 2 * MAX_AMOUNT, before: { spent: -MAX_AMOUNT }, after: { spent: MAX_AMOUNT } }
+  });
   expect(mirror).toMatchObject({ type: "settlement_coverage", operationId: event.operationId, coverage: { amountCents: 2 * MAX_AMOUNT } });
   expect(await total()).toBe(before);
   await t.finishAllScheduledFunctions(vi.runAllTimers);
@@ -98,8 +127,13 @@ it("covers overflow before computing the capacity update, without changing the b
   const date = Date.now() - 86400000;
   await auth.mutation(api.financialOperations.create, { from: source, title: "Groceries", value: -7000, date });
   const events = await auth.query(api.events.latest, { pipeId: source });
-  expect(events.find(event => event.type === "settlement")).toMatchObject({ cause: "spend_overflow", occurredAt: Date.now(),
-    before: { spent: 7000 }, after: { capacity: 3000, fed: -500 }, coverage: { amountCents: 2000 } });
+  expect(events.find(event => event.type === "settlement")).toMatchObject({
+    cause: "spend_overflow",
+    occurredAt: Date.now(),
+    before: { spent: 7000 },
+    after: { capacity: 3000, fed: -500 },
+    coverage: { amountCents: 2000 }
+  });
   expect(events.find(event => event.type === "transaction")).toMatchObject({ value: -7000, occurredAt: date });
   expect(await t.run(ctx => ctx.db.get("pipes", donor))).toMatchObject({ spent: 6000 });
 });

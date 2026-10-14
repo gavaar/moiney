@@ -78,9 +78,7 @@ describe("Convex boundaries: event retrieval", () => {
       counterpart: { userId, pipeId: target, targetPipeId: root, type: "transaction", title: "hotel", value: 100, occurredAt: 1000 },
     }));
     await t.run(ctx => ctx.db.delete("pipes", target));
-    expect(await auth.query(latest, { pipeId: target })).toEqual([
-      expect.objectContaining({ id: operation.counterpart!.id, operationId: operation.canonicalEvent.id, type: "transaction", pipeId: target, targetPipeId: root, value: 100 }),
-    ]);
+    expect(await auth.query(latest, { pipeId: target })).toEqual([expect.objectContaining({ id: operation.counterpart!.id, operationId: operation.canonicalEvent.id, type: "transaction", pipeId: target, targetPipeId: root, value: 100 }),]);
     const page = await auth.query(list, { pipeId: target, limit: 1 });
     expect(page.events).toHaveLength(1);
     expect(page.events[0].id).toBe(operation.counterpart!.id);

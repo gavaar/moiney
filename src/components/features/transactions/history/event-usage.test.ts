@@ -18,7 +18,10 @@ function history(): HistoryEntry[] {
     { ...expense("payment", "b", 10), operationId: eventId("external"), targetPipeId: id("a"), value: 100 },
     { ...expense("transfer", "a", 9), type: "transfer", targetPipeId: id("b") },
     { ...expense("transfer-mirror", "b", 9), operationId: eventId("transfer"), type: "transfer", targetPipeId: id("a"), value: 100 },
-    expense("b-only", "b", 8), expense("c-1", "c", 7), expense("c-2", "c", 6), expense("c-3", "c", 5),
+    expense("b-only", "b", 8),
+    expense("c-1", "c", 7),
+    expense("c-2", "c", 6),
+    expense("c-3", "c", 5),
   ];
 }
 
@@ -27,7 +30,8 @@ describe("event usage ranking", () => {
     const entries: HistoryEntry[] = [
       { ...expense("feed", "b", 12), type: "feed", value: 1000 },
       { id: eventId("created"), operationId: eventId("created"), pipeId: id("b"), createdAt: 11, occurredAt: 11, type: "pipe_creation", name: "b", icon: "wallet", pipeType: "feed", ancestorIds: [] },
-      ...history(), history()[0],
+      ...history(),
+      history()[0],
     ];
     expect(getFrequentlyUsedEventSourcePipeIds(entries)).toEqual([id("c"), id("a"), id("b")]);
   });
@@ -46,7 +50,8 @@ describe("event usage ranking", () => {
     const withinTree: HistoryEntry[] = [
       { ...expense("same-tree", "child", 20), type: "transfer", targetPipeId: id("a") },
       { ...expense("same-tree-mirror", "a", 20), type: "transfer", operationId: eventId("same-tree"), targetPipeId: id("child"), value: 100 },
-      expense("b-one", "b", 21), expense("b-two", "b", 22),
+      expense("b-one", "b", 21),
+      expense("b-two", "b", 22),
     ];
     expect(orderFeedsByEventTreeUsage(feeds, [...feeds, pipe("child", id("a"))], withinTree).map(feed => feed.id)).toEqual([id("b"), id("a"), id("c")]);
   });

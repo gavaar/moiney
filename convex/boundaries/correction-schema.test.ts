@@ -14,8 +14,14 @@ it("rejects retired transaction-ID linkage on an operation-owned correction", as
     const pipeId = await ctx.db.insert("pipes", { userId, name: "Wallet", icon: "wallet", priority: 0, capacity: 1000, fed: 1000, spent: 0 });
     const operationId = await insertFinancialOperation(ctx, { userId, title: "food", value: -100, occurredAt: 1, structure: { type: "expense", from: pipeId } });
     const legacyLink = { transactionId: await ctx.db.insert("transactions", {}) };
-    await ctx.db.insert("transactionCorrections", { userId, operationId, ...legacyLink, editedAt: 2,
-      previous: { title: "food", value: -100, date: 1 }, current: { title: "lunch", value: -100, date: 1 } });
+    await ctx.db.insert("transactionCorrections", {
+      userId,
+      operationId,
+      ...legacyLink,
+      editedAt: 2,
+      previous: { title: "food", value: -100, date: 1 },
+      current: { title: "lunch", value: -100, date: 1 }
+    });
   })).rejects.toThrow("Unexpected field `transactionId`");
 });
 
@@ -24,7 +30,11 @@ it("requires an operation ID on every correction", async () => {
   const userId = await t.run(ctx => ctx.db.insert("users", { username: "alice", email: "a", password: "hash" }));
   await expect(t.run(async ctx => {
     // @ts-expect-error Operation-owned corrections require an operation ID.
-    await ctx.db.insert("transactionCorrections", { userId, editedAt: 2,
-      previous: { title: "food", value: -100, date: 1 }, current: { title: "lunch", value: -100, date: 1 } });
+    await ctx.db.insert("transactionCorrections", {
+      userId,
+      editedAt: 2,
+      previous: { title: "food", value: -100, date: 1 },
+      current: { title: "lunch", value: -100, date: 1 }
+    });
   })).rejects.toThrow("Missing required field `operationId`");
 });

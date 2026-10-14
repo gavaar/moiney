@@ -4,14 +4,20 @@ import { biometricVault } from "./vault.native";
 const mocks = vi.hoisted(() => ({
   os: "ios",
   values: new Map<string, string>(),
-  set: vi.fn(), get: vi.fn(), remove: vi.fn(),
-  available: vi.fn(), authenticate: vi.fn(), level: vi.fn(),
+  set: vi.fn(),
+  get: vi.fn(),
+  remove: vi.fn(),
+  available: vi.fn(),
+  authenticate: vi.fn(),
+  level: vi.fn(),
 }));
 vi.mock("react-native", () => ({ Platform: { get OS() { return mocks.os; } } }));
 vi.mock("expo-secure-store", () => ({
   WHEN_UNLOCKED_THIS_DEVICE_ONLY: 6,
   canUseBiometricAuthentication: mocks.available,
-  setItemAsync: mocks.set, getItemAsync: mocks.get, deleteItemAsync: mocks.remove,
+  setItemAsync: mocks.set,
+  getItemAsync: mocks.get,
+  deleteItemAsync: mocks.remove,
 }));
 vi.mock("expo-local-authentication", () => ({
   authenticateAsync: mocks.authenticate,

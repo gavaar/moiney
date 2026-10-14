@@ -4,8 +4,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SettingsScreen } from "./SettingsScreen";
 
 const biometrics = vi.hoisted(() => ({
-  available: true, enabled: false, loading: false, busy: false, error: null,
-  enable: vi.fn(), disable: vi.fn(),
+  available: true,
+  enabled: false,
+  loading: false,
+  busy: false,
+  error: null,
+  enable: vi.fn(),
+  disable: vi.fn(),
 }));
 vi.mock("@/lib/auth", () => ({ useAuth: () => ({ biometrics }) }));
 

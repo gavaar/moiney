@@ -12,12 +12,26 @@ async function setup() {
     const userId = await ctx.db.insert("users", { username: "alice", email: "alice@example.com", password: "hash" });
     const foreignUserId = await ctx.db.insert("users", { username: "bob", email: "bob@example.com", password: "hash" });
     const sourceId = await ctx.db.insert("pipes", {
-      userId, name: "Source", icon: "water-boiler", priority: 0,
-      capacity: 10000, fed: 1000, spent: 200, sourceType: "boiler", contributedFed: 1000,
+      userId,
+      name: "Source",
+      icon: "water-boiler",
+      priority: 0,
+      capacity: 10000,
+      fed: 1000,
+      spent: 200,
+      sourceType: "boiler",
+      contributedFed: 1000,
     });
     const targetId = await ctx.db.insert("pipes", {
-      userId, name: "Target", icon: "water-boiler", priority: 0,
-      capacity: 10000, fed: 500, spent: 100, sourceType: "boiler", contributedFed: 500,
+      userId,
+      name: "Target",
+      icon: "water-boiler",
+      priority: 0,
+      capacity: 10000,
+      fed: 500,
+      spent: 100,
+      sourceType: "boiler",
+      contributedFed: 500,
     });
     return { userId, foreignUserId, sourceId, targetId };
   });
@@ -36,7 +50,9 @@ describe("Convex boundaries: event operation deletion", () => {
   ] as const)("deletes the complete $structure operation at $value cents and reverses accounting once", async ({ structure, value }) => {
     const { t, auth, sourceId, targetId } = await setup();
     const transaction = await createAndReadOperation(t, auth, {
-      title: "lunch", value, date: 1000,
+      title: "lunch",
+      value,
+      date: 1000,
       ...(structure === "feed" ? { to: sourceId } : { from: sourceId }),
       ...(structure === "transfer" ? { to: targetId } : structure === "external" ? { paidFrom: targetId } : {}),
     });
@@ -68,7 +84,10 @@ describe("Convex boundaries: event operation deletion", () => {
   it.each(["transfer", "external"] as const)("removes all %s events without partially reversing a surviving pipe when a role is missing", async structure => {
     const { t, auth, sourceId, targetId } = await setup();
     const transaction = await createAndReadOperation(t, auth, {
-      title: "lunch", value: -100, date: 1000, from: sourceId,
+      title: "lunch",
+      value: -100,
+      date: 1000,
+      from: sourceId,
       ...(structure === "transfer" ? { to: targetId } : { paidFrom: targetId }),
     });
     const survivingPipe = await t.run(ctx => ctx.db.get("pipes", targetId));
@@ -123,13 +142,15 @@ describe("Convex boundaries: event operation deletion", () => {
     });
     const before = await t.run(async ctx => ({
       transaction: await ctx.db.get("events", transaction.id),
-      source: await ctx.db.get("pipes", sourceId), target: await ctx.db.get("pipes", targetId),
+      source: await ctx.db.get("pipes", sourceId),
+      target: await ctx.db.get("pipes", targetId),
       events: await ctx.db.query("events").collect(),
     }));
     await expect(auth.mutation(api.financialOperations.remove, { operationId: transaction.id })).rejects.toThrow();
     expect(await t.run(async ctx => ({
       transaction: await ctx.db.get("events", transaction.id),
-      source: await ctx.db.get("pipes", sourceId), target: await ctx.db.get("pipes", targetId),
+      source: await ctx.db.get("pipes", sourceId),
+      target: await ctx.db.get("pipes", targetId),
       events: await ctx.db.query("events").collect(),
     }))).toEqual(before);
   });

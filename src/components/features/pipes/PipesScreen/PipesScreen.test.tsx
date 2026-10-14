@@ -45,10 +45,12 @@ vi.mock("expo-router/react-navigation", () => ({
   useIsFocused: () => true,
 }));
 vi.mock("expo-router", () => ({
-  useNavigation: () => ({ getParent: () => ({
-    addListener: mocks.addTabListener,
-    getState: () => ({ routes: [{ name: "pipes", key: "pipes-key" }, { name: "history", key: "history-key" }] }),
-  }) }),
+  useNavigation: () => ({
+    getParent: () => ({
+      addListener: mocks.addTabListener,
+      getState: () => ({ routes: [{ name: "pipes", key: "pipes-key" }, { name: "history", key: "history-key" }] }),
+    })
+  }),
 }));
 
 vi.mock("@features/app/AppScreenHeader", () => ({
@@ -78,10 +80,14 @@ vi.mock("@features/transactions/history/mixed-history-feed", () => ({
   },
 }));
 vi.mock("@features/statistics/CurrentMonthReportContext", () => ({
-  useCurrentMonthReportContext: () => ({ report: {
-      periodStart: Date.UTC(2026, 5, 1), grossSpendingCents: 600, refundCents: 0,
+  useCurrentMonthReportContext: () => ({
+    report: {
+      periodStart: Date.UTC(2026, 5, 1),
+      grossSpendingCents: 600,
+      refundCents: 0,
       offenders: [{ pipeId: "leaf", name: "Groceries", netSpendingCents: 600, capacityCents: 400, overageCents: 200 }],
-    } }),
+    }
+  }),
 }));
 vi.mock("@ui/Icon", () => ({
   Icon: ({ name, testID }: any) => (

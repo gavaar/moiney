@@ -107,7 +107,9 @@ export const getTransactionItemPresentation = (
   const primaryPipe = kind === "feed" ? toPipe : fromPipe;
   const canRepeat = !viewOnly && (!transaction.from || fromValid) && (!transaction.to || toValid) && (!transaction.paidFrom || paidFromValid);
   return {
-    viewOnly, uiIcons, disabled: !canRepeat,
+    viewOnly,
+    uiIcons,
+    disabled: !canRepeat,
     canEdit: ![fromPipe, toPipe, paidFromPipe].some(pipe => pipe?.deletionJobId),
     bgClass: getBackgroundClass(kind, transaction),
     primaryPipeId: kind === "feed" ? (toValid ? primaryPipe?.id : undefined) : (fromValid ? primaryPipe?.id : undefined),
@@ -122,15 +124,18 @@ export const getTransactionItemModel = (
   const kind = resolveTransactionKind(transaction);
   const primaryPipe = (kind === "feed" ? transaction.to : transaction.from);
   const pipe = primaryPipe ? catalog.pipesById?.[primaryPipe] : undefined;
-  return { ...presentation, formInitState: {
-    pipeIcon: pipe?.icon ?? (kind === "feed" ? transaction.toIcon : transaction.fromIcon) ?? "pipe-disconnected",
-    pipeName: pipe?.name ?? "Deleted pipe",
-    spent: pipe?.spent,
-    capacity: pipe?.capacity,
-    title: transaction.title,
-    value: formatMoneyInput(transaction.value),
-    structure: transactionStructureFromRoles(transaction),
-    operationId: transaction.id,
-    date: transaction.date,
-  } };
+  return {
+    ...presentation,
+    formInitState: {
+      pipeIcon: pipe?.icon ?? (kind === "feed" ? transaction.toIcon : transaction.fromIcon) ?? "pipe-disconnected",
+      pipeName: pipe?.name ?? "Deleted pipe",
+      spent: pipe?.spent,
+      capacity: pipe?.capacity,
+      title: transaction.title,
+      value: formatMoneyInput(transaction.value),
+      structure: transactionStructureFromRoles(transaction),
+      operationId: transaction.id,
+      date: transaction.date,
+    }
+  };
 };

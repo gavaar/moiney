@@ -23,7 +23,11 @@ describe("creation-time rules", () => {
   it("creates the pipe, rule, and history event together and cancels the parent's rule when it gains children", async () => {
     const { t, client, userId, parentId } = await setup();
     const child = await client.mutation(api.pipes.addPipe, {
-      parentId, name: "Madrid", icon: "airplane", priority: 0, capacity: 10000,
+      parentId,
+      name: "Madrid",
+      icon: "airplane",
+      priority: 0,
+      capacity: 10000,
       ruleConfig: { rule: "self_destruct", starting: deadline },
     });
     expect(await t.run((ctx) => ctx.db.get("pipes", child))).toMatchObject({
@@ -41,7 +45,11 @@ describe("creation-time rules", () => {
   it("rolls back creation and owner changes when the deadline is not in the future", async () => {
     const { t, client, parentId } = await setup();
     await expect(client.mutation(api.pipes.addPipe, {
-      parentId, name: "Madrid", icon: "airplane", priority: 0, capacity: 10000,
+      parentId,
+      name: "Madrid",
+      icon: "airplane",
+      priority: 0,
+      capacity: 10000,
       ruleConfig: { rule: "self_destruct", starting: now },
     })).rejects.toThrow("INVALID_SELF_DESTRUCT_DATE");
     expect(await t.run((ctx) => ctx.db.query("pipes").collect())).toHaveLength(1);
@@ -52,7 +60,11 @@ describe("creation-time rules", () => {
   it("applies existing settlement and cron configurations at creation", async () => {
     const { t, client, parentId } = await setup();
     const child = await client.mutation(api.pipes.addPipe, {
-      parentId, name: "Budget", icon: "wallet", priority: 0, capacity: 1000,
+      parentId,
+      name: "Budget",
+      icon: "wallet",
+      priority: 0,
+      capacity: 1000,
       ruleConfig: { rule: "cron", starting: deadline, interval: 1, unit: "months", capUpdateValue: 500 },
     });
     expect(await t.run((ctx) => ctx.db.get("pipes", child))).toMatchObject({
@@ -103,7 +115,11 @@ describe("scheduled self-destruct", () => {
     const parentId = await client.mutation(api.pipes.addFeed, { name: "Trip owner", icon: "wallet", initialFed: 0 });
     const payer = await client.mutation(api.pipes.addFeed, { name: "Main", icon: "wallet", initialFed: 10000 });
     const child = await client.mutation(api.pipes.addPipe, {
-      parentId, name: "Madrid", icon: "airplane", priority: 0, capacity: 10000,
+      parentId,
+      name: "Madrid",
+      icon: "airplane",
+      priority: 0,
+      capacity: 10000,
       ruleConfig: { rule: "self_destruct", starting: deadline },
     });
     await client.mutation(api.financialOperations.create, {
@@ -122,7 +138,11 @@ describe("scheduled self-destruct", () => {
   it("blocks a competing manual deletion in the same accounting tree while automatic deletion is frozen", async () => {
     const { t, client, parentId } = await setup();
     await client.mutation(api.pipes.addPipe, {
-      parentId, name: "Madrid", icon: "airplane", priority: 0, capacity: 10000,
+      parentId,
+      name: "Madrid",
+      icon: "airplane",
+      priority: 0,
+      capacity: 10000,
       ruleConfig: { rule: "self_destruct", starting: deadline },
     });
     const sibling = await client.mutation(api.pipes.addPipe, { parentId, name: "Paris", icon: "airplane", priority: 0, capacity: 10000 });
@@ -137,7 +157,11 @@ describe("scheduled self-destruct", () => {
     const { t, client, parentId } = await setup();
     const children = [];
     for (const name of ["Madrid", "Paris"]) children.push(await client.mutation(api.pipes.addPipe, {
-      parentId, name, icon: "airplane", priority: 0, capacity: 10000,
+      parentId,
+      name,
+      icon: "airplane",
+      priority: 0,
+      capacity: 10000,
       ruleConfig: { rule: "self_destruct", starting: deadline },
     }));
     await client.mutation(api.financialOperations.create, { from: children[0], title: "hotel", value: -2000, date: now });

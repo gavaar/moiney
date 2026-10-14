@@ -10,7 +10,8 @@ export type ContingencyTopologyNode<PipeId extends string> = {
 export function previewChildContingencyOptions<PipeId extends string>(
   pipes: readonly ContingencyTopologyNode<PipeId>[], parentId: PipeId, rule?: PipeRule,
 ): PipeId[] {
-  const topology: ContingencyTopologyNode<string>[] = pipes.map(pipe => ({ ...pipe,
+  const topology: ContingencyTopologyNode<string>[] = pipes.map(pipe => ({
+    ...pipe,
     ...(pipe.id === parentId ? { rule: undefined, contingencyPipeId: undefined } : {}),
     ...(pipe.contingencyPipeId === parentId ? { contingencyPipeId: undefined } : {}),
   }));

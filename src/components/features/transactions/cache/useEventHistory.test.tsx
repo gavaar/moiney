@@ -26,9 +26,15 @@ describe("unfiltered event History cache loader", () => {
 
   it("keeps settlement entries in the shared raw History snapshot even when ranking seeds it", async () => {
     const settlement: Extract<HistoryEntry, { type: "settlement" }> = {
-      id: "settled" as Id<"events">, operationId: "settled" as Id<"events">,
-      pipeId: "source" as Id<"pipes">, createdAt: 1, occurredAt: 1,
-      type: "settlement", name: "Coffee", icon: "cafe", cause: "manual",
+      id: "settled" as Id<"events">,
+      operationId: "settled" as Id<"events">,
+      pipeId: "source" as Id<"pipes">,
+      createdAt: 1,
+      occurredAt: 1,
+      type: "settlement",
+      name: "Coffee",
+      icon: "cafe",
+      cause: "manual",
       before: { fed: 4000, spent: 3000, capacity: 4000, pendingFedAdjustment: 0 },
       after: { fed: 1000, spent: 0, capacity: 4000, pendingFedAdjustment: 0 },
     };

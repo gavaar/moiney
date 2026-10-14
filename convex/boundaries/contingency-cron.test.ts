@@ -16,13 +16,31 @@ async function setup(demands = [1000, 1000, 1000], available = 800) {
   const ids = await t.run(async ctx => {
     const userId = await ctx.db.insert("users", { username: "alice", email: "alice@example.com", password: "hash" });
     const root = await ctx.db.insert("pipes", { userId, name: "Main", icon: "wallet", priority: 0, capacity: 0, fed: 0, spent: 0 });
-    const donor = await ctx.db.insert("pipes", { userId, parentId: root, name: "Reserve", icon: "shield", priority: 1, capacity: available,
-      fed: available + 200, spent: 200 });
+    const donor = await ctx.db.insert("pipes", {
+      userId,
+      parentId: root,
+      name: "Reserve",
+      icon: "shield",
+      priority: 1,
+      capacity: available,
+      fed: available + 200,
+      spent: 200
+    });
     const sources: Id<"pipes">[] = [];
     for (const demand of demands) sources.push(await ctx.db.insert("pipes", {
-      userId, parentId: root, name: `Source ${sources.length}`, icon: "pipe", priority: 0, capacity: 4000, fed: 4000,
-      spent: 4000 + demand, contingencyPipeId: donor, rule: "cron", capUpdateValue: 4000,
-      cronNextDate: occurrence, cronInterval: { interval: 1, unit: "months" },
+      userId,
+      parentId: root,
+      name: `Source ${sources.length}`,
+      icon: "pipe",
+      priority: 0,
+      capacity: 4000,
+      fed: 4000,
+      spent: 4000 + demand,
+      contingencyPipeId: donor,
+      rule: "cron",
+      capUpdateValue: 4000,
+      cronNextDate: occurrence,
+      cronInterval: { interval: 1, unit: "months" },
     }));
     return { userId, root, donor, sources };
   });
@@ -41,9 +59,7 @@ it("shares one occurrence/priority equally across all claims, even when the trig
   }
   expect(amounts).toEqual([267, 267, 266]);
   expect(await t.run(ctx => ctx.db.get("pipes", donor))).toMatchObject({ spent: 1000 });
-  expect(await auth.query(api.events.latest, { pipeId: donor })).toEqual(expect.arrayContaining([
-    expect.objectContaining({ type: "settlement_coverage", before: expect.objectContaining({ fed: 1000 }), after: expect.objectContaining({ fed: 1000 }) }),
-  ]));
+  expect(await auth.query(api.events.latest, { pipeId: donor })).toEqual(expect.arrayContaining([expect.objectContaining({ type: "settlement_coverage", before: expect.objectContaining({ fed: 1000 }), after: expect.objectContaining({ fed: 1000 }) }),]));
   const beforeRetry = await auth.query(api.events.latest, {});
   await t.mutation(internal.pipes.runDueCronRules, { now, pendingPipeIds: [...sources].reverse() });
   expect(await auth.query(api.events.latest, {})).toEqual(beforeRetry);
@@ -131,8 +147,19 @@ it("keeps equal sharing intact across a real 500-candidate query-page boundary",
   await t.run(async ctx => {
     const userId = await ctx.db.insert("users", { username: "bob", email: "bob@example.com", password: "hash" });
     const root = await ctx.db.insert("pipes", { userId, name: "Other root", icon: "wallet", priority: 0, capacity: 0, fed: 0, spent: 0 });
-    for (let index = 0; index < 499; index++) await ctx.db.insert("pipes", { userId, parentId: root, name: "Other due", icon: "pipe", priority: 0,
-      capacity: 0, fed: 0, spent: 0, rule: "cron", cronNextDate: occurrence - 86400000, cronInterval: { interval: 1, unit: "months" } });
+    for (let index = 0; index < 499; index++) await ctx.db.insert("pipes", {
+      userId,
+      parentId: root,
+      name: "Other due",
+      icon: "pipe",
+      priority: 0,
+      capacity: 0,
+      fed: 0,
+      spent: 0,
+      rule: "cron",
+      cronNextDate: occurrence - 86400000,
+      cronInterval: { interval: 1, unit: "months" }
+    });
   });
   await t.mutation(internal.pipes.runDueCronRules, { now });
   await t.finishAllScheduledFunctions(vi.runAllTimers);
@@ -148,12 +175,18 @@ it("keeps equal sharing intact across a real 500-candidate query-page boundary",
 
 it("uses liquidity released by a donor's earlier settlement, without pooling the different occurrences", async () => {
   const { t, auth, donor, sources } = await setup([1000, 1000], 600);
-  await t.run(ctx => ctx.db.patch("pipes", donor, { rule: "cron", cronNextDate: occurrence - 86400000,
-    cronInterval: { interval: 1, unit: "months" }, pendingFedAdjustment: 1000 }));
+  await t.run(ctx => ctx.db.patch("pipes", donor, {
+    rule: "cron",
+    cronNextDate: occurrence - 86400000,
+    cronInterval: { interval: 1, unit: "months" },
+    pendingFedAdjustment: 1000
+  }));
   await t.mutation(internal.pipes.runDueCronRules, { now });
   const donorEvents = await auth.query(api.events.latest, { pipeId: donor });
-  expect(donorEvents.find(event => event.type === "settlement")).toMatchObject({ before: { fed: 800, spent: 200, pendingFedAdjustment: 1000 },
-    after: { fed: 1600, spent: 0, pendingFedAdjustment: 0 } });
+  expect(donorEvents.find(event => event.type === "settlement")).toMatchObject({
+    before: { fed: 800, spent: 200, pendingFedAdjustment: 1000 },
+    after: { fed: 1600, spent: 0, pendingFedAdjustment: 0 }
+  });
   for (const pipeId of sources) expect((await auth.query(api.events.latest, { pipeId }))[0]).toMatchObject({
     coverage: { amountCents: 800, before: { fed: 1600 }, after: { fed: 1600 } },
   });
@@ -165,9 +198,20 @@ it("executes another root's coverage while a tree in the same account is frozen"
   const other = await t.run(async ctx => {
     const rootId = await ctx.db.insert("pipes", { userId, name: "Other", icon: "wallet", priority: 0, capacity: 0, fed: 0, spent: 0 });
     const donorId = await ctx.db.insert("pipes", { userId, parentId: rootId, name: "Other donor", icon: "shield", priority: 1, capacity: 1000, fed: 1000, spent: 0 });
-    return await ctx.db.insert("pipes", { userId, parentId: rootId, name: "Other source", icon: "pipe", priority: 0,
-      capacity: 4000, fed: 4000, spent: 5000, rule: "cron", cronNextDate: occurrence,
-      cronInterval: { interval: 1, unit: "months" }, contingencyPipeId: donorId });
+    return await ctx.db.insert("pipes", {
+      userId,
+      parentId: rootId,
+      name: "Other source",
+      icon: "pipe",
+      priority: 0,
+      capacity: 4000,
+      fed: 4000,
+      spent: 5000,
+      rule: "cron",
+      cronNextDate: occurrence,
+      cronInterval: { interval: 1, unit: "months" },
+      contingencyPipeId: donorId
+    });
   });
   await auth.mutation(api.pipes.startPipeDeletion, { pipeId: root, deleteTransactions: false });
   const before = await t.run(async ctx => [await ctx.db.get("pipes", sources[0]), await ctx.db.get("pipes", donor)]);
@@ -186,8 +230,20 @@ it("defers a fifth maximum-size account, then completes without duplicate covera
       const owner = await ctx.db.insert("users", { username: `owner-${account}`, email: `${account}@example.com`, password: "hash" });
       const parentId = await ctx.db.insert("pipes", { userId: owner, name: "Root", icon: "wallet", priority: 0, capacity: 0, fed: 0, spent: 0 });
       const donorId = await ctx.db.insert("pipes", { userId: owner, parentId, name: "Donor", icon: "shield", priority: 1, capacity: 1000, fed: 1000, spent: 0 });
-      const sourceId = await ctx.db.insert("pipes", { userId: owner, parentId, name: "Source", icon: "pipe", priority: 0, capacity: 4000, fed: 4000, spent: 5000,
-        contingencyPipeId: donorId, rule: "cron", cronNextDate: occurrence, cronInterval: { interval: 1, unit: "months" } });
+      const sourceId = await ctx.db.insert("pipes", {
+        userId: owner,
+        parentId,
+        name: "Source",
+        icon: "pipe",
+        priority: 0,
+        capacity: 4000,
+        fed: 4000,
+        spent: 5000,
+        contingencyPipeId: donorId,
+        rule: "cron",
+        cronNextDate: occurrence,
+        cronInterval: { interval: 1, unit: "months" }
+      });
       for (let i = 0; i < 497; i++) await ctx.db.insert("pipes", { userId: owner, parentId, name: "Unused", icon: "pipe", priority: 0, capacity: 0, fed: 0, spent: 0 });
       result.push({ userId: owner, source: sourceId });
     }

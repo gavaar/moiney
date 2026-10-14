@@ -30,9 +30,19 @@ describe("Form controlled fields", () => {
       return <>
         <button onClick={() => setExpanded(false)}>Reset disclosure</button>
         <Form pages={[
-          { key: 0, rows: [[{ key: "name", input: { label: "Name" } }],
-            [{ key: "optional", input: { label: "Optional", disabled, validator: () => "Invalid optional" },
-              reveal: { label: "Show optional", expanded, onReveal: () => setExpanded(true) } }]] },
+          {
+            key: 0,
+            rows: [
+              [{ key: "name", input: { label: "Name" } }],
+              [
+                {
+                  key: "optional",
+                  input: { label: "Optional", disabled, validator: () => "Invalid optional" },
+                  reveal: { label: "Show optional", expanded, onReveal: () => setExpanded(true) }
+                }
+              ]
+            ]
+          },
           { key: 1, rows: [[{ key: "last", input: { label: "Last" } }]] },
         ]} value={{ name: "Name", optional: "Retained", last: "" }} onChange={onChange} />
       </>;

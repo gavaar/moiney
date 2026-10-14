@@ -123,7 +123,8 @@ describe("AddPipeModal", () => {
       expect(screen.getByRole("button", { name: "Rule" }).textContent).toContain("Self-destruct");
       fireEvent.click(screen.getByRole("button", { name: "Submit" }));
       expect(mockAddPipe).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
-        name: "Madrid", parentId,
+        name: "Madrid",
+        parentId,
         ruleConfig: { rule: "self_destruct", starting: Date.UTC(2026, 8, 21, 5) },
       }));
     } finally {

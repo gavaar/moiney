@@ -22,7 +22,9 @@ export function prepareContingencyPreview(pipes: readonly PipeModel[]) {
     }
   }
   const eligible = prepareContingencyEligibility(pipes.map(pipe => ({
-    id: pipe.id, parentId: pipe.parentId, rule: pipe.rule,
+    id: pipe.id,
+    parentId: pipe.parentId,
+    rule: pipe.rule,
     contingencyPipeId: pipe.contingencyPipeId,
     blocked: pipe.deletionJobId !== undefined || frozen.has(pipe.id),
   })));

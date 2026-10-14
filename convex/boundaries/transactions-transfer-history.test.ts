@@ -33,11 +33,11 @@ describe("Convex boundaries: transactions, transfers, and history", () => {
 
     const transaction = await contributeAndReadOperation(t, t
       .withIdentity({ subject: userId }), {
-        pipeId: boilerId,
-        title: "Investment",
-        value: 30000,
-        date: 3000,
-      });
+      pipeId: boilerId,
+      title: "Investment",
+      value: 30000,
+      date: 3000,
+    });
 
     const boiler = await t.run((ctx) => ctx.db.get("pipes", boilerId));
     expect(boiler).toMatchObject({ fed: 40000, contributedFed: 40000 });
@@ -73,12 +73,12 @@ describe("Convex boundaries: transactions, transfers, and history", () => {
 
     const transaction = await contributeAndReadOperation(t, t
       .withIdentity({ subject: userId }), {
-        pipeId: boilerId,
-        title: "Correction",
-        value: 0,
-        currentFed: -5000,
-        date: 3000,
-      });
+      pipeId: boilerId,
+      title: "Correction",
+      value: 0,
+      currentFed: -5000,
+      date: 3000,
+    });
 
     const state = await t.run(async (ctx) => ({
       boiler: await ctx.db.get("pipes", boilerId),
@@ -115,12 +115,12 @@ describe("Convex boundaries: transactions, transfers, and history", () => {
     });
 
     await contributeAndReadOperation(t, t.withIdentity({ subject: userId }), {
-        pipeId: boilerId,
-        title: "Investment",
-        value: 30000,
-        currentFed: 5000,
-        date: 3000,
-      });
+      pipeId: boilerId,
+      title: "Investment",
+      value: 30000,
+      currentFed: 5000,
+      date: 3000,
+    });
 
     const boiler = await t.run((ctx) => ctx.db.get("pipes", boilerId));
     expect(boiler).toMatchObject({ fed: 5000, contributedFed: 40000 });
@@ -159,12 +159,12 @@ describe("Convex boundaries: transactions, transfers, and history", () => {
     });
 
     await contributeAndReadOperation(t, t.withIdentity({ subject: userId }), {
-        pipeId: boilerId,
-        title: "Correction",
-        value: 0,
-        currentFed: 5000,
-        date: 3000,
-      });
+      pipeId: boilerId,
+      title: "Correction",
+      value: 0,
+      currentFed: 5000,
+      date: 3000,
+    });
 
     const pipes = await t.run((ctx) => ctx.db.query("pipes").collect());
     expect(pipes.reduce((total, pipe) => total + pipe.fed, 0)).toBe(5000);
@@ -204,12 +204,12 @@ describe("Convex boundaries: transactions, transfers, and history", () => {
 
     await expect(
       contributeAndReadOperation(t, t.withIdentity({ subject: userId }), {
-          pipeId: boilerId,
-          title: "Correction",
-          value: 0,
-          currentFed: -MAX_AMOUNT,
-          date: 3000,
-        }),
+        pipeId: boilerId,
+        title: "Correction",
+        value: 0,
+        currentFed: -MAX_AMOUNT,
+        date: 3000,
+      }),
     ).rejects.toThrow("Amount exceeds the maximum allowed value");
 
     const boiler = await t.run((ctx) => ctx.db.get("pipes", boilerId));
@@ -239,11 +239,11 @@ describe("Convex boundaries: transactions, transfers, and history", () => {
     });
     const asUser = t.withIdentity({ subject: userId });
     const created = await contributeAndReadOperation(t, asUser, {
-        pipeId: boilerId,
-        title: "Investment",
-        value: 30000,
-        date: 3000,
-      });
+      pipeId: boilerId,
+      title: "Investment",
+      value: 30000,
+      date: 3000,
+    });
     if (!created) throw new Error("Expected a contribution transaction");
 
     await asUser.mutation(api.financialOperations.edit, {
@@ -353,12 +353,12 @@ describe("Convex boundaries: transactions, transfers, and history", () => {
 
     await expect(
       createAndReadOperation(t, t.withIdentity({ subject: userId }), {
-          title: "transfer",
-          value: -100,
-          date: 3000,
-          from: sourceId,
-          to: rootId,
-        }),
+        title: "transfer",
+        value: -100,
+        date: 3000,
+        from: sourceId,
+        to: rootId,
+      }),
     ).rejects.toMatchObject({ data: { code: "TRANSFER_SAME_TREE" } });
 
     const state = await t.run(async (ctx) => ({
@@ -414,12 +414,12 @@ describe("Convex boundaries: transactions, transfers, and history", () => {
 
     await expect(
       createAndReadOperation(t, t.withIdentity({ subject: userId }), {
-          title: "transfer",
-          value: -100,
-          date: 3000,
-          from: sourceId,
-          to: destinationId,
-        }),
+        title: "transfer",
+        value: -100,
+        date: 3000,
+        from: sourceId,
+        to: destinationId,
+      }),
     ).rejects.toMatchObject({ data: { code: "TRANSFER_SOURCE_NOT_LEAF" } });
 
     const state = await t.run(async (ctx) => ({
@@ -466,11 +466,11 @@ describe("Convex boundaries: transactions, transfers, and history", () => {
 
     await expect(
       createAndReadOperation(t, t.withIdentity({ subject: userId }), {
-          title: "expense",
-          value: -100,
-          date: 3000,
-          from: sourceId,
-        }),
+        title: "expense",
+        value: -100,
+        date: 3000,
+        from: sourceId,
+      }),
     ).rejects.toMatchObject({ data: { code: "SOURCE_HAS_CHILDREN" } });
 
     const state = await t.run(async (ctx) => ({
@@ -519,12 +519,12 @@ describe("Convex boundaries: transactions, transfers, and history", () => {
 
     await expect(
       createAndReadOperation(t, t.withIdentity({ subject: userId }), {
-          title: "transfer",
-          value: -100,
-          date: 3000,
-          from: sourceId,
-          to: destinationId,
-        }),
+        title: "transfer",
+        value: -100,
+        date: 3000,
+        from: sourceId,
+        to: destinationId,
+      }),
     ).rejects.toMatchObject({ data: { code: "TRANSACTION_PIPE_NOT_FOUND" } });
 
     const state = await t.run(async (ctx) => ({
@@ -575,12 +575,12 @@ describe("Convex boundaries: transactions, transfers, and history", () => {
 
     await expect(
       createAndReadOperation(t, t.withIdentity({ subject: userId }), {
-          title: "transfer",
-          value: -100,
-          date: 3000,
-          from: sourceId,
-          to: destinationId,
-        }),
+        title: "transfer",
+        value: -100,
+        date: 3000,
+        from: sourceId,
+        to: destinationId,
+      }),
     ).rejects.toMatchObject({ data: { code: "TRANSACTION_PIPE_NOT_FOUND" } });
 
     const state = await t.run(async (ctx) => ({
@@ -633,12 +633,12 @@ describe("Convex boundaries: transactions, transfers, and history", () => {
     });
 
     const result = await createAndReadOperation(t, t.withIdentity({ subject: userId }), {
-        title: "  SAVINGS  ",
-        value: -100,
-        date: 3000,
-        from: sourceId,
-        to: destinationId,
-      });
+      title: "  SAVINGS  ",
+      value: -100,
+      date: 3000,
+      from: sourceId,
+      to: destinationId,
+    });
 
     const state = await t.run(async (ctx) => ({
       source: await ctx.db.get("pipes", sourceId),
@@ -698,12 +698,12 @@ describe("Convex boundaries: transactions, transfers, and history", () => {
     });
 
     const transaction = await createAndReadOperation(t, t.withIdentity({ subject: userId }), {
-        title: "Investment transfer",
-        value: -100,
-        date: 3000,
-        from: sourceId,
-        to: boilerId,
-      });
+      title: "Investment transfer",
+      value: -100,
+      date: 3000,
+      from: sourceId,
+      to: boilerId,
+    });
 
     const afterCreation = await t.run(async (ctx) => ({
       source: await ctx.db.get("pipes", sourceId),
@@ -780,9 +780,14 @@ describe("Convex boundaries: transactions, transfers, and history", () => {
         { title: "unrelated", kind: "expense" as const, from: otherPipeId },
       ];
       for (const [index, row] of rows.entries()) {
-        await insertFinancialOperation(ctx, { userId, title: row.title, value: row.kind === "feed" ? 1 : -1, occurredAt: index,
+        await insertFinancialOperation(ctx, {
+          userId,
+          title: row.title,
+          value: row.kind === "feed" ? 1 : -1,
+          occurredAt: index,
           structure: row.kind === "feed" ? { type: "feed", to: row.to } : row.paidFrom
-            ? { type: "payByTransfer", from: row.from, paidFrom: row.paidFrom } : { type: "expense", from: row.from } });
+            ? { type: "payByTransfer", from: row.from, paidFrom: row.paidFrom } : { type: "expense", from: row.from }
+        });
       }
       return { userId, selectedPipeId };
     });
@@ -870,12 +875,12 @@ describe("Convex boundaries: transactions, transfers, and history", () => {
 
     await createAndReadOperation(t, t
       .withIdentity({ subject: userId }), {
-        title: "coffee refund",
-        value: 250,
-        date: 3000,
-        from: coffeeId,
-        paidFrom: bankId,
-      });
+      title: "coffee refund",
+      value: 250,
+      date: 3000,
+      from: coffeeId,
+      paidFrom: bankId,
+    });
 
     const pipes = await t
       .withIdentity({ subject: userId })
@@ -922,12 +927,12 @@ describe("Convex boundaries: transactions, transfers, and history", () => {
 
     await createAndReadOperation(t, t
       .withIdentity({ subject: userId }), {
-        title: "coffee",
-        value: -300,
-        date: 3000,
-        from: coffeeId,
-        paidFrom: bankId,
-      });
+      title: "coffee",
+      value: -300,
+      date: 3000,
+      from: coffeeId,
+      paidFrom: bankId,
+    });
 
     const pipes = await t
       .withIdentity({ subject: userId })

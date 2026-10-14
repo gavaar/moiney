@@ -7,8 +7,12 @@ const mocks = vi.hoisted(() => ({
   mockSetAuth: vi.fn(),
   action: vi.fn(),
   vault: {
-    isAvailable: vi.fn(), readPreferences: vi.fn(), writePreferences: vi.fn(),
-    save: vi.fn(), unlock: vi.fn(), remove: vi.fn(),
+    isAvailable: vi.fn(),
+    readPreferences: vi.fn(),
+    writePreferences: vi.fn(),
+    save: vi.fn(),
+    unlock: vi.fn(),
+    remove: vi.fn(),
   },
   storage: {
     getRefreshToken: vi.fn(),

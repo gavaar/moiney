@@ -26,6 +26,13 @@ module.exports = defineConfig([
     },
   },
   {
+    files: ["convex/**/*.ts"],
+    rules: {
+      // Convex reads runtime environment values; Expo's static client substitution does not apply.
+      "expo/no-dynamic-env-var": "off",
+    },
+  },
+  {
     files: ["domain/**/*.ts"],
     rules: {
       "no-restricted-imports": [

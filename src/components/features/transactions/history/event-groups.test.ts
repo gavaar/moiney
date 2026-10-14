@@ -32,13 +32,28 @@ describe("event operation and title grouping", () => {
     const donorBefore = { capacity: 6000, fed: 6000, spent: 4000, pendingFedAdjustment: 0 };
     const donorAfter = { ...donorBefore, spent: 6000 };
     const canonical: Extract<HistoryEntry, { type: "settlement" }> = {
-      id: eventId("covered"), operationId: eventId("covered"), createdAt: june, occurredAt: june,
-      type: "settlement", pipeId: pipe("source"), name: "Source", icon: "pipe", cause: "manual", before, after,
+      id: eventId("covered"),
+      operationId: eventId("covered"),
+      createdAt: june,
+      occurredAt: june,
+      type: "settlement",
+      pipeId: pipe("source"),
+      name: "Source",
+      icon: "pipe",
+      cause: "manual",
+      before,
+      after,
       coverage: { amountCents: 2000, pipeId: pipe("donor"), name: "Donor", icon: "shield", before: donorBefore, after: donorAfter },
     };
     const mirror: Extract<HistoryEntry, { type: "settlement_coverage" }> = {
-      ...canonical, id: eventId("mirror"), type: "settlement_coverage", pipeId: pipe("donor"), name: "Donor", icon: "shield",
-      before: donorBefore, after: donorAfter,
+      ...canonical,
+      id: eventId("mirror"),
+      type: "settlement_coverage",
+      pipeId: pipe("donor"),
+      name: "Donor",
+      icon: "shield",
+      before: donorBefore,
+      after: donorAfter,
       coverage: { amountCents: 2000, pipeId: pipe("source"), name: "Source", icon: "pipe", before, after },
     };
     for (const entries of [[canonical, mirror], [mirror, canonical]]) {
@@ -55,14 +70,19 @@ describe("event operation and title grouping", () => {
   });
   it("keeps settlements as separate pipe-scoped rows without adding usage or expense groups", () => {
     const event: Extract<HistoryEntry, { type: "settlement" }> = {
-      id: eventId("settled"), operationId: eventId("settled"), createdAt: june + 1,
-      occurredAt: june, pipeId: pipe("source"), type: "settlement", name: "Source", icon: "wallet",
-      cause: "manual", before: { capacity: 4000, fed: 4000, spent: 3000, pendingFedAdjustment: 0 },
+      id: eventId("settled"),
+      operationId: eventId("settled"),
+      createdAt: june + 1,
+      occurredAt: june,
+      pipeId: pipe("source"),
+      type: "settlement",
+      name: "Source",
+      icon: "wallet",
+      cause: "manual",
+      before: { capacity: 4000, fed: 4000, spent: 3000, pendingFedAdjustment: 0 },
       after: { capacity: 4000, fed: 1000, spent: 0, pendingFedAdjustment: 0 },
     };
-    expect(groupHistoryEvents([event, expense("one"), expense("two")])).toMatchObject([
-      { kind: "settlement", event }, { kind: "group", count: 2, totalValue: -200 },
-    ]);
+    expect(groupHistoryEvents([event, expense("one"), expense("two")])).toMatchObject([{ kind: "settlement", event }, { kind: "group", count: 2, totalValue: -200 },]);
     expect(groupHistoryEvents([event], [pipe("other")])).toEqual([]);
     expect(groupHistoryEvents([event, event], [pipe("source")])).toHaveLength(1);
     expect(getFrequentlyUsedEventSourcePipeIds([event])).toEqual([]);

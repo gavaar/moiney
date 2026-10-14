@@ -106,6 +106,14 @@ export function useBiometricLogin(
   return {
     available: status?.available ?? false,
     enabled: status?.accountKey === accountKey && status.enabled,
-    loading, busy, offer, error, login, enable, disable, offerAfterLogin, dismissOffer,
+    loading,
+    busy,
+    offer,
+    error,
+    login,
+    enable,
+    disable,
+    offerAfterLogin,
+    dismissOffer,
   };
 }

@@ -47,36 +47,28 @@ describe("one donor's same-occurrence, same-priority coverage claims", () => {
   it("splits available funding equally with deterministic integer remainders", () => {
     const claims = [claim("c", 1000), claim("b", 1000), claim("a", 1000)];
     const donor = { fed: 1000, spent: 200 };
-    const expected = [
-      { sourceId: "a", coverageCents: 267 }, { sourceId: "b", coverageCents: 267 }, { sourceId: "c", coverageCents: 266 },
-    ];
+    const expected = [{ sourceId: "a", coverageCents: 267 }, { sourceId: "b", coverageCents: 267 }, { sourceId: "c", coverageCents: 266 },];
     expect(allocateContingencyCoverage(claims, donor)).toEqual(expected);
     expect(allocateContingencyCoverage([...claims].reverse(), donor)).toEqual(expected);
   });
 
   it("redistributes unused shares after capping small claims", () => {
-    expect(allocateContingencyCoverage([claim("a", 100), claim("b", 1000), claim("c", 1000)], { fed: 1000, spent: 0 })).toEqual([
-      { sourceId: "a", coverageCents: 100 }, { sourceId: "b", coverageCents: 450 }, { sourceId: "c", coverageCents: 450 },
-    ]);
-    expect(allocateContingencyCoverage([claim("a", 1), claim("b", 2), claim("c", 100)], { fed: 12, spent: 0 })).toEqual([
-      { sourceId: "a", coverageCents: 1 }, { sourceId: "b", coverageCents: 2 }, { sourceId: "c", coverageCents: 9 },
-    ]);
+    expect(allocateContingencyCoverage([claim("a", 100), claim("b", 1000), claim("c", 1000)], { fed: 1000, spent: 0 })).toEqual([{ sourceId: "a", coverageCents: 100 }, { sourceId: "b", coverageCents: 450 }, { sourceId: "c", coverageCents: 450 },]);
+    expect(allocateContingencyCoverage([claim("a", 1), claim("b", 2), claim("c", 100)], { fed: 12, spent: 0 })).toEqual([{ sourceId: "a", coverageCents: 1 }, { sourceId: "b", coverageCents: 2 }, { sourceId: "c", coverageCents: 9 },]);
   });
 
   it("does not favor smaller uncapped demands when assigning an odd cent", () => {
-    expect(allocateContingencyCoverage([claim("z", 300), claim("a", 1000)], { fed: 501, spent: 0 })).toEqual([
-      { sourceId: "a", coverageCents: 251 }, { sourceId: "z", coverageCents: 250 },
-    ]);
+    expect(allocateContingencyCoverage([claim("z", 300), claim("a", 1000)], { fed: 501, spent: 0 })).toEqual([{ sourceId: "a", coverageCents: 251 }, { sourceId: "z", coverageCents: 250 },]);
   });
 
   it("leaves unused donor liquidity intact and ignores zero or ineligible claims", () => {
     expect(allocateContingencyCoverage([
-      claim("a", 100), claim("b", 200), claim("zero", 0),
+      claim("a", 100),
+      claim("b", 200),
+      claim("zero", 0),
       { ...claim("instant", 1000), rule: "instant_settlement" },
       { sourceId: "debt", capacity: -50, spent: 0 },
-    ], { fed: 1000, spent: 0 })).toEqual([
-      { sourceId: "a", coverageCents: 100 }, { sourceId: "b", coverageCents: 200 }, { sourceId: "debt", coverageCents: 50 },
-    ]);
+    ], { fed: 1000, spent: 0 })).toEqual([{ sourceId: "a", coverageCents: 100 }, { sourceId: "b", coverageCents: 200 }, { sourceId: "debt", coverageCents: 50 },]);
     expect(allocateContingencyCoverage([claim("a", 100)], { fed: 100, spent: 100 })).toEqual([]);
     expect(allocateContingencyCoverage([], { fed: 100, spent: 0 })).toEqual([]);
   });
@@ -115,8 +107,6 @@ describe("one donor's same-occurrence, same-priority coverage claims", () => {
   it("does not mutate input balances and divides large safe budgets exactly", () => {
     const claims = Object.freeze([Object.freeze(claim("b", Number.MAX_SAFE_INTEGER)), Object.freeze(claim("a", Number.MAX_SAFE_INTEGER))]);
     const donor = Object.freeze({ fed: Number.MAX_SAFE_INTEGER, spent: 0 });
-    expect(allocateContingencyCoverage(claims, donor)).toEqual([
-      { sourceId: "a", coverageCents: 4503599627370496 }, { sourceId: "b", coverageCents: 4503599627370495 },
-    ]);
+    expect(allocateContingencyCoverage(claims, donor)).toEqual([{ sourceId: "a", coverageCents: 4503599627370496 }, { sourceId: "b", coverageCents: 4503599627370495 },]);
   });
 });

@@ -49,8 +49,16 @@ describe("contingency configuration boundaries", () => {
       }
       const owner = kind === "foreign"
         ? await ctx.db.insert("users", { username: "bob", email: "bob@example.com", password: "hash" }) : userId;
-      return await ctx.db.insert("pipes", { userId: owner, parentId: kind === "foreign" ? root : undefined,
-        name: "Invalid", icon: "pipe", priority: 0, capacity: 0, fed: 0, spent: 0 });
+      return await ctx.db.insert("pipes", {
+        userId: owner,
+        parentId: kind === "foreign" ? root : undefined,
+        name: "Invalid",
+        icon: "pipe",
+        priority: 0,
+        capacity: 0,
+        fed: 0,
+        spent: 0
+      });
     });
     await expect(auth.mutation(api.pipes.updatePipe, { pipeId: source, name: "Should not save", contingencyPipeId: target }))
       .rejects.toMatchObject({ data: { code: "INVALID_CONTINGENCY_TARGET" } });
@@ -85,8 +93,15 @@ describe("contingency configuration boundaries", () => {
     const { t, auth, userId, root, source, donor } = await setup();
     const frozen = role === "source" ? source : role === "donor" ? donor : root;
     await t.run(async ctx => {
-      const job = await ctx.db.insert("pipeDeletionJobs", { userId, deleteTransactions: false, memberPipeIds: [frozen], initialBalance: 0,
-        historySource: "events", phase: "processingTransactions", memberIndex: 0 });
+      const job = await ctx.db.insert("pipeDeletionJobs", {
+        userId,
+        deleteTransactions: false,
+        memberPipeIds: [frozen],
+        initialBalance: 0,
+        historySource: "events",
+        phase: "processingTransactions",
+        memberIndex: 0
+      });
       await ctx.db.patch("pipes", frozen, { deletionJobId: job });
     });
     await expect(auth.mutation(api.pipes.updatePipe, { pipeId: source, contingencyPipeId: donor })).rejects.toThrow();
@@ -96,16 +111,24 @@ describe("contingency configuration boundaries", () => {
   it.each(["instant_settlement", "self_destruct"] as const)("clears the outgoing contingency when switching to %s", async rule => {
     const { t, auth, source, donor } = await setup();
     await auth.mutation(api.pipes.updatePipe, { pipeId: source, contingencyPipeId: donor });
-    await auth.mutation(api.pipes.updatePipeRule, { pipeId: source, rule,
-      ...(rule === "self_destruct" ? { starting: Date.now() + 7 * 86400000 } : {}) });
+    await auth.mutation(api.pipes.updatePipeRule, {
+      pipeId: source,
+      rule,
+      ...(rule === "self_destruct" ? { starting: Date.now() + 7 * 86400000 } : {})
+    });
     expect(await t.run(ctx => ctx.db.get("pipes", source))).not.toHaveProperty("contingencyPipeId");
   });
 
   it.each(["source", "donor"] as const)("clears invalid selections when a %s gains a child", async role => {
     const { t, auth, source, donor } = await setup();
     await auth.mutation(api.pipes.updatePipe, { pipeId: source, contingencyPipeId: donor });
-    await auth.mutation(api.pipes.addPipe, { parentId: role === "source" ? source : donor,
-      name: "New child", icon: "pipe", priority: 0, capacity: 0 });
+    await auth.mutation(api.pipes.addPipe, {
+      parentId: role === "source" ? source : donor,
+      name: "New child",
+      icon: "pipe",
+      priority: 0,
+      capacity: 0
+    });
     expect(await t.run(ctx => ctx.db.get("pipes", source))).not.toHaveProperty("contingencyPipeId");
   });
 
@@ -113,8 +136,15 @@ describe("contingency configuration boundaries", () => {
     const { t, auth, userId, source, donor } = await setup();
     await auth.mutation(api.pipes.updatePipe, { pipeId: source, contingencyPipeId: donor });
     const jobId = await t.run(async ctx => {
-      const jobId = await ctx.db.insert("pipeDeletionJobs", { userId, deleteTransactions: false, memberPipeIds: [donor],
-        initialBalance: 0, historySource: "events", phase: "readyToFinalize", memberIndex: 0 });
+      const jobId = await ctx.db.insert("pipeDeletionJobs", {
+        userId,
+        deleteTransactions: false,
+        memberPipeIds: [donor],
+        initialBalance: 0,
+        historySource: "events",
+        phase: "readyToFinalize",
+        memberIndex: 0
+      });
       await ctx.db.patch("pipes", donor, { deletionJobId: jobId });
       return jobId;
     });

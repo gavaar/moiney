@@ -29,9 +29,19 @@ export function useMixedHistory(filters: HistoryFilters = {}, options: { enabled
   const [state, setState] = useState({ requestKey, accountKey, filterKey, revision, entries: [] as HistoryEntry[], deletedPipes: [] as DeletedPipeEntry[], isLoading: true, isRefreshing: false, hasMore: false, error: null as string | null });
   if (state.requestKey !== requestKey) {
     const sameScope = state.accountKey === accountKey && state.filterKey === filterKey;
-    setState({ ...state, requestKey, accountKey, filterKey, revision,
-      entries: sameScope ? state.entries : [], deletedPipes: sameScope ? state.deletedPipes : [],
-      isLoading: enabled, isRefreshing: enabled && sameScope && state.revision !== revision, hasMore: false, error: null });
+    setState({
+      ...state,
+      requestKey,
+      accountKey,
+      filterKey,
+      revision,
+      entries: sameScope ? state.entries : [],
+      deletedPipes: sameScope ? state.deletedPipes : [],
+      isLoading: enabled,
+      isRefreshing: enabled && sameScope && state.revision !== revision,
+      hasMore: false,
+      error: null
+    });
   }
 
   useEffect(() => {
@@ -125,9 +135,14 @@ export function useMixedHistory(filters: HistoryFilters = {}, options: { enabled
   const refresh = useCallback(() => setRevision(value => value + 1), [setRevision]);
   const belongsToScope = state.accountKey === accountKey && state.filterKey === filterKey;
   return {
-    entries: belongsToScope ? state.entries : [], deletedPipes: belongsToScope ? state.deletedPipes : [],
-    error: belongsToScope ? state.error : null, isLoading: !belongsToScope || state.isLoading,
-    isRefreshing: belongsToScope && state.isRefreshing, hasMore: !options.recent && state.hasMore,
-    loadMore, refresh, generation,
+    entries: belongsToScope ? state.entries : [],
+    deletedPipes: belongsToScope ? state.deletedPipes : [],
+    error: belongsToScope ? state.error : null,
+    isLoading: !belongsToScope || state.isLoading,
+    isRefreshing: belongsToScope && state.isRefreshing,
+    hasMore: !options.recent && state.hasMore,
+    loadMore,
+    refresh,
+    generation,
   };
 }

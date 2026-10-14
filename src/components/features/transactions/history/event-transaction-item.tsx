@@ -12,8 +12,13 @@ export function eventTransactionPresentation(operation: FinancialOperation, dele
   const common = { createdAt: operation.createdAt, date: operation.occurredAt, title: operation.title, value: operation.value, editedAt: operation.editedAt };
   if (operation.type === "feed") return { ...common, kind: "feed", to: operation.pipeId, toIcon: icons.get(operation.pipeId) };
   if (operation.type === "transfer") return { ...common, kind: "transfer", from: operation.pipeId, to: operation.targetPipeId, fromIcon: icons.get(operation.pipeId), toIcon: icons.get(operation.targetPipeId) };
-  return { ...common, kind: "expense", from: operation.pipeId, fromIcon: icons.get(operation.pipeId),
-    ...(operation.type === "third_party_transaction" ? { paidFrom: operation.targetPipeId, paidFromIcon: icons.get(operation.targetPipeId) } : {}) };
+  return {
+    ...common,
+    kind: "expense",
+    from: operation.pipeId,
+    fromIcon: icons.get(operation.pipeId),
+    ...(operation.type === "third_party_transaction" ? { paidFrom: operation.targetPipeId, paidFromIcon: icons.get(operation.targetPipeId) } : {})
+  };
 }
 
 export function EventTransactionItem({ operation, deletedPipes, onShowEditHistory }: {

@@ -30,37 +30,77 @@ export function buildPipeForm({ pipes, disabled, loading, draft, now, editing, l
   invalidContingency: boolean; removalPending: boolean;
 }): readonly FormPage<PipeDraft>[] {
   const pages: FormPage<PipeDraft>[] = [];
-  if (!editing) pages.push({ key: 0, rows: [[{ key: "ownerId", input: {
-    type: "select", presentation: "inline", label: "Owner pipe", hideLabel: true, items: pipes, disabled, loading,
-    validator: (value: string | null) => pipes.some(pipe => pipe.id === value) ? undefined : "Select an owner pipe",
-    renderItem: item => pipeOption({ name: item.name, icon: item.icon }),
-  } }]] });
-  pages.push({ key: 1, rows: [
-    [{ key: "name", input: { label: "Name", placeholder: "Pipe name", disabled, validator: validatePipeName } }],
-    [{ key: "description", input: { label: "Description", placeholder: "Optional description", multiline: true, numberOfLines: 3, disabled } }],
-    [{ key: "icon", input: { type: "icon", label: "Icon", disabled } },
-      { key: "priority", input: { type: "number", label: "Priority", min: 0, step: 1, disabled } }],
-  ] });
+  if (!editing) pages.push({
+    key: 0,
+    rows: [
+      [
+        {
+          key: "ownerId",
+          input: {
+            type: "select",
+            presentation: "inline",
+            label: "Owner pipe",
+            hideLabel: true,
+            items: pipes,
+            disabled,
+            loading,
+            validator: (value: string | null) => pipes.some(pipe => pipe.id === value) ? undefined : "Select an owner pipe",
+            renderItem: item => pipeOption({ name: item.name, icon: item.icon }),
+          }
+        }
+      ]
+    ]
+  });
+  pages.push({
+    key: 1,
+    rows: [
+      [{ key: "name", input: { label: "Name", placeholder: "Pipe name", disabled, validator: validatePipeName } }],
+      [{ key: "description", input: { label: "Description", placeholder: "Optional description", multiline: true, numberOfLines: 3, disabled } }],
+      [
+        { key: "icon", input: { type: "icon", label: "Icon", disabled } },
+        { key: "priority", input: { type: "number", label: "Priority", min: 0, step: 1, disabled } }
+      ],
+    ]
+  });
   if (!leaf) return pages;
   const capacity = draft.capacity && validatePipeCapacity(draft.capacity) === undefined ? parseMoney(draft.capacity) : 0;
-  pages.push({ key: 2, rows: [[{ key: "capacity",
-    input: { type: "decimal", label: editing ? "Capacity" : "Initial capacity?", placeholder: "0.00", allowNegative: true,
-      disabled, validator: value => validatePipeCapacity(value, editing) },
-    description: "Capacity is this pipe's spending budget and allocation target. It does not add money; available money is allocated from its owner pipe. " +
+  pages.push({
+    key: 2,
+    rows: [
+      [
+        {
+          key: "capacity",
+          input: {
+            type: "decimal",
+            label: editing ? "Capacity" : "Initial capacity?",
+            placeholder: "0.00",
+            allowNegative: true,
+            disabled,
+            validator: value => validatePipeCapacity(value, editing)
+          },
+          description: "Capacity is this pipe's spending budget and allocation target. It does not add money; available money is allocated from its owner pipe. " +
       (editing ? "Enter zero explicitly, or a negative amount to represent debt." : "Leave blank for zero, or enter a negative amount to represent debt."),
-  }]] });
+        }
+      ]
+    ]
+  });
   const ruleRows: FormRow<PipeDraft>[] = [...buildRuleRows(draft, { capacity, disabled, allowSelfDestruct, now })];
   const incompatible = ruleDisallowsContingency(draft.selectedRule);
-  if (contingencyOptions.length || draft.contingencyPipeId || incompatible || removalPending) ruleRows.push([{
-    key: "contingencyPipeId",
-    input: { type: "select", label: "Contingency", disabled: disabled || incompatible,
-      items: [{ id: "none", name: "No contingency", icon: "shield" }, ...contingencyOptions],
-      renderItem: item => pipeOption({ name: item.name, icon: item.icon }),
-    },
-    description: incompatible ? "This rule cannot use contingency." + (removalPending ? " Saving will remove the current contingency." : "")
-      : invalidContingency ? "Selected contingency is no longer eligible. Choose another or clear it."
-      : "At settlement, contingency covers spending above this pipe's capacity using the selected pipe's available money.",
-  }]);
+  if (contingencyOptions.length || draft.contingencyPipeId || incompatible || removalPending) ruleRows.push([
+    {
+      key: "contingencyPipeId",
+      input: {
+        type: "select",
+        label: "Contingency",
+        disabled: disabled || incompatible,
+        items: [{ id: "none", name: "No contingency", icon: "shield" }, ...contingencyOptions],
+        renderItem: item => pipeOption({ name: item.name, icon: item.icon }),
+      },
+      description: incompatible ? "This rule cannot use contingency." + (removalPending ? " Saving will remove the current contingency." : "")
+        : invalidContingency ? "Selected contingency is no longer eligible. Choose another or clear it."
+          : "At settlement, contingency covers spending above this pipe's capacity using the selected pipe's available money.",
+    }
+  ]);
   pages.push({ key: 3, rows: ruleRows });
   return pages;
 }

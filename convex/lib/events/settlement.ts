@@ -18,17 +18,48 @@ export async function recordSettlementHistory(
   coverage?: AppliedContingencyCoverage,
 ) {
   if (before.rule === "self_destruct") throw new Error("Self-destruct is not a settlement");
-  await insertHistoryOperation(ctx, { canonicalEvent: {
-    type: "settlement", userId: before.userId, pipeId: before._id, occurredAt: now,
-    name: before.name, icon: before.icon, cause,
-    before: balance(before), after: balance(after),
-    ...(coverage ? { coverage: { amountCents: coverage.amountCents, pipeId: coverage.before._id,
-      name: coverage.before.name, icon: coverage.before.icon, before: balance(coverage.before), after: balance(coverage.after) } } : {}),
-  }, ...(coverage ? { counterpart: {
-    type: "settlement_coverage", userId: before.userId, pipeId: coverage.before._id, occurredAt: now,
-    name: coverage.before.name, icon: coverage.before.icon, cause,
-    before: balance(coverage.before), after: balance(coverage.after),
-    coverage: { amountCents: coverage.amountCents, pipeId: before._id, name: before.name, icon: before.icon,
-      before: balance(before), after: balance(after) },
-  } } : {}) });
+  await insertHistoryOperation(ctx, {
+    canonicalEvent: {
+      type: "settlement",
+      userId: before.userId,
+      pipeId: before._id,
+      occurredAt: now,
+      name: before.name,
+      icon: before.icon,
+      cause,
+      before: balance(before),
+      after: balance(after),
+      ...(coverage ? {
+        coverage: {
+          amountCents: coverage.amountCents,
+          pipeId: coverage.before._id,
+          name: coverage.before.name,
+          icon: coverage.before.icon,
+          before: balance(coverage.before),
+          after: balance(coverage.after)
+        }
+      } : {}),
+    },
+    ...(coverage ? {
+      counterpart: {
+        type: "settlement_coverage",
+        userId: before.userId,
+        pipeId: coverage.before._id,
+        occurredAt: now,
+        name: coverage.before.name,
+        icon: coverage.before.icon,
+        cause,
+        before: balance(coverage.before),
+        after: balance(coverage.after),
+        coverage: {
+          amountCents: coverage.amountCents,
+          pipeId: before._id,
+          name: before.name,
+          icon: before.icon,
+          before: balance(before),
+          after: balance(after)
+        },
+      }
+    } : {})
+  });
 }

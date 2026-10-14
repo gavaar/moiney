@@ -57,9 +57,12 @@ export function createEventHistoryReader(client: ConvexReactClient, filters: His
       while (!done) {
         if (cancelled) throw new Error("History read cancelled");
         const page = await client.query(api.events.list, {
-          limit, ...(cursor ? { cursor } : {}), ...(pipeId ? { pipeId } : {}),
+          limit,
+          ...(cursor ? { cursor } : {}),
+          ...(pipeId ? { pipeId } : {}),
           ...(filters.fromDate === undefined ? {} : { fromDate: filters.fromDate }),
-          ...(filters.toDate === undefined ? {} : { toDate: filters.toDate }), ...(title ? { title } : {}),
+          ...(filters.toDate === undefined ? {} : { toDate: filters.toDate }),
+          ...(title ? { title } : {}),
         });
         if (cancelled) throw new Error("History read cancelled");
         done = page.isDone || !page.cursor || visited.has(page.cursor);

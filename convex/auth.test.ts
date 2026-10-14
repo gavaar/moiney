@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import { internal } from "./_generated/api";
 import { getFunctionName } from "convex/server";
 
+import { refreshAccess, signIn, signOut, signUp } from "./auth";
+
 vi.mock("./lib/jwt", () => ({
   generateSessionFamilyId: () => "family-1",
   generateRefreshToken: () => "refresh-token",
@@ -14,8 +16,6 @@ vi.mock("./lib/password", () => ({
   hashPassword: () => "password-hash",
   verifyPassword: () => true,
 }));
-
-import { refreshAccess, signIn, signOut, signUp } from "./auth";
 
 describe("signUp", () => {
   it("rejects an oversized email before sign-up backend work", async () => {

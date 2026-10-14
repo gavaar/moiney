@@ -51,19 +51,21 @@ export function buildAmountForm(form: AmountFormConfiguration, sourcePicker?: So
       ]
     ],
   });
-  
+
   const rows: FormRow<AmountFormDraft>[] = [];
-  if (spend) rows.push([{
-    key: "modeTransfer",
-    input: {
-      type: "toggle",
-      options: [
-        { label: "Transaction", icon: "upload" },
-        { label: "Transfer", icon: "repeat" },
-      ],
-      disabled: common.loading,
-    },
-  }]);
+  if (spend) rows.push([
+    {
+      key: "modeTransfer",
+      input: {
+        type: "toggle",
+        options: [
+          { label: "Transaction", icon: "upload" },
+          { label: "Transfer", icon: "repeat" },
+        ],
+        disabled: common.loading,
+      },
+    }
+  ]);
 
   rows.push(
     [
@@ -102,56 +104,62 @@ export function buildAmountForm(form: AmountFormConfiguration, sourcePicker?: So
   );
 
   const paidFrom = transaction?.paidFrom;
-  if (paidFrom || spend?.mode === "spend") rows.push([{
-    key: "paidFrom",
-    input: {
-      type: "select",
-      label: paidFrom?.label ?? (spend?.isNegative ? "Paid from" : "Refunded to"),
-      items: transactionPipeItems(paidFrom?.items ?? spend?.paidFromPipeItems ?? [], pipesById),
-      groups: paidFrom?.groups ?? spend?.paidFromGroups,
-      renderItem: renderTransactionPipe,
-      itemStyle: transactionPipeStyle,
-      placeholder: "None",
-      disabled: common.loading,
-    },
-    ...(!paidFrom && spend ? {
-      reveal: {
-        label: "Paid from another pipe?",
-        icon: "wallet-outline" as const,
-        expanded: spend.showPaidFrom,
-        onReveal: () => spend.setShowPaidFrom(true),
+  if (paidFrom || spend?.mode === "spend") rows.push([
+    {
+      key: "paidFrom",
+      input: {
+        type: "select",
+        label: paidFrom?.label ?? (spend?.isNegative ? "Paid from" : "Refunded to"),
+        items: transactionPipeItems(paidFrom?.items ?? spend?.paidFromPipeItems ?? [], pipesById),
+        groups: paidFrom?.groups ?? spend?.paidFromGroups,
+        renderItem: renderTransactionPipe,
+        itemStyle: transactionPipeStyle,
+        placeholder: "None",
+        disabled: common.loading,
       },
-    } : {}),
-  }]);
+      ...(!paidFrom && spend ? {
+        reveal: {
+          label: "Paid from another pipe?",
+          icon: "wallet-outline" as const,
+          expanded: spend.showPaidFrom,
+          onReveal: () => spend.setShowPaidFrom(true),
+        },
+      } : {}),
+    }
+  ]);
 
-  if (spend?.mode === "transfer") rows.push([{
-    key: "sentTo",
-    input: {
-      type: "select",
-      label: "Transfer to",
-      placeholder: "None",
-      disabled: common.loading,
-      items: transactionPipeItems(spend.pipeItems, pipesById),
-      renderItem: renderTransactionPipe,
-      itemStyle: transactionPipeStyle,
-    },
-  }]);
+  if (spend?.mode === "transfer") rows.push([
+    {
+      key: "sentTo",
+      input: {
+        type: "select",
+        label: "Transfer to",
+        placeholder: "None",
+        disabled: common.loading,
+        items: transactionPipeItems(spend.pipeItems, pipesById),
+        renderItem: renderTransactionPipe,
+        itemStyle: transactionPipeStyle,
+      },
+    }
+  ]);
 
-  if (boiler) rows.push([{
-    key: "currentFed",
-    input: {
-      type: "decimal",
-      label: `Current in ${boiler.name}`,
-      allowNegative: false,
-      disabled: common.loading,
-    },
-    description: boiler.contributionAmount > 0 && !boiler.currentFedChanged ? (
-      <Text testID="boiler-growth-hint" className="text-xs text-muted">
-        <Text testID="boiler-growth-amount" className="font-bold">+{formatAmount(boiler.contributionAmount)}:</Text>{" "}
+  if (boiler) rows.push([
+    {
+      key: "currentFed",
+      input: {
+        type: "decimal",
+        label: `Current in ${boiler.name}`,
+        allowNegative: false,
+        disabled: common.loading,
+      },
+      description: boiler.contributionAmount > 0 && !boiler.currentFedChanged ? (
+        <Text testID="boiler-growth-hint" className="text-xs text-muted">
+          <Text testID="boiler-growth-amount" className="font-bold">+{formatAmount(boiler.contributionAmount)}:</Text>{" "}
         current will also grow by {formatAmount(boiler.contributionAmount)} after this operation, unless manually modified
-      </Text>
-    ) : undefined,
-  }]);
+        </Text>
+      ) : undefined,
+    }
+  ]);
   pages.push({ key: 1, rows });
 
   return pages;

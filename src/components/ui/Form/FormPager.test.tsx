@@ -6,7 +6,10 @@ import { FormPager } from "./FormPager";
 
 // Model the native boundary: scrollTo is clamped until content has been laid out.
 const native = vi.hoisted(() => ({
-  props: {} as Record<string, any>, width: 0, contentWidth: 0, offset: 0,
+  props: {} as Record<string, any>,
+  width: 0,
+  contentWidth: 0,
+  offset: 0,
   pages: {} as Record<string, any>,
 }));
 vi.mock("react-native", async importOriginal => {

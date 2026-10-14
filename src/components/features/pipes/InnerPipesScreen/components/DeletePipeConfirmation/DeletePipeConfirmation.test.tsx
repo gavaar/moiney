@@ -37,13 +37,13 @@ vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
       pipe_gc_1: { id: pId("pipe_gc_1"), name: "Grandchild 1", icon: "game-controller-outline", parentId: pId("pipe_child_1"), priority: 0, capacity: 0, fed: 0, spent: 0 },
     },
     childrenByParent: new Map([
-      [pId("pipe_root"), [
-        { id: pId("pipe_child_1"), name: "Child 1", icon: "cafe", parentId: pId("pipe_root"), priority: 0, capacity: 0, fed: 0, spent: 0 },
-        { id: pId("pipe_child_2"), name: "Child 2", icon: "car-sport-outline", parentId: pId("pipe_root"), priority: 0, capacity: 0, fed: 0, spent: 0 },
-      ]],
-      [pId("pipe_child_1"), [
-        { id: pId("pipe_gc_1"), name: "Grandchild 1", icon: "game-controller-outline", parentId: pId("pipe_child_1"), priority: 0, capacity: 0, fed: 0, spent: 0 },
-      ]],
+      [
+        pId("pipe_root"), [
+          { id: pId("pipe_child_1"), name: "Child 1", icon: "cafe", parentId: pId("pipe_root"), priority: 0, capacity: 0, fed: 0, spent: 0 },
+          { id: pId("pipe_child_2"), name: "Child 2", icon: "car-sport-outline", parentId: pId("pipe_root"), priority: 0, capacity: 0, fed: 0, spent: 0 },
+        ]
+      ],
+      [pId("pipe_child_1"), [{ id: pId("pipe_gc_1"), name: "Grandchild 1", icon: "game-controller-outline", parentId: pId("pipe_child_1"), priority: 0, capacity: 0, fed: 0, spent: 0 },]],
     ]),
   }),
 }));

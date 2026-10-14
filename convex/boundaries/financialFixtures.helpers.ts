@@ -38,8 +38,13 @@ export async function readOperation(ctx: MutationCtx, operationId: Id<"events">)
   const event = await ctx.db.get("events", operationId);
   if (!event) return null;
   const { _creationTime, ...snapshot } = await readFinancialSnapshot(ctx, event.userId, operationId);
-  return { ...snapshot, _id: operationId, _creationTime, userId: event.userId,
-    editedAt: await latestCorrectionEditedAt(ctx, event.userId, operationId) };
+  return {
+    ...snapshot,
+    _id: operationId,
+    _creationTime,
+    userId: event.userId,
+    editedAt: await latestCorrectionEditedAt(ctx, event.userId, operationId)
+  };
 }
 
 export async function readOperations(ctx: MutationCtx) {
@@ -54,6 +59,11 @@ export async function readOperations(ctx: MutationCtx) {
 
 /** Persist a historical operation without replaying its accounting effects. */
 export async function insertOperation(ctx: MutationCtx, fields: Omit<FinancialSnapshot, "_creationTime" | "operationId"> & { userId: Id<"users"> }) {
-  return insertFinancialOperation(ctx, { userId: fields.userId, title: fields.title, value: fields.value,
-    occurredAt: fields.date, structure: transactionStructureFromRoles(fields) });
+  return insertFinancialOperation(ctx, {
+    userId: fields.userId,
+    title: fields.title,
+    value: fields.value,
+    occurredAt: fields.date,
+    structure: transactionStructureFromRoles(fields)
+  });
 }

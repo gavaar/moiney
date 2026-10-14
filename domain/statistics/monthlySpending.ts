@@ -101,8 +101,12 @@ export function mergePipeSpending(...pages: PipeSpending[][]): PipeSpending[] {
 }
 
 export function mergeMonthlySpending(a: MonthlySpendingSummary, b: MonthlySpendingSummary): MonthlySpendingSummary {
-  const largest = [a.largestSpendingTransactionCents, ...(a.nextLargestSpendingCents ?? []),
-    b.largestSpendingTransactionCents, ...(b.nextLargestSpendingCents ?? [])]
+  const largest = [
+    a.largestSpendingTransactionCents,
+    ...(a.nextLargestSpendingCents ?? []),
+    b.largestSpendingTransactionCents,
+    ...(b.nextLargestSpendingCents ?? [])
+  ]
     .filter((amount) => amount > 0).sort((left, right) => right - left).slice(0, 3);
   return {
     totalIncomeCents: a.totalIncomeCents + b.totalIncomeCents,
@@ -165,9 +169,11 @@ export function summarizeMonthlySpending(
         summary.largestSpendingTransactionCents = largest[0] ?? 0;
         summary.nextLargestSpendingCents = largest.slice(1);
         if (transaction.title && summary.largestSpendingTransactions) {
-          summary.largestSpendingTransactions = [...summary.largestSpendingTransactions, {
-            title: transaction.title, amountCents: amount,
-          }].sort((left, right) => right.amountCents - left.amountCents || left.title.localeCompare(right.title)).slice(0, 3);
+          summary.largestSpendingTransactions = [
+            ...summary.largestSpendingTransactions, {
+              title: transaction.title, amountCents: amount,
+            }
+          ].sort((left, right) => right.amountCents - left.amountCents || left.title.localeCompare(right.title)).slice(0, 3);
         }
       } else {
         summary.refundCents += transaction.value;

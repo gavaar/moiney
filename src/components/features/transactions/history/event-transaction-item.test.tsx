@@ -16,16 +16,21 @@ import type { Id } from "@convex/_generated/dataModel";
 
 const mocks = vi.hoisted(() => ({ query: vi.fn(), mutate: vi.fn(), pipes: [] as PipeModel[], success: vi.fn(), error: vi.fn() }));
 const client = { query: mocks.query };
-vi.mock("convex/react", () => ({ useConvex: () => client, useMutation: (reference: FunctionReference<"mutation">) =>
-  (args: unknown) => mocks.mutate(reference, args) }));
+vi.mock("convex/react", () => ({
+  useConvex: () => client,
+  useMutation: (reference: FunctionReference<"mutation">) =>
+    (args: unknown) => mocks.mutate(reference, args)
+}));
 vi.mock("@ui/ConfirmModal", () => ({ useConfirmWithModal: () => async () => true }));
 vi.mock("@ui/Alert", () => ({ useAlert: () => ({ success: mocks.success, error: mocks.error }) }));
 vi.mock("@ui/Modal", () => ({ ModalShell: () => null }));
 vi.mock("@features/transactions/TransactionForm/TransactionForm", () => ({ TransactionForm: () => null }));
 vi.mock("@/lib/auth", () => ({ useAuth: () => ({ accountKey: "alice" }) }));
-vi.mock("@features/pipes/context/PipeCatalogContext", () => ({ usePipeCatalog: () => ({
-  pipesById: Object.fromEntries(mocks.pipes.map(pipe => [pipe.id, pipe])), childrenByParent: new Map(), isPaidFromEligible: () => true,
-}) }));
+vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
+  usePipeCatalog: () => ({
+    pipesById: Object.fromEntries(mocks.pipes.map(pipe => [pipe.id, pipe])), childrenByParent: new Map(), isPaidFromEligible: () => true,
+  })
+}));
 
 function HistoryCount() {
   return <span data-testid="history-count">{useEventHistory().entries.length}</span>;
@@ -36,8 +41,19 @@ it("opens Edited history by operation ID without resolving a legacy action", () 
   mocks.query.mockResolvedValue(null);
   const history = vi.fn();
   const operationId = "operation" as Id<"events">;
-  const row = groupHistoryEvents([{ id: operationId, operationId, type: "transaction", pipeId: "source" as Id<"pipes">,
-    title: "lunch", value: -100, occurredAt: 1, createdAt: 1, editedAt: 2 }])[0];
+  const row = groupHistoryEvents([
+    {
+      id: operationId,
+      operationId,
+      type: "transaction",
+      pipeId: "source" as Id<"pipes">,
+      title: "lunch",
+      value: -100,
+      occurredAt: 1,
+      createdAt: 1,
+      editedAt: 2
+    }
+  ])[0];
   if (row.kind !== "operation") throw new Error("Expected operation");
   render(<EventTransactionItem operation={row.operation} deletedPipes={[]} onShowEditHistory={history} />);
   fireEvent.click(screen.getByLabelText("View edit history for lunch"));

@@ -57,9 +57,16 @@ export function groupMonthlyEventHistory(
     const nested = groupHistoryEvents(archive.entries, [archive.event.pipeId]);
     const newest = [...archive.entries].sort((a, b) => b.occurredAt - a.occurredAt || b.createdAt - a.createdAt || b.id.localeCompare(a.id))[0];
     rows.push({
-      kind: "archive", id, pipeId: archive.event.pipeId, month: archive.month,
-      event: archive.event, entries: archive.entries, rows: nested,
-      loadedSummary: summarizeRows(nested), latestDate: newest.occurredAt, createdAt: newest.createdAt,
+      kind: "archive",
+      id,
+      pipeId: archive.event.pipeId,
+      month: archive.month,
+      event: archive.event,
+      entries: archive.entries,
+      rows: nested,
+      loadedSummary: summarizeRows(nested),
+      latestDate: newest.occurredAt,
+      createdAt: newest.createdAt,
     });
   }
   const order = (row: EventHistoryRow | MonthlyEventArchive) => {

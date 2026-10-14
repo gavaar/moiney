@@ -127,8 +127,11 @@ describe("CreateModal", () => {
     expect(screen.getByRole("textbox", { name: "Initial amount" }).getAttribute("value")).toBe("12.34");
     fireEvent.click(screen.getByRole("button", { name: isBoiler ? "Add boiler" : "Add feed" }));
     await waitFor(() => expect(addFeed).toHaveBeenCalledExactlyOnceWith({
-      name: "Savings", icon: "wallet-outline", description: undefined,
-      sourceType: isBoiler ? "boiler" : "feed", initialFed: 1234,
+      name: "Savings",
+      icon: "wallet-outline",
+      description: undefined,
+      sourceType: isBoiler ? "boiler" : "feed",
+      initialFed: 1234,
       ...(isBoiler ? { contributedFed: 1000 } : {}),
     }));
     expect(onClose).toHaveBeenCalledOnce();

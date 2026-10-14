@@ -6,9 +6,17 @@ import type { Id } from "@convex/_generated/dataModel";
 import type { HistoryEntry } from "./event-groups";
 import { useMixedHistory } from "./use-mixed-history";
 
-const mocks = vi.hoisted(() => ({ query: vi.fn(), focused: true, accountKey: "alice", isHydrating: false,
+const mocks = vi.hoisted(() => ({
+  query: vi.fn(),
+  focused: true,
+  accountKey: "alice",
+  isHydrating: false,
   eventHistory: { entries: [] as HistoryEntry[], complete: false, hasMore: false, updatedAt: 0, generation: 0 },
-  pipes: [], mutationVersion: 0, mergeEventHead: vi.fn(), appendEventHistory: vi.fn() }));
+  pipes: [],
+  mutationVersion: 0,
+  mergeEventHead: vi.fn(),
+  appendEventHistory: vi.fn()
+}));
 const client = { query: mocks.query };
 vi.mock("convex/react", () => ({ useConvex: () => client }));
 vi.mock("expo-router/react-navigation", () => ({ useIsFocused: () => mocks.focused }));
@@ -160,8 +168,18 @@ describe("loaded event History", () => {
   });
 
   it("merges indexed descendant windows before keeping the newest 30 raw entries", async () => {
-    const deletion: HistoryEntry = { id: "deleted-child" as Id<"events">, operationId: "deleted-child" as Id<"events">,
-      type: "pipe_deletion", pipeId: pipe("child"), ancestorIds: [pipe("parent")], occurredAt: 9000, createdAt: 9000, name: "Child", icon: "map", pipeType: "pipe" };
+    const deletion: HistoryEntry = {
+      id: "deleted-child" as Id<"events">,
+      operationId: "deleted-child" as Id<"events">,
+      type: "pipe_deletion",
+      pipeId: pipe("child"),
+      ancestorIds: [pipe("parent")],
+      occurredAt: 9000,
+      createdAt: 9000,
+      name: "Child",
+      icon: "map",
+      pipeType: "pipe"
+    };
     const parent = Array.from({ length: 30 }, (_, i) => expense(`parent-${i}`, "parent", 100 - i * 2));
     const child = Array.from({ length: 30 }, (_, i) => expense(`child-${i}`, "child", 99 - i * 2));
     mocks.query.mockImplementation(async (ref, args) => getFunctionName(ref) === "events:deletedPipes"

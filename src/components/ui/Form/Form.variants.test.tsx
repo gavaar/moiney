@@ -30,23 +30,35 @@ const items = [
 const fields: FormRow<Values> = [
   {
     key: "amount",
-    input: { type: "decimal", label: "Amount", allowNegative: false,
-      validator: (value) => value.endsWith(".") ? "Finish the amount" : undefined },
+    input: {
+      type: "decimal",
+      label: "Amount",
+      allowNegative: false,
+      validator: (value) => value.endsWith(".") ? "Finish the amount" : undefined
+    },
   },
   {
     key: "date",
-    input: { type: "date", label: "Date",
-      validator: (value) => value && value.getUTCDate() < 20 ? "Choose a later date" : undefined },
+    input: {
+      type: "date",
+      label: "Date",
+      validator: (value) => value && value.getUTCDate() < 20 ? "Choose a later date" : undefined
+    },
   },
   {
     key: "icon",
-    input: { type: "icon", label: "Icon",
-      validator: (value) => value === "wallet-outline" ? "Choose another icon" : undefined },
+    input: {
+      type: "icon",
+      label: "Icon",
+      validator: (value) => value === "wallet-outline" ? "Choose another icon" : undefined
+    },
   },
   {
     key: "source",
     input: {
-      type: "select", label: "Source", items,
+      type: "select",
+      label: "Source",
+      items,
       renderItem: (item) => <>{item.name}</>,
       validator: (value) => value === "groceries" ? "Choose an income source" : undefined,
     },
@@ -54,15 +66,22 @@ const fields: FormRow<Values> = [
   {
     key: "categories",
     input: {
-      type: "select", multiple: true, label: "Categories", items,
+      type: "select",
+      multiple: true,
+      label: "Categories",
+      items,
       renderItem: (item) => <>{item.name}</>,
       validator: (value) => value.length < 2 ? "Choose two categories" : undefined,
     },
   },
   {
     key: "title",
-    input: { type: "text-select", label: "Title", options: ["groceries", "gas", "rent"],
-      validator: (value) => value.length < 3 ? "Title is too short" : undefined },
+    input: {
+      type: "text-select",
+      label: "Title",
+      options: ["groceries", "gas", "rent"],
+      validator: (value) => value.length < 3 ? "Title is too short" : undefined
+    },
   },
 ];
 

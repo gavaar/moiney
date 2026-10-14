@@ -20,14 +20,24 @@ it("requires a complete controlled navigation configuration", () => {
 
 it("preserves field/value correlation inside explicit rows", () => {
   type Values = { name: string; accepted: boolean };
-  const page: FormPage<Values> = { key: 8, rows: [[
-    { key: "name", input: { label: "Name" } },
-    { key: "accepted", input: { type: "checkbox", label: "Accepted" } },
-  ]] };
+  const page: FormPage<Values> = {
+    key: 8,
+    rows: [
+      [
+        { key: "name", input: { label: "Name" } },
+        { key: "accepted", input: { type: "checkbox", label: "Accepted" } },
+      ]
+    ]
+  };
   expectTypeOf(page).toEqualTypeOf<FormPage<Values>>();
-  const invalid: FormPage<Values> = { key: 0, rows: [[
-    // @ts-expect-error A boolean field cannot use a string-emitting input.
-    { key: "accepted", input: { type: "text" } },
-  ]] };
+  const invalid: FormPage<Values> = {
+    key: 0,
+    rows: [
+      [
+        // @ts-expect-error A boolean field cannot use a string-emitting input.
+        { key: "accepted", input: { type: "text" } },
+      ]
+    ]
+  };
   expectTypeOf(invalid).toEqualTypeOf<FormPage<Values>>();
 });

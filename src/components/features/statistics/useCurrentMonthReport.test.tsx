@@ -31,26 +31,32 @@ beforeEach(() => {
 
 it("withholds partial pages, then merges spending, refunds and current pipe capacities", () => {
   const periodStart = new Date().setUTCDate(1);
-  mocks.results = [{
-    summary: { totalIncomeCents: 1_000, grossSpendingCents: 600, refundCents: 0, spendingTransactionCount: 1, refundTransactionCount: 0, largestSpendingTransactionCents: 600, largestSpendingTransactions: [{ title: "coffee", amountCents: 600 }] },
-    pipeSpending: [{ pipeId: "leaf", netSpendingCents: 600 }],
-    titleSpending: [{ title: "coffee", count: 1, netSpendingCents: 600 }],
-  }];
+  mocks.results = [
+    {
+      summary: { totalIncomeCents: 1_000, grossSpendingCents: 600, refundCents: 0, spendingTransactionCount: 1, refundTransactionCount: 0, largestSpendingTransactionCents: 600, largestSpendingTransactions: [{ title: "coffee", amountCents: 600 }] },
+      pipeSpending: [{ pipeId: "leaf", netSpendingCents: 600 }],
+      titleSpending: [{ title: "coffee", count: 1, netSpendingCents: 600 }],
+    }
+  ];
   mocks.status = "CanLoadMore";
   const { result, rerender } = renderHook(() => useCurrentMonthReport());
   expect(result.current.report).toBeUndefined();
   expect(mocks.loadMore).toHaveBeenCalledWith(100);
 
-  mocks.results = [...mocks.results, {
-    summary: { totalIncomeCents: 0, grossSpendingCents: 200, refundCents: 100, spendingTransactionCount: 1, refundTransactionCount: 1, largestSpendingTransactionCents: 200, largestSpendingTransactions: [{ title: "coffee", amountCents: 200 }] },
-    pipeSpending: [{ pipeId: "leaf", netSpendingCents: 100 }],
-    titleSpending: [{ title: "coffee", count: 2, netSpendingCents: 100 }],
-  }];
+  mocks.results = [
+    ...mocks.results, {
+      summary: { totalIncomeCents: 0, grossSpendingCents: 200, refundCents: 100, spendingTransactionCount: 1, refundTransactionCount: 1, largestSpendingTransactionCents: 200, largestSpendingTransactions: [{ title: "coffee", amountCents: 200 }] },
+      pipeSpending: [{ pipeId: "leaf", netSpendingCents: 100 }],
+      titleSpending: [{ title: "coffee", count: 2, netSpendingCents: 100 }],
+    }
+  ];
   mocks.status = "Exhausted";
   rerender();
   expect(result.current.report).toMatchObject({
     periodStart: Date.UTC(new Date(periodStart).getUTCFullYear(), new Date(periodStart).getUTCMonth(), 1),
-    totalIncomeCents: 1_000, grossSpendingCents: 800, refundCents: 100,
+    totalIncomeCents: 1_000,
+    grossSpendingCents: 800,
+    refundCents: 100,
     volumeCents: 1_000,
     nextLargestSpendingCents: [200],
     largestSpendingTransactions: [
@@ -64,10 +70,13 @@ it("withholds partial pages, then merges spending, refunds and current pipe capa
 
 it("retains the current report and query arguments across an unchanged rerender", () => {
   mocks.status = "Exhausted";
-  mocks.results = [{
-    summary: { totalIncomeCents: 0, grossSpendingCents: 700, refundCents: 0, spendingTransactionCount: 1, refundTransactionCount: 0, largestSpendingTransactionCents: 700 },
-    pipeSpending: [], titleSpending: [],
-  }];
+  mocks.results = [
+    {
+      summary: { totalIncomeCents: 0, grossSpendingCents: 700, refundCents: 0, spendingTransactionCount: 1, refundTransactionCount: 0, largestSpendingTransactionCents: 700 },
+      pipeSpending: [],
+      titleSpending: [],
+    }
+  ];
   const { result, rerender } = renderHook(() => useCurrentMonthReport());
   const report = result.current.report;
   expect(report?.grossSpendingCents).toBe(700);

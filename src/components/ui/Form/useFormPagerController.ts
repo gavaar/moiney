@@ -91,7 +91,13 @@ export function useFormPagerController({ pageKeys, navigation, fill }: Props) {
   }
 
   return {
-    activeIndex, multiple, width, height, measurePage, navigateToPage, beginUserScroll,
+    activeIndex,
+    multiple,
+    width,
+    height,
+    measurePage,
+    navigateToPage,
+    beginUserScroll,
     scrollProps: {
       ref: scrollRef,
       onLayout: handleViewportLayout,

@@ -153,8 +153,12 @@ it("replaces a deleted destination and applies its effect only when opted in", a
     return { userId, sourceId, nextId, transactionId };
   });
   await t.withIdentity({ subject: userId }).mutation(api.financialOperations.edit, {
-    operationId: transactionId, title: "move", value: -1000, date: 1000,
-    target: { type: "transfer", to: nextId }, applyReplacementEffects: true,
+    operationId: transactionId,
+    title: "move",
+    value: -1000,
+    date: 1000,
+    target: { type: "transfer", to: nextId },
+    applyReplacementEffects: true,
   });
   await t.run(async ctx => {
     expect((await ctx.db.get("pipes", sourceId))?.fed).toBe(4000);

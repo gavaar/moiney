@@ -23,10 +23,15 @@ vi.mock("@ui/Alert", () => ({ useAlert: () => ({ success: vi.fn(), error: mocks.
 vi.mock("@ui/Modal", () => ({ ModalShell: ({ visible, children }: { visible: boolean; children: React.ReactNode }) => visible ? <div>{children}</div> : null }));
 vi.mock("@features/transactions/cache/EventHistoryCacheContext", () => ({ useOptionalEventHistoryCache: () => ({ invalidateHistory: mocks.invalidate }) }));
 vi.mock("@features/transactions/cache/useEventHistory", () => ({ useEventHistory: () => ({ entries: [], isLoading: false }) }));
-vi.mock("@features/pipes/context/PipeCatalogContext", () => ({ usePipeCatalog: () => ({
-  allPipes: mocks.pipes, pipesById: Object.fromEntries(mocks.pipes.map(pipe => [pipe.id, pipe])),
-  childrenByParent: new Map(), isLoading: false, isPaidFromEligible: () => true,
-}) }));
+vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
+  usePipeCatalog: () => ({
+    allPipes: mocks.pipes,
+    pipesById: Object.fromEntries(mocks.pipes.map(pipe => [pipe.id, pipe])),
+    childrenByParent: new Map(),
+    isLoading: false,
+    isPaidFromEligible: () => true,
+  })
+}));
 
 it.each(["edit", "repeat"] as const)("submits %s from a payer-only perspective through the real form without a legacy action row", async intent => {
   vi.clearAllMocks();
@@ -37,8 +42,13 @@ it.each(["edit", "repeat"] as const)("submits %s from a payer-only perspective t
     const source = await ctx.db.insert("pipes", { ...fields, name: "Budget", spent: 100, pendingFedAdjustment: 100 });
     const payer = await ctx.db.insert("pipes", { ...fields, name: "Wallet", fed: 900 });
     mocks.pipes = [{ ...fields, id: source, name: "Budget", spent: 100 }, { ...fields, id: payer, name: "Wallet", fed: 900 }];
-    const operationId = await insertFinancialOperation(ctx, { userId, title: "lunch", value: -100, occurredAt: 1,
-      structure: { type: "payByTransfer", from: source, paidFrom: payer } });
+    const operationId = await insertFinancialOperation(ctx, {
+      userId,
+      title: "lunch",
+      value: -100,
+      occurredAt: 1,
+      structure: { type: "payByTransfer", from: source, paidFrom: payer }
+    });
     return { userId, source, payer, operationId };
   });
   const auth = t.withIdentity({ subject: ids.userId });
@@ -63,8 +73,20 @@ it.each(["edit", "repeat"] as const)("submits %s from a payer-only perspective t
     expect(events).toHaveLength(2);
     expect(events.find(event => event.id === ids.operationId)).toMatchObject({ title: "dinner", value: -100 });
     const corrections = await t.run(ctx => ctx.db.query("transactionCorrections").collect());
-    expect(corrections).toEqual([expect.objectContaining({ operationId: ids.operationId, previous: { title: "lunch", value: -100, date: 1,
-      kind: "expense", from: ids.source, paidFrom: ids.payer }, current: expect.objectContaining({ title: "dinner", value: -100 }) })]);
+    expect(corrections).toEqual([
+      expect.objectContaining({
+        operationId: ids.operationId,
+        previous: {
+          title: "lunch",
+          value: -100,
+          date: 1,
+          kind: "expense",
+          from: ids.source,
+          paidFrom: ids.payer
+        },
+        current: expect.objectContaining({ title: "dinner", value: -100 })
+      })
+    ]);
     expect(await t.run(ctx => ctx.db.get("pipes", ids.source))).toMatchObject({ spent: 100, pendingFedAdjustment: 100 });
     expect(await t.run(ctx => ctx.db.get("pipes", ids.payer))).toMatchObject({ fed: 900 });
   } else {

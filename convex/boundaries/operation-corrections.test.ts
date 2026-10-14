@@ -33,9 +33,7 @@ it("preserves Edited metadata and paginated correction history without the legac
   expect(first.page[0]).not.toHaveProperty("userId");
   const second = await auth.query(listCorrections, { operationId, paginationOpts: { numItems: 1, cursor: first.continueCursor } });
   expect(second).toMatchObject({ isDone: true, page: [{ correctionId: corrections[0]._id }] });
-  expect(await auth.query(api.events.latest, { pipeId: payer })).toEqual([
-    expect.objectContaining({ operationId, editedAt: corrections[1].editedAt }),
-  ]);
+  expect(await auth.query(api.events.latest, { pipeId: payer })).toEqual([expect.objectContaining({ operationId, editedAt: corrections[1].editedAt }),]);
   expect((await auth.query(api.events.list, {})).events.every(event => "editedAt" in event && event.editedAt === corrections[1].editedAt)).toBe(true);
 });
 
@@ -71,8 +69,11 @@ it("bounds rows read even when reactive pagination supplies a wider end-cursor w
   await t.run(async ctx => {
     const example = (await ctx.db.query("transactionCorrections").first())!;
     for (let i = 0; i < 120; i++) await ctx.db.insert("transactionCorrections", {
-      userId: example.userId, operationId,
-      editedAt: example.editedAt + i + 1, previous: example.previous, current: example.current,
+      userId: example.userId,
+      operationId,
+      editedAt: example.editedAt + i + 1,
+      previous: example.previous,
+      current: example.current,
     });
   });
   const first = await auth.query(listCorrections, { operationId, paginationOpts: { numItems: 100, cursor: null } });
@@ -85,8 +86,16 @@ it("bounds rows read even when reactive pagination supplies a wider end-cursor w
 it("rejects lifecycle operations and treats a deleted canonical event as unavailable", async () => {
   const { t, auth, operationId, source, userId } = await setup();
   const lifecycleId = await t.run(async ctx => {
-    const id = await ctx.db.insert("events", { userId, pipeId: source, type: "pipe_creation", name: "Wallet", icon: "wallet",
-      ancestorIds: [], pipeType: "feed", occurredAt: 1 });
+    const id = await ctx.db.insert("events", {
+      userId,
+      pipeId: source,
+      type: "pipe_creation",
+      name: "Wallet",
+      icon: "wallet",
+      ancestorIds: [],
+      pipeType: "feed",
+      occurredAt: 1
+    });
     await ctx.db.patch("events", id, { operationId: id });
     return id;
   });

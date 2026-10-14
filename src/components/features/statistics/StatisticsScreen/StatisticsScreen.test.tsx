@@ -80,9 +80,7 @@ it("shows the top frozen offender on a saved card and marks legacy rankings unav
 });
 
 it("shows the current icon only when a frozen offender's pipe still exists", () => {
-  vi.mocked(useQuery).mockImplementation((query: any, _args?: any) => query === "getPipes" ? [
-    { _id: "leaf", name: "Renamed", icon: "cart" },
-  ] as any : [
+  vi.mocked(useQuery).mockImplementation((query: any, _args?: any) => query === "getPipes" ? [{ _id: "leaf", name: "Renamed", icon: "cart" },] as any : [
     { periodStart: Date.UTC(2026, 5, 1), grossSpendingCents: 600, refundCents: 0, offenders: [{ pipeId: "leaf", name: "Groceries", netSpendingCents: 600, capacityCents: 400, overageCents: 200 }] },
     { periodStart: Date.UTC(2026, 4, 1), grossSpendingCents: 600, refundCents: 0, offenders: [{ pipeId: "deleted", name: "Old pipe", netSpendingCents: 600, capacityCents: 400, overageCents: 200 }] },
   ] as any);
@@ -97,8 +95,12 @@ it("shows the current icon only when a frozen offender's pipe still exists", () 
 
 it("shows the frozen month's most repeated expense and net amount on the card", () => {
   vi.mocked(useQuery).mockReturnValue([
-    { periodStart: Date.UTC(2026, 5, 1), grossSpendingCents: 700, refundCents: 50,
-      mostRepeatedTransaction: { title: "coffee", count: 3, netSpendingCents: 450 } },
+    {
+      periodStart: Date.UTC(2026, 5, 1),
+      grossSpendingCents: 700,
+      refundCents: 50,
+      mostRepeatedTransaction: { title: "coffee", count: 3, netSpendingCents: 450 }
+    },
   ] as any);
   render(<StatisticsScreen onSelectPeriod={vi.fn()} />);
   expect(screen.getByText("Most repeated:")).toBeDefined();

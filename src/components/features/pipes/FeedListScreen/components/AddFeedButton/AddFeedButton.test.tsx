@@ -133,8 +133,11 @@ describe("AddFeedButton", () => {
     expect(screen.getByTestId("add-feed-submit").getAttribute("aria-disabled")).toBeNull();
     await user.click(screen.getByTestId("add-feed-submit"));
     await waitFor(() => expect(mockAddFeed).toHaveBeenCalledExactlyOnceWith({
-      name: "Savings", icon: "wallet-outline", description: "Opening balance",
-      sourceType: isBoiler ? "boiler" : "feed", ...money,
+      name: "Savings",
+      icon: "wallet-outline",
+      description: "Opening balance",
+      sourceType: isBoiler ? "boiler" : "feed",
+      ...money,
     }));
     expect(mockShowAlert.success).toHaveBeenCalledWith(isBoiler ? "Boiler added" : "Feed added");
   });

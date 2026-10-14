@@ -249,9 +249,7 @@ describe("splitEvenly", () => {
     );
     // a shortfall = 0 → skipped
     // b shortfall = 100, budget 100 → gets 100
-    expect(result).toEqual([
-      { childId: "b", amount: 100 },
-    ]);
+    expect(result).toEqual([{ childId: "b", amount: 100 },]);
   });
 });
 
@@ -290,15 +288,11 @@ describe("calculatePipeAllocations", () => {
       { id: "a", priority: 1, capacity: 1000, fed: 0 },
       { id: "b", priority: 2, capacity: 1000, fed: 0 },
     ]);
-    expect(result).toEqual([
-      { childId: "a", amount: 50 },
-    ]);
+    expect(result).toEqual([{ childId: "a", amount: 50 },]);
   });
 
   it("returns empty for zero parent fed", () => {
-    const result = calculatePipeAllocations(0, [
-      { id: "a", priority: 1, capacity: 1000, fed: 0 },
-    ]);
+    const result = calculatePipeAllocations(0, [{ id: "a", priority: 1, capacity: 1000, fed: 0 },]);
     expect(result).toEqual([]);
   });
 
@@ -314,9 +308,7 @@ describe("calculatePipeAllocations", () => {
       { id: "b", priority: 0, capacity: 1000, fed: 0 },
     ]);
     // priority 0 comes first (ascending), gets 500
-    expect(result).toEqual([
-      { childId: "b", amount: 500 },
-    ]);
+    expect(result).toEqual([{ childId: "b", amount: 500 },]);
   });
 
   it("matches the user's original example", () => {
@@ -342,9 +334,7 @@ describe("calculatePipeAllocations", () => {
     ]);
     // priority 1: a gets 300 (fair share = 300/1 = 300, shortfall 500 >= 300)
     // priority 2: nothing left
-    expect(result).toEqual([
-      { childId: "a", amount: 300 },
-    ]);
+    expect(result).toEqual([{ childId: "a", amount: 300 },]);
   });
 
   it("distributes negative budget to highest priority number first (reversed)", () => {
@@ -355,9 +345,7 @@ describe("calculatePipeAllocations", () => {
     // negative: reversed priority, highest number first
     // priority 2 (b): gets all -300
     // priority 1 (a): nothing left
-    expect(result).toEqual([
-      { childId: "b", amount: -300 },
-    ]);
+    expect(result).toEqual([{ childId: "b", amount: -300 },]);
   });
 
   it("splits negative budget evenly within same priority group", () => {
@@ -375,9 +363,7 @@ describe("calculatePipeAllocations", () => {
   });
 
   it("returns empty for zero parent fed (negative test)", () => {
-    const result = calculatePipeAllocations(0, [
-      { id: "a", priority: 1, capacity: 500, fed: 0 },
-    ]);
+    const result = calculatePipeAllocations(0, [{ id: "a", priority: 1, capacity: 500, fed: 0 },]);
     expect(result).toEqual([]);
   });
 });
@@ -422,9 +408,7 @@ describe("computePipeDerivedValues", () => {
   it("includes parent's own stored fed as excess in total fed", () => {
     const result = computePipeDerivedValues(
       { capacity: 999, spent: 10, fed: 100 },
-      [
-        { capacity: 500, spent: 10, fed: 200 },
-      ],
+      [{ capacity: 500, spent: 10, fed: 200 },],
     );
     // children fed sum = 200, parent's own fed = 100 → total fed = 300
     expect(result).toEqual({ capacity: 500, spent: 10, fed: 300 });
@@ -502,9 +486,7 @@ describe("computePipeTree", () => {
 
 describe("recalculatePipes", () => {
   it("returns same fed for single root with no children", () => {
-    const result = recalculatePipes([
-      { _id: "a", parentId: undefined, priority: 0, fed: 500 },
-    ]);
+    const result = recalculatePipes([{ _id: "a", parentId: undefined, priority: 0, fed: 500 },]);
     expect(result).toEqual([{ _id: "a", fed: 500 }]);
   });
 
@@ -666,9 +648,7 @@ describe("recalculatePipes", () => {
   });
 
   it("preserves negative fed on leaf pipe with no children", () => {
-    const result = recalculatePipes([
-      { _id: "a", parentId: undefined, priority: 0, fed: -50 },
-    ]);
+    const result = recalculatePipes([{ _id: "a", parentId: undefined, priority: 0, fed: -50 },]);
     expect(result).toEqual([{ _id: "a", fed: -50 }]);
   });
 
