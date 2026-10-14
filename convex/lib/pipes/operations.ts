@@ -74,6 +74,7 @@ export type AddPipeCommand = {
   capacity: number;
   parentId: Id<"pipes">;
   ruleConfig?: RuleConfiguration;
+  contingencyPipeId?: Id<"pipes">;
 };
 
 export async function addPipeOperation(
@@ -124,6 +125,10 @@ export async function addPipeOperation(
       await ctx.db.patch("pipes", source._id, { contingencyPipeId: undefined });
     }
   }
+  if (command.contingencyPipeId !== undefined) {
+    await assertContingencyTarget(ctx, userId, childId, command.contingencyPipeId);
+    await ctx.db.patch("pipes", childId, { contingencyPipeId: command.contingencyPipeId });
+  }
   await reconcileAffectedPipeRoots(ctx, [command.parentId]);
   await ensureLivePipeCreationHistory(ctx, (await ctx.db.get("pipes", childId))!);
   return childId;
@@ -167,12 +172,14 @@ export type UpdatePipeCommand = {
   priority?: number;
   capacity?: number;
   contingencyPipeId?: Id<"pipes"> | null;
+  ruleConfig?: RuleConfiguration;
 };
 
 export async function updatePipeOperation(
   ctx: MutationCtx,
   userId: Id<"users">,
   command: UpdatePipeCommand,
+  now: number = Date.now(),
 ): Promise<null> {
   const pipe = await ctx.db.get("pipes", command.pipeId);
   if (!pipe || pipe.userId !== userId) {
@@ -180,13 +187,7 @@ export async function updatePipeOperation(
   }
   assertPipeNotDeleting(pipe);
 
-  const patch: Record<string, unknown> = {};
-  if (command.contingencyPipeId !== undefined) {
-    if (command.contingencyPipeId !== null) {
-      await assertContingencyTarget(ctx, userId, pipe._id, command.contingencyPipeId);
-    }
-    patch.contingencyPipeId = command.contingencyPipeId ?? undefined;
-  }
+  const patch: Partial<Doc<"pipes">> = {};
   if (command.name !== undefined) patch.name = command.name;
   if (command.icon !== undefined) patch.icon = command.icon;
   if (command.description !== undefined) {
@@ -196,9 +197,27 @@ export async function updatePipeOperation(
   if (command.capacity !== undefined) {
     patch.capacity = assertAmountLimit(command.capacity);
   }
-
-  await ctx.db.patch("pipes", command.pipeId, patch);
-  if (command.priority !== undefined || command.capacity !== undefined) {
+  if (command.ruleConfig !== undefined) {
+    const child = await ctx.db.query("pipes").withIndex("by_parentId", q => q.eq("parentId", pipe._id)).first();
+    if (command.ruleConfig.rule === "self_destruct" && (!pipe.parentId || child)) {
+      throw new ConvexError({ code: "SELF_DESTRUCT_REQUIRES_CHILD_LEAF" });
+    }
+    if (child) throw new ConvexError({ code: "RULE_REQUIRES_LEAF" });
+    Object.assign(patch, rulePatch({ ...pipe, ...patch }, command.ruleConfig, now));
+  }
+  if (patch.rule === "instant_settlement" || patch.rule === "self_destruct") {
+    patch.contingencyPipeId = undefined;
+  }
+  if (command.contingencyPipeId !== undefined) {
+    patch.contingencyPipeId = command.contingencyPipeId ?? undefined;
+  }
+  if (Object.keys(patch).length === 0) return null;
+  await ctx.db.patch("pipes", pipe._id, patch);
+  // Validate against the final rule, not the rule before this atomic edit.
+  if (command.contingencyPipeId != null) {
+    await assertContingencyTarget(ctx, userId, pipe._id, command.contingencyPipeId);
+  }
+  if (command.priority !== undefined || command.capacity !== undefined || command.ruleConfig !== undefined) {
     await reconcileAffectedPipeRoots(ctx, [command.pipeId]);
   }
   return null;

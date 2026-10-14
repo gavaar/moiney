@@ -110,6 +110,7 @@ export const addPipe = mutation({
     capacity: v.number(),
     parentId: v.id("pipes"),
     ruleConfig: v.optional(v.object(ruleConfigurationFields)),
+    contingencyPipeId: v.optional(v.id("pipes")),
   },
   returns: v.id("pipes"),
   handler: async (ctx, args) => {
@@ -127,6 +128,7 @@ export const updatePipe = mutation({
     contingencyPipeId: v.optional(v.union(v.id("pipes"), v.null())),
     priority: v.optional(v.number()),
     capacity: v.optional(v.number()),
+    ruleConfig: v.optional(v.object(ruleConfigurationFields)),
   },
   returns: v.null(),
   handler: async (ctx, args) => {

@@ -25,8 +25,12 @@ This section owns execution; [D008 presentation statistics](reporting.md#d008-pr
 owns the derived pipe-detail display.
 
 Child-pipe creation offers owner, details, capacity, and rule steps, defaulting to
-no rule. The pipe, selected rule, and creation event are persisted atomically;
-creation and editing share rule validation and schedule/capacity calculations.
+no rule. Creation atomically persists the pipe, selected rule, eligible contingency,
+and creation event. Editing uses the same details, capacity, and rule steps,
+without owner selection; details, capacity, rule, and contingency changes are saved
+atomically. Unchanged fields and rules are omitted so unrelated edits cannot
+overwrite live accounting or restart schedules. When capacity and a backdated cron
+rule change together, accrued credit is applied after the entered capacity.
 Adding a child clears the owner's rule and all its options, including scheduled
 deletion. The creation wizard explains that rules must be added to children.
 Root creation retains the [D020 default](#d020-childless-root-settlement-default).

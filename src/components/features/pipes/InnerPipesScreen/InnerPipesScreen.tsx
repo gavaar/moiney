@@ -14,7 +14,7 @@ import { Breadcrumb } from "./components/Breadcrumb";
 import { OptionsButton } from "./components/OptionsButton";
 import { PipeBars } from "./components/PipeBars";
 import { RulesIcon } from "./components/RulesIcon";
-import { RuleModal } from "./components/RulesIcon/RuleModal";
+import { EditPipeModal } from "./components/EditPipeModal";
 import { StatisticsRow } from "./components/StatisticsRow";
 import { AddChildPipeButton } from "./components/AddChildPipeButton";
 import { useRuleClock } from "@features/pipes/rules/use-rule-clock";
@@ -128,8 +128,9 @@ export function InnerPipesScreen() {
         /> : null}
       </View>
       {compactRulePipeId && (
-        <RuleModal
+        <EditPipeModal
           visible
+          initialStep={3}
           pipeId={compactRulePipeId}
           onClose={() => setCompactRulePipeId(null)}
         />

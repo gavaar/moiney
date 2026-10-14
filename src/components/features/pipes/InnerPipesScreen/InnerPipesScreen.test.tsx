@@ -1,8 +1,13 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render as renderComponent, screen, within } from "@testing-library/react";
+import type { ReactNode } from "react";
+import { ConfirmModalProvider } from "@ui/ConfirmModal/ConfirmModalProvider";
 import userEvent from "@testing-library/user-event";
 import { InnerPipesScreen } from "./InnerPipesScreen";
+function render(element: ReactNode) {
+  return renderComponent(element, { wrapper: ConfirmModalProvider });
+}
 vi.mock("expo-router/react-navigation", () => ({ useIsFocused: () => true }));
 
 vi.mock("react-native", async (importOriginal) => ({
@@ -54,8 +59,8 @@ vi.mock("@features/pipes/components/PipesList", () => ({
     </div>
   ),
 }));
-vi.mock("@features/pipes/InnerPipesScreen/components/RulesIcon/RuleModal", () => ({
-  RuleModal: ({ visible, onClose }: any) => visible ? <button onClick={onClose}>Close rule settings</button> : null,
+vi.mock("@features/pipes/InnerPipesScreen/components/EditPipeModal", () => ({
+  EditPipeModal: ({ visible, onClose }: any) => visible ? <button onClick={onClose}>Close rule settings</button> : null,
 }));
 
 vi.mock("@ui/Icon", async (importOriginal) => ({

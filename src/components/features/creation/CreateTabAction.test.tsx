@@ -2,6 +2,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { CreateTabAction } from "./CreateTabAction";
+import { ConfirmModalProvider } from "@ui/ConfirmModal/ConfirmModalProvider";
 
 vi.mock("expo-router/react-navigation", () => ({ useIsFocused: () => true }));
 
@@ -24,7 +25,7 @@ vi.mock("@ui/Icon", async importOriginal => ({
 
 describe("CreateTabAction", () => {
   it("dismisses on the backdrop and reopens with transaction selected and a fresh draft", () => {
-    render(<CreateTabAction />);
+    render(<ConfirmModalProvider><CreateTabAction /></ConfirmModalProvider>);
     expect(screen.queryByRole("tab", { name: "transaction" })).toBeNull();
     fireEvent.click(screen.getByLabelText("Create"));
     fireEvent.change(screen.getByRole("textbox", { name: "Draft" }), { target: { value: "Lunch" } });

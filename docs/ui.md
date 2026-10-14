@@ -18,7 +18,9 @@ input dispatcher's detailed public contract is in [Input](input.md).
 - Application code uses `src/components/ui/Input/Input.tsx`, not its variant
   components directly. Preserve the dispatcher contract unless an approved
   refactor replaces it.
-- Every modal dismisses on backdrop tap. Modal content has no close button,
+- Every modal requests dismissal on backdrop tap. Pipe creation and editing
+  confirm discarding unsaved changes before dismissal, including system Back;
+  step navigation preserves drafts. Modal content has no close button,
   close icon, or other dismissal-only control; domain actions remain allowed.
 - Mandatory [app updates](app-updates.md) use a screen-level gate, not a modal.
 - Pipe list minimization is an account-scoped, device-local display preference.

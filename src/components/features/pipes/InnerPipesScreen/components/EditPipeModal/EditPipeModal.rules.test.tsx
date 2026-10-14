@@ -1,16 +1,22 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, render, screen, fireEvent } from "@testing-library/react";
+import { act, render as renderComponent, screen, fireEvent } from "@testing-library/react";
+import type { ReactNode } from "react";
+import { ConfirmModalProvider } from "@ui/ConfirmModal/ConfirmModalProvider";
 import { type Id } from "@convex/_generated/dataModel";
 import { computeElapsedIntervals } from "@domain/scheduling";
-import { RuleModal } from "./RuleModal";
+import { EditPipeModal } from "./EditPipeModal";
+
+function render(element: ReactNode) {
+  return renderComponent(element, { wrapper: ConfirmModalProvider });
+}
 
 vi.mock("expo-router/react-navigation", () => ({ useIsFocused: () => true }));
 
 const h = vi.hoisted(() => ({
   api: {
     pipes: {
-      updatePipeRule: { kind: "updatePipeRule" },
+      updatePipe: { kind: "updatePipe" },
       executePipeRuleNow: { kind: "executePipeRuleNow" },
     },
   },
@@ -24,7 +30,7 @@ const h = vi.hoisted(() => ({
 vi.mock("@convex/_generated/api", () => ({ api: h.api }));
 vi.mock("convex/react", () => ({
   useMutation: (ref: any) =>
-    ref === h.api.pipes.updatePipeRule ? h.updatePipeRule : h.executePipeRuleNow,
+    ref === h.api.pipes.updatePipe ? h.updatePipeRule : h.executePipeRuleNow,
 }));
 vi.mock("@ui/Alert", () => ({ useAlert: () => h.showAlert }));
 vi.mock("@features/transactions/cache/EventHistoryCacheContext", () => ({
@@ -43,6 +49,7 @@ function basePipe(overrides: Record<string, unknown> = {}) {
     icon: "cart-outline",
     rule: undefined,
     capacity: 0,
+    priority: 0,
     fed: 0,
     spent: 0,
     ...overrides,
@@ -50,9 +57,9 @@ function basePipe(overrides: Record<string, unknown> = {}) {
 }
 
 function renderModal(pipe: any, onClose = () => {}) {
-  h.usePipeSelection.mockReturnValue({ pipesById: { "pipe-1": pipe } });
+  h.usePipeSelection.mockReturnValue({ pipesById: { "pipe-1": pipe }, allPipes: [pipe], isLoading: false });
   return render(
-    <RuleModal visible pipeId={pId("pipe-1")} onClose={onClose} />,
+    <EditPipeModal visible initialStep={3} pipeId={pId("pipe-1")} onClose={onClose} />,
   );
 }
 
@@ -62,26 +69,26 @@ async function clickAndFlush(element: HTMLElement) {
   });
 }
 
-describe("RuleModal", () => {
+describe("EditPipeModal rule step", () => {
   it("edits and cancels self-destruct without offering manual settlement or cap updates", async () => {
     const pipe = basePipe({ parentId: pId("parent"), rule: "self_destruct", cronNextDate: Date.UTC(2099, 0, 21, 5), cronInterval: { interval: 0.5, unit: "days" } });
     const onClose = vi.fn();
     const { unmount } = renderModal(pipe, onClose);
     expect(screen.queryByText("Run now")).toBeNull();
     expect(screen.queryByText("Cap update")).toBeNull();
-    expect(screen.getByRole("button", { name: "Save rule" }).getAttribute("aria-disabled")).toBe("true");
+    expect(screen.getByRole("button", { name: "Submit" }).getAttribute("aria-disabled")).toBe("true");
     fireEvent.click(screen.getByRole("button", { name: "Deletion date" }));
     fireEvent.click(screen.getByTestId("day-22"));
-    await clickAndFlush(screen.getByText("Save rule"));
-    expect(h.updatePipeRule).toHaveBeenCalledWith({ pipeId: pId("pipe-1"), rule: "self_destruct", starting: Date.UTC(2099, 0, 22, 5) });
+    await clickAndFlush(screen.getByText("Submit"));
+    expect(h.updatePipeRule).toHaveBeenCalledWith({ pipeId: pId("pipe-1"), ruleConfig: { rule: "self_destruct", starting: Date.UTC(2099, 0, 22, 5) } });
     expect(onClose).toHaveBeenCalledOnce();
     expect(h.executePipeRuleNow).not.toHaveBeenCalled();
     unmount();
     renderModal(pipe);
-    fireEvent.click(screen.getByTestId("select-trigger"));
+    fireEvent.click(screen.getByRole("button", { name: "Rule" }));
     fireEvent.click(screen.getByText("No rule"));
-    await clickAndFlush(screen.getByText("Save rule"));
-    expect(h.updatePipeRule).toHaveBeenLastCalledWith({ pipeId: pId("pipe-1"), rule: undefined });
+    await clickAndFlush(screen.getByText("Submit"));
+    expect(h.updatePipeRule).toHaveBeenLastCalledWith({ pipeId: pId("pipe-1"), ruleConfig: { rule: undefined } });
   });
   beforeEach(() => {
     vi.clearAllMocks();
@@ -108,7 +115,7 @@ describe("RuleModal", () => {
     fireEvent.click(screen.getByTestId("day-22"));
 
     vi.setSystemTime(Date.UTC(2099, 0, 22, 7));
-    await clickAndFlush(screen.getByText("Save rule"));
+    await clickAndFlush(screen.getByText("Submit"));
 
     expect(h.updatePipeRule).not.toHaveBeenCalled();
     expect(h.showAlert.error).toHaveBeenCalled();
@@ -178,19 +185,17 @@ describe("RuleModal", () => {
     );
 
     expect(screen.getByText("Select pacing...")).toBeTruthy();
-    fireEvent.click(screen.getAllByTestId("select-trigger")[2]);
+    fireEvent.click(screen.getByRole("button", { name: "Pacing" }));
     fireEvent.click(screen.getByText("Monthly"));
 
     expect(screen.getByText("Capacity will update by 100.00 every month.")).toBeTruthy();
 
-    await clickAndFlush(screen.getByText("Save rule"));
+    await clickAndFlush(screen.getByText("Submit"));
 
     expect(h.updatePipeRule).toHaveBeenCalledWith(
-      expect.objectContaining({
-        capUpdateValue: 10000,
-        interval: 1,
-        unit: "months",
-      }),
+      expect.objectContaining({ ruleConfig: expect.objectContaining({
+        capUpdateValue: 10000, interval: 1, unit: "months",
+      }) }),
     );
   });
 
@@ -205,7 +210,7 @@ describe("RuleModal", () => {
       }),
     );
 
-    fireEvent.click(screen.getAllByTestId("select-trigger")[2]);
+    fireEvent.click(screen.getByRole("button", { name: "Pacing" }));
     fireEvent.click(screen.getByText("Monthly"));
 
     const elapsed = computeElapsedIntervals(
@@ -231,7 +236,7 @@ describe("RuleModal", () => {
       }),
     );
 
-    fireEvent.click(screen.getAllByTestId("select-trigger")[2]);
+    fireEvent.click(screen.getByRole("button", { name: "Pacing" }));
 
     expect(screen.queryByText("Monthly")).toBeNull();
     expect(screen.queryByText(/Capacity will update by/)).toBeNull();
@@ -280,12 +285,11 @@ describe("RuleModal", () => {
       target: { value: "50" },
     });
 
-    await clickAndFlush(screen.getByText("Save rule"));
+    await clickAndFlush(screen.getByText("Submit"));
 
     expect(h.updatePipeRule).toHaveBeenCalledWith({
       pipeId: pId("pipe-1"),
-      rule: "instant_settlement",
-      capUpdateValue: 5000,
+      ruleConfig: { rule: "instant_settlement", capUpdateValue: 5000 },
     });
   });
 
@@ -318,20 +322,19 @@ describe("RuleModal", () => {
     expect(onClose).toHaveBeenCalledOnce();
   });
 
-  it("calls updatePipeRule with instant_settlement and keeps the modal open", async () => {
+  it("submits instant settlement and closes the editor", async () => {
     const onClose = vi.fn();
     renderModal(basePipe(), onClose);
     fireEvent.click(screen.getAllByTestId("select-trigger")[0]);
     fireEvent.click(screen.getByText("Instant settlement"));
 
-    await clickAndFlush(screen.getByText("Save rule"));
+    await clickAndFlush(screen.getByText("Submit"));
 
     expect(h.updatePipeRule).toHaveBeenCalledWith({
       pipeId: pId("pipe-1"),
-      rule: "instant_settlement",
-      capUpdateValue: undefined,
+      ruleConfig: { rule: "instant_settlement", capUpdateValue: undefined },
     });
-    expect(onClose).not.toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalledOnce();
   });
 
   it("clears the rule when saving No rule", async () => {
@@ -339,11 +342,11 @@ describe("RuleModal", () => {
     fireEvent.click(screen.getAllByTestId("select-trigger")[0]);
     fireEvent.click(screen.getByText("No rule"));
 
-    await clickAndFlush(screen.getByText("Save rule"));
+    await clickAndFlush(screen.getByText("Submit"));
 
     expect(h.updatePipeRule).toHaveBeenCalledWith({
       pipeId: pId("pipe-1"),
-      rule: undefined,
+      ruleConfig: { rule: undefined },
     });
   });
 
@@ -359,18 +362,15 @@ describe("RuleModal", () => {
       onClose,
     );
 
-    fireEvent.click(screen.getByTestId("increment-button"));
+    fireEvent.click(screen.getByRole("button", { name: "Increase Interval" }));
 
-    await clickAndFlush(screen.getByText("Save rule"));
+    await clickAndFlush(screen.getByText("Submit"));
 
     expect(h.updatePipeRule).toHaveBeenCalledWith(
       expect.objectContaining({
         pipeId: pId("pipe-1"),
-        rule: "cron",
-        interval: 2,
-        unit: "months",
-        capUpdateValue: 5000,
-        starting: expect.any(Number),
+        ruleConfig: { rule: "cron", interval: 2, unit: "months", capUpdateValue: 5000,
+          starting: expect.any(Number) },
       }),
     );
     expect(onClose).toHaveBeenCalled();
@@ -385,9 +385,9 @@ describe("RuleModal", () => {
         cronNextDate: Date.UTC(2026, 0, 15, 12),
       }),
     );
-    expect(screen.getByText("Save rule")).toBeTruthy();
+    expect(screen.getByText("Submit")).toBeTruthy();
 
-    await clickAndFlush(screen.getByText("Save rule"));
+    await clickAndFlush(screen.getByText("Submit"));
 
     expect(h.updatePipeRule).not.toHaveBeenCalled();
     expect(h.executePipeRuleNow).not.toHaveBeenCalled();
@@ -480,7 +480,7 @@ describe("RuleModal", () => {
     fireEvent.click(screen.getAllByTestId("select-trigger")[0]);
     fireEvent.click(screen.getByText("No rule"));
 
-    await clickAndFlush(screen.getByText("Save rule"));
+    await clickAndFlush(screen.getByText("Submit"));
 
     expect(h.showAlert.error).toHaveBeenCalledWith("boom");
     expect(onClose).not.toHaveBeenCalled();

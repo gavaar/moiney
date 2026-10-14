@@ -1,12 +1,19 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render as renderComponent, screen, waitFor } from "@testing-library/react";
+import type { ReactNode } from "react";
+import { ConfirmModalProvider } from "@ui/ConfirmModal/ConfirmModalProvider";
 import userEvent from "@testing-library/user-event";
 import { type Id } from "@convex/_generated/dataModel";
 import { AddPipeModal } from "./AddPipeModal";
 import type { PipeModel } from "@features/pipes/data/pipes";
 
 vi.mock("expo-router/react-navigation", () => ({ useIsFocused: () => true }));
+vi.mock("@ui/Alert", () => ({ useAlert: () => ({ error: vi.fn(), success: vi.fn() }) }));
+vi.mock("@features/transactions/cache/EventHistoryCacheContext", () => ({ useOptionalEventHistoryCache: () => null }));
+function render(element: ReactNode) {
+  return renderComponent(element, { wrapper: ConfirmModalProvider });
+}
 
 const mockAddPipe = vi.fn().mockResolvedValue(undefined);
 
@@ -43,6 +50,31 @@ function renderModal(visible = true) {
 }
 
 describe("AddPipeModal", () => {
+  it("offers contingency for the future child and submits it from any step without Run now", async () => {
+    const reserve = { ...other, id: "reserve" as Id<"pipes">, parentId };
+    catalog.allPipes = [owner, reserve];
+    renderModal();
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Food" } });
+    fireEvent.click(screen.getByRole("button", { name: "Next step" }));
+    fireEvent.click(screen.getByRole("button", { name: "Next step" }));
+    fireEvent.click(screen.getByRole("button", { name: "Contingency" }));
+    fireEvent.click(screen.getByRole("button", { name: "Savings" }));
+    expect(screen.queryByRole("button", { name: "Run now" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Previous step" }));
+    fireEvent.click(screen.getByRole("button", { name: "Previous step" }));
+    fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+    await waitFor(() => expect(mockAddPipe).toHaveBeenCalledWith(expect.objectContaining({ contingencyPipeId: reserve.id })));
+  });
+
+  it("asks before abandoning creation and does not discard on cancel", async () => {
+    renderModal();
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Food" } });
+    fireEvent.click(screen.getByTestId("modal-backdrop"));
+    expect(screen.getByText("Discard changes?")).toBeTruthy();
+    fireEvent.click(screen.getByText("Keep editing"));
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("Name").getAttribute("value")).toBe("Food");
+  });
   afterEach(() => vi.useRealTimers());
   it("clears an unfinished pipe while retaining its selected owner and keeping creation open", async () => {
     renderModal();
@@ -76,8 +108,8 @@ describe("AddPipeModal", () => {
     try {
       renderModal();
       fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "Madrid" } });
-      await userEvent.click(screen.getByRole("button", { name: "Next step" }));
-      await userEvent.click(screen.getByRole("button", { name: "Next step" }));
+      fireEvent.click(screen.getByRole("button", { name: "Next step" }));
+      fireEvent.click(screen.getByRole("button", { name: "Next step" }));
       fireEvent.click(screen.getByTestId("select-trigger"));
       fireEvent.click(screen.getByText("Self-destruct"));
       expect(screen.getByRole("button", { name: "Submit" }).getAttribute("aria-disabled")).toBe("true");
@@ -86,10 +118,10 @@ describe("AddPipeModal", () => {
       expect(screen.getByRole("alert").textContent).toBe("Choose a future deletion date (05:00 UTC)");
       fireEvent.click(screen.getByRole("button", { name: "Deletion date" }));
       fireEvent.click(screen.getByTestId("day-21"));
-      await userEvent.click(screen.getByRole("button", { name: "Previous step" }));
-      await userEvent.click(screen.getByRole("button", { name: "Next step" }));
-      expect(screen.getByTestId("select-trigger").textContent).toContain("Self-destruct");
-      await userEvent.click(screen.getByRole("button", { name: "Submit" }));
+      fireEvent.click(screen.getByRole("button", { name: "Previous step" }));
+      fireEvent.click(screen.getByRole("button", { name: "Next step" }));
+      expect(screen.getByRole("button", { name: "Rule" }).textContent).toContain("Self-destruct");
+      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
       expect(mockAddPipe).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
         name: "Madrid", parentId,
         ruleConfig: { rule: "self_destruct", starting: Date.UTC(2026, 8, 21, 5) },
@@ -137,7 +169,7 @@ describe("AddPipeModal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockAddPipe.mockResolvedValue(undefined);
-    catalog.allPipes = [owner, other];
+    catalog.allPipes = [owner, other, { ...owner, id: "child" as Id<"pipes">, parentId: otherId, name: "Nested" }];
     catalog.isLoading = false;
   });
 

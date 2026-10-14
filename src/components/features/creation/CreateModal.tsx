@@ -6,6 +6,7 @@ import { PillGroup } from "@ui/PillGroup/PillGroup";
 import { Form } from "@ui/Form";
 import { AddPipeForm } from "@features/pipes/InnerPipesScreen/components/AddPipeModal/AddPipeModal";
 import { useAddFeedForm } from "@features/pipes/FeedListScreen/components/AddFeedButton/useAddFeedForm";
+import { usePipeDismissal } from "@features/pipes/PipeForm/use-pipe-dismissal";
 
 type Props = { onClose: () => void };
 type CreateMode = "transaction" | "pipe" | "root";
@@ -18,8 +19,9 @@ const modes = [
 export function CreateModal({ onClose }: Props) {
   const [mode, setMode] = useState<CreateMode>("transaction");
   const rootForm = useAddFeedForm(onClose);
+  const dismissal = usePipeDismissal(onClose);
   const { resetVersion, ...rootFormProps } = rootForm;
-  return <ModalShell visible onClose={onClose} bottomAccessory={
+  return <ModalShell visible onClose={() => void dismissal.requestClose()} bottomAccessory={
     <PillGroup options={modes} value={mode} accessibilityLabel="Create" onChange={next => {
       Keyboard.dismiss();
       setMode(next);
@@ -29,7 +31,7 @@ export function CreateModal({ onClose }: Props) {
       <TransactionForm onSuccess={onClose} />
     </View>
     <View style={{ display: mode === "pipe" ? "flex" : "none", flexShrink: 1 }}>
-      <AddPipeForm onClose={onClose} />
+      <AddPipeForm onClose={onClose} onDismissStateChange={dismissal.onDismissStateChange} />
     </View>
     <View style={{ display: mode === "root" ? "flex" : "none", flexShrink: 1 }}>
       <Form key={resetVersion} {...rootFormProps} />

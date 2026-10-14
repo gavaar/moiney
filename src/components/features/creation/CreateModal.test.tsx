@@ -1,8 +1,14 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render as renderComponent, screen, waitFor } from "@testing-library/react";
+import type { ReactNode } from "react";
+import { ConfirmModalProvider } from "@ui/ConfirmModal/ConfirmModalProvider";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Id } from "@convex/_generated/dataModel";
 import { CreateModal } from "./CreateModal";
+
+function render(element: ReactNode) {
+  return renderComponent(element, { wrapper: ConfirmModalProvider });
+}
 
 vi.mock("expo-router/react-navigation", () => ({ useIsFocused: () => true }));
 

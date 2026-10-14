@@ -1,1 +1,0 @@
-export { RuleModal } from "./RuleModal";
