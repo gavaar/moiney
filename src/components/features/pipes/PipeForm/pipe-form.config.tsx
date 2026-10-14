@@ -2,9 +2,9 @@ import { Text, View } from "react-native";
 import { parseMoney } from "@domain/money";
 import { colors } from "@/lib/styles";
 import { Icon, safeIconName } from "@ui/Icon";
-import type { FormProps } from "@ui/Form";
+import type { FormPage, FormRow } from "@ui/Form";
 import type { PipeModel } from "@features/pipes/data/pipes";
-import { buildRuleFields } from "@features/pipes/rules/rule-form";
+import { buildRuleRows } from "@features/pipes/rules/rule-form";
 import { ruleDisallowsContingency, type PipeDraft } from "./pipe-draft";
 
 export function validatePipeName(value: string): string | undefined {
@@ -28,30 +28,31 @@ export function buildPipeForm({ pipes, disabled, loading, draft, now, editing, l
   pipes: readonly PipeModel[]; disabled: boolean; loading: boolean; draft: PipeDraft; now: number;
   editing: boolean; leaf: boolean; allowSelfDestruct: boolean; contingencyOptions: readonly PipeModel[];
   invalidContingency: boolean; removalPending: boolean;
-}): FormProps<PipeDraft>["form"] {
-  const form: FormProps<PipeDraft>["form"][number][] = [];
-  if (!editing) form.push({ key: "ownerId", step: 0, input: {
+}): readonly FormPage<PipeDraft>[] {
+  const pages: FormPage<PipeDraft>[] = [];
+  if (!editing) pages.push({ key: 0, rows: [[{ key: "ownerId", input: {
     type: "select", presentation: "inline", label: "Owner pipe", hideLabel: true, items: pipes, disabled, loading,
     validator: (value: string | null) => pipes.some(pipe => pipe.id === value) ? undefined : "Select an owner pipe",
     renderItem: item => pipeOption({ name: item.name, icon: item.icon }),
-  } });
-  form.push(
-    { key: "name", step: 1, input: { label: "Name", placeholder: "Pipe name", disabled, validator: validatePipeName } },
-    { key: "description", step: 1, input: { label: "Description", placeholder: "Optional description", multiline: true, numberOfLines: 3, disabled } },
-    { key: "icon", step: 1, row: "icon-priority", input: { type: "icon", label: "Icon", disabled } },
-    { key: "priority", step: 1, row: "icon-priority", input: { type: "number", label: "Priority", min: 0, step: 1, disabled } },
-  );
-  if (!leaf) return form;
+  } }]] });
+  pages.push({ key: 1, rows: [
+    [{ key: "name", input: { label: "Name", placeholder: "Pipe name", disabled, validator: validatePipeName } }],
+    [{ key: "description", input: { label: "Description", placeholder: "Optional description", multiline: true, numberOfLines: 3, disabled } }],
+    [{ key: "icon", input: { type: "icon", label: "Icon", disabled } },
+      { key: "priority", input: { type: "number", label: "Priority", min: 0, step: 1, disabled } }],
+  ] });
+  if (!leaf) return pages;
   const capacity = draft.capacity && validatePipeCapacity(draft.capacity) === undefined ? parseMoney(draft.capacity) : 0;
-  form.push({ key: "capacity", step: 2,
+  pages.push({ key: 2, rows: [[{ key: "capacity",
     input: { type: "decimal", label: editing ? "Capacity" : "Initial capacity?", placeholder: "0.00", allowNegative: true,
       disabled, validator: value => validatePipeCapacity(value, editing) },
     description: "Capacity is this pipe's spending budget and allocation target. It does not add money; available money is allocated from its owner pipe. " +
       (editing ? "Enter zero explicitly, or a negative amount to represent debt." : "Leave blank for zero, or enter a negative amount to represent debt."),
-  }, ...buildRuleFields(draft, { capacity, disabled, allowSelfDestruct, step: 3, now }));
+  }]] });
+  const ruleRows: FormRow<PipeDraft>[] = [...buildRuleRows(draft, { capacity, disabled, allowSelfDestruct, now })];
   const incompatible = ruleDisallowsContingency(draft.selectedRule);
-  if (contingencyOptions.length || draft.contingencyPipeId || incompatible || removalPending) form.push({
-    key: "contingencyPipeId", step: 3,
+  if (contingencyOptions.length || draft.contingencyPipeId || incompatible || removalPending) ruleRows.push([{
+    key: "contingencyPipeId",
     input: { type: "select", label: "Contingency", disabled: disabled || incompatible,
       items: [{ id: "none", name: "No contingency", icon: "shield" }, ...contingencyOptions],
       renderItem: item => pipeOption({ name: item.name, icon: item.icon }),
@@ -59,6 +60,7 @@ export function buildPipeForm({ pipes, disabled, loading, draft, now, editing, l
     description: incompatible ? "This rule cannot use contingency." + (removalPending ? " Saving will remove the current contingency." : "")
       : invalidContingency ? "Selected contingency is no longer eligible. Choose another or clear it."
       : "At settlement, contingency covers spending above this pipe's capacity using the selected pipe's available money.",
-  });
-  return form;
+  }]);
+  pages.push({ key: 3, rows: ruleRows });
+  return pages;
 }

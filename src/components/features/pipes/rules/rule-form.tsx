@@ -1,6 +1,6 @@
 import { Text, View } from "react-native";
 import { Icon } from "@ui/Icon";
-import type { FormProps } from "@ui/Form";
+import type { FormRow } from "@ui/Form";
 import { colors } from "@/lib/styles";
 import { formatAmount } from "@/lib/format";
 import { formatMoneyInput, parseMoney } from "@domain/money";
@@ -78,14 +78,14 @@ export function validateRuleDraft(draft: RuleDraft, now: number): string | undef
   return undefined;
 }
 
-export function buildRuleFields(
+export function buildRuleRows(
   draft: RuleDraft,
-  { capacity, disabled, allowSelfDestruct, step, now }: {
-    capacity: number; disabled?: boolean; allowSelfDestruct?: boolean; step?: number; now: number;
-  }): FormProps<RuleDraft>["form"]
+  { capacity, disabled, allowSelfDestruct, now }: {
+    capacity: number; disabled?: boolean; allowSelfDestruct?: boolean; now: number;
+  }): readonly FormRow<RuleDraft>[]
 {
   const { selectedRule, capNumber, effectiveCron } = ruleDraftValues(draft);
-  const fields: FormProps<RuleDraft>["form"][number][] = [{
+  const rows: FormRow<RuleDraft>[] = [[{
     key: "selectedRule",
     input: {
       type: "select", label: "Rule", disabled,
@@ -102,10 +102,10 @@ export function buildRuleFields(
         and drifts by {formatMoneyInput(effectiveCron.pacingDrift)} over the selected interval.
       </Text> : null}
     </>,
-  }];
+  }]];
 
   if (selectedRule === "self_destruct") {
-    fields.push({
+    rows.push([{
       key: "deletionDate",
       input: {
         type: "date",
@@ -114,9 +114,9 @@ export function buildRuleFields(
         disabled,
         validator: (value) => validateDeletionDate(value, now),
       }
-    });
+    }]);
   } else if (selectedRule !== "none") {
-    fields.push({
+    rows.push([{
       key: "capValue",
       input: {
         type: "decimal",
@@ -129,17 +129,16 @@ export function buildRuleFields(
       description: <Text className="text-xs italic text-muted">{capNumber != null
         ? `Cap will update leftover value by ${formatAmount(capNumber)} after every rule run.`
         : `Cap will reset to ${formatAmount(capacity)} after every rule run.`}</Text>
-    });
+    }]);
   }
 
   if (selectedRule === "cron") {
     const unit = UNIT_OPTIONS.find((option) => option.id === draft.unit)?.id ?? "months";
     const pacingOptions = getPacingOptions(unit);
     const elapsed = computeElapsedIntervals(draft.starting.getTime(), effectiveCron.interval, effectiveCron.unit, now);
-    fields.push(
-      {
+    rows.push(
+      [{
         key: "interval",
-        row: "schedule",
         input: {
           type: "number",
           label: "Interval",
@@ -151,7 +150,6 @@ export function buildRuleFields(
       },
       {
         key: "unit",
-        row: "schedule",
         input: {
           type: "select",
           label: "Unit",
@@ -159,8 +157,8 @@ export function buildRuleFields(
           items: UNIT_OPTIONS,
           renderItem: (item) => <Text className="text-text text-base">{item.label}</Text>
         },
-      },
-      {
+      }],
+      [{
         key: "pacing",
         input: {
           type: "select",
@@ -174,8 +172,8 @@ export function buildRuleFields(
           <Text className="text-sm text-muted">
             Capacity will update by {formatMoneyInput(effectiveCron.capUpdateValue ?? 0)} every {unitPlural(1, effectiveCron.unit)}.
           </Text> : undefined
-        },
-      {
+        }],
+      [{
         key: "starting",
         input: {
           type: "date",
@@ -187,8 +185,8 @@ export function buildRuleFields(
             saving this rule will automatically add {formatCapCredit(elapsed, effectiveCron.capUpdateValue)} cap to account for the{" "}
             {elapsed} {unitPlural(elapsed, effectiveCron.unit)} that have passed from the starting date
           </Text></View> : undefined
-      },
+      }],
     );
   }
-  return fields.map((field) => ({ ...field, step }));
+  return rows;
 }

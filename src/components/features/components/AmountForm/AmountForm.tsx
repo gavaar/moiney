@@ -27,11 +27,10 @@ export function AmountForm(props: AmountFormProps) {
     <View className="px-4 py-4" style={props.fill ? { flex: 1 } : { flexShrink: 1 }}>
       <Form
         fill={props.fill}
-        form={buildAmountForm(form, picker)}
+        pages={buildAmountForm(form, picker)}
         value={form.draft}
         onChange={handleFormChange}
-        activeStep={picker?.activeStep}
-        onStepChange={picker?.onStepChange}
+        navigation={picker ? { step: picker.activeStep, onChange: picker.onStepChange } : undefined}
         header={heading ? (
           <AmountFormHeader transaction={heading} sourceSelected={props.pipeId !== null} />
         ) : undefined}

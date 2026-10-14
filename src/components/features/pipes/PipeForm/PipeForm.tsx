@@ -135,11 +135,11 @@ export function PipeForm(props: PipeFormProps) {
 
   return <View className="gap-4" style={{ flexShrink: 1 }}>
     <Form key={formVersion}
-      form={buildPipeForm({ pipes, disabled: busy, loading: isLoading, draft, now: validationTime, editing, leaf,
+      pages={buildPipeForm({ pipes, disabled: busy, loading: isLoading, draft, now: validationTime, editing, leaf,
         allowSelfDestruct: !editing || Boolean(pipe?.parentId), contingencyOptions, invalidContingency,
         removalPending: Boolean(pipe?.contingencyPipeId && ruleDisallowsContingency(draft.selectedRule)) })}
       value={{ ...draft, contingencyPipeId: draft.contingencyPipeId ?? "none" }} onChange={handleChange}
-      activeStep={activeStep} onStepChange={step => { if (!busy) setActiveStep(step); }}
+      navigation={{ step: activeStep, onChange: step => { if (!busy) setActiveStep(step); } }}
       header={<View className="flex-row items-center gap-2 border-b border-muted/20 p-2"
         accessibilityRole="header" accessibilityLabel={headerPipe?.name ?? "Select owner pipe"}>
         <Icon name={headerPipe ? safeIconName(headerPipe.icon) : "pipe-disconnected"} size={24} color={colors.muted} />

@@ -1,17 +1,18 @@
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { Keyboard, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent, type ScrollView } from "react-native";
+import type { FormNavigation } from "./form.types";
 
 type Props = {
   pageKeys: readonly number[];
-  activeStep?: number;
-  onStepChange?: (step: number) => void;
+  navigation?: FormNavigation;
   fill: boolean;
 };
 
 type PageMeasurement = { width: number; height: number };
 
 /** Owns step keys, measured page geometry, and synchronization with native offsets. */
-export function useFormPagerController({ pageKeys, activeStep, onStepChange, fill }: Props) {
+export function useFormPagerController({ pageKeys, navigation, fill }: Props) {
+  const activeStep = navigation?.step;
   const [selectedKey, setSelectedKey] = useState<number | null>(null);
   const [width, setWidth] = useState(0);
   const [measurements, setMeasurements] = useState<Record<number, PageMeasurement>>({});
@@ -49,7 +50,7 @@ export function useFormPagerController({ pageKeys, activeStep, onStepChange, fil
     const key = pageKeys[index];
     if (key === undefined) return;
     if (activeStep === undefined) setSelectedKey(key);
-    if (key !== (activeStep ?? selectedKey)) onStepChange?.(key);
+    if (key !== (activeStep ?? selectedKey)) navigation?.onChange(key);
   }
 
   function navigateToPage(index: number) {

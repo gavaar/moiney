@@ -5,6 +5,15 @@ module.exports = defineConfig([
   globalIgnores(["convex/_generated/**", "dist/**"]),
   expoConfig,
   {
+    // Expand multiline configuration literals; compact single-line literals remain allowed.
+    rules: {
+      "array-bracket-newline": ["error", { multiline: true }],
+      "array-element-newline": ["error", "consistent"],
+      "object-curly-newline": ["error", { ObjectExpression: { multiline: true, consistent: true } }],
+      "object-property-newline": ["error", { allowAllPropertiesOnSameLine: true }],
+    },
+  },
+  {
     // Keep existing React/compiler debt visible without blocking adoption.
     rules: {
       "react/no-children-prop": "warn",
