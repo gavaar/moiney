@@ -4,8 +4,9 @@ import {
   Pressable,
   View,
 } from "react-native";
-import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { cn } from "@/lib/styles";
+import { useModalFrame } from "./useModalFrame";
 
 type Props = {
   visible: boolean;
@@ -14,6 +15,39 @@ type Props = {
   bottomAccessory?: ReactNode;
   width?: "wide" | "content";
 };
+
+function ModalContent({ onClose, children, bottomAccessory, width }: Omit<Props, "visible">) {
+  const { viewportRef, onViewportLayout, top, height, left, right } = useModalFrame();
+  return (
+    <View ref={viewportRef} onLayout={onViewportLayout} className="flex-1 bg-black/50">
+      <Pressable className="absolute inset-0" testID="modal-backdrop" onPress={onClose} />
+      <View
+        pointerEvents="box-none"
+        testID="modal-content-region"
+        style={{
+          position: "absolute",
+          top,
+          height,
+          left,
+          right,
+          alignItems: "center",
+          justifyContent: "flex-end",
+        }}
+      >
+        <View className={cn("bg-surface rounded-xl p-4",
+          width === "content" ? "max-w-[85%]" : "w-[85%] max-w-[960px]",
+        )} style={{ flexShrink: 1, maxHeight: "100%" }}>
+          {children}
+        </View>
+        {bottomAccessory ? (
+          <View pointerEvents="box-none" style={{ paddingTop: 16, width: "85%", alignItems: "center", flexShrink: 0 }}>
+            {bottomAccessory}
+          </View>
+        ) : null}
+      </View>
+    </View>
+  );
+}
 
 export function ModalShell({ visible, onClose, children, bottomAccessory, width = "wide" }: Props) {
   return (
@@ -24,28 +58,9 @@ export function ModalShell({ visible, onClose, children, bottomAccessory, width 
       onRequestClose={onClose}
     >
       <SafeAreaProvider>
-        <View className="flex-1 bg-black/50">
-          <Pressable
-            className="absolute inset-0"
-            testID="modal-backdrop"
-            onPress={onClose}
-          />
-          <SafeAreaView
-            pointerEvents="box-none"
-            style={{ flex: 1, alignItems: "center", paddingVertical: 24 }}
-          >
-            <View className={cn("bg-surface rounded-xl p-4 max-h-[85%]",
-              width === "content" ? "max-w-[85%]" : "w-[85%] max-w-[960px]",
-            )} style={{ flexShrink: 1 }}>
-              {children}
-            </View>
-            {bottomAccessory ? (
-              <View pointerEvents="box-none" style={{ marginTop: "auto", marginBottom: 48, paddingTop: 16, width: "85%", alignItems: "center", flexShrink: 0 }}>
-                {bottomAccessory}
-              </View>
-            ) : null}
-          </SafeAreaView>
-        </View>
+        <ModalContent onClose={onClose} bottomAccessory={bottomAccessory} width={width}>
+          {children}
+        </ModalContent>
       </SafeAreaProvider>
     </RNModal>
   );

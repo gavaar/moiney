@@ -1,4 +1,4 @@
-import { Pressable, Text, View } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
 import { Icon } from "@ui/Icon";
 import { cn, colors } from "@/lib/styles";
 import { ModalShell } from "@ui/Modal";
@@ -185,14 +185,14 @@ export function TransactionItem({ transaction, resolveTransaction, onShowEditHis
       </ModalShell>
 
       <ModalShell visible={showDisabledInfo} onClose={() => setShowDisabledInfo(false)}>
-        <View className="p-4">
+        <ScrollView contentContainerClassName="p-4" style={{ flexGrow: 0, flexShrink: 1 }}>
           <Text className="text-text font-bold text-lg mb-2">Cannot repeat transaction</Text>
           <Text className="text-muted text-sm leading-5">
             {model.viewOnly
               ? "This is preserved history from a deleted pipe. Select valid pipes to edit it."
               : "This transaction was from a pipe that does not exist or cannot accept transactions anymore (probably due to now having children pipes)."}
           </Text>
-        </View>
+        </ScrollView>
       </ModalShell>
     </View>
   );

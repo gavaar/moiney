@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { ScrollView, Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/lib/auth";
 import { ScreenHeader } from "@ui/ScreenHeader/ScreenHeader";
@@ -38,7 +38,7 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
         {biometrics.error ? <Text accessibilityRole="alert" className="text-sm text-error">{biometrics.error}</Text> : null}
       </ScrollView>
       <ModalShell visible={action !== null} onClose={close}>
-        {action ? <View className="gap-4">
+        {action ? <ScrollView contentContainerClassName="gap-4" style={{ flexGrow: 0, flexShrink: 1 }} keyboardShouldPersistTaps="handled">
           <Text className="text-lg font-bold text-text">{action.type === "enable" ? "Enable biometric login" : "Disable biometric login?"}</Text>
           <Text className="text-sm leading-5 text-muted">
             {action.type === "enable"
@@ -57,7 +57,7 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
               if (succeeded) setAction(null);
             }}
           />
-        </View> : null}
+        </ScrollView> : null}
       </ModalShell>
     </SafeAreaView>
   );

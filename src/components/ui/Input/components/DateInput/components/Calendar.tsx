@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
 import { colors } from "@/lib/styles";
 import { Icon } from "@ui/Icon";
 import { ModalShell } from "@ui/Modal";
@@ -100,7 +100,7 @@ export function Calendar({ visible, value, onChange, onClose }: Props) {
 
   return (
     <ModalShell visible={visible} onClose={onClose} width="content">
-      <View className="w-[280px]">
+      <ScrollView style={{ width: 280, maxWidth: "100%", flexGrow: 0, flexShrink: 1 }} keyboardShouldPersistTaps="handled">
         <View className="flex-row items-center justify-between mb-2">
           <Pressable
             testID="calendar-prev"
@@ -153,7 +153,7 @@ export function Calendar({ visible, value, onChange, onClose }: Props) {
         >
           <Text className="text-primary text-sm font-medium">Today</Text>
         </Pressable>
-      </View>
+      </ScrollView>
     </ModalShell>
   );
 }

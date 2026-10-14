@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
 import { Button } from "@ui/Button";
 import { ModalShell } from "@ui/Modal";
 
@@ -55,7 +55,7 @@ export function ConfirmModalProvider({ children }: { children: ReactNode }) {
       {children}
       <ModalShell visible={options !== null} onClose={() => settle(false)}>
         {options ? (
-          <View className="gap-4 min-w-[280px]">
+          <ScrollView contentContainerClassName="gap-4 min-w-[280px]" style={{ flexGrow: 0, flexShrink: 1 }} keyboardShouldPersistTaps="handled">
             {options.title ? (
               <Text className="text-text font-bold text-lg">{options.title}</Text>
             ) : null}
@@ -76,7 +76,7 @@ export function ConfirmModalProvider({ children }: { children: ReactNode }) {
                 onPress={() => settle(true)}
               />
             </View>
-          </View>
+          </ScrollView>
         ) : null}
       </ModalShell>
     </ConfirmModalContext.Provider>

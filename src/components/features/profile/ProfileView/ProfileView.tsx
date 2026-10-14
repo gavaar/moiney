@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Image, Pressable, Text, View } from "react-native";
+import { Image, Pressable, ScrollView, Text, View } from "react-native";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { useAlert } from "@ui/Alert";
@@ -77,7 +77,7 @@ export function ProfileView() {
       </Text>
 
       <ModalShell visible={editing} onClose={() => setEditing(false)}>
-        <View className="items-center gap-3">
+        <ScrollView contentContainerClassName="items-center gap-3" style={{ flexGrow: 0, flexShrink: 1 }}>
           <View
             className="w-full overflow-hidden rounded-full border-2 border-border"
             style={{ aspectRatio: 1 }}
@@ -109,7 +109,7 @@ export function ProfileView() {
               className="ml-auto"
             />
           </View>
-        </View>
+        </ScrollView>
       </ModalShell>
     </View>
   );
