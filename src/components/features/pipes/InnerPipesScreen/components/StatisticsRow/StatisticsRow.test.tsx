@@ -5,10 +5,6 @@ import { colors } from "@/lib/styles";
 import userEvent from "@testing-library/user-event";
 import { StatisticsRow } from "./StatisticsRow";
 
-vi.mock("@/lib/dates", () => ({
-  getDaysInMonth: () => 30,
-}));
-
 let mockPipesById: any;
 
 vi.mock("@features/pipes/context/PipeSelectionContext", () => ({
@@ -264,23 +260,44 @@ describe("StatisticsRow", () => {
 
   it("calculates and explains accumulated spend through today", () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date(2026, 6, 15, 12));
-    renderStatistics();
+    vi.setSystemTime(new Date(Date.UTC(2026, 5, 15, 12)));
+    renderStatistics({ spent: 0 });
 
     fireEvent.click(
       screen.getByRole("button", { name: "Accumulated spend this month, 50.00" }),
     );
-    expect(
-      screen.getByText(
-        "You can spend 50.00. This month expects 900.00 to be spent, which adds up to 30.00 spendable per day. Given you have already spent 400.00, you can spend up to today 50.00.",
-      ),
-    ).toBeDefined();
+    for (const sentence of [
+      "This month’s expected spending is 900.00, or 30.00 per day.",
+      "Adding up to today, that gives you an allowance of 450.00.",
+      "You’ve spent 400.00 this month, leaving an accumulated allowance of 50.00.",
+    ]) {
+      expect(screen.getByText((_, element) => element?.textContent === sentence)).toBeDefined();
+    }
+    expect(screen.queryByText(/positive again|Avoid further spending/)).toBeNull();
+  });
+
+  it("keeps accumulated allowance loading until the monthly spending total is ready", () => {
+    renderStatistics({ monthlySpent: undefined });
+    fireEvent.click(screen.getByRole("button", { name: "Accumulated spend this month, Loading" }));
+    expect(screen.getByText("Loading monthly spending…")).toBeDefined();
+    expect(screen.queryByText(/accumulated allowance|positive again|Avoid further spending/)).toBeNull();
+  });
+
+  it.each([
+    { monthlySpent: 50000, amount: "-50.00", color: colors.error },
+    { monthlySpent: 40000, amount: "50.00", color: colors.primary },
+    { monthlySpent: 45000, amount: "0.00", color: colors.primary },
+    { monthlySpent: undefined, amount: "Loading", color: colors.text },
+  ])("colors the accumulated spend chip for $amount", ({ monthlySpent, amount, color }) => {
+    renderStatistics({ monthlySpent, now: Date.UTC(2026, 5, 15, 12) });
+    const chip = screen.getByRole("button", { name: `Accumulated spend this month, ${amount}` });
+    expect(within(chip).getByTestId("icon").getAttribute("data-color")).toBe(color);
   });
 
   it("explains when negative accumulated spend becomes positive", () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date(2026, 6, 15, 12));
-    renderStatistics({ spent: 50000 });
+    vi.setSystemTime(new Date(Date.UTC(2026, 5, 15, 12)));
+    renderStatistics({ spent: 0, monthlySpent: 50000 });
 
     fireEvent.click(
       screen.getByRole("button", {
@@ -288,14 +305,14 @@ describe("StatisticsRow", () => {
       }),
     );
     expect(
-      screen.getByText("This value will be positive again in 2 days."),
+      screen.getByText("Assuming no further spending, this value will be positive again in 2 days."),
     ).toBeDefined();
   });
 
   it("warns when accumulated spend cannot recover this month", () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date(2026, 6, 15, 12));
-    renderStatistics({ spent: 100000 });
+    vi.setSystemTime(new Date(Date.UTC(2026, 5, 15, 12)));
+    renderStatistics({ spent: 0, monthlySpent: 100000 });
 
     fireEvent.click(
       screen.getByRole("button", {
@@ -304,10 +321,36 @@ describe("StatisticsRow", () => {
     );
     expect(
       screen.getByText(
-        "You should not spend anymore from this pipe this month.",
+        "You’ve used up this month’s allowance. Avoid further spending this month.",
       ),
     ).toBeDefined();
     expect(screen.queryByText(/positive again in/)).toBeNull();
+  });
+
+  it.each([
+    { now: "2026-07-01T00:30:00Z", expected: 31000, monthlySpent: 0, amount: "10.00", recovery: null },
+    { now: "2028-02-29T23:30:00Z", expected: 29000, monthlySpent: 0, amount: "290.00", recovery: null },
+    { now: "2026-06-15T12:00:00Z", expected: 100, monthlySpent: 0, amount: "0.50", recovery: null },
+    { now: "2026-06-15T12:00:00Z", expected: 90000, monthlySpent: -1000, amount: "460.00", recovery: null },
+    { now: "2026-06-15T12:00:00Z", expected: 90000, monthlySpent: 45000, amount: "0.00", recovery: null },
+    { now: "2026-06-15T12:00:00Z", expected: 90000, monthlySpent: 48000, amount: "-30.00", recovery: "2 days" },
+    { now: "2026-06-29T12:00:00Z", expected: 90000, monthlySpent: 89000, amount: "-20.00", recovery: "1 day" },
+    { now: "2026-06-29T12:00:00Z", expected: 90000, monthlySpent: 90000, amount: "-30.00", recovery: "never" },
+    { now: "2026-06-30T12:00:00Z", expected: 90000, monthlySpent: 90001, amount: "-0.01", recovery: "never" },
+    { now: "2026-06-15T12:00:00Z", expected: 0, monthlySpent: 1, amount: "-0.01", recovery: "never" },
+    { now: "2026-06-15T12:00:00Z", expected: 0, monthlySpent: 0, amount: "0.00", recovery: null },
+  ])("shows accumulated allowance $amount with recovery $recovery at $now", ({ now, amount, recovery, ...props }) => {
+    renderStatistics({ ...props, spent: 123456, now: Date.parse(now) });
+    fireEvent.click(screen.getByRole("button", { name: `Accumulated spend this month, ${amount}` }));
+    if (recovery === "never") {
+      expect(screen.getByText("You’ve used up this month’s allowance. Avoid further spending this month.")).toBeDefined();
+      expect(screen.queryByText(/positive again/)).toBeNull();
+    } else if (recovery) {
+      expect(screen.getByText(`Assuming no further spending, this value will be positive again in ${recovery}.`)).toBeDefined();
+      expect(screen.queryByText(/Avoid further spending/)).toBeNull();
+    } else {
+      expect(screen.queryByText(/positive again|Avoid further spending/)).toBeNull();
+    }
   });
 
   it("uses accessible icon-only chips and removes StM", () => {

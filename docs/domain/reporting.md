@@ -62,10 +62,14 @@ amount in primary, including zero leftover when exactly on target.
 This is a spending-pace comparison, not available funding.
 
 Accumulated spendable value through today is
-`expected / daysInMonth * currentDay - spent`, rounded
+`expected / daysInMonth * currentDay - monthlySpent`, using the same complete
+live monthly total and inclusive UTC calendar as average daily spending, not the
+settlement-tracked balance. It remains loading until that total is ready. Details
+show the monthly target, daily allowance, allowance accrued through today, net
+monthly spending, and remaining accumulated allowance. Calculations are rounded
 only at the integer-cent formatting boundary. If negative and daily expected is
 positive, detail states how many whole days the precise value needs to become
-positive. If that exceeds days remaining in the month, or daily expected cannot
+strictly positive, assuming no further spending. If that exceeds days remaining in the month, or daily expected cannot
 increase it, detail advises against further spending from that pipe this month.
 The separate L2S and external settlement presentation is defined by
 [D012](accounting.md#d012-pay-by-transfer-liquidity-and-logical-spending).

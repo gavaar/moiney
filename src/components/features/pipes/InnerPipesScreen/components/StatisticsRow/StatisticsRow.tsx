@@ -4,7 +4,6 @@ import { Popover } from "@ui/Popover";
 import { Icon, type IconName } from "@ui/Icon";
 import { cn, colors } from "@/lib/styles";
 import { formatAmount } from "@/lib/format";
-import { getDaysInMonth } from "@/lib/dates";
 import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import { prepareContingencyPreview } from "@features/pipes/data/contingencyPreview";
@@ -21,7 +20,7 @@ type StatItem = {
   ref: RefObject<View | null>;
   icon: IconName;
   testID?: string;
-  tone?: "external" | "growth-negative" | "growth-non-negative" | "warning";
+  tone?: "external" | "negative" | "positive" | "growth-non-negative" | "warning";
 };
 
 type Props = {
@@ -57,13 +56,14 @@ export function StatisticsRow({
   now,
 }: Props) {
   const date = new Date(now);
-  const daysInMonth = getDaysInMonth(date);
-  const currentDay = date.getDate();
+  const daysInMonth = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)).getUTCDate();
+  const currentDay = date.getUTCDate();
   const pace = monthlySpent === undefined ? undefined : monthlySpendingPace(monthlySpent, now);
   const dailyExpected = daysInMonth > 0 ? expected / daysInMonth : 0;
-  const accumulatedSpend = dailyExpected * currentDay - spent;
+  const accruedAllowance = dailyExpected * currentDay;
+  const accumulatedSpend = monthlySpent === undefined ? undefined : accruedAllowance - monthlySpent;
   const daysUntilPositive =
-    accumulatedSpend < 0 && dailyExpected > 0
+    accumulatedSpend !== undefined && accumulatedSpend < 0 && dailyExpected > 0
       ? Math.floor(-accumulatedSpend / dailyExpected) + 1
       : null;
   const growth =
@@ -170,14 +170,33 @@ export function StatisticsRow({
       ref: stmpdRef,
     },
     {
-      displayValue: formatAmount(Math.round(accumulatedSpend)),
+      displayValue: accumulatedSpend === undefined ? "Loading" : formatAmount(Math.round(accumulatedSpend)),
       title: "Accumulated spend this month",
-      description: `You can spend ${formatAmount(Math.round(accumulatedSpend))}. This month expects ${formatAmount(expected)} to be spent, which adds up to ${formatAmount(Math.round(dailyExpected))} spendable per day. Given you have already spent ${formatAmount(spent)}, you can spend up to today ${formatAmount(Math.round(accumulatedSpend))}.`,
-      guidance: accumulatedSpend < 0
+      tone: accumulatedSpend === undefined ? undefined : accumulatedSpend < 0 ? "negative" : "positive",
+      description: accumulatedSpend !== undefined && monthlySpent !== undefined ? (
+        <View className="gap-2">
+          <Text className="text-text text-sm">
+            This month’s expected spending is <Text className="text-secondary">{formatAmount(expected)}</Text>,
+            {" or "}<Text className="text-secondary">{formatAmount(Math.round(dailyExpected))}</Text> per day.
+          </Text>
+          <Text className="text-text text-sm">
+            Adding up to today, that gives you an allowance of{" "}
+            <Text className="text-primary">{formatAmount(Math.round(accruedAllowance))}</Text>.
+          </Text>
+          <Text className="text-text text-sm">
+            You’ve spent <Text className="text-errorMuted">{formatAmount(monthlySpent)}</Text> this month,
+            {" leaving an accumulated allowance of "}
+            <Text className={accumulatedSpend < 0 ? "text-error" : "text-primary"}>
+              {formatAmount(Math.round(accumulatedSpend))}
+            </Text>.
+          </Text>
+        </View>
+      ) : <Text className="text-muted text-sm">Loading monthly spending…</Text>,
+      guidance: accumulatedSpend !== undefined && accumulatedSpend < 0
         ? daysUntilPositive !== null &&
             daysUntilPositive <= daysInMonth - currentDay
-          ? `This value will be positive again in ${daysUntilPositive} ${daysUntilPositive === 1 ? "day" : "days"}.`
-          : "You should not spend anymore from this pipe this month."
+          ? `Assuming no further spending, this value will be positive again in ${daysUntilPositive} ${daysUntilPositive === 1 ? "day" : "days"}.`
+          : "You’ve used up this month’s allowance. Avoid further spending this month."
         : undefined,
       icon: "playlist-add",
       ref: astmRef,
@@ -193,7 +212,7 @@ export function StatisticsRow({
           testID: "boiler-growth-chip",
           tone:
                 growth !== null && growth < 0
-                  ? ("growth-negative" as const)
+                   ? ("negative" as const)
                   : ("growth-non-negative" as const),
         },
       ]
@@ -239,8 +258,10 @@ export function StatisticsRow({
             testID={stat.testID}
             className={cn(
               "flex-row items-center justify-center gap-1 border p-2 rounded-md",
-              stat.tone === "growth-negative"
+              stat.tone === "negative"
                 ? "border-error/70 bg-error/10"
+                : stat.tone === "positive"
+                  ? "border-primary/70 bg-primary/10"
                 : stat.tone === "growth-non-negative"
                   ? "border-secondary/70 bg-secondary/10"
                   : stat.tone === "external"
@@ -257,8 +278,10 @@ export function StatisticsRow({
               name={stat.icon}
               size={14}
               color={
-                stat.tone === "growth-negative"
+                stat.tone === "negative"
                   ? colors.error
+                  : stat.tone === "positive"
+                    ? colors.primary
                   : stat.tone === "growth-non-negative"
                     ? colors.secondary
                     : stat.tone === "external"
@@ -271,8 +294,10 @@ export function StatisticsRow({
             <Text
               className={cn(
                 "text-sm",
-                stat.tone === "growth-negative"
+                stat.tone === "negative"
                   ? "text-error"
+                  : stat.tone === "positive"
+                    ? "text-primary"
                   : stat.tone === "growth-non-negative"
                     ? "text-secondary"
                     : stat.tone === "external"

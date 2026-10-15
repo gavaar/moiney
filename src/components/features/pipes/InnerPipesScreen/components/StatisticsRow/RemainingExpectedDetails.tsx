@@ -110,7 +110,7 @@ export function RemainingExpectedDetails({
       <Text className="text-text text-sm mt-2">
         {funding < 0 ? "This pipe should have a funding shortfall of " : "This pipe should have "}
         <Text className="text-primaryDark">{formatAmount(Math.abs(funding))}</Text>
-        {funding < 0 ? "." : " of funding left."}
+        {funding < 0 ? "." : " of funding left after settlement."}
       </Text>
     </View>
   );
