@@ -39,8 +39,13 @@ boilers when nonzero, and spent unless the rule settles instantly. Operational
 capacity is not shown as a bar. The non-boiler "Remaining expected" statistic
 is `expected - spent`: it compares the monthly target to spending tracked since
 the last settlement, not to available liquidity or historical carry-over
-capacity. Pipes without a cap update still use current capacity as their
-expected fallback. Boilers omit this statistic under the
+capacity. Its popover compares expected and spent on one signed scale, splitting
+spent into net pending external adjustment and `spent - pendingFedAdjustment`,
+not historical gross transaction categories. It also shows funding left as
+`fed - spent + (pendingFedAdjustment ?? 0)`, using shortfall wording when negative.
+This is the current settlement baseline before any contingency coverage or
+scheduled redistribution, not current-cycle liquidity. Pipes without a cap update
+still use current capacity as their expected fallback. Boilers omit this statistic under the
 [boiler exception](accounting.md#d015-boiler-feed-pipes). Average daily spending
 divides current-month spending by current day-of-month. Accumulated spendable
 value through today is `expected / daysInMonth * currentDay - spent`, rounded

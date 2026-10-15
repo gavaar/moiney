@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Dimensions, type GestureResponderEvent, Modal as RNModal, Pressable, View } from "react-native";
+import { type GestureResponderEvent, Modal as RNModal, Pressable, ScrollView, useWindowDimensions, View } from "react-native";
 
 type AnchorPosition =
   | "bottom-start" | "bottom-end" | "bottom"
@@ -15,7 +15,7 @@ type PopoverProps = {
 };
 
 const GAP = 4;
-const VIEWPORT_PADDING = 8;
+const VIEWPORT_PADDING = 16;
 
 function calcTop(
   position: AnchorPosition,
@@ -57,7 +57,7 @@ export function Popover({
 }: PopoverProps) {
   const [triggerRect, setTriggerRect] = useState({ x: 0, y: 0, width: 0, height: 0 });
   const [contentSize, setContentSize] = useState({ width: 0, height: 0 });
-  const { width: windowWidth, height: windowHeight } = Dimensions.get("window");
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
   useEffect(() => {
     if (!visible || !anchorRef.current) return;
@@ -82,15 +82,24 @@ export function Popover({
         <View
           testID="popover-content"
           className="bg-surface border border-border rounded-xl p-2"
-          style={{ position: "absolute", top, left, maxWidth: windowWidth * 0.85 }}
+          style={{
+            position: "absolute",
+            top,
+            left,
+            maxWidth: Math.min(windowWidth * 0.85, Math.max(0, windowWidth - VIEWPORT_PADDING * 2)),
+            maxHeight: Math.max(0, windowHeight - VIEWPORT_PADDING * 2),
+            boxShadow: "0 4px 16px rgba(0, 0, 0, 0.6), 0 0 8px rgba(156, 163, 175, 0.2)",
+          }}
           onLayout={(e) => {
             const { width, height } = e.nativeEvent.layout;
             setContentSize({ width, height });
           }}
         >
-          <Pressable onPress={(e: GestureResponderEvent) => e.stopPropagation()}>
-            {children}
-          </Pressable>
+          <ScrollView style={{ flexShrink: 1 }}>
+            <Pressable onPress={(e: GestureResponderEvent) => e.stopPropagation()}>
+              {children}
+            </Pressable>
+          </ScrollView>
         </View>
       </Pressable>
     </RNModal>

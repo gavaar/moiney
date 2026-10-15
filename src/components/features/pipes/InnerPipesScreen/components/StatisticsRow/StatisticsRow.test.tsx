@@ -73,10 +73,35 @@ describe("StatisticsRow", () => {
       screen.getByRole("button", { name: "Remaining expected, 500.00" }),
     );
     expect(
-      screen.getByText(
-        "The monthly expected amount is 900.00. After 400.00 in currently tracked spending, 500.00 remains. Spending before the last settlement is not included; this is not your available balance or carried-forward capacity.",
+      screen.getByText((_, element) =>
+        element?.textContent === "The monthly expected amount is 900.00. After 400.00 in currently tracked spending, 500.00 remains. Spending before the last settlement is not included.",
       ),
     ).toBeDefined();
+    expect(screen.queryByText(/this is not your available balance/)).toBeNull();
+  });
+
+  it.each([
+    { fed: 100000, spent: 40000, pendingFedAdjustment: 25000, sentence: "This pipe should have 850.00 of funding left." },
+    { fed: 100000, spent: 40000, pendingFedAdjustment: -25000, sentence: "This pipe should have 350.00 of funding left." },
+    { fed: 40000, spent: 40000, pendingFedAdjustment: 0, sentence: "This pipe should have 0.00 of funding left." },
+    { fed: 10000, spent: 40000, pendingFedAdjustment: 5000, sentence: "This pipe should have a funding shortfall of 250.00." },
+    { fed: 100000, spent: -40000, sentence: "This pipe should have 1,400.00 of funding left." },
+  ])("projects funding including pending adjustments: $sentence", async ({ sentence, ...props }) => {
+    renderStatistics(props);
+    await userEvent.setup().click(screen.getByRole("button", { name: /Remaining expected,/ }));
+    expect(screen.getByText((_, element) => element?.textContent === sentence)).toBeDefined();
+  });
+
+  it.each([
+    { expected: 90000, spent: 40000, pendingFedAdjustment: 25000, expectedLabel: "900.00", spentLabel: "400.00", externalLabel: "250.00", simpleLabel: "150.00" },
+    { expected: 10000, spent: 40000, pendingFedAdjustment: -25000, expectedLabel: "100.00", spentLabel: "400.00", externalLabel: "-250.00", simpleLabel: "650.00" },
+    { expected: -10000, spent: -40000, pendingFedAdjustment: -25000, expectedLabel: "-100.00", spentLabel: "-400.00", externalLabel: "-250.00", simpleLabel: "-150.00" },
+    { expected: 0, spent: 0, pendingFedAdjustment: 0, expectedLabel: "0.00", spentLabel: "0.00", externalLabel: "0.00", simpleLabel: "0.00" },
+  ])("exposes signed expected and net spending breakdown: $spentLabel", async ({ expectedLabel, spentLabel, externalLabel, simpleLabel, ...props }) => {
+    renderStatistics(props);
+    await userEvent.setup().click(screen.getByRole("button", { name: /Remaining expected,/ }));
+    expect(screen.getByRole("img", { name: `Expected ${expectedLabel}` })).toBeDefined();
+    expect(screen.getByRole("img", { name: `Spent ${spentLabel}: paid elsewhere ${externalLabel}, simple ${simpleLabel}` })).toBeDefined();
   });
 
   it.each([

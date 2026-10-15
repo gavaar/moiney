@@ -1,4 +1,4 @@
-import { RefObject, useRef, useState } from "react";
+import { type ReactNode, RefObject, useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { Popover } from "@ui/Popover";
 import { Icon, type IconName } from "@ui/Icon";
@@ -8,13 +8,14 @@ import { getDaysInMonth } from "@/lib/dates";
 import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import { prepareContingencyPreview } from "@features/pipes/data/contingencyPreview";
+import { RemainingExpectedDetails } from "./RemainingExpectedDetails";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 type StatItem = {
   displayValue: string;
   title: string;
-  description: string;
+  description: ReactNode;
   guidance?: string;
   ref: RefObject<View | null>;
   icon: IconName;
@@ -122,7 +123,7 @@ export function StatisticsRow({
         {
           displayValue: formatAmount(expected - spent),
           title: "Remaining expected",
-          description: `The monthly expected amount is ${formatAmount(expected)}. After ${formatAmount(spent)} in currently tracked spending, ${formatAmount(expected - spent)} remains. Spending before the last settlement is not included; this is not your available balance or carried-forward capacity.`,
+          description: <RemainingExpectedDetails expected={expected} spent={spent} fed={fed} pendingFedAdjustment={pendingFedAdjustment} />,
           icon: "circle-half-full" as IconName,
           ref: remainingExpectedRef,
         },
@@ -259,7 +260,9 @@ export function StatisticsRow({
             anchorPosition="bottom"
           >
             <Text className="text-text font-bold text-md">{stat.title}:</Text>
-            <Text className="text-text text-sm">{stat.description}</Text>
+            {typeof stat.description === "string"
+              ? <Text className="text-text text-sm">{stat.description}</Text>
+              : stat.description}
             {stat.guidance ? <Text className="text-text text-sm mt-1">{stat.guidance}</Text> : null}
           </Popover>
         </View>
