@@ -269,7 +269,10 @@ export function StatisticsRow({
     longestValueLength = Math.max(longestValueLength, displayValue.length + (estimated ? 2 : 0));
   }
   const minPillWidth = Math.max(96, 36 + longestValueLength * 8 * fontScale);
-  const columns = fontScale <= 1.2 && gridWidth >= minPillWidth * 3 + GRID_GAP * 2 ? 3 : 2;
+  const columns = Math.max(2, Math.min(
+    fontScale <= 1.2 ? 4 : 2,
+    Math.floor((gridWidth + GRID_GAP) / (minPillWidth + GRID_GAP)),
+  ));
 
   return (
     <View

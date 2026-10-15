@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
 import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import type { PipeModel } from "@features/pipes/data/pipes";
@@ -76,7 +76,12 @@ export function InnerPipesScreen() {
   return (
     <View className="flex-1">
       <View className="flex flex-col">
-        <Breadcrumb />
+        <View className="flex-row items-center gap-3 pr-5 pb-3">
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-1">
+            <Breadcrumb />
+          </ScrollView>
+          <OptionsButton pipeId={selectedId} disabled={isDeleting} />
+        </View>
         <PipeBars
           fed={fed}
           spent={spent}
@@ -87,20 +92,17 @@ export function InnerPipesScreen() {
           sourceType={selectedPipe?.sourceType}
           coverageProvidedCents={coverageProvided?.amountCents}
         />
-        <View className="flex-row items-center gap-2 px-5 pb-2">
-          <View className="flex-1">
-            <StatisticsRow
-              fed={fed}
-              spent={spent}
-              monthlySpent={monthlySpent}
-              expected={expected}
-              pendingFedAdjustment={pendingFedAdjustment}
-              sourceType={selectedPipe?.sourceType}
-              contributedFed={selectedPipe?.contributedFed}
-              now={ruleNow}
-            />
-          </View>
-          <OptionsButton pipeId={selectedId} disabled={isDeleting} />
+        <View className="px-5 pb-2">
+          <StatisticsRow
+            fed={fed}
+            spent={spent}
+            monthlySpent={monthlySpent}
+            expected={expected}
+            pendingFedAdjustment={pendingFedAdjustment}
+            sourceType={selectedPipe?.sourceType}
+            contributedFed={selectedPipe?.contributedFed}
+            now={ruleNow}
+          />
         </View>
         <View className="border-b self-center border-muted/50 mb-3 w-3/4" />
       </View>
