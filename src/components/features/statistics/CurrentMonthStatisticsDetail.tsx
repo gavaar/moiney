@@ -6,13 +6,13 @@ import { colors } from "@/lib/styles";
 import { ReportContent } from "./MonthlyStatisticsDetail/MonthlyStatisticsDetail";
 import { useCurrentMonthReportContext } from "./CurrentMonthReportContext";
 
-export function CurrentMonthStatisticsDetail({ onBack }: { onBack: () => void }) {
+export function CurrentMonthStatisticsDetail({ onBack, backLabel = "Back to Pipes" }: { onBack: () => void; backLabel?: string }) {
   const { report } = useCurrentMonthReportContext();
   return (
     <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-background">
       <View className="px-4">
         <ScreenHeader title="Live spending report" left={
-          <Pressable accessibilityRole="button" accessibilityLabel="Back to Pipes" className="h-10 w-10 items-start justify-center" onPress={onBack}>
+          <Pressable accessibilityRole="button" accessibilityLabel={backLabel} className="h-10 w-10 items-start justify-center" onPress={onBack}>
             <Icon name="arrow-back" size={24} color={colors.text} />
           </Pressable>
         } />

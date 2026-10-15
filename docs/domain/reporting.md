@@ -78,9 +78,12 @@ At 05:00 UTC on each month's first day, a bounded scheduled job captures one
 frozen summary per user for the previous UTC calendar month, with inclusive
 start and exclusive end. Users without qualifying activity receive zero-valued
 rows so retries cannot change an originally empty snapshot.
-The Pipes root bar view displays a live, unsaved report for the current UTC
-month; Statistics lists only captured months. Both use the same spending summary
-calculation. The [event reporting contract](events.md#reporting-and-usage-ranking)
+Statistics starts with a live, unsaved report for the current UTC month, followed
+by captured months. The Pipes root bar view also displays this live card by
+default; an account-scoped, device-local Settings checkbox can hide it from Pipes
+without affecting Statistics. The preference survives sign-out and app restarts
+and does not synchronize across devices. Live and captured reports use the same
+spending summary calculation. The [event reporting contract](events.md#reporting-and-usage-ranking)
 preserves these metrics during reader cutover. Live Volume and Produced reflect current root balances;
 captured values reflect balances at capture time. At 00:00 UTC the live report
 switches months; the closed month appears in Statistics only after capture.

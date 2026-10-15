@@ -5,6 +5,10 @@ import { useQuery } from "convex/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { StatisticsScreen } from "./StatisticsScreen";
 
+const live = vi.hoisted(() => ({ report: undefined as { periodStart: number; grossSpendingCents: number; refundCents: number } | undefined }));
+vi.mock("@features/statistics/CurrentMonthReportContext", () => ({ useCurrentMonthReportContext: () => live }));
+vi.mock("@features/pipes/context/PipeCatalogContext", () => ({ usePipeCatalog: () => ({ allPipes: [] }) }));
+
 vi.mock("convex/react", () => ({
   useQuery: vi.fn(),
 }));
@@ -28,7 +32,26 @@ vi.mock("@features/app/AppScreenHeader", () => ({
 }));
 
 beforeEach(() => {
+  live.report = undefined;
   vi.mocked(useQuery).mockReturnValue([]);
+});
+
+it.each([undefined, []])("keeps the live card available while saved reports are loading or empty (%s)", async (reports) => {
+  live.report = { periodStart: Date.UTC(2026, 6, 1), grossSpendingCents: 300, refundCents: 0 };
+  vi.mocked(useQuery).mockReturnValue(reports);
+  const onOpenCurrentReport = vi.fn();
+  render(<StatisticsScreen onSelectPeriod={vi.fn()} onOpenCurrentReport={onOpenCurrentReport} />);
+  await userEvent.click(screen.getByRole("button", { name: "Open July 2026 live spending report" }));
+  expect(onOpenCurrentReport).toHaveBeenCalledOnce();
+});
+
+it("places the live card before saved months and shows its loading state independently", () => {
+  vi.mocked(useQuery).mockReturnValue([{ periodStart: Date.UTC(2026, 5, 1), grossSpendingCents: 0, refundCents: 0 }] as any);
+  const { rerender } = render(<StatisticsScreen onSelectPeriod={vi.fn()} />);
+  expect(screen.getByLabelText("Loading current month summary")).toBeDefined();
+  live.report = { periodStart: Date.UTC(2026, 6, 1), grossSpendingCents: 300, refundCents: 0 };
+  rerender(<StatisticsScreen onSelectPeriod={vi.fn()} />);
+  expect(screen.getAllByRole("button").map((button) => button.getAttribute("aria-label"))).toEqual(["Open July 2026 live spending report", "Open June 2026 spending report"]);
 });
 
 it("shows an empty message when no monthly reports exist", () => {

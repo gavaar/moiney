@@ -6,6 +6,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PipesScreen } from "./PipesScreen";
 
 const mocks = vi.hoisted(() => ({
+  monthlyCardReady: true,
+  showMonthlyCard: true,
   addEventListener: vi.fn(),
   remove: vi.fn(),
   selectPipe: vi.fn(),
@@ -27,6 +29,10 @@ const mocks = vi.hoisted(() => ({
   },
   historyOptions: undefined as any,
   historyMounts: vi.fn(),
+}));
+
+vi.mock("@features/statistics/preferences/MonthlyCardPreference", () => ({
+  useMonthlyCardPreference: () => ({ ready: mocks.monthlyCardReady, showInMain: mocks.showMonthlyCard }),
 }));
 
 vi.mock("react-native", async (importOriginal) => ({
@@ -165,6 +171,8 @@ describe("Pipes Android back handling", () => {
   });
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.monthlyCardReady = true;
+    mocks.showMonthlyCard = true;
     mocks.selectedPipePath = [];
     mocks.selectedName = null;
     mocks.feeds = [];
@@ -182,6 +190,23 @@ describe("Pipes Android back handling", () => {
     mocks.useFocusEffect.mockImplementation((effect) => {
       mocks.focusEffect = effect;
     });
+  });
+
+  it("withholds the monthly card until preferences load and respects the saved visibility", () => {
+    mocks.monthlyCardReady = false;
+    const { rerender } = render(<PipesScreen />);
+    expect(screen.queryByRole("button", { name: /live spending report/ })).toBeNull();
+    expect(screen.getByTestId("feed-order")).toBeDefined();
+    mocks.monthlyCardReady = true;
+    mocks.showMonthlyCard = false;
+    rerender(<PipesScreen />);
+    expect(screen.queryByRole("button", { name: /live spending report/ })).toBeNull();
+    mocks.showMonthlyCard = true;
+    rerender(<PipesScreen />);
+    expect(screen.getByRole("button", { name: /live spending report/ })).toBeDefined();
+    mocks.selectedName = "Travel";
+    rerender(<PipesScreen />);
+    expect(screen.queryByRole("button", { name: /live spending report/ })).toBeNull();
   });
 
   it("orders FeedListScreen roots by cached History tree usage", () => {

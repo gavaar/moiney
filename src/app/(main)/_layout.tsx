@@ -3,6 +3,7 @@ import { Stack } from "expo-router/stack";
 import { useAuth } from "@/lib/auth";
 import { useEffect } from "react";
 import { View } from "react-native";
+import { MonthlyCardPreferenceProvider } from "@features/statistics/preferences/MonthlyCardPreference";
 
 export default function MainLayout() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -18,9 +19,11 @@ export default function MainLayout() {
   if (!isAuthenticated) return null;
 
   return (
-    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#111111" } }}>
-      <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="settings" />
-    </Stack>
+    <MonthlyCardPreferenceProvider>
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#111111" } }}>
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="settings" />
+      </Stack>
+    </MonthlyCardPreferenceProvider>
   );
 }

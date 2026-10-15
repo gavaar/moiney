@@ -11,7 +11,7 @@ const navigation = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/auth", () => ({
-  useAuth: () => ({ isAuthenticated: true, isLoading: false }),
+  useAuth: () => ({ isAuthenticated: true, isLoading: false, accountKey: "deployment:alice" }),
 }));
 
 // Model the framework's rendering boundary: Slot renders only the active

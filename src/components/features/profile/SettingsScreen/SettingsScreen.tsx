@@ -6,11 +6,13 @@ import { ScreenHeader } from "@ui/ScreenHeader/ScreenHeader";
 import { Button } from "@ui/Button";
 import { Input } from "@ui/Input";
 import { ModalShell } from "@ui/Modal";
+import { useMonthlyCardPreference } from "@features/statistics/preferences/MonthlyCardPreference";
 
 type SettingsAction = { type: "enable"; password: string } | { type: "disable" } | null;
 
 export function SettingsScreen({ onBack }: { onBack: () => void }) {
   const { biometrics } = useAuth();
+  const { ready, showInMain, setShowInMain } = useMonthlyCardPreference();
   const [action, setAction] = useState<SettingsAction>(null);
   const close = () => setAction(null);
 
@@ -18,15 +20,21 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
     <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-background px-4">
       <ScreenHeader title="Settings" left={<Button title="Back" icon="arrow-back" variant="muted" onPress={onBack} />} />
       <ScrollView contentContainerClassName="gap-3 pb-8">
-        <Text className="text-lg font-semibold text-text">Use biometric login</Text>
         <Input
-          type="toggle"
+          type="checkbox"
+          label="Show monthly statistics card in main view"
+          value={showInMain}
+          disabled={!ready}
+          onChange={setShowInMain}
+        />
+        <Text className="text-sm leading-5 text-muted">
+          Shows the current month’s live statistics at the top of the main view. You can always find this card in Statistics, even when this option is off.
+        </Text>
+        <Input
+          type="checkbox"
+          label="Use biometric login"
           value={biometrics.enabled}
           disabled={biometrics.loading || biometrics.busy || (!biometrics.available && !biometrics.enabled)}
-          options={[
-            { label: "Disabled", icon: "close", selectedBackgroundClassName: "bg-errorMuted" },
-            { label: "Enabled", icon: "checkmark", selectedBackgroundClassName: "bg-primaryMuted" },
-          ]}
           onChange={(enabled) => {
             if (enabled !== biometrics.enabled) setAction(enabled ? { type: "enable", password: "" } : { type: "disable" });
           }}
