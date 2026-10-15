@@ -1,5 +1,5 @@
 import { type ReactNode, RefObject, useRef, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, Text, useWindowDimensions, View } from "react-native";
 import { Popover } from "@ui/Popover";
 import { Icon, type IconName } from "@ui/Icon";
 import { cn, colors } from "@/lib/styles";
@@ -12,6 +12,7 @@ import { CoverageDetails, CoverageProvidedDetails } from "./CoverageDetails";
 import { monthlySpendingPace } from "@domain/statistics/monthlySpendingPace";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const GRID_GAP = 8;
 
 type StatItem = {
   displayValue: string;
@@ -57,6 +58,8 @@ export function StatisticsRow({
   contributedFed = 0,
   now,
 }: Props) {
+  const { fontScale } = useWindowDimensions();
+  const [gridWidth, setGridWidth] = useState(0);
   const date = new Date(now);
   const daysInMonth = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)).getUTCDate();
   const currentDay = date.getUTCDate();
@@ -102,28 +105,22 @@ export function StatisticsRow({
       : null;
 
   const stats: StatItem[] = [
-    ...(coverageProvided && currentPipe ? [
-      {
-        displayValue: formatAmount(coverageProvided.amountCents),
-        title: "Possible coverage provided",
-        estimated: true,
-        tone: "warning" as const,
-        description: <CoverageProvidedDetails donor={currentPipe} allocations={coverageProvided.allocations} amountCents={coverageProvided.amountCents} />,
-        icon: "shield" as IconName,
-        ref: coverageProvidedRef,
-      }
-    ] : []),
-    ...(coverage && currentPipe ? [
-      {
-        displayValue: formatAmount(coverage.amountCents),
-        title: "Possible coverage",
-        estimated: true,
-        tone: "warning" as const,
-        description: <CoverageDetails source={currentPipe} donor={coverage.donor} amountCents={coverage.amountCents} />,
-        icon: "shield" as IconName,
-        ref: coverageRef,
-      }
-    ] : []),
+    ...(sourceType === "boiler"
+      ? [
+        {
+          displayValue: growthLabel,
+          title: "Growth",
+          description: `This pipe has received ${formatAmount(contributedFed)} value, but now holds ${formatAmount(fed)}, meaning it has grown ${growthLabel}.`,
+          icon: "trending-up" as IconName,
+          ref: growthRef,
+          testID: "boiler-growth-chip",
+          tone:
+                growth !== null && growth < 0
+                   ? ("negative" as const)
+                  : ("growth-non-negative" as const),
+        },
+      ]
+      : []),
     ...(sourceType !== "boiler"
       ? [
         {
@@ -203,33 +200,6 @@ export function StatisticsRow({
       icon: "playlist-add",
       ref: astmRef,
     },
-    ...(sourceType === "boiler"
-      ? [
-        {
-          displayValue: growthLabel,
-          title: "Growth",
-          description: `This pipe has received ${formatAmount(contributedFed)} value, but now holds ${formatAmount(fed)}, meaning it has grown ${growthLabel}.`,
-          icon: "trending-up" as IconName,
-          ref: growthRef,
-          testID: "boiler-growth-chip",
-          tone:
-                growth !== null && growth < 0
-                   ? ("negative" as const)
-                  : ("growth-non-negative" as const),
-        },
-      ]
-      : []),
-    ...(daysLeft != null && currentPipe?.cronNextDate != null
-      ? [
-        {
-          displayValue: String(daysLeft),
-          title: "Days left",
-           description: `This pipe will ${currentPipe.rule === "self_destruct" ? "self-destroy" : "reset"} automatically in ${daysLeft} ${daysLeft === 1 ? "day" : "days"} (${new Date(currentPipe.cronNextDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}).`,
-          icon: "timer-outline" as IconName,
-          ref: cronRef,
-        },
-      ]
-      : []),
     ...(pendingFedAdjustment !== 0
       ? [
         {
@@ -258,17 +228,65 @@ export function StatisticsRow({
         },
       ]
       : []),
+    ...(coverageProvided && currentPipe ? [
+      {
+        displayValue: formatAmount(coverageProvided.amountCents),
+        title: "Possible coverage provided",
+        estimated: true,
+        tone: "warning" as const,
+        description: <CoverageProvidedDetails donor={currentPipe} allocations={coverageProvided.allocations} amountCents={coverageProvided.amountCents} />,
+        icon: "shield" as IconName,
+        ref: coverageProvidedRef,
+      }
+    ] : []),
+    ...(coverage && currentPipe ? [
+      {
+        displayValue: formatAmount(coverage.amountCents),
+        title: "Possible coverage",
+        estimated: true,
+        tone: "warning" as const,
+        description: <CoverageDetails source={currentPipe} donor={coverage.donor} amountCents={coverage.amountCents} />,
+        icon: "shield" as IconName,
+        ref: coverageRef,
+      }
+    ] : []),
+    ...(daysLeft != null && currentPipe?.cronNextDate != null
+      ? [
+        {
+          displayValue: String(daysLeft),
+          title: "Days left",
+           description: `This pipe will ${currentPipe.rule === "self_destruct" ? "self-destroy" : "reset"} automatically in ${daysLeft} ${daysLeft === 1 ? "day" : "days"} (${new Date(currentPipe.cronNextDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}).`,
+          icon: "timer-outline" as IconName,
+          ref: cronRef,
+        },
+      ]
+      : []),
   ];
 
+  // Reserve room for the icon, padding, and the longest amount without shrinking text.
+  let longestValueLength = 0;
+  for (const { displayValue, estimated } of stats) {
+    longestValueLength = Math.max(longestValueLength, displayValue.length + (estimated ? 2 : 0));
+  }
+  const minPillWidth = Math.max(96, 36 + longestValueLength * 8 * fontScale);
+  const columns = fontScale <= 1.2 && gridWidth >= minPillWidth * 3 + GRID_GAP * 2 ? 3 : 2;
+
   return (
-    <View className="flex-row flex-wrap items-center justify-center gap-1">
+    <View
+      className="flex-row flex-wrap items-stretch justify-start"
+      style={{ columnGap: GRID_GAP, rowGap: 4 }}
+      onLayout={({ nativeEvent }) => setGridWidth(nativeEvent.layout.width)}
+    >
       {stats.map((stat) => (
-        <View key={stat.title} className="items-center justify-center">
+        <View
+          key={stat.title}
+          style={{ width: gridWidth > 0 ? Math.max(0, (gridWidth - GRID_GAP * (columns - 1)) / columns) : "48%" }}
+        >
           <Pressable
             ref={stat.ref}
             testID={stat.testID}
             className={cn(
-              "flex-row items-center justify-center gap-1 border p-2 rounded-md",
+              "grow flex-row items-center justify-center gap-1 border px-2 py-1 rounded-md min-h-8",
               stat.tone === "negative"
                  ? "border-errorMuted/40 bg-errorMuted/5"
                 : stat.tone === "positive"
@@ -304,7 +322,7 @@ export function StatisticsRow({
             />
             <Text
               className={cn(
-                "text-sm",
+                "text-sm shrink",
                 stat.tone === "negative"
                    ? "text-errorMuted"
                   : stat.tone === "positive"
@@ -317,6 +335,7 @@ export function StatisticsRow({
                          ? "text-warningSoft"
                         : "text-text",
               )}
+              style={{ fontVariant: ["tabular-nums"] }}
             >
               {stat.displayValue}
               {stat.estimated ? <Text className="text-muted text-sm"> ?</Text> : null}
