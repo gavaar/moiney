@@ -43,7 +43,14 @@ export function prepareContingencyPreview(pipes: readonly PipeModel[]) {
     const allocations = allocateContingencyCoverage(sources.map(source => ({
       sourceId: source.id, capacity: source.capacity, spent: source.spent, rule: source.rule,
     })), donor);
-    return { sources, amountCents: allocations.reduce((sum, allocation) => sum + allocation.coverageCents, 0) };
+    const coverageById = new Map(allocations.map(allocation => [allocation.sourceId, allocation.coverageCents]));
+    return {
+      allocations: sources.flatMap(source => {
+        const amountCents = coverageById.get(source.id) ?? 0;
+        return amountCents > 0 ? [{ source, amountCents }] : [];
+      }),
+      amountCents: allocations.reduce((sum, allocation) => sum + allocation.coverageCents, 0),
+    };
   };
   return { forSource, forDonor };
 }

@@ -8,12 +8,14 @@ import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import { prepareContingencyPreview } from "@features/pipes/data/contingencyPreview";
 import { RemainingExpectedDetails } from "./RemainingExpectedDetails";
+import { CoverageDetails, CoverageProvidedDetails } from "./CoverageDetails";
 import { monthlySpendingPace } from "@domain/statistics/monthlySpendingPace";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 type StatItem = {
   displayValue: string;
+  estimated?: boolean;
   title: string;
   description: ReactNode;
   guidance?: string;
@@ -100,24 +102,24 @@ export function StatisticsRow({
       : null;
 
   const stats: StatItem[] = [
-    ...(coverageProvided ? [
+    ...(coverageProvided && currentPipe ? [
       {
         displayValue: formatAmount(coverageProvided.amountCents),
         title: "Possible coverage provided",
+        estimated: true,
         tone: "warning" as const,
-        description: `This pipe could provide ${formatAmount(coverageProvided.amountCents)} in total if all eligible pipes selecting it settled now (${coverageProvided.sources.map(source => source.name).join(", ")}). They share this pipe's unspent funding to cover spending above capacity or carried-forward debt. Original expenses stay attributed to those pipes.`,
-        guidance: "This funding is not reserved. Actual coverage depends on changing balances and settlement order, including scheduled sharing.",
+        description: <CoverageProvidedDetails donor={currentPipe} allocations={coverageProvided.allocations} amountCents={coverageProvided.amountCents} />,
         icon: "shield" as IconName,
         ref: coverageProvidedRef,
       }
     ] : []),
-    ...(coverage ? [
+    ...(coverage && currentPipe ? [
       {
         displayValue: formatAmount(coverage.amountCents),
         title: "Possible coverage",
+        estimated: true,
         tone: "warning" as const,
-        description: `${coverage.donor.name} could cover ${formatAmount(coverage.amountCents)} if this pipe settled now, using its unspent funding to cover spending above capacity or carried-forward debt. Coverage is applied only at settlement; your original expenses remain attributed to this pipe.`,
-        guidance: "This funding is not reserved. Changing balances and sharing with other scheduled settlements can reduce actual coverage.",
+        description: <CoverageDetails source={currentPipe} donor={coverage.donor} amountCents={coverage.amountCents} />,
         icon: "shield" as IconName,
         ref: coverageRef,
       }
@@ -236,10 +238,19 @@ export function StatisticsRow({
                 pendingFedAdjustment > 0
                   ? "Paid elsewhere"
                   : "Refunded elsewhere",
-          description:
-                pendingFedAdjustment > 0
-                  ? `This spending counts toward this pipe, but another pipe paid for it. The next rule run will add ${formatAmount(Math.abs(pendingFedAdjustment))} to this pipe's fed balance.`
-                  : `This refund reduces this pipe's spending, but another pipe received it. The next rule run will subtract ${formatAmount(Math.abs(pendingFedAdjustment))} from this pipe's fed balance.`,
+          description: (
+            <View className="gap-2">
+              <Text className="text-text text-sm">
+                {pendingFedAdjustment > 0
+                  ? "Expenses were added and counted towards this pipe’s spending budget, but actual funding was taken from somewhere else."
+                  : "Refunds were added and reduced this pipe’s spending, but actual funding was received somewhere else."}
+              </Text>
+              <Text className="text-text text-sm">
+                This pipe’s funding will be {pendingFedAdjustment > 0 ? "increased" : "decreased"} at next settlement by{" "}
+                <Text className="text-accent">{formatAmount(Math.abs(pendingFedAdjustment))}</Text>.
+              </Text>
+            </View>
+          ),
           icon: "swap-horizontal-outline" as IconName,
           ref: externalRef,
           testID: "external-adjustment-chip",
@@ -271,7 +282,7 @@ export function StatisticsRow({
                       : "border-muted/50",
             )}
             accessibilityRole="button"
-            accessibilityLabel={`${stat.title}, ${stat.displayValue}`}
+            accessibilityLabel={`${stat.title}, ${stat.displayValue}${stat.estimated ? ", estimated" : ""}`}
             onPress={() => setSelectedStatTitle(stat.title)}
           >
             <Icon
@@ -308,6 +319,7 @@ export function StatisticsRow({
               )}
             >
               {stat.displayValue}
+              {stat.estimated ? <Text className="text-muted text-sm"> ?</Text> : null}
             </Text>
           </Pressable>
 

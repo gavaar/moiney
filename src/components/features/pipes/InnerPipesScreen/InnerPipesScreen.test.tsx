@@ -226,7 +226,7 @@ describe("InnerPipesScreen", () => {
     expect(screen.getByTestId("bar-spent-coverage-fill").style.left).toBe("40%");
     expect(screen.getByTestId("bar-spent-coverage-fill").style.width).toBe("40%");
     expect(screen.getByText("80.00")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Possible coverage provided, 40.00" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Possible coverage provided, 40.00, estimated" })).toBeTruthy();
   });
 
   it("uses boiler contributions for detail bars and growth", () => {

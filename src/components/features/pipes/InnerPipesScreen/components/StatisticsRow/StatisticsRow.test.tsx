@@ -80,11 +80,11 @@ describe("StatisticsRow", () => {
   });
 
   it.each([
-    { fed: 100000, spent: 40000, pendingFedAdjustment: 25000, sentence: "This pipe should have 850.00 of funding left." },
-    { fed: 100000, spent: 40000, pendingFedAdjustment: -25000, sentence: "This pipe should have 350.00 of funding left." },
-    { fed: 40000, spent: 40000, pendingFedAdjustment: 0, sentence: "This pipe should have 0.00 of funding left." },
+    { fed: 100000, spent: 40000, pendingFedAdjustment: 25000, sentence: "This pipe should have 850.00 of funding left after settlement." },
+    { fed: 100000, spent: 40000, pendingFedAdjustment: -25000, sentence: "This pipe should have 350.00 of funding left after settlement." },
+    { fed: 40000, spent: 40000, pendingFedAdjustment: 0, sentence: "This pipe should have 0.00 of funding left after settlement." },
     { fed: 10000, spent: 40000, pendingFedAdjustment: 5000, sentence: "This pipe should have a funding shortfall of 250.00." },
-    { fed: 100000, spent: -40000, sentence: "This pipe should have 1,400.00 of funding left." },
+    { fed: 100000, spent: -40000, sentence: "This pipe should have 1,400.00 of funding left after settlement." },
   ])("projects funding including pending adjustments: $sentence", async ({ sentence, ...props }) => {
     renderStatistics(props);
     await userEvent.setup().click(screen.getByRole("button", { name: /Remaining expected,/ }));
@@ -104,19 +104,30 @@ describe("StatisticsRow", () => {
   });
 
   it.each([
-    { capacity: 4000, spent: 7000, donorFed: 6000, donorSpent: 4000, amount: "20.00" },
-    { capacity: -3000, spent: 0, donorFed: 6000, donorSpent: 1000, amount: "30.00" },
-    { capacity: 4000, spent: 1000, donorFed: 6000, donorSpent: 0, amount: "0.00" },
-  ])("shows current coverage of $amount and explains settlement-time use", async ({ capacity, spent, donorFed, donorSpent, amount }) => {
+    { capacity: 4000, spent: 7000, donorFed: 6000, donorSpent: 4000, amount: "20.00", demand: "30.00", available: "20.00", uncovered: "10.00" },
+    { capacity: -3000, spent: 0, donorFed: 6000, donorSpent: 1000, amount: "30.00", demand: "30.00", available: "50.00", uncovered: "0.00" },
+    { capacity: 4000, spent: 1000, donorFed: 6000, donorSpent: 0, amount: "0.00", demand: "0.00", available: "60.00", uncovered: "0.00" },
+    { capacity: 4000, spent: 7000, donorFed: 1000, donorSpent: 6000, amount: "0.00", demand: "30.00", available: "0.00", uncovered: "30.00" },
+  ])("shows current coverage of $amount and explains settlement-time use", async ({ capacity, spent, donorFed, donorSpent, amount, demand, available, uncovered }) => {
     mockPipesById.test_pipe_id = { ...mockPipesById.test_pipe_id, parentId: "root", capacity, spent, fed: 0, contingencyPipeId: "donor" };
     mockPipesById.root = { id: "root" };
     mockPipesById.donor = { id: "donor", parentId: "root", name: "Reserve", icon: "wallet", fed: donorFed, spent: donorSpent, capacity: 6000 };
     renderStatistics({ spent });
-    const pill = screen.getByRole("button", { name: `Possible coverage, ${amount}` });
+    const pill = screen.getByRole("button", { name: `Possible coverage, ${amount}, estimated` });
+    expect(pill.textContent).toBe(`${amount} ?`);
     expect(within(pill).getByTestId("icon").getAttribute("data-color")).toBe(colors.warning);
     await userEvent.setup().click(pill);
-    expect(screen.getByText(new RegExp(`Reserve could cover ${amount.replace(".", "\\.")} if this pipe settled now`))).toBeTruthy();
-    expect(screen.getByText(/not reserved/)).toBeTruthy();
+    expect(screen.getByLabelText(`Above capacity, ${demand}`)).toBeDefined();
+    expect(screen.getByLabelText(`Reserve funding, ${available}`)).toBeDefined();
+    expect(within(screen.getByLabelText(`Reserve funding, ${available}`)).getByTestId("icon").getAttribute("data-name")).toBe("wallet");
+    expect(screen.getByText("check donor pipe details for current breakdown")).toBeDefined();
+    expect(screen.getByLabelText(`Possible coverage, ${amount}`)).toBeDefined();
+    expect(screen.getByLabelText(`Carried-forward debt, ${uncovered}`)).toBeDefined();
+    expect(screen.queryByRole("img")).toBeNull();
+    expect(screen.queryByText("Still uncovered")).toBeNull();
+    expect(screen.getByText("Uncovered amount before any update.")).toBeDefined();
+    expect(screen.getByText("Estimate · Funding is not reserved")).toBeDefined();
+    expect(screen.getByText(/Applied at settlement/)).toBeDefined();
   });
 
   it("updates the estimate with donor balances and hides it when the donor becomes ineligible", () => {
@@ -124,10 +135,10 @@ describe("StatisticsRow", () => {
     mockPipesById.root = { id: "root" };
     mockPipesById.donor = { id: "donor", parentId: "root", name: "Reserve", icon: "wallet", fed: 6000, spent: 4000, capacity: 6000 };
     const { rerender } = renderStatistics();
-    expect(screen.getByRole("button", { name: "Possible coverage, 20.00" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Possible coverage, 20.00, estimated" })).toBeTruthy();
     mockPipesById.donor.spent = 6000;
     rerender(<StatisticsRow {...baseProps} now={Date.now()} />);
-    expect(screen.getByRole("button", { name: "Possible coverage, 0.00" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Possible coverage, 0.00, estimated" })).toBeTruthy();
     mockPipesById.donor.deletionJobId = "deletion";
     rerender(<StatisticsRow {...baseProps} now={Date.now()} />);
     expect(screen.queryByRole("button", { name: /Possible coverage/ })).toBeNull();
@@ -139,24 +150,38 @@ describe("StatisticsRow", () => {
   });
 
   it.each([
-    { fed: 6000, spent: 4000, sourceSpent: 7000, amount: "20.00" },
-    { fed: 10000, spent: 0, sourceSpent: 5500, amount: "30.00" },
-    { fed: 6000, spent: 6000, sourceSpent: 7000, amount: "0.00" },
-    { fed: 6000, spent: 0, sourceSpent: 3000, amount: "0.00" },
-  ])("shows donor coverage of $amount without counting shared funding twice", async ({ fed, spent, sourceSpent, amount }) => {
+    { fed: 6000, spent: 4000, sourceSpent: 7000, amount: "20.00", allocation: "10.00", available: "20.00", left: "0.00" },
+    { fed: 10000, spent: 0, sourceSpent: 5500, amount: "30.00", allocation: "15.00", available: "100.00", left: "70.00" },
+    { fed: 6000, spent: 6000, sourceSpent: 7000, amount: "0.00", allocation: null, available: "0.00", left: "0.00" },
+    { fed: 6000, spent: 0, sourceSpent: 3000, amount: "0.00", allocation: null, available: "60.00", left: "60.00" },
+  ])("shows donor coverage of $amount without counting shared funding twice", async ({ fed, spent, sourceSpent, amount, allocation, available, left }) => {
     mockPipesById.test_pipe_id = { ...mockPipesById.test_pipe_id, parentId: "root", fed, spent, capacity: 6000 };
     mockPipesById.root = { id: "root" };
     mockPipesById.groceries = { id: "groceries", parentId: "root", name: "Groceries", capacity: 4000, spent: sourceSpent, fed: 4000, contingencyPipeId: "test_pipe_id" };
     mockPipesById.rent = { id: "rent", parentId: "root", name: "Rent", capacity: 4000, spent: sourceSpent, fed: 4000, contingencyPipeId: "test_pipe_id" };
+    mockPipesById.transport = { id: "transport", parentId: "root", name: "Transport", capacity: 4000, spent: 1000, fed: 4000, contingencyPipeId: "test_pipe_id" };
     // An instant-settlement source's stale selection must not increase the estimate.
     mockPipesById.instant = { id: "instant", parentId: "root", name: "Instant", capacity: 0, spent: 10000, fed: 0, rule: "instant_settlement", contingencyPipeId: "test_pipe_id" };
     renderStatistics({ fed, spent });
-    const pill = screen.getByRole("button", { name: `Possible coverage provided, ${amount}` });
+    const pill = screen.getByRole("button", { name: `Possible coverage provided, ${amount}, estimated` });
+    expect(pill.textContent).toBe(`${amount} ?`);
     expect(within(pill).getByTestId("icon").getAttribute("data-color")).toBe(colors.warning);
     await userEvent.setup().click(pill);
-    expect(screen.getByText(new RegExp(`could provide ${amount.replace(".", "\\.")} in total`))).toBeTruthy();
-    expect(screen.getByText(/Groceries, Rent/)).toBeTruthy();
-    expect(screen.getByText(/not reserved/)).toBeTruthy();
+    expect(screen.getByLabelText(`Available funding, ${available}`)).toBeDefined();
+    expect(screen.getByLabelText(`Possible coverage, ${amount}`)).toBeDefined();
+    expect(screen.getByLabelText(`Funding left if applied, ${left}`)).toBeDefined();
+    if (allocation) {
+      expect(screen.getByLabelText(`Groceries, ${allocation}`)).toBeDefined();
+      expect(screen.getByLabelText(`Rent, ${allocation}`)).toBeDefined();
+    } else {
+      expect(screen.queryByText("Groceries")).toBeNull();
+      expect(screen.queryByText("Rent")).toBeNull();
+      expect(screen.getByText("No pipes could receive coverage right now.")).toBeDefined();
+    }
+    expect(screen.queryByText("Transport")).toBeNull();
+    expect(screen.queryByText("Instant")).toBeNull();
+    expect(screen.getByText("Estimate · Funding is not reserved")).toBeDefined();
+    expect(screen.getByText(/Applied at settlement/)).toBeDefined();
   });
 
   it("updates donor coverage with source debt and hides it during tree freezes or after the last selection is cleared", () => {
@@ -165,16 +190,16 @@ describe("StatisticsRow", () => {
     mockPipesById.source = { id: "source", parentId: "root", name: "Groceries", capacity: -3000, spent: 0, fed: 0, contingencyPipeId: "test_pipe_id" };
     mockPipesById.sibling = { id: "sibling", parentId: "root" };
     const { rerender } = renderStatistics();
-    expect(screen.getByRole("button", { name: "Possible coverage provided, 30.00" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Possible coverage provided, 30.00, estimated" })).toBeTruthy();
     mockPipesById.source.capacity = -5000;
     rerender(<StatisticsRow {...baseProps} now={Date.now()} />);
-    expect(screen.getByRole("button", { name: "Possible coverage provided, 50.00" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Possible coverage provided, 50.00, estimated" })).toBeTruthy();
     mockPipesById.sibling.deletionJobId = "deletion";
     rerender(<StatisticsRow {...baseProps} now={Date.now()} />);
     expect(screen.queryByRole("button", { name: /Possible coverage provided/ })).toBeNull();
     delete mockPipesById.sibling.deletionJobId;
     rerender(<StatisticsRow {...baseProps} now={Date.now()} />);
-    expect(screen.getByRole("button", { name: "Possible coverage provided, 50.00" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Possible coverage provided, 50.00, estimated" })).toBeTruthy();
     delete mockPipesById.source.contingencyPipeId;
     rerender(<StatisticsRow {...baseProps} now={Date.now()} />);
     expect(screen.queryByRole("button", { name: /Possible coverage provided/ })).toBeNull();
@@ -191,12 +216,12 @@ describe("StatisticsRow", () => {
 
     delete mockPipesById.deleting.deletionJobId;
     rerender(<StatisticsRow {...baseProps} now={Date.now()} />);
-    expect(screen.getByRole("button", { name: "Possible coverage, 20.00" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Possible coverage, 20.00, estimated" })).toBeTruthy();
 
     mockPipesById.otherRoot = { id: "otherRoot" };
     mockPipesById.otherDeleting = { id: "otherDeleting", parentId: "otherRoot", deletionJobId: "otherDeletion" };
     rerender(<StatisticsRow {...baseProps} now={Date.now()} />);
-    expect(screen.getByRole("button", { name: "Possible coverage, 20.00" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Possible coverage, 20.00, estimated" })).toBeTruthy();
   });
 
   it("shows a negative remaining expected amount after exceeding the target", () => {
@@ -388,13 +413,13 @@ describe("StatisticsRow", () => {
       25000,
       "+250.00",
       "Paid elsewhere",
-      "This spending counts toward this pipe, but another pipe paid for it. The next rule run will add 250.00 to this pipe's fed balance.",
+      "Expenses were added and counted towards this pipe’s spending budget, but actual funding was taken from somewhere else.",
     ],
     [
       -25000,
       "-250.00",
       "Refunded elsewhere",
-      "This refund reduces this pipe's spending, but another pipe received it. The next rule run will subtract 250.00 from this pipe's fed balance.",
+      "Refunds were added and reduced this pipe’s spending, but actual funding was received somewhere else.",
     ],
   ])(
     "keeps an external adjustment of %s out of remaining expected and explains it",
@@ -411,9 +436,19 @@ describe("StatisticsRow", () => {
       expect(adjustment.textContent).toBe(displayValue);
       await user.click(adjustment);
       expect(screen.getByText(new RegExp(title))).toBeDefined();
+      expect(screen.queryByText("Next rule run")).toBeNull();
+      expect(screen.queryByText("Funding adjustment")).toBeNull();
+      const direction = pendingFedAdjustment > 0 ? "increased" : "decreased";
+      expect(screen.getByText((_, element) => element?.textContent ===
+        `This pipe’s funding will be ${direction} at next settlement by 250.00.`)).toBeDefined();
       expect(screen.getByText(description)).toBeDefined();
     },
   );
+
+  it("hides the external adjustment when payments and refunds net to zero", () => {
+    renderStatistics({ pendingFedAdjustment: 0 });
+    expect(screen.queryByTestId("external-adjustment-chip")).toBeNull();
+  });
 
   it("shows positive boiler growth with an explanation", async () => {
     const user = userEvent.setup();

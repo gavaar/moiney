@@ -88,7 +88,7 @@ export function Popover({
             left,
             maxWidth: Math.min(windowWidth * 0.85, Math.max(0, windowWidth - VIEWPORT_PADDING * 2)),
             maxHeight: Math.max(0, windowHeight - VIEWPORT_PADDING * 2),
-            boxShadow: "0 4px 16px rgba(0, 0, 0, 0.6), 0 0 8px rgba(156, 163, 175, 0.2)",
+            boxShadow: "0 4px 16px rgba(0, 0, 0, 0.2), 0 0 8px rgba(156, 163, 175, 0.5)",
           }}
           onLayout={(e) => {
             const { width, height } = e.nativeEvent.layout;
