@@ -3,6 +3,7 @@ import { fireEvent, render as renderComponent, screen, waitFor } from "@testing-
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SettingsScreen } from "./SettingsScreen";
 import { MonthlyCardPreferenceProvider } from "@features/statistics/preferences/MonthlyCardPreference";
+import { expo } from "@/../app.json";
 
 const render = (ui: React.ReactNode) => renderComponent(<MonthlyCardPreferenceProvider>{ui}</MonthlyCardPreferenceProvider>);
 
@@ -80,5 +81,10 @@ describe("Settings", () => {
     expect(screen.queryByLabelText("Current password")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
     expect(onBack).toHaveBeenCalledOnce();
+  });
+
+  it("does not offer version changes inside Settings", () => {
+    render(<SettingsScreen onBack={vi.fn()} />);
+    expect(screen.queryByRole("button", { name: `${expo.version} changes` })).toBeNull();
   });
 });
