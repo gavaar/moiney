@@ -478,7 +478,21 @@ describe("StatisticsRow", () => {
     expect(screen.getByText("0")).toBeDefined();
   });
 
-  it("renders no days-left chip for non-cron pipes", () => {
+  it.each([
+    { rule: "cron", days: 7, event: "reset", date: "Jul 13, 2026" },
+    { rule: "self_destruct", days: 7, event: "self-destroy", date: "Jul 13, 2026" },
+    { rule: "cron", days: 1, event: "reset", date: "Jul 7, 2026" },
+    { rule: "self_destruct", days: 0, event: "self-destroy", date: "Jul 6, 2026" },
+  ])("explains the $rule event in $days days with its date", ({ rule, days, event, date }) => {
+    const now = new Date(2026, 6, 6, 12).getTime();
+    mockPipesById.test_pipe_id.rule = rule;
+    mockPipesById.test_pipe_id.cronNextDate = now + days * 86400000;
+    renderStatistics({ now });
+    fireEvent.click(screen.getByRole("button", { name: `Days left, ${days}` }));
+    expect(screen.getByText(`This pipe will ${event} automatically in ${days} ${days === 1 ? "day" : "days"} (${date}).`)).toBeDefined();
+  });
+
+  it("renders no days-left chip for unscheduled pipes", () => {
     renderStatistics();
     const timerIcon = screen
       .queryAllByTestId("icon")

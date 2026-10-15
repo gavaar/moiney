@@ -95,7 +95,7 @@ export function StatisticsRow({
   const coverageProvided = selectedId ? preview.forDonor(selectedId) : undefined;
 
   const daysLeft =
-    currentPipe?.rule === "cron" && currentPipe.cronNextDate != null
+    (currentPipe?.rule === "cron" || currentPipe?.rule === "self_destruct") && currentPipe.cronNextDate != null
       ? Math.max(0, Math.ceil((currentPipe.cronNextDate - now) / DAY_MS))
       : null;
 
@@ -217,12 +217,12 @@ export function StatisticsRow({
         },
       ]
       : []),
-    ...(daysLeft != null
+    ...(daysLeft != null && currentPipe?.cronNextDate != null
       ? [
         {
           displayValue: String(daysLeft),
           title: "Days left",
-          description: "Days left until this pipe resets",
+           description: `This pipe will ${currentPipe.rule === "self_destruct" ? "self-destroy" : "reset"} automatically in ${daysLeft} ${daysLeft === 1 ? "day" : "days"} (${new Date(currentPipe.cronNextDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}).`,
           icon: "timer-outline" as IconName,
           ref: cronRef,
         },
