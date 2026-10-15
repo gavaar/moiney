@@ -270,15 +270,15 @@ export function StatisticsRow({
             className={cn(
               "flex-row items-center justify-center gap-1 border p-2 rounded-md",
               stat.tone === "negative"
-                ? "border-error/70 bg-error/10"
+                 ? "border-errorMuted/40 bg-errorMuted/5"
                 : stat.tone === "positive"
-                  ? "border-primary/70 bg-primary/10"
+                   ? "border-primaryMuted/40 bg-primaryMuted/5"
                 : stat.tone === "growth-non-negative"
-                  ? "border-secondary/70 bg-secondary/10"
+                   ? "border-secondarySoft/40 bg-secondarySoft/5"
                   : stat.tone === "external"
-                    ? "border-accent/70 bg-accent/10"
+                     ? "border-accentMuted/40 bg-accentMuted/5"
                     : stat.tone === "warning"
-                      ? "border-warning/70 bg-warning/10"
+                       ? "border-warningSoft/40 bg-warningSoft/5"
                       : "border-muted/50",
             )}
             accessibilityRole="button"
@@ -290,15 +290,15 @@ export function StatisticsRow({
               size={14}
               color={
                 stat.tone === "negative"
-                  ? colors.error
+                   ? colors.errorMuted
                   : stat.tone === "positive"
-                    ? colors.primary
+                     ? colors.primaryMuted
                   : stat.tone === "growth-non-negative"
-                    ? colors.secondary
+                     ? colors.secondarySoft
                     : stat.tone === "external"
-                      ? colors.accent
+                       ? colors.accentMuted
                       : stat.tone === "warning"
-                        ? colors.warning
+                         ? colors.warningSoft
                         : colors.text
               }
             />
@@ -306,15 +306,15 @@ export function StatisticsRow({
               className={cn(
                 "text-sm",
                 stat.tone === "negative"
-                  ? "text-error"
+                   ? "text-errorMuted"
                   : stat.tone === "positive"
-                    ? "text-primary"
+                     ? "text-primaryMuted"
                   : stat.tone === "growth-non-negative"
-                    ? "text-secondary"
+                     ? "text-secondarySoft"
                     : stat.tone === "external"
-                      ? "text-accent"
+                       ? "text-accentMuted"
                       : stat.tone === "warning"
-                        ? "text-warning"
+                         ? "text-warningSoft"
                         : "text-text",
               )}
             >

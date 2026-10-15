@@ -115,7 +115,7 @@ describe("StatisticsRow", () => {
     renderStatistics({ spent });
     const pill = screen.getByRole("button", { name: `Possible coverage, ${amount}, estimated` });
     expect(pill.textContent).toBe(`${amount} ?`);
-    expect(within(pill).getByTestId("icon").getAttribute("data-color")).toBe(colors.warning);
+    expect(within(pill).getByTestId("icon").getAttribute("data-color")).toBe(colors.warningSoft);
     await userEvent.setup().click(pill);
     expect(screen.getByLabelText(`Above capacity, ${demand}`)).toBeDefined();
     expect(screen.getByLabelText(`Reserve funding, ${available}`)).toBeDefined();
@@ -165,7 +165,7 @@ describe("StatisticsRow", () => {
     renderStatistics({ fed, spent });
     const pill = screen.getByRole("button", { name: `Possible coverage provided, ${amount}, estimated` });
     expect(pill.textContent).toBe(`${amount} ?`);
-    expect(within(pill).getByTestId("icon").getAttribute("data-color")).toBe(colors.warning);
+    expect(within(pill).getByTestId("icon").getAttribute("data-color")).toBe(colors.warningSoft);
     await userEvent.setup().click(pill);
     expect(screen.getByLabelText(`Available funding, ${available}`)).toBeDefined();
     expect(screen.getByLabelText(`Possible coverage, ${amount}`)).toBeDefined();
@@ -309,9 +309,9 @@ describe("StatisticsRow", () => {
   });
 
   it.each([
-    { monthlySpent: 50000, amount: "-50.00", color: colors.error },
-    { monthlySpent: 40000, amount: "50.00", color: colors.primary },
-    { monthlySpent: 45000, amount: "0.00", color: colors.primary },
+    { monthlySpent: 50000, amount: "-50.00", color: colors.errorMuted },
+    { monthlySpent: 40000, amount: "50.00", color: colors.primaryMuted },
+    { monthlySpent: 45000, amount: "0.00", color: colors.primaryMuted },
     { monthlySpent: undefined, amount: "Loading", color: colors.text },
   ])("colors the accumulated spend chip for $amount", ({ monthlySpent, amount, color }) => {
     renderStatistics({ monthlySpent, now: Date.UTC(2026, 5, 15, 12) });
