@@ -4,7 +4,7 @@ import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { TransactionItem } from "../components/TransactionItem";
 import type { TransactionPresentation } from "../data/transactions";
-import type { DeletedPipeEntry } from "./event-archives";
+import type { DeletedPipeEntry } from "@features/pipes/data/deletedPipes";
 import type { FinancialOperation } from "./event-groups";
 
 export function eventTransactionPresentation(operation: FinancialOperation, deletedPipes: readonly DeletedPipeEntry[]): TransactionPresentation {

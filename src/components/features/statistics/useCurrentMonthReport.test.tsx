@@ -41,6 +41,7 @@ it("withholds partial pages, then merges spending, refunds and current pipe capa
   mocks.status = "CanLoadMore";
   const { result, rerender } = renderHook(() => useCurrentMonthReport());
   expect(result.current.report).toBeUndefined();
+  expect(result.current.pipeSpending).toBeUndefined();
   expect(mocks.loadMore).toHaveBeenCalledWith(100);
 
   mocks.results = [
@@ -52,6 +53,7 @@ it("withholds partial pages, then merges spending, refunds and current pipe capa
   ];
   mocks.status = "Exhausted";
   rerender();
+  expect(result.current.pipeSpending).toEqual([{ pipeId: "leaf", netSpendingCents: 700 }]);
   expect(result.current.report).toMatchObject({
     periodStart: Date.UTC(new Date(periodStart).getUTCFullYear(), new Date(periodStart).getUTCMonth(), 1),
     totalIncomeCents: 1_000,
@@ -66,6 +68,13 @@ it("withholds partial pages, then merges spending, refunds and current pipe capa
     mostRepeatedTransaction: { title: "coffee", count: 3, netSpendingCents: 700 },
     offenders: [{ pipeId: "leaf", name: "Groceries", netSpendingCents: 700, capacityCents: 500, overageCents: 200 }],
   });
+});
+
+it("publishes zero activity as complete empty pipe totals rather than loading", () => {
+  mocks.status = "Exhausted";
+  const { result } = renderHook(() => useCurrentMonthReport());
+  expect(result.current.pipeSpending).toEqual([]);
+  expect(result.current.report?.grossSpendingCents).toBe(0);
 });
 
 it("retains the current report and query arguments across an unchanged rerender", () => {

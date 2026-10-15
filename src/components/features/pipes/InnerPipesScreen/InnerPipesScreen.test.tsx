@@ -24,15 +24,27 @@ vi.mock("react-native", async (importOriginal) => ({
 
 const mockAddPipe = vi.fn();
 const mockConvexQuery = vi.fn();
+let mockMonthlySpending: { pipeId: string; netSpendingCents: number }[] = [];
+
+vi.mock("@features/statistics/CurrentMonthReportContext", () => ({
+  useCurrentMonthReportContext: () => {
+    const now = new Date();
+    return {
+      report: { periodStart: Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1) },
+      pipeSpending: mockMonthlySpending,
+    };
+  },
+}));
 
 vi.mock("convex/react", () => ({
   useMutation: () => mockAddPipe,
-  useQuery: () => undefined,
+  useQuery: (query: unknown) => query === "deletedPipes" ? { events: [], cursor: null, isDone: true } : undefined,
   useConvex: () => ({ query: mockConvexQuery }),
 }));
 
 vi.mock("@convex/_generated/api", () => ({
   api: {
+    events: { deletedPipes: "deletedPipes" },
     pipes: {
       addPipe: {},
     },
@@ -108,6 +120,28 @@ const grandchildPipe = { id: "grand-1", name: "Sub", icon: "pipe", capacity: 100
 describe("InnerPipesScreen", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockMonthlySpending = [];
+  });
+
+  it("uses the shared monthly report for the daily card without changing settlement statistics", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(Date.UTC(2026, 6, 15, 12));
+    try {
+      const pipe = { ...childPipe1, spent: 0 };
+      mockMonthlySpending = [{ pipeId: pipe.id, netSpendingCents: 45000 }];
+      mockUsePipeSelection.mockReturnValue({
+        ...baseMock,
+        selectedPipePath: [pipe.id],
+        selectedPipe: pipe,
+        allPipes: [pipe],
+        pipesById: { [pipe.id]: pipe },
+      });
+      render(<InnerPipesScreen />);
+      expect(screen.getByRole("button", { name: "Spent this month per day, 30.00" })).toBeDefined();
+      expect(screen.getByRole("button", { name: "Remaining expected, 1,000.00" })).toBeDefined();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("opens rule settings from a minimized eligible child and excludes disabled children", async () => {

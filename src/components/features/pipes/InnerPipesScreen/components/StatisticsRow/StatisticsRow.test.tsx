@@ -40,6 +40,7 @@ vi.mock("@ui/Icon", () => ({
 const baseProps = {
   fed: 100000,
   spent: 40000,
+  monthlySpent: 40000,
   expected: 90000,
 };
 
@@ -74,9 +75,11 @@ describe("StatisticsRow", () => {
     );
     expect(
       screen.getByText((_, element) =>
-        element?.textContent === "The monthly expected amount is 900.00. After 400.00 in currently tracked spending, 500.00 remains. Spending before the last settlement is not included.",
+        element?.textContent === "The monthly expected amount is 900.00.",
       ),
     ).toBeDefined();
+    expect(screen.getByText((_, element) => element?.textContent ===
+      "After 400.00 in currently tracked spending, 500.00 remains. Spending before the last settlement is not included.")).toBeDefined();
     expect(screen.queryByText(/this is not your available balance/)).toBeNull();
   });
 
@@ -208,7 +211,7 @@ describe("StatisticsRow", () => {
   it("calculates StMpD over elapsed days and explains its denominator", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 6, 15, 12));
-    renderStatistics({ spent: 45000 });
+    renderStatistics({ spent: 0, monthlySpent: 45000 });
 
     fireEvent.click(
       screen.getByRole("button", {
@@ -216,20 +219,47 @@ describe("StatisticsRow", () => {
       }),
     );
     expect(
-      screen.getByText(
-        "An average of 30.00 was spent per day over 15 days in this pipe this month.",
-      ),
+      screen.getByText((_, element) => element?.textContent ===
+        "An average of 30.00 was spent per day over 15 days this month."),
     ).toBeDefined();
+    expect(screen.getByText((_, element) => element?.textContent ===
+      "If maintained, you would spend 930.00 by the end of the month.")).toBeDefined();
+    expect(screen.getByText((_, element) => element?.textContent ===
+      "This would set you above your expected spend goal by 30.00.")).toBeDefined();
   });
 
   it("updates daily spending from the screen's clock without sampling render time", () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date(2026, 6, 15, 12));
-    const { rerender } = renderStatistics({ spent: 45000, now: new Date(2026, 6, 15, 12).getTime() });
+    const { rerender } = renderStatistics({ monthlySpent: 45000, now: new Date(2026, 6, 15, 12).getTime() });
     expect(screen.getByRole("button", { name: "Spent this month per day, 30.00" })).toBeDefined();
 
-    rerender(<StatisticsRow {...baseProps} spent={45000} now={new Date(2026, 6, 16, 12).getTime()} />);
+    rerender(<StatisticsRow {...baseProps} monthlySpent={45000} now={new Date(2026, 6, 16, 12).getTime()} />);
     expect(screen.getByRole("button", { name: "Spent this month per day, 28.13" })).toBeDefined();
+  });
+
+  it.each([
+    { monthlySpent: 200000, expected: 310000, projection: "3,100.00", outcome: "Leaving you with 0.00 leftover." },
+    { monthlySpent: 200000, expected: 309999, projection: "3,100.00", outcome: "This would set you above your expected spend goal by 0.01." },
+    { monthlySpent: 100000, expected: 310000, projection: "1,550.00", outcome: "Leaving you with 1,550.00 leftover." },
+    { monthlySpent: -20000, expected: 0, projection: "-310.00", outcome: "Leaving you with 310.00 leftover." },
+  ])("explains the projected outcome for $monthlySpent cents against $expected cents", ({ projection, outcome, ...props }) => {
+    renderStatistics({ ...props, now: Date.UTC(2026, 6, 20, 12) });
+    fireEvent.click(screen.getByRole("button", { name: /Spent this month per day,/ }));
+    expect(screen.getByText((_, element) => element?.textContent ===
+      `If maintained, you would spend ${projection} by the end of the month.`)).toBeDefined();
+    expect(screen.getByText((_, element) => element?.textContent === outcome)).toBeDefined();
+    if (props.monthlySpent < 0) {
+      expect(screen.getByText((_, element) => element?.textContent ===
+        "Net spending averaged -10.00 per day over 20 days this month.")).toBeDefined();
+    }
+  });
+
+  it("shows a loading placeholder rather than a partial average or forecast", () => {
+    renderStatistics({ monthlySpent: undefined });
+    fireEvent.click(screen.getByRole("button", { name: "Spent this month per day, Loading" }));
+    expect(screen.getByText("Loading monthly spending…")).toBeDefined();
+    expect(screen.queryByText(/If maintained/)).toBeNull();
   });
 
   it("calculates and explains accumulated spend through today", () => {

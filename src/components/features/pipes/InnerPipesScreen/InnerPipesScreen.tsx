@@ -18,6 +18,7 @@ import { EditPipeModal } from "./components/EditPipeModal";
 import { StatisticsRow } from "./components/StatisticsRow";
 import { AddChildPipeButton } from "./components/AddChildPipeButton";
 import { useRuleClock } from "@features/pipes/rules/use-rule-clock";
+import { useMonthlyPipeSpending } from "@features/statistics/useMonthlyPipeSpending";
 
 export function InnerPipesScreen() {
   const [compactRulePipeId, setCompactRulePipeId] = useState<PipeModel["id"] | null>(null);
@@ -38,6 +39,7 @@ export function InnerPipesScreen() {
   const coverageProvided = selectedId ? prepareContingencyPreview(allPipes ?? []).forDonor(selectedId) : undefined;
   const children = childrenByParent.get(selectedId) ?? [];
   const ruleNow = useRuleClock(Boolean(selectedPipe));
+  const monthlySpent = useMonthlyPipeSpending(selectedId ?? null, ruleNow);
   const expected = selectedPipe
     ? expectedMonthlyCapacity(
         { ...selectedPipe, capacity },
@@ -90,6 +92,7 @@ export function InnerPipesScreen() {
             <StatisticsRow
               fed={fed}
               spent={spent}
+              monthlySpent={monthlySpent}
               expected={expected}
               pendingFedAdjustment={pendingFedAdjustment}
               sourceType={selectedPipe?.sourceType}

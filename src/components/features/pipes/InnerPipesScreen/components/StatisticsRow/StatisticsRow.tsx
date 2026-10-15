@@ -9,6 +9,7 @@ import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import { prepareContingencyPreview } from "@features/pipes/data/contingencyPreview";
 import { RemainingExpectedDetails } from "./RemainingExpectedDetails";
+import { monthlySpendingPace } from "@domain/statistics/monthlySpendingPace";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -26,6 +27,7 @@ type StatItem = {
 type Props = {
   fed: number;
   spent: number;
+  monthlySpent: number | undefined;
   expected: number;
   pendingFedAdjustment?: number;
   sourceType?: "feed" | "boiler";
@@ -47,6 +49,7 @@ function formatGrowthPercentage(value: number): string {
 export function StatisticsRow({
   fed,
   spent,
+  monthlySpent,
   expected,
   pendingFedAdjustment = 0,
   sourceType,
@@ -56,6 +59,7 @@ export function StatisticsRow({
   const date = new Date(now);
   const daysInMonth = getDaysInMonth(date);
   const currentDay = date.getDate();
+  const pace = monthlySpent === undefined ? undefined : monthlySpendingPace(monthlySpent, now);
   const dailyExpected = daysInMonth > 0 ? expected / daysInMonth : 0;
   const accumulatedSpend = dailyExpected * currentDay - spent;
   const daysUntilPositive =
@@ -130,9 +134,38 @@ export function StatisticsRow({
       ]
       : []),
     {
-      displayValue: formatAmount(Math.round(spent / currentDay)),
+      displayValue: pace ? formatAmount(Math.round(pace.dailyAverageCents)) : "Loading",
       title: "Spent this month per day",
-      description: `An average of ${formatAmount(Math.round(spent / currentDay))} was spent per day over ${currentDay} days in this pipe this month.`,
+      description: pace ? (
+        <View className="gap-2">
+          <Text className="text-text text-sm">
+            {pace.dailyAverageCents < 0 ? "Net spending averaged " : "An average of "}
+            <Text className="text-errorMuted">{formatAmount(Math.round(pace.dailyAverageCents))}</Text>
+            {pace.dailyAverageCents < 0 ? " per day over " : " was spent per day over "}
+            <Text className="text-secondary">{pace.elapsedDays}</Text>
+            {" "}{pace.elapsedDays === 1 ? "day" : "days"} this month.
+          </Text>
+          <Text className="text-text text-sm">
+            If maintained, you would spend{" "}
+            <Text className={pace.projectedCents > expected ? "text-errorDark" : "text-primaryDark"}>
+              {formatAmount(pace.projectedCents)}
+            </Text>
+            {" "}by the end of the month.
+          </Text>
+          {pace.projectedCents > expected ? (
+            <Text className="text-text text-sm">
+              This would set you above your expected spend goal by{" "}
+              <Text className="text-error">{formatAmount(pace.projectedCents - expected)}</Text>.
+            </Text>
+          ) : (
+            <Text className="text-text text-sm">
+              Leaving you with{" "}
+              <Text className="text-primary">{formatAmount(expected - pace.projectedCents)}</Text>
+              {" "}leftover.
+            </Text>
+          )}
+        </View>
+      ) : <Text className="text-muted text-sm">Loading monthly spending…</Text>,
       icon: "calculate",
       ref: stmpdRef,
     },
@@ -259,7 +292,7 @@ export function StatisticsRow({
             anchorRef={stat.ref as RefObject<View>}
             anchorPosition="bottom"
           >
-            <Text className="text-text font-bold text-md">{stat.title}:</Text>
+            <Text className="font-bold text-md text-primaryMuted mb-2">{stat.title}:</Text>
             {typeof stat.description === "string"
               ? <Text className="text-text text-sm">{stat.description}</Text>
               : stat.description}

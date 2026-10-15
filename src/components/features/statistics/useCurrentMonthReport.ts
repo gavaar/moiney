@@ -22,21 +22,24 @@ export function useCurrentMonthReport() {
     if (status === "CanLoadMore") loadMore(100);
   }, [status, loadMore]);
 
+  const pipeSpending = useMemo(() => status === "Exhausted"
+    ? mergePipeSpending(...results.map((page) => page.pipeSpending))
+    : undefined, [status, results]);
+
   const report = useMemo<MonthlySpendingStat | undefined>(() => {
-    if (!allPipes || status !== "Exhausted") return undefined;
+    if (!allPipes || !pipeSpending) return undefined;
     const summary = results.reduce(
       (total, page) => mergeMonthlySpending(total, page.summary),
       summarizeMonthlySpending([]),
     );
-    const spending = mergePipeSpending(...results.map((page) => page.pipeSpending));
     return {
       periodStart,
       ...summary,
       ...summarizeRootFeedSnapshot(allPipes),
-      offenders: rankMonthlyOffenders(allPipes, spending),
+      offenders: rankMonthlyOffenders(allPipes, pipeSpending),
       mostRepeatedTransaction: mostRepeatedTransaction(mergeTitleSpending(...results.map((page) => page.titleSpending ?? []))),
     };
-  }, [allPipes, status, results, periodStart]);
+  }, [allPipes, pipeSpending, results, periodStart]);
 
-  return { report };
+  return { report, pipeSpending };
 }

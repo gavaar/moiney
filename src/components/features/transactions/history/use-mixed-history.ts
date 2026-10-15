@@ -5,8 +5,8 @@ import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import { useEventHistoryCache } from "../cache/EventHistoryCacheContext";
 import type { HistoryFilters } from "./history-filters";
 import type { HistoryEntry } from "./event-groups";
-import type { DeletedPipeEntry } from "./event-archives";
-import { createEventHistoryReader, mergeHistoryEntries, readDeletedPipes, readLatestEvents } from "./event-history-data";
+import { createEventHistoryReader, mergeHistoryEntries, readLatestEvents } from "./event-history-data";
+import { readDeletedPipes, type DeletedPipeEntry } from "@features/pipes/data/deletedPipes";
 
 export function useMixedHistory(filters: HistoryFilters = {}, options: { enabled?: boolean; recent?: boolean } = {}) {
   const client = useConvex();

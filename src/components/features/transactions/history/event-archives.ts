@@ -2,7 +2,7 @@ import type { Id } from "@convex/_generated/dataModel";
 import { collapseSettlementPerspectives, groupHistoryEvents, type EventHistoryRow, type HistoryEntry } from "./event-groups";
 import { recognizedHistoryEntries } from "./event-types";
 
-export type DeletedPipeEntry = Extract<HistoryEntry, { type: "pipe_deletion" }>;
+import type { DeletedPipeEntry } from "@features/pipes/data/deletedPipes";
 export type EventArchiveSummary = { count: number; spent: number; oldestDate: number | null; latestDate: number | null };
 export type MonthlyEventArchive = {
   kind: "archive"; id: string; pipeId: Id<"pipes">; month: string;

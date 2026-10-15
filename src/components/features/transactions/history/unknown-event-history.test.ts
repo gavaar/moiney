@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { Id } from "@convex/_generated/dataModel";
 import { groupHistoryEvents, type HistoryEntry } from "./event-groups";
-import { groupMonthlyEventHistory, type DeletedPipeEntry } from "./event-archives";
+import { groupMonthlyEventHistory } from "./event-archives";
+import type { DeletedPipeEntry } from "@features/pipes/data/deletedPipes";
 import { getFrequentlyUsedEventSourcePipeIds } from "./event-usage";
 
 const expense: HistoryEntry = {

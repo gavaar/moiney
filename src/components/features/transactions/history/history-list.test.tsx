@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Id } from "@convex/_generated/dataModel";
 import { HistoryList } from "./history-list";
 import type { HistoryEntry } from "./event-groups";
-import type { DeletedPipeEntry } from "./event-archives";
+import type { DeletedPipeEntry } from "@features/pipes/data/deletedPipes";
 
 const mocks = vi.hoisted(() => ({ query: vi.fn(), navigate: vi.fn() }));
 const client = { query: mocks.query };
