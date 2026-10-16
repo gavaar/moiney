@@ -6,7 +6,10 @@ import { FormPager } from "./FormPager";
 
 // Model the native boundary: scrollTo is clamped until content has been laid out.
 const native = vi.hoisted(() => ({
-  props: {} as Record<string, any>, width: 0, contentWidth: 0, offset: 0,
+  props: {} as Record<string, any>,
+  width: 0,
+  contentWidth: 0,
+  offset: 0,
   pages: {} as Record<string, any>,
 }));
 vi.mock("react-native", async importOriginal => {
@@ -40,7 +43,7 @@ const pages = [
 
 function RepeatPager() {
   const [step, setStep] = useState(1);
-  return <><span>Active step: {step + 1}</span><FormPager pages={pages} activeStep={step} onStepChange={setStep} /></>;
+  return <><span>Active step: {step + 1}</span><FormPager pages={pages} navigation={{ step, onChange: setStep }} /></>;
 }
 
 describe("FormPager native positioning", () => {
@@ -68,7 +71,7 @@ describe("FormPager native positioning", () => {
   });
 
   it("sizes to the active page, follows content changes, and ignores taller inactive pages", () => {
-    const { rerender } = render(<FormPager pages={pages} activeStep={1} onStepChange={() => {}} />);
+    const { rerender } = render(<FormPager pages={pages} navigation={{ step: 1, onChange: () => {} }} />);
     act(() => {
       native.width = 320;
       native.contentWidth = 640;
@@ -83,20 +86,20 @@ describe("FormPager native positioning", () => {
     expect(native.props.style.height).toBe(240);
     act(() => native.pages["Choose pipe"].onContentSizeChange?.(320, 500));
     expect(native.props.style.height).toBe(240);
-    rerender(<FormPager pages={pages} activeStep={0} onStepChange={() => {}} />);
+    rerender(<FormPager pages={pages} navigation={{ step: 0, onChange: () => {} }} />);
     expect(native.props.style.height).toBe(500);
-    rerender(<FormPager pages={pages} activeStep={1} onStepChange={() => {}} />);
+    rerender(<FormPager pages={pages} navigation={{ step: 1, onChange: () => {} }} />);
     act(() => native.pages["Transaction details"].onContentSizeChange?.(320, 160));
     expect(native.props.style.height).toBe(160);
 
-    rerender(<FormPager pages={pages} activeStep={1} onStepChange={() => {}} fill />);
+    rerender(<FormPager pages={pages} navigation={{ step: 1, onChange: () => {} }} fill />);
     expect(native.props.style.height).toBeUndefined();
     expect(native.props.style.flexGrow).toBe(1);
   });
 
   it("measures inline-list steps and discards measurements taken at a previous width", () => {
     const inlinePages = [{ ...pages[0], scrollable: false }, pages[1]];
-    const { rerender } = render(<FormPager pages={inlinePages} activeStep={0} onStepChange={() => {}} />);
+    const { rerender } = render(<FormPager pages={inlinePages} navigation={{ step: 0, onChange: () => {} }} />);
     act(() => {
       native.width = 320;
       native.contentWidth = 640;
@@ -107,11 +110,11 @@ describe("FormPager native positioning", () => {
       native.pages["Transaction details"].onContentSizeChange(320, 200);
     });
     expect(native.props.style.height).toBe(328);
-    rerender(<FormPager pages={inlinePages} activeStep={1} onStepChange={() => {}} />);
+    rerender(<FormPager pages={inlinePages} navigation={{ step: 1, onChange: () => {} }} />);
     expect(native.props.style.height).toBe(200);
     act(() => native.pages["Choose pipe"].onLayout({ nativeEvent: { layout: { height: 120 } } }));
     expect(native.props.style.height).toBe(200);
-    rerender(<FormPager pages={inlinePages} activeStep={0} onStepChange={() => {}} />);
+    rerender(<FormPager pages={inlinePages} navigation={{ step: 0, onChange: () => {} }} />);
     expect(native.props.style.height).toBe(120);
     act(() => {
       native.width = 240;

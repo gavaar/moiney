@@ -45,7 +45,7 @@ describe("AddFeedButton", () => {
   });
 
   it.each(["amount", "contributed"] as const)("rejects negative and unsupported %s values through the configured validator", (key) => {
-    const field = buildAddFeedForm({ ...ADD_FEED_DEFAULTS, isBoiler: true }).find((field) => field.key === key)!;
+    const field = buildAddFeedForm({ ...ADD_FEED_DEFAULTS, isBoiler: true }).flatMap(page => page.rows.flat()).find((field) => field.key === key)!;
     if (field.key !== "amount" && field.key !== "contributed") throw new Error("Expected an opening amount field");
     for (const invalid of ["-0.01", "1.234", "abc", "1000000000.01", "9007199254740992"]) {
       expect(field.input.validator(invalid)).toEqual(expect.any(String));
@@ -133,8 +133,11 @@ describe("AddFeedButton", () => {
     expect(screen.getByTestId("add-feed-submit").getAttribute("aria-disabled")).toBeNull();
     await user.click(screen.getByTestId("add-feed-submit"));
     await waitFor(() => expect(mockAddFeed).toHaveBeenCalledExactlyOnceWith({
-      name: "Savings", icon: "wallet-outline", description: "Opening balance",
-      sourceType: isBoiler ? "boiler" : "feed", ...money,
+      name: "Savings",
+      icon: "wallet-outline",
+      description: "Opening balance",
+      sourceType: isBoiler ? "boiler" : "feed",
+      ...money,
     }));
     expect(mockShowAlert.success).toHaveBeenCalledWith(isBoiler ? "Boiler added" : "Feed added");
   });

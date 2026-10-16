@@ -183,7 +183,7 @@ describe("profile", () => {
       return { _id: id, _creationTime: createdAt, sha256: "abc", size: 10 };
     }
 
-    function storageQuery(docs: Array<{ _id: string; _creationTime: number }>) {
+    function storageQuery(docs: { _id: string; _creationTime: number }[]) {
       return {
         [Symbol.asyncIterator]: async function* () {
           for (const doc of docs) yield doc;
@@ -191,7 +191,7 @@ describe("profile", () => {
       };
     }
 
-    function usersQuery(users: Array<{ picture?: string | null }>) {
+    function usersQuery(users: { picture?: string | null }[]) {
       return { collect: async () => users };
     }
 

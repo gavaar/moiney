@@ -91,9 +91,15 @@ it("shows the complete monthly report and supports back navigation", async () =>
 
 it("shows only a full-width Volume when produced is the same balance", () => {
   vi.mocked(useQuery).mockReturnValue({
-    periodStart: Date.UTC(2026, 5, 1), grossSpendingCents: 0, refundCents: 0,
-    spendingTransactionCount: 0, refundTransactionCount: 0, largestSpendingTransactionCents: 0,
-    volumeCents: 22_000, producedCents: 22_000, mostRepeatedTransaction: null,
+    periodStart: Date.UTC(2026, 5, 1),
+    grossSpendingCents: 0,
+    refundCents: 0,
+    spendingTransactionCount: 0,
+    refundTransactionCount: 0,
+    largestSpendingTransactionCents: 0,
+    volumeCents: 22_000,
+    producedCents: 22_000,
+    mostRepeatedTransaction: null,
   } as any);
   render(<MonthlyStatisticsDetail periodStart={Date.UTC(2026, 5, 1)} onBack={vi.fn()} />);
   expect(screen.getByText("Volume")).toBeDefined();
@@ -104,8 +110,12 @@ it("shows only a full-width Volume when produced is the same balance", () => {
 it("shows frozen ranked offenders and their net spending, ceiling, and overage", () => {
   mocks.allPipes = [{ id: "leaf", icon: "cart" }];
   vi.mocked(useQuery).mockReturnValue({
-    periodStart: Date.UTC(2026, 5, 1), grossSpendingCents: 800, refundCents: 0,
-    spendingTransactionCount: 1, refundTransactionCount: 0, largestSpendingTransactionCents: 800,
+    periodStart: Date.UTC(2026, 5, 1),
+    grossSpendingCents: 800,
+    refundCents: 0,
+    spendingTransactionCount: 1,
+    refundTransactionCount: 0,
+    largestSpendingTransactionCents: 800,
     offenders: [
       { pipeId: "leaf", name: "Groceries", netSpendingCents: 800, capacityCents: 500, overageCents: 300 },
       { pipeId: "deleted", name: "Old pipe", netSpendingCents: 400, capacityCents: 200, overageCents: 200 },
@@ -124,9 +134,13 @@ it("shows frozen ranked offenders and their net spending, ceiling, and overage",
 
 it("shows the three largest expense titles and amounts in vertical order and the repeated transaction", () => {
   vi.mocked(useQuery).mockReturnValue({
-    periodStart: Date.UTC(2026, 5, 1), grossSpendingCents: 3_000, refundCents: 0,
-    spendingTransactionCount: 3, refundTransactionCount: 0,
-    largestSpendingTransactionCents: 1_200, nextLargestSpendingCents: [1_000, 800],
+    periodStart: Date.UTC(2026, 5, 1),
+    grossSpendingCents: 3_000,
+    refundCents: 0,
+    spendingTransactionCount: 3,
+    refundTransactionCount: 0,
+    largestSpendingTransactionCents: 1_200,
+    nextLargestSpendingCents: [1_000, 800],
     largestSpendingTransactions: [
       { title: "rent", amountCents: 1_200 },
       { title: "lunch", amountCents: 1_000 },
@@ -146,9 +160,13 @@ it("shows the three largest expense titles and amounts in vertical order and the
 
 it("preserves amount-only rows for older frozen reports without titles", () => {
   vi.mocked(useQuery).mockReturnValue({
-    periodStart: Date.UTC(2026, 5, 1), grossSpendingCents: 1_500, refundCents: 0,
-    spendingTransactionCount: 2, refundTransactionCount: 0,
-    largestSpendingTransactionCents: 1_200, nextLargestSpendingCents: [300],
+    periodStart: Date.UTC(2026, 5, 1),
+    grossSpendingCents: 1_500,
+    refundCents: 0,
+    spendingTransactionCount: 2,
+    refundTransactionCount: 0,
+    largestSpendingTransactionCents: 1_200,
+    nextLargestSpendingCents: [300],
   } as any);
   render(<MonthlyStatisticsDetail periodStart={Date.UTC(2026, 5, 1)} onBack={vi.fn()} />);
   const largest = screen.getByText("Largest spending transaction").parentElement!;

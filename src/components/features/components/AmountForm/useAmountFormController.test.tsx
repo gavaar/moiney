@@ -41,10 +41,24 @@ beforeEach(() => {
 const cases: { name: string; props: AmountFormProps; value: string }[] = [
   { name: "creation", props: { pipeId: source.id }, value: "-1.00" },
   { name: "feed", props: { pipeId: source.id, variant: "feed" }, value: "1.00" },
-  { name: "edit", props: { pipeId: source.id, variant: "transaction", initState: {
-    operationId: "operation" as Id<"events">, intent: "edit", structure: { type: "expense", from: source.id },
-    pipeName: source.name, pipeIcon: source.icon, title: "lunch", value: "-1.00", date: 1,
-  } }, value: "-1.00" },
+  {
+    name: "edit",
+    props: {
+      pipeId: source.id,
+      variant: "transaction",
+      initState: {
+        operationId: "operation" as Id<"events">,
+        intent: "edit",
+        structure: { type: "expense", from: source.id },
+        pipeName: source.name,
+        pipeIcon: source.icon,
+        title: "lunch",
+        value: "-1.00",
+        date: 1,
+      }
+    },
+    value: "-1.00"
+  },
   { name: "boiler contribution", props: { pipeId: source.id, variant: "boiler", currentFed: 1000, boilerName: source.name }, value: "1.00" },
 ];
 

@@ -5,8 +5,12 @@ import { MonthlyStatisticsCard } from "./MonthlyStatisticsCard";
 import type { MonthlySpendingStat } from "./data/monthlySpending";
 
 const report: MonthlySpendingStat = {
-  periodStart: Date.UTC(2026, 5, 1), grossSpendingCents: 2000, refundCents: 250,
-  spendingTransactionCount: 2, refundTransactionCount: 1, largestSpendingTransactionCents: 1200,
+  periodStart: Date.UTC(2026, 5, 1),
+  grossSpendingCents: 2000,
+  refundCents: 250,
+  spendingTransactionCount: 2,
+  refundTransactionCount: 1,
+  largestSpendingTransactionCents: 1200,
 };
 
 it.each([

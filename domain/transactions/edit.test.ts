@@ -17,9 +17,7 @@ describe("planTransactionEdit", () => {
     const next = { type: "payByTransfer", from: "food", paidFrom: "bank" } as const;
     expect(planTransactionEdit(old, -2000, next, -1000, {
       invalidPreviousPipeIds: ["deleted"], applyReplacementEffects: false,
-    }).deltas).toEqual([
-      { pipeId: "bank", fedDelta: 1000, spentDelta: 0, pendingFedAdjustmentDelta: 0, contributedFedDelta: 0 },
-    ]);
+    }).deltas).toEqual([{ pipeId: "bank", fedDelta: 1000, spentDelta: 0, pendingFedAdjustmentDelta: 0, contributedFedDelta: 0 },]);
     expect(planTransactionEdit(old, -2000, next, -1000, {
       invalidPreviousPipeIds: ["deleted"], applyReplacementEffects: true,
     }).deltas).toEqual([

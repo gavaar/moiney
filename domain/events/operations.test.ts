@@ -157,11 +157,13 @@ describe("history operation identity", () => {
   });
 
   it.each([0, -100])("rejects a single-entry feed with value %i", (value) => {
-    expect(() => historyOperationFromEvents([{
-      ...base,
-      type: "feed",
-      title: "salary",
-      value,
-    }])).toThrow();
+    expect(() => historyOperationFromEvents([
+      {
+        ...base,
+        type: "feed",
+        title: "salary",
+        value,
+      }
+    ])).toThrow();
   });
 });

@@ -83,8 +83,8 @@ export function SelectInput({ label, hideLabel, items, groups, renderItem, itemS
     if (disabled || loading) return;
     if (multiple) {
       const next = value.includes(id)
-          ? value.filter((selectedId) => selectedId !== id)
-          : [...value, id];
+        ? value.filter((selectedId) => selectedId !== id)
+        : [...value, id];
       onChange?.(next);
       if (presentation === "inline") markAsDirty();
     } else {
@@ -103,9 +103,11 @@ export function SelectInput({ label, hideLabel, items, groups, renderItem, itemS
       disabled={disabled || loading}
       onPress={() => handleItemPress(item.id)}
       className={inline ? "rounded-xl border border-muted/30 px-2 py-1" : "px-2 py-2 border-b border-border/30 last:border-b-0 active:opacity-70"}
-      style={[itemStyle?.(item), checked
-        ? { backgroundColor: `${colors.muted}1A`, ...(inline ? {} : { borderRadius: 8 }) }
-        : inline ? { backgroundColor: "transparent" } : undefined]}
+      style={[
+        itemStyle?.(item), checked
+          ? { backgroundColor: `${colors.muted}1A`, ...(inline ? {} : { borderRadius: 8 }) }
+          : inline ? { backgroundColor: "transparent" } : undefined
+      ]}
     >{renderItem(item)}</Pressable>;
   }
 

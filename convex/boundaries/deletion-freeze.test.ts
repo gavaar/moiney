@@ -284,8 +284,13 @@ describe("Convex boundaries: deletion and freeze", () => {
         fed: 40,
         spent: 10,
       });
-      await insertFinancialOperation(ctx, { userId, title: "preserved expense", value: -10, occurredAt: 1,
-        structure: { type: "expense", from: childId } });
+      await insertFinancialOperation(ctx, {
+        userId,
+        title: "preserved expense",
+        value: -10,
+        occurredAt: 1,
+        structure: { type: "expense", from: childId }
+      });
       return { userId, parentId, childId };
     });
 
@@ -507,8 +512,13 @@ describe("Convex boundaries: deletion and freeze", () => {
       ];
       for (const [index, transaction] of transactions.entries()) {
         const value = transaction.kind === "feed" ? 1 : -1;
-        await insertFinancialOperation(ctx, { userId, title: transaction.title, value, occurredAt: index,
-          structure: transactionStructureFromRoles(transaction) });
+        await insertFinancialOperation(ctx, {
+          userId,
+          title: transaction.title,
+          value,
+          occurredAt: index,
+          structure: transactionStructureFromRoles(transaction)
+        });
       }
       return { userId, deletedPipeId };
     });
@@ -1694,7 +1704,7 @@ describe("Convex boundaries: deletion and freeze", () => {
         },
       ),
     ).rejects.toMatchObject({
-       data: { code: "TRANSACTION_PIPE_REPLACEMENT_REQUIRED" },
+      data: { code: "TRANSACTION_PIPE_REPLACEMENT_REQUIRED" },
     });
 
     const state = await t.run(async (ctx) => ({

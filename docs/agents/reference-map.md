@@ -14,6 +14,7 @@ test before introducing another pattern; follow linked contracts for behavior.
 | Persisted schema or migration | `convex/schema.ts` and `docs/backend.md#deployment-and-manual-migrations` | Convex migration skill and schema boundary tests |
 | Bounded maintenance continuation | `convex/sessions.ts` | `convex/sessions.test.ts` |
 | Event History cache ownership | `src/components/features/transactions/cache/EventHistoryCacheContext.tsx` and `EventHistoryStore.ts` | Adjacent provider/store tests and `docs/domain/history-cache.md` |
+| Local persistence and storage locations | `src/lib/storage/directories.native.ts` and feature-owned storage adapters | [Local storage guide](../local-storage.md) and `src/lib/storage/nativeStorage.integration.test.ts` |
 | Shared input | `src/components/ui/Input/Input.tsx` | `src/components/ui/Input/Input.test.tsx` and `docs/input.md` |
 | Shared modal shell | `src/components/ui/Modal/ModalShell.tsx` | Adjacent `ModalShell.test.tsx` and `docs/ui.md` |
 | Money parsing and validation | `domain/money/money.ts` | Adjacent `money.test.ts` and `docs/domain/accounting.md` |

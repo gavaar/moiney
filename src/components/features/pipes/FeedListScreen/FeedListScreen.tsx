@@ -1,4 +1,4 @@
-import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
 import { colors } from "@/lib/styles";
 import { PipesList } from "@features/pipes/components/PipesList";
 import type { PipeModel } from "@features/pipes/data/pipes";
@@ -55,13 +55,13 @@ export function FeedListScreen({
             label: () => "Add money",
             onPress: (pipe) => setFundingFeedId(pipe.id),
           }}
-           trailing={(pipe) => (
-              <Pressable className="p-2 rounded-full" accessibilityRole="button"
-                accessibilityLabel={`Add money to ${pipe.name}`} testID="feed-amount-trigger"
-                onPress={() => setFundingFeedId(pipe.id)}>
-                <Icon name="add-circle-outline" size={24} color="white" />
-              </Pressable>
-           )}
+          trailing={(pipe) => (
+            <Pressable className="p-2 rounded-full" accessibilityRole="button"
+              accessibilityLabel={`Add money to ${pipe.name}`} testID="feed-amount-trigger"
+              onPress={() => setFundingFeedId(pipe.id)}>
+              <Icon name="add-circle-outline" size={24} color="white" />
+            </Pressable>
+          )}
           footer={<AddFeedButton />}
         />
       ) : (
@@ -77,7 +77,9 @@ export function FeedListScreen({
       )}
 
       <ModalShell visible={showFeedInfo} onClose={() => setShowFeedInfo(false)}>
-        <FeedDescription />
+        <ScrollView style={{ flexGrow: 0, flexShrink: 1 }}>
+          <FeedDescription />
+        </ScrollView>
       </ModalShell>
       {fundingFeed && (
         <FeedAmountModal

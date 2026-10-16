@@ -9,6 +9,7 @@ vi.mock("react-native-safe-area-context", async () => {
   return {
     SafeAreaProvider: ({ children }: { children: React.ReactNode }) => children,
     SafeAreaView: View,
+    useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
   };
 });
 

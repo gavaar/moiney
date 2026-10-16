@@ -4,9 +4,9 @@ import { isUsernameAvailable, registerWithSession } from "./accounts";
 
 if (false) {
   // @ts-expect-error Account records must not be available through the public API.
-  api.accounts.getUserByUsername;
+  void api.accounts.getUserByUsername;
   // @ts-expect-error Account insertion must not be available through the public API.
-  api.accounts.insertUser;
+  void api.accounts.insertUser;
 }
 
 describe("isUsernameAvailable", () => {

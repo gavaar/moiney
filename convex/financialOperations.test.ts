@@ -5,10 +5,20 @@ vi.mock("./lib/auth", () => ({ requireAuth: vi.fn().mockResolvedValue("user-1") 
 
 function context(pipes: Record<string, object>) {
   let count = 0;
-  const chain: any = { withIndex: vi.fn(() => chain), take: vi.fn().mockResolvedValue([]),
-    collect: vi.fn().mockResolvedValue([]), first: vi.fn().mockResolvedValue(null) };
-  return { db: { get: vi.fn(async (_table, id) => pipes[id] ?? null), query: vi.fn(() => chain),
-    patch: vi.fn(), insert: vi.fn(async () => `event-${++count}`) } };
+  const chain: any = {
+    withIndex: vi.fn(() => chain),
+    take: vi.fn().mockResolvedValue([]),
+    collect: vi.fn().mockResolvedValue([]),
+    first: vi.fn().mockResolvedValue(null)
+  };
+  return {
+    db: {
+      get: vi.fn(async (_table, id) => pipes[id] ?? null),
+      query: vi.fn(() => chain),
+      patch: vi.fn(),
+      insert: vi.fn(async () => `event-${++count}`)
+    }
+  };
 }
 
 const source = { _id: "source", userId: "user-1", fed: 500, spent: 100 };

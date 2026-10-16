@@ -7,6 +7,7 @@ export default function StatisticsRoute() {
   return (
     <StatisticsScreen
       onSelectPeriod={(periodStart) => router.push(`/statistics/${periodStart}`)}
+      onOpenCurrentReport={() => router.push("/statistics/current")}
     />
   );
 }

@@ -14,8 +14,8 @@ vi.mock("@ui/Icon", () => ({
 }));
 
 let lastRuleModalProps: any;
-vi.mock("./RuleModal", () => ({
-  RuleModal: (props: any) => {
+vi.mock("@features/pipes/InnerPipesScreen/components/EditPipeModal", () => ({
+  EditPipeModal: (props: any) => {
     lastRuleModalProps = props;
     return props.visible ? <div data-testid="rule-modal" /> : null;
   },
@@ -121,6 +121,7 @@ describe("RulesIcon", () => {
     expect(screen.getByTestId("rule-modal")).toBeTruthy();
     expect(lastRuleModalProps.visible).toBe(true);
     expect(lastRuleModalProps.pipeId).toBe(pId("pipe-1"));
+    expect(lastRuleModalProps.initialStep).toBe(3);
   });
 
   it("gives the rule trigger an accessible name", () => {

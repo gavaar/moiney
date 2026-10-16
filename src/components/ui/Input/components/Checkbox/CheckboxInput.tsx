@@ -39,7 +39,7 @@ export function CheckboxInput({ label, value, onChange, disabled, validator, onE
         >
           {value && <Icon testID="checkbox-checked-icon" name="checkmark" size={16} color={colors.background} />}
         </View>
-        <Text className="text-sm text-text">{label}</Text>
+        <Text className="text-base text-text">{label}</Text>
       </Pressable>
       <InputError error={error} />
     </View>

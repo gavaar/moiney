@@ -1,8 +1,13 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render as renderComponent, screen, within } from "@testing-library/react";
+import type { ReactNode } from "react";
+import { ConfirmModalProvider } from "@ui/ConfirmModal/ConfirmModalProvider";
 import userEvent from "@testing-library/user-event";
 import { InnerPipesScreen } from "./InnerPipesScreen";
+function render(element: ReactNode) {
+  return renderComponent(element, { wrapper: ConfirmModalProvider });
+}
 vi.mock("expo-router/react-navigation", () => ({ useIsFocused: () => true }));
 
 vi.mock("react-native", async (importOriginal) => ({
@@ -19,15 +24,27 @@ vi.mock("react-native", async (importOriginal) => ({
 
 const mockAddPipe = vi.fn();
 const mockConvexQuery = vi.fn();
+let mockMonthlySpending: { pipeId: string; netSpendingCents: number }[] = [];
+
+vi.mock("@features/statistics/CurrentMonthReportContext", () => ({
+  useCurrentMonthReportContext: () => {
+    const now = new Date();
+    return {
+      report: { periodStart: Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1) },
+      pipeSpending: mockMonthlySpending,
+    };
+  },
+}));
 
 vi.mock("convex/react", () => ({
   useMutation: () => mockAddPipe,
-  useQuery: () => undefined,
+  useQuery: (query: unknown) => query === "deletedPipes" ? { events: [], cursor: null, isDone: true } : undefined,
   useConvex: () => ({ query: mockConvexQuery }),
 }));
 
 vi.mock("@convex/_generated/api", () => ({
   api: {
+    events: { deletedPipes: "deletedPipes" },
     pipes: {
       addPipe: {},
     },
@@ -54,8 +71,8 @@ vi.mock("@features/pipes/components/PipesList", () => ({
     </div>
   ),
 }));
-vi.mock("@features/pipes/InnerPipesScreen/components/RulesIcon/RuleModal", () => ({
-  RuleModal: ({ visible, onClose }: any) => visible ? <button onClick={onClose}>Close rule settings</button> : null,
+vi.mock("@features/pipes/InnerPipesScreen/components/EditPipeModal", () => ({
+  EditPipeModal: ({ visible, onClose }: any) => visible ? <button onClick={onClose}>Close rule settings</button> : null,
 }));
 
 vi.mock("@ui/Icon", async (importOriginal) => ({
@@ -103,6 +120,28 @@ const grandchildPipe = { id: "grand-1", name: "Sub", icon: "pipe", capacity: 100
 describe("InnerPipesScreen", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockMonthlySpending = [];
+  });
+
+  it("uses the shared monthly report for the daily card without changing settlement statistics", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(Date.UTC(2026, 6, 15, 12));
+    try {
+      const pipe = { ...childPipe1, spent: 0 };
+      mockMonthlySpending = [{ pipeId: pipe.id, netSpendingCents: 45000 }];
+      mockUsePipeSelection.mockReturnValue({
+        ...baseMock,
+        selectedPipePath: [pipe.id],
+        selectedPipe: pipe,
+        allPipes: [pipe],
+        pipesById: { [pipe.id]: pipe },
+      });
+      render(<InnerPipesScreen />);
+      expect(screen.getByRole("button", { name: "Spent this month per day, 30.00" })).toBeDefined();
+      expect(screen.getByRole("button", { name: "Remaining expected, 1,000.00" })).toBeDefined();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("opens rule settings from a minimized eligible child and excludes disabled children", async () => {
@@ -142,7 +181,7 @@ describe("InnerPipesScreen", () => {
     mockUsePipeSelection.mockReturnValue({
       ...baseMock,
       selectedPipePath: ["pipe-1"],
-       allPipes: [{ id: "pipe-1", name: "Groceries" }],
+      allPipes: [{ id: "pipe-1", name: "Groceries" }],
       selectedName: "Groceries",
     });
     render(<InnerPipesScreen />);
@@ -175,8 +214,11 @@ describe("InnerPipesScreen", () => {
     const source = { ...childPipe2, parentId: "root", fed: 4000, capacity: 4000, spent: 8000, contingencyPipeId: "donor" };
     const allPipes = [root, donor, source];
     mockUsePipeSelection.mockReturnValue({
-      ...baseMock, selectedPipePath: ["root", "donor"], selectedPipe: donor,
-      allPipes, pipesById: Object.fromEntries(allPipes.map(pipe => [pipe.id, pipe])),
+      ...baseMock,
+      selectedPipePath: ["root", "donor"],
+      selectedPipe: donor,
+      allPipes,
+      pipesById: Object.fromEntries(allPipes.map(pipe => [pipe.id, pipe])),
       childrenByParent: new Map([["root", [donor, source]]]),
     });
     render(<InnerPipesScreen />);
@@ -184,7 +226,7 @@ describe("InnerPipesScreen", () => {
     expect(screen.getByTestId("bar-spent-coverage-fill").style.left).toBe("40%");
     expect(screen.getByTestId("bar-spent-coverage-fill").style.width).toBe("40%");
     expect(screen.getByText("80.00")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Possible coverage provided, 40.00" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Possible coverage provided, 40.00, estimated" })).toBeTruthy();
   });
 
   it("uses boiler contributions for detail bars and growth", () => {
@@ -292,7 +334,7 @@ describe("InnerPipesScreen", () => {
     mockUsePipeSelection.mockReturnValue({
       ...baseMock,
       selectedPipePath: ["pipe-1"],
-        selectedPipe: { id: "pipe-1", name: "Groceries", icon: "pipe", capacity: 200000, fed: 150000, spent: 120000 },
+      selectedPipe: { id: "pipe-1", name: "Groceries", icon: "pipe", capacity: 200000, fed: 150000, spent: 120000 },
       selectedName: "Groceries",
       childrenByParent,
     });
@@ -309,7 +351,7 @@ describe("InnerPipesScreen", () => {
     mockUsePipeSelection.mockReturnValue({
       ...baseMock,
       selectedPipePath: ["pipe-1"],
-        selectedPipe: { id: "pipe-1", name: "Groceries", icon: "pipe", capacity: 200000, fed: 150000, spent: 120000 },
+      selectedPipe: { id: "pipe-1", name: "Groceries", icon: "pipe", capacity: 200000, fed: 150000, spent: 120000 },
       selectedName: "Groceries",
       childrenByParent,
     });
@@ -327,7 +369,7 @@ describe("InnerPipesScreen", () => {
     mockUsePipeSelection.mockReturnValue({
       ...baseMock,
       selectedPipePath: ["pipe-1"],
-        selectedPipe: { id: "pipe-1", name: "Groceries", icon: "pipe", capacity: 200000, fed: 150000, spent: 120000 },
+      selectedPipe: { id: "pipe-1", name: "Groceries", icon: "pipe", capacity: 200000, fed: 150000, spent: 120000 },
       selectedName: "Groceries",
       childrenByParent,
     });
@@ -349,7 +391,7 @@ describe("InnerPipesScreen", () => {
       selectedPipePath: ["pipe-1"],
       selectPipe,
       childrenByParent,
-        selectedPipe: { id: "pipe-1", name: "Groceries", icon: "pipe", capacity: 200000, fed: 150000, spent: 120000 },
+      selectedPipe: { id: "pipe-1", name: "Groceries", icon: "pipe", capacity: 200000, fed: 150000, spent: 120000 },
       selectedName: "Groceries",
     });
 
@@ -373,7 +415,7 @@ describe("InnerPipesScreen", () => {
     mockUsePipeSelection.mockReturnValue({
       ...baseMock,
       selectedPipePath: ["pipe-1"],
-       selectedPipe: { id: "pipe-1", name: "Groceries", icon: "pipe" },
+      selectedPipe: { id: "pipe-1", name: "Groceries", icon: "pipe" },
       selectedName: "Groceries",
     });
 
@@ -386,7 +428,7 @@ describe("InnerPipesScreen", () => {
     mockUsePipeSelection.mockReturnValue({
       ...baseMock,
       selectedPipePath: ["pipe-1"],
-       selectedPipe: { id: "pipe-1", name: "Groceries", icon: "pipe" },
+      selectedPipe: { id: "pipe-1", name: "Groceries", icon: "pipe" },
       selectedName: "Groceries",
     });
 
@@ -421,7 +463,7 @@ describe("InnerPipesScreen", () => {
     mockUsePipeSelection.mockReturnValue({
       ...baseMock,
       selectedPipePath: ["pipe-1"],
-        selectedPipe: { id: "pipe-1", name: "Groceries", icon: "pipe", capacity: 200000, fed: 150000, spent: 120000 },
+      selectedPipe: { id: "pipe-1", name: "Groceries", icon: "pipe", capacity: 200000, fed: 150000, spent: 120000 },
       selectedName: "Groceries",
       childrenByParent,
     });

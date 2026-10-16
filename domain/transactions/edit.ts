@@ -27,25 +27,29 @@ function accountingDeltas<PipeId extends string>(
   switch (structure.type) {
     case "feed": {
       const { to } = transactionAccountingEffects({ to: structure.to }, value);
-      return [{
-        pipeId: to.pipeId,
-        fedDelta: to.fedDelta,
-        ...unchanged,
-        contributedFedDelta: to.fedDelta,
-      }];
+      return [
+        {
+          pipeId: to.pipeId,
+          fedDelta: to.fedDelta,
+          ...unchanged,
+          contributedFedDelta: to.fedDelta,
+        }
+      ];
     }
     case "expense": {
       const { from } = transactionAccountingEffects(
         { from: structure.from },
         value,
       );
-      return [{
-        pipeId: from.pipeId,
-        fedDelta: from.fedDelta,
-        spentDelta: from.spentDelta,
-        pendingFedAdjustmentDelta: 0,
-        contributedFedDelta: 0,
-      }];
+      return [
+        {
+          pipeId: from.pipeId,
+          fedDelta: from.fedDelta,
+          spentDelta: from.spentDelta,
+          pendingFedAdjustmentDelta: 0,
+          contributedFedDelta: 0,
+        }
+      ];
     }
     case "transfer": {
       const { from, to } = transactionAccountingEffects(

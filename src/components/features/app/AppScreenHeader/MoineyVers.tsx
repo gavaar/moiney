@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Linking, Pressable, Text, View } from "react-native";
+import { Linking, Pressable, ScrollView, Text } from "react-native";
 import { expo } from "@/../app.json";
 import { getUpdateKind } from "@domain/releases/version";
 import { useLatestAppRelease } from "../updates/AppUpdateProvider";
@@ -44,11 +44,11 @@ export function MoineyVers() {
         visible={showOutdatedModal && isOutdated}
         onClose={() => setShowOutdatedModal(false)}
       >
-        <View className="gap-4">
+        <ScrollView contentContainerClassName="gap-4" style={{ flexGrow: 0, flexShrink: 1 }}>
           <Text className="text-lg font-bold text-text">Update available</Text>
           {latestRelease ? <AppUpdateMessage release={latestRelease} onDownload={openLatestRelease} /> : null}
           {downloadFailed ? <Text accessibilityRole="alert" className="text-base text-error">Could not open the download. Please try again.</Text> : null}
-        </View>
+        </ScrollView>
       </ModalShell>
     </>
   );

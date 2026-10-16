@@ -11,25 +11,48 @@ vi.mock("@expo/vector-icons", () => ({
   MaterialIcons: ({ name }: { name: string }) => <span data-testid={`icon-${name}`} />,
 }));
 const event: SettlementEntry = {
-  type: "settlement", id: "settled" as Id<"events">, operationId: "settled" as Id<"events">,
-  pipeId: "groceries" as Id<"pipes">, name: "Groceries", icon: "cart-outline", cause: "manual",
-  createdAt: 1, occurredAt: 1,
+  type: "settlement",
+  id: "settled" as Id<"events">,
+  operationId: "settled" as Id<"events">,
+  pipeId: "groceries" as Id<"pipes">,
+  name: "Groceries",
+  icon: "cart-outline",
+  cause: "manual",
+  createdAt: 1,
+  occurredAt: 1,
   before: { capacity: 4000, fed: 4000, spent: 7000, pendingFedAdjustment: 500 },
   after: { capacity: 3000, fed: -500, spent: 0, pendingFedAdjustment: 0 },
 };
-const coverage = { amountCents: 2000, pipeId: "donor" as Id<"pipes">, name: "Safety net", icon: "shield",
+const coverage = {
+  amountCents: 2000,
+  pipeId: "donor" as Id<"pipes">,
+  name: "Safety net",
+  icon: "shield",
   before: { capacity: 6000, fed: 6000, spent: 4000, pendingFedAdjustment: 0 },
-  after: { capacity: 6000, fed: 6000, spent: 6000, pendingFedAdjustment: 0 } };
+  after: { capacity: 6000, fed: 6000, spent: 6000, pendingFedAdjustment: 0 }
+};
 
 it("renders stored coverage directly and opens donor details without implying the donor settled", () => {
-  const stored = { amountCents: 2000, pipeId: "donor" as Id<"pipes">, name: "Safety net", icon: "shield",
+  const stored = {
+    amountCents: 2000,
+    pipeId: "donor" as Id<"pipes">,
+    name: "Safety net",
+    icon: "shield",
     before: { capacity: 6000, fed: 6000, spent: 4000, pendingFedAdjustment: 0 },
-    after: { capacity: 6000, fed: 6000, spent: 6000, pendingFedAdjustment: 0 } };
+    after: { capacity: 6000, fed: 6000, spent: 6000, pendingFedAdjustment: 0 }
+  };
   const { unmount } = render(<SettlementHistoryRow event={{ ...event, coverage: stored }} onPress={() => {}} />);
   expect(screen.getByRole("button", { name: /20.00 covered by Safety net/ })).toBeTruthy();
   unmount();
-  render(<SettlementDetailsModal event={{ ...event, type: "settlement_coverage", name: "Safety net", icon: "shield",
-    before: stored.before, after: stored.after, coverage: { ...stored, pipeId: event.pipeId, name: event.name, icon: event.icon, before: event.before, after: event.after } }} onClose={() => {}} />);
+  render(<SettlementDetailsModal event={{
+    ...event,
+    type: "settlement_coverage",
+    name: "Safety net",
+    icon: "shield",
+    before: stored.before,
+    after: stored.after,
+    coverage: { ...stored, pipeId: event.pipeId, name: event.name, icon: event.icon, before: event.before, after: event.after }
+  }} onClose={() => {}} />);
   expect(screen.getByText("Coverage provided")).toBeTruthy();
   expect(screen.getByLabelText("20.00 covered for Groceries")).toBeTruthy();
   expect(screen.getByLabelText("Spent after coverage: 60.00")).toBeTruthy();
@@ -38,9 +61,15 @@ it("renders stored coverage directly and opens donor details without implying th
 });
 
 it("announces donor coverage without describing the donor as settled", () => {
-  const donor: SettlementEntry = { ...event, type: "settlement_coverage", name: "Safety net", icon: "shield",
-    before: coverage.before, after: coverage.after,
-    coverage: { ...coverage, pipeId: event.pipeId, name: event.name, icon: event.icon, before: event.before, after: event.after } };
+  const donor: SettlementEntry = {
+    ...event,
+    type: "settlement_coverage",
+    name: "Safety net",
+    icon: "shield",
+    before: coverage.before,
+    after: coverage.after,
+    coverage: { ...coverage, pipeId: event.pipeId, name: event.name, icon: event.icon, before: event.before, after: event.after }
+  };
   const { unmount } = render(<SettlementHistoryRow event={donor} onPress={() => {}} />);
   expect(screen.getByRole("button", { name: "View Safety net coverage: 20.00 covered for Groceries" })).toBeTruthy();
   unmount();
@@ -76,15 +105,19 @@ it("shows original capacity/spending, coverage, uncovered overspending, and sign
 });
 
 it("omits cleared overspending and distinguishes pending refunds from external payments", () => {
-  render(<SettlementDetailsModal event={{ ...event, before: { ...event.before, pendingFedAdjustment: -500 },
-    coverage: { ...coverage, amountCents: 3000, before: { ...coverage.before, spent: 3000 } } }} onClose={() => {}} />);
+  render(<SettlementDetailsModal event={{
+    ...event,
+    before: { ...event.before, pendingFedAdjustment: -500 },
+    coverage: { ...coverage, amountCents: 3000, before: { ...coverage.before, spent: 3000 } }
+  }} onClose={() => {}} />);
   expect(screen.queryByLabelText(/Leftover overspending/)).toBeNull();
   expect(screen.queryByLabelText(/Paid from elsewhere/)).toBeNull();
   expect(screen.getByLabelText("Refunded elsewhere: 5.00")).toBeTruthy();
 });
 
 it("shows historical negative-capacity debt even when spending is zero", () => {
-  render(<SettlementDetailsModal event={{ ...event,
+  render(<SettlementDetailsModal event={{
+    ...event,
     before: { capacity: -1500, fed: 0, spent: 0, pendingFedAdjustment: 0 },
     after: { capacity: -1500, fed: 0, spent: 0, pendingFedAdjustment: 0 },
   }} onClose={() => {}} />);
@@ -93,7 +126,11 @@ it("shows historical negative-capacity debt even when spending is zero", () => {
 });
 
 it("presents the donor mirror as coverage, not a second settlement of the donor", () => {
-  render(<SettlementDetailsModal event={{ ...event, type: "settlement_coverage", name: "Safety net", icon: "shield",
+  render(<SettlementDetailsModal event={{
+    ...event,
+    type: "settlement_coverage",
+    name: "Safety net",
+    icon: "shield",
     before: { capacity: 6000, fed: 6000, spent: 2000, pendingFedAdjustment: 0 },
     after: { capacity: 6000, fed: 6000, spent: 4000, pendingFedAdjustment: 0 },
     coverage: { ...coverage, pipeId: event.pipeId, name: event.name, icon: event.icon, before: event.before, after: event.after },
@@ -109,7 +146,8 @@ it("presents the donor mirror as coverage, not a second settlement of the donor"
 });
 
 it("renders a zero-balance settlement without inventing overspending or external payment", () => {
-  render(<SettlementDetailsModal event={{ ...event,
+  render(<SettlementDetailsModal event={{
+    ...event,
     before: { capacity: 0, fed: 0, spent: 0, pendingFedAdjustment: 0 },
     after: { capacity: 0, fed: 0, spent: 0, pendingFedAdjustment: 0 },
   }} onClose={() => {}} />);

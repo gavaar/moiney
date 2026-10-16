@@ -14,12 +14,21 @@ async function setup(type: "expense" | "transfer" | "payByTransfer" | "feed", va
     const userId = await ctx.db.insert("users", { username: "alice", email: "alice@example.com", password: "hash" });
     const otherId = await ctx.db.insert("users", { username: "bob", email: "bob@example.com", password: "hash" });
     const fields = { userId, icon: "wallet", priority: 0, capacity: 1000 };
-    const source = await ctx.db.insert("pipes", { ...fields, name: "Source", fed: type === "transfer" ? 1000 + value : 1000,
+    const source = await ctx.db.insert("pipes", {
+      ...fields,
+      name: "Source",
+      fed: type === "transfer" ? 1000 + value : 1000,
       spent: type === "expense" || type === "payByTransfer" ? -value : 0,
-      ...(type === "payByTransfer" ? { pendingFedAdjustment: -value } : {}) });
-    const target = await ctx.db.insert("pipes", { ...fields, name: "Boiler", sourceType: "boiler",
-      fed: type === "transfer" ? 1000 - value : type === "feed" || type === "payByTransfer" ? 1000 + value : 1000, spent: 0,
-      contributedFed: type === "transfer" ? 1000 - value : type === "feed" ? 1000 + value : 1000 });
+      ...(type === "payByTransfer" ? { pendingFedAdjustment: -value } : {})
+    });
+    const target = await ctx.db.insert("pipes", {
+      ...fields,
+      name: "Boiler",
+      sourceType: "boiler",
+      fed: type === "transfer" ? 1000 - value : type === "feed" || type === "payByTransfer" ? 1000 + value : 1000,
+      spent: 0,
+      contributedFed: type === "transfer" ? 1000 - value : type === "feed" ? 1000 + value : 1000
+    });
     const structure = type === "feed" ? { type, to: target } : type === "expense" ? { type, from: source }
       : type === "transfer" ? { type, from: source, to: target } : { type, from: source, paidFrom: target };
     const operationId = await insertFinancialOperation(ctx, { userId, title: "lunch", value, occurredAt: 1, structure });
@@ -29,9 +38,12 @@ async function setup(type: "expense" | "transfer" | "payByTransfer" | "feed", va
 }
 
 it.each([
-  { type: "expense" as const, value: -100 }, { type: "expense" as const, value: 100 },
-  { type: "transfer" as const, value: -100 }, { type: "transfer" as const, value: 100 },
-  { type: "payByTransfer" as const, value: -100 }, { type: "payByTransfer" as const, value: 100 },
+  { type: "expense" as const, value: -100 },
+  { type: "expense" as const, value: 100 },
+  { type: "transfer" as const, value: -100 },
+  { type: "transfer" as const, value: 100 },
+  { type: "payByTransfer" as const, value: -100 },
+  { type: "payByTransfer" as const, value: 100 },
   { type: "feed" as const, value: 100 },
 ])("edits and removes an event-only $type operation with value $value exactly once", async ({ type, value }) => {
   const { t, auth, operationId, source, target } = await setup(type, value);
@@ -142,8 +154,15 @@ it.each([0, 0.5, Infinity, NaN])("rejects invalid edited cents %s atomically", a
 it("blocks native edits and deletions while an involved accounting tree is frozen", async () => {
   const { t, auth, operationId, userId, target } = await setup("transfer");
   await t.run(async ctx => {
-    const deletionJobId = await ctx.db.insert("pipeDeletionJobs", { userId, deleteTransactions: false,
-      memberPipeIds: [target], initialBalance: 1100, phase: "processingTransactions", memberIndex: 0, role: "from" });
+    const deletionJobId = await ctx.db.insert("pipeDeletionJobs", {
+      userId,
+      deleteTransactions: false,
+      memberPipeIds: [target],
+      initialBalance: 1100,
+      phase: "processingTransactions",
+      memberIndex: 0,
+      role: "from"
+    });
     await ctx.db.patch("pipes", target, { deletionJobId });
   });
   const before = await t.run(async ctx => ({ pipes: await ctx.db.query("pipes").collect(), events: await ctx.db.query("events").collect() }));
@@ -187,7 +206,5 @@ it.each([false, true])("replaces a missing native source with applyReplacementEf
   const entries = await t.run(ctx => ctx.db.query("events").collect());
   expect(entries.map(event => event._id)).toEqual(originalIds);
   expect(entries.find(event => event._id === operationId)).toMatchObject({ pipeId: replacement, targetPipeId: target, value: -200 });
-  expect(await t.run(ctx => ctx.db.query("transactionCorrections").collect())).toEqual([
-    expect.objectContaining({ operationId, previous: expect.objectContaining({ from: source }), current: expect.objectContaining({ from: replacement }) }),
-  ]);
+  expect(await t.run(ctx => ctx.db.query("transactionCorrections").collect())).toEqual([expect.objectContaining({ operationId, previous: expect.objectContaining({ from: source }), current: expect.objectContaining({ from: replacement }) }),]);
 });

@@ -11,7 +11,8 @@ describe("monthly event reporting", () => {
   it("counts logical spending/refunds and income once, never payer or transfer counterparts", () => {
     const base = { userId: "user", occurredAt: 1000, title: "lunch" };
     const result = summarizeMonthlyEventSpending([
-      expense("ordinary", -100), expense("refund", 20),
+      expense("ordinary", -100),
+      expense("refund", 20),
       { ...base, id: "external", operationId: "external", pipeId: "source", targetPipeId: "payer", type: "third_party_transaction", value: -200 },
       { ...base, id: "payment", operationId: "external", pipeId: "payer", targetPipeId: "source", type: "transaction", value: 200 },
       { ...base, id: "external-refund", operationId: "external-refund", pipeId: "source", targetPipeId: "payer", type: "third_party_transaction", value: 30 },

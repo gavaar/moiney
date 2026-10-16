@@ -1,10 +1,11 @@
-import { ScrollView } from "react-native";
+import { ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { AppScreenHeader } from "@features/app/AppScreenHeader";
 import { SignOutButton } from "@features/account/SignOutButton";
 import { ProfileView } from "@features/profile/ProfileView/ProfileView";
 import { Button } from "@ui/Button";
+import { ProfileChangesButton } from "@features/profile/ProfileChangesButton";
 
 export default function Profile() {
   const router = useRouter();
@@ -13,11 +14,14 @@ export default function Profile() {
     <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-background">
       <AppScreenHeader title="Profile" />
 
-      <ScrollView className="flex-1" contentContainerClassName="items-center flex-1 pt-8 gap-8">
+      <ScrollView className="flex-1" contentContainerClassName="items-center grow pt-8 pb-8 gap-8">
         <ProfileView />
         <Button title="Settings" icon="settings-outline" variant="outline" onPress={() => router.push("/settings")} />
         <SignOutButton onSignedOut={() => router.replace("/login")} />
       </ScrollView>
+      <View className="items-center p-8">
+        <ProfileChangesButton />
+      </View>
     </SafeAreaView>
   );
 }

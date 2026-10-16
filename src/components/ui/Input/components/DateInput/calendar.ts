@@ -1,8 +1,18 @@
 export const WEEKDAY_LABELS = ["S", "M", "T", "W", "T", "F", "S"] as const;
 
 export const MONTH_LABELS = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
 ] as const;
 
 export type Cursor = { year: number; month: number };

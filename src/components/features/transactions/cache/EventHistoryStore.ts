@@ -71,16 +71,24 @@ export class EventHistoryStore {
     const ordered = [...byId.values()].sort((a, b) => b.refreshedAt - a.refreshedAt || compareEntries(a.entry, b.entry));
     this.entries = ordered.slice(0, 300);
     this.snapshot = {
-      entries: this.entries.map(item => item.entry).sort(compareEntries), complete: ordered.length <= 300 && (!preserve || this.snapshot.complete),
-      hasMore: hasMore || ordered.length > 300, updatedAt: now,
+      entries: this.entries.map(item => item.entry).sort(compareEntries),
+      complete: ordered.length <= 300 && (!preserve || this.snapshot.complete),
+      hasMore: hasMore || ordered.length > 300,
+      updatedAt: now,
       generation: this.snapshot.generation,
     };
     return this.persist();
   }
 
   private persist() {
-    const value = JSON.stringify({ version: 1, accountKey: this.accountKey, entries: this.entries,
-      complete: this.snapshot.complete, hasMore: this.snapshot.hasMore, updatedAt: this.snapshot.updatedAt });
+    const value = JSON.stringify({
+      version: 1,
+      accountKey: this.accountKey,
+      entries: this.entries,
+      complete: this.snapshot.complete,
+      hasMore: this.snapshot.hasMore,
+      updatedAt: this.snapshot.updatedAt
+    });
     return this.enqueue(() => this.storage.write(this.storageKey, value));
   }
 

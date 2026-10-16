@@ -58,9 +58,7 @@ it("publishes event-derived live metrics only after all pages, independently of 
     cursor = result.continueCursor;
   }
   expect(pages).toHaveLength(4);
-  mocks.pages = new Map([
-    [getFunctionName(api.monthlySpendingStats.eventMonthPage), pages.slice(0, 1)],
-  ]);
+  mocks.pages = new Map([[getFunctionName(api.monthlySpendingStats.eventMonthPage), pages.slice(0, 1)],]);
   mocks.allPipes = [
     { id: root, name: "Root", icon: "wallet", priority: 0, capacity: 0, fed: 2000, spent: 0 },
     { id: leaf, parentId: root, name: "Groceries", icon: "wallet", priority: 0, capacity: 500, fed: 500, spent: 0 },
@@ -73,9 +71,13 @@ it("publishes event-derived live metrics only after all pages, independently of 
   mocks.status = "Exhausted";
   rerender();
   expect(result.current.report).toMatchObject({
-    totalIncomeCents: 1500, grossSpendingCents: 800, refundCents: 100,
-    spendingTransactionCount: 1, refundTransactionCount: 1,
-    volumeCents: 2000, producedCents: 2000,
+    totalIncomeCents: 1500,
+    grossSpendingCents: 800,
+    refundCents: 100,
+    spendingTransactionCount: 1,
+    refundTransactionCount: 1,
+    volumeCents: 2000,
+    producedCents: 2000,
     largestSpendingTransactions: [{ title: "lunch", amountCents: 800 }],
     mostRepeatedTransaction: { title: "lunch", count: 2, netSpendingCents: 700 },
     offenders: [{ pipeId: leaf, name: "Groceries", netSpendingCents: 700, capacityCents: 500, overageCents: 200 }],

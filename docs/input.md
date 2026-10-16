@@ -70,7 +70,8 @@ select validators receive readonly string arrays. Only `undefined` means valid.
 ## Form Composition
 
 `src/components/ui/Form` exports the controlled `Form` component and its
-`FormProps`, `FormField`, and `FormValue` types. Form renders content only;
+`FormProps`, `FormPage`, `FormRow`, `FormField`, `FormNavigation`, and `FormValue`
+types. Form renders content only;
 callers own modal visibility, backdrop dismissal, submission, and value state.
 Its optional `header` is a JSX element, not a string.
 An optional JSX `actions` renders below the fields on every step, including
@@ -84,8 +85,12 @@ The optional `fill` layout fills a height-constrained parent and gives remaining
 space to the scrollable fields, keeping the header and actions outside that
 scroll area. Content-sized modal forms omit it.
 
-- `form` contains uniquely keyed definitions with `input`, optional `description`,
-  and optional `step`. Validators live in `input.validator`. Input configuration
+- `pages` contains uniquely keyed pages, each with `rows` of uniquely keyed field
+  definitions. Page keys are stable numeric identities, not positions; array order
+  determines page order. Field keys are unique across the entire form. Empty rows
+  and pages with no fields are omitted; a form with no fields renders only its
+  header. Fields contain `input` and optional `description` and `reveal`.
+  Validators live in `input.validator`. Input configuration
   excludes `value`, `onChange`, and `onError`; Form supplies these
   through the public Input dispatcher for every variant.
 - Descriptions accept text or JSX; text receives the standard muted styling,
@@ -98,19 +103,16 @@ scroll area. Content-sized modal forms omit it.
   description are unmounted and their errors do not mark the step. Revealing
   again mounts fresh input validation state.
 - `value` supplies each configured key's value. `onChange` emits all and only
-  configured keys, not a patch. Define every managed key in `form`; unrelated
+  configured keys, not a patch. Define every managed key in `pages`; unrelated
   keys supplied in `value` are omitted from the emitted record.
 - Inputs follow the validation timing above; Form observes their displayed errors
   for page indicators. Errors never block navigation. Remount Form to reset
   validation and navigation.
-- Missing steps default to `0`. Distinct step numbers are sorted numerically;
-  field order within a step follows the array. Gaps do not create empty pages.
-  Input-level number `step` still means the increment size, not the form page.
-- Optional `row` identifiers group consecutive fields within a step into a
-  horizontal row with equal-width, top-aligned columns. Labels, descriptions,
-  and errors stay in their field's column. Fields without `row` occupy their
-  own full-width row. An intervening field with a different or absent `row`
-  starts a new row; identifiers never group fields across steps or reorder them.
+- Each row is an ordered array of fields rendered as equal-width, top-aligned
+  columns. Use a single-field row for full-width content. Labels, descriptions,
+  and errors stay in their field's column. Field definitions have no page or row
+  identifiers; shared configuration can return rows for a caller-owned page.
+  Input-level number `step` still means the increment size.
 - Multiple steps support horizontal paging and full-height side chevrons,
   absent at the first/last step respectively, with no implicit submit action.
   Dots use `muted`/`text` when unselected/selected, overridden by
@@ -121,10 +123,10 @@ scroll area. Content-sized modal forms omit it.
   stay mounted to preserve input state but do not determine the modal height.
   Tall steps remain constrained by the modal; `fill` forms keep using available
   height rather than hugging each step's content.
-- Navigation is internal by default. Supply `activeStep` and `onStepChange`
-  together to control it; values refer to configured step numbers, not page
-  indexes. Chevrons and swipes request step changes through the callback, while
-  external `activeStep` changes align the pager. An unavailable step displays
+- Navigation is internal by default. Supply `navigation: { step, onChange }`
+  to control it; `step` refers to a page key, not its index. Chevrons and swipes
+  request page keys through the callback, while external `step` changes align
+  the pager. An unavailable step displays
   the first page. Auto-advance belongs in the caller's selection handler, not
   an effect that would also fire when navigating Back.
 - A step containing an inline Select lets the list own vertical scrolling rather

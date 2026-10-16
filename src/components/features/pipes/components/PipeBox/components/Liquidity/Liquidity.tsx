@@ -20,7 +20,10 @@ export function Liquidity({ fed, capacity, spent, coverageProvidedCents = 0 }: {
               <View
                 testID="debt-cap-bar"
                 style={{
-                  position: 'absolute', right: 0, top: 0, bottom: 0,
+                  position: 'absolute',
+                  right: 0,
+                  top: 0,
+                  bottom: 0,
                   width: `${(Math.abs(capacity) / biggest) * 100}%`,
                   borderColor: colors.errorDark,
                   borderStyle: 'dashed',
@@ -33,7 +36,10 @@ export function Liquidity({ fed, capacity, spent, coverageProvidedCents = 0 }: {
               <View
                 testID="debt-bar"
                 style={{
-                  position: 'absolute', right: 0, top: 0, bottom: 0,
+                  position: 'absolute',
+                  right: 0,
+                  top: 0,
+                  bottom: 0,
                   width: `${(Math.abs(fed) / biggest) * 100}%`,
                   backgroundColor: colors.error,
                 }}
@@ -43,7 +49,10 @@ export function Liquidity({ fed, capacity, spent, coverageProvidedCents = 0 }: {
               <View
                 testID="debt-spent-bar"
                 style={{
-                  position: 'absolute', right: 0, top: 0, bottom: 0,
+                  position: 'absolute',
+                  right: 0,
+                  top: 0,
+                  bottom: 0,
                   width: `${(spent / biggest) * 100}%`,
                   backgroundColor: `${colors.errorBright}CC`,
                 }}
@@ -66,7 +75,10 @@ export function Liquidity({ fed, capacity, spent, coverageProvidedCents = 0 }: {
               <View
                 testID="capacity-bar"
                 style={{
-                  position: 'absolute', left: 0, top: 0, bottom: 0,
+                  position: 'absolute',
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
                   width: `${(capacity / biggest) * 100}%`,
                   borderColor: colors.primary,
                   borderStyle: 'dashed',
@@ -79,7 +91,10 @@ export function Liquidity({ fed, capacity, spent, coverageProvidedCents = 0 }: {
               <View
                 testID="fed-bar-overfed"
                 style={{
-                  position: 'absolute', left: `${(capacity / biggest) * 100}%`, top: 0, bottom: 0,
+                  position: 'absolute',
+                  left: `${(capacity / biggest) * 100}%`,
+                  top: 0,
+                  bottom: 0,
                   width: `${((fed - capacity) / biggest) * 100}%`,
                   backgroundColor: colors.secondary,
                 }}
@@ -89,7 +104,10 @@ export function Liquidity({ fed, capacity, spent, coverageProvidedCents = 0 }: {
               <View
                 testID="fed-bar"
                 style={{
-                  position: 'absolute', left: 0, top: 0, bottom: 0,
+                  position: 'absolute',
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
                   width: `${(Math.min(fed, capacity > 0 ? capacity : fed) / biggest) * 100}%`,
                   backgroundColor: colors.primary,
                 }}
@@ -99,7 +117,10 @@ export function Liquidity({ fed, capacity, spent, coverageProvidedCents = 0 }: {
               <View
                 testID="spent-bar"
                 style={{
-                  position: 'absolute', left: 0, top: 0, bottom: 0,
+                  position: 'absolute',
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
                   width: `${(spent / biggest) * 100}%`,
                   backgroundColor: `${spent > Math.max(fed, 0) ? colors.error : colors.surface}CC`,
                 }}
@@ -109,7 +130,10 @@ export function Liquidity({ fed, capacity, spent, coverageProvidedCents = 0 }: {
               <View
                 testID="coverage-provided-bar"
                 style={{
-                  position: 'absolute', left: `${(coverageStart / biggest) * 100}%`, top: 0, bottom: 0,
+                  position: 'absolute',
+                  left: `${(coverageStart / biggest) * 100}%`,
+                  top: 0,
+                  bottom: 0,
                   width: `${(coverageProvidedCents / biggest) * 100}%`,
                   backgroundColor: colors.warningMuted,
                 }}

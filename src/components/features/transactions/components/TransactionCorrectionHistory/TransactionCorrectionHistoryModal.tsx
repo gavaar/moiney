@@ -42,7 +42,7 @@ export function TransactionCorrectionHistoryModal({
 
   return (
     <ModalShell visible={visible} onClose={onClose}>
-      <View className="gap-4">
+      <View className="gap-4" style={{ flexShrink: 1 }}>
         <View className="flex-row items-center justify-between">
           <View className="flex-1">
             <Text className="text-text text-lg font-bold">Edit history</Text>
@@ -59,7 +59,7 @@ export function TransactionCorrectionHistoryModal({
         ) : results.length === 0 ? (
           <Text className="text-muted">No edit history available.</Text>
         ) : (
-          <ScrollView className="max-h-96" contentContainerClassName="gap-3">
+          <ScrollView className="max-h-96" style={{ flexGrow: 0, flexShrink: 1 }} contentContainerClassName="gap-3">
             {results.map((correction) => (
               <View
                 key={correction.correctionId}

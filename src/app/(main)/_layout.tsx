@@ -1,7 +1,9 @@
-import { Slot, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
+import { Stack } from "expo-router/stack";
 import { useAuth } from "@/lib/auth";
 import { useEffect } from "react";
 import { View } from "react-native";
+import { MonthlyCardPreferenceProvider } from "@features/statistics/preferences/MonthlyCardPreference";
 
 export default function MainLayout() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -16,5 +18,12 @@ export default function MainLayout() {
   if (isLoading) return <View className="flex-1 bg-background" />;
   if (!isAuthenticated) return null;
 
-  return <Slot />;
+  return (
+    <MonthlyCardPreferenceProvider>
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#111111" } }}>
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="settings" />
+      </Stack>
+    </MonthlyCardPreferenceProvider>
+  );
 }

@@ -4,18 +4,18 @@ import { Icon } from "@ui/Icon";
 import { colors } from "@/lib/styles";
 import { FormPage, type FormPageDefinition } from "./FormPage";
 import { useFormPagerController } from "./useFormPagerController";
+import type { FormNavigation } from "./form.types";
 
 type Props = {
   pages: readonly FormPageDefinition[];
   warnings?: ReactNode;
   actions?: ReactNode;
-  activeStep?: number;
-  onStepChange?: (step: number) => void;
+  navigation?: FormNavigation;
   fill?: boolean;
 };
 
-export function FormPager({ pages, warnings, actions, activeStep, onStepChange, fill = false }: Props) {
-  const pager = useFormPagerController({ pageKeys: pages.map(page => page.key), activeStep, onStepChange, fill });
+export function FormPager({ pages, warnings, actions, navigation, fill = false }: Props) {
+  const pager = useFormPagerController({ pageKeys: pages.map(page => page.key), navigation, fill });
   const content = pages.map((page, index) => (
     <FormPage key={page.key} page={page} active={index === pager.activeIndex}
       width={pager.width} multiple={pager.multiple} fill={fill} onMeasure={pager.measurePage} />

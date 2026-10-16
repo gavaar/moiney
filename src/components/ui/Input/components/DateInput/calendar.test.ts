@@ -54,9 +54,7 @@ describe("monthLabel", () => {
 
 describe("getYearRange", () => {
   it("returns a 10-year window centered before the given year", () => {
-    expect(getYearRange(2026)).toEqual([
-      2021, 2022, 2023, 2024, 2025, 2026, 2027, 2028, 2029, 2030,
-    ]);
+    expect(getYearRange(2026)).toEqual([2021, 2022, 2023, 2024, 2025, 2026, 2027, 2028, 2029, 2030,]);
   });
 });
 

@@ -12,8 +12,11 @@ async function loadTopology(ctx: MutationCtx, userId: Id<"users">) {
 }
 export function preparePipeContingencyEligibility(pipes: readonly Doc<"pipes">[]) {
   return prepareContingencyEligibility(pipes.map(pipe => ({
-    id: pipe._id, parentId: pipe.parentId, rule: pipe.rule,
-    contingencyPipeId: pipe.contingencyPipeId, blocked: pipe.deletionJobId !== undefined,
+    id: pipe._id,
+    parentId: pipe.parentId,
+    rule: pipe.rule,
+    contingencyPipeId: pipe.contingencyPipeId,
+    blocked: pipe.deletionJobId !== undefined,
   })));
 }
 export async function assertContingencyTarget(

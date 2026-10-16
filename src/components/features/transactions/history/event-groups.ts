@@ -26,8 +26,14 @@ export function collapseSettlementPerspectives(entries: readonly HistoryEntry[],
     event = members.find(entry => sourceView === (entry.type === "settlement")) ?? event;
     if (sourceView === (event.type === "settlement")) { result.push(event); continue; }
     const coverage = event.coverage!;
-    result.push({ ...event, type: sourceView ? "settlement" : "settlement_coverage",
-      pipeId: coverage.pipeId, name: coverage.name, icon: coverage.icon, before: coverage.before, after: coverage.after,
+    result.push({
+      ...event,
+      type: sourceView ? "settlement" : "settlement_coverage",
+      pipeId: coverage.pipeId,
+      name: coverage.name,
+      icon: coverage.icon,
+      before: coverage.before,
+      after: coverage.after,
       coverage: { amountCents: coverage.amountCents, pipeId: event.pipeId, name: event.name, icon: event.icon, before: event.before, after: event.after },
     });
   }
@@ -148,7 +154,10 @@ export function groupHistoryEvents(
     }
     const visible = new Set(members.flatMap(participatingPipes).filter(pipeId => !scope || scope.has(pipeId)));
     rows.push({
-      kind: "group", id, title: latest.title, operations: members,
+      kind: "group",
+      id,
+      title: latest.title,
+      operations: members,
       count: members.length,
       totalValue: members.reduce((sum, operation) => sum + (operation.type === "transfer" ? 0 : operation.value), 0),
       oldestDate: members.at(-1)!.occurredAt,

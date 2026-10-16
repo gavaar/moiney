@@ -205,10 +205,10 @@ export async function createTransactionOperation(
       command.currentFedOverride === undefined
         ? destPipe.fed + to.fedDelta
         : await localFedForAggregate(
-            ctx,
-            command.to,
-            command.currentFedOverride,
-          );
+          ctx,
+          command.to,
+          command.currentFedOverride,
+        );
     await ctx.db.patch("pipes", command.to, {
       fed,
       ...(destPipe.sourceType === "boiler"
@@ -372,9 +372,9 @@ export async function createTransactionOperation(
       fed: destPipe.fed + to.fedDelta,
       ...(destPipe.sourceType === "boiler"
         ? {
-            contributedFed:
+          contributedFed:
               (destPipe.contributedFed ?? 0) + to.fedDelta,
-          }
+        }
         : {}),
     });
     if (
@@ -443,8 +443,12 @@ export async function contributeToBoilerOperation(
     return null;
   }
   return createTransactionOperation(ctx, userId, {
-    title: command.title, value: command.value, date: command.date, to: command.pipeId,
-    requireBoiler: true, currentFedOverride: command.currentFed,
+    title: command.title,
+    value: command.value,
+    date: command.date,
+    to: command.pipeId,
+    requireBoiler: true,
+    currentFedOverride: command.currentFed,
   }, now);
 }
 
@@ -482,15 +486,15 @@ async function editFinancialSnapshot(
         ? { type: "expense", from: command.primaryPipeId ?? previousStructure.from }
         : command.target.type === "transfer"
           ? {
-              type: "transfer",
-              from: command.primaryPipeId ?? previousStructure.from,
-              to: command.target.to,
-            }
+            type: "transfer",
+            from: command.primaryPipeId ?? previousStructure.from,
+            to: command.target.to,
+          }
           : {
-              type: "payByTransfer",
-              from: command.primaryPipeId ?? previousStructure.from,
-              paidFrom: command.target.paidFrom,
-            };
+            type: "payByTransfer",
+            from: command.primaryPipeId ?? previousStructure.from,
+            paidFrom: command.target.paidFrom,
+          };
   } else if (command.primaryPipeId) {
     currentStructure = previousStructure.type === "feed"
       ? { type: "feed", to: command.primaryPipeId }
@@ -718,11 +722,13 @@ export async function deleteEventFinancialOperation(ctx: MutationCtx, userId: Id
 async function deleteFinancialSnapshot(ctx: MutationCtx, userId: Id<"users">, transaction: FinancialSnapshot): Promise<void> {
 
   const getPipe = createCachedPipeReader(ctx);
-  const pipeIds = [...new Set([
-    transaction.from,
-    transaction.to,
-    transaction.paidFrom,
-  ].filter((pipeId): pipeId is Id<"pipes"> => pipeId !== undefined))];
+  const pipeIds = [
+    ...new Set([
+      transaction.from,
+      transaction.to,
+      transaction.paidFrom,
+    ].filter((pipeId): pipeId is Id<"pipes"> => pipeId !== undefined))
+  ];
   const pipes = await Promise.all(pipeIds.map((pipeId) => getPipe(pipeId)));
   const structure = transactionStructureFromRoles(transaction);
   const allRolesAvailable = pipes.every(

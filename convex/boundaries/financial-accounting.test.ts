@@ -106,8 +106,13 @@ it("rejects changing an external expense to a refund into a non-root payer atomi
 
 it.each(["missing_roles", "same_payer", "blank_title"] as const)("rejects %s creation without writes", async invalid => {
   const { t, auth, source } = await setup();
-  const args = { title: invalid === "blank_title" ? "  " : "food", value: -30, date: 1,
-    ...(invalid !== "missing_roles" ? { from: source } : {}), ...(invalid === "same_payer" ? { paidFrom: source } : {}) };
+  const args = {
+    title: invalid === "blank_title" ? "  " : "food",
+    value: -30,
+    date: 1,
+    ...(invalid !== "missing_roles" ? { from: source } : {}),
+    ...(invalid === "same_payer" ? { paidFrom: source } : {})
+  };
   const before = await t.run(ctx => ctx.db.query("pipes").collect());
   await expect(auth.mutation(api.financialOperations.create, args)).rejects.toThrow();
   expect(await t.run(ctx => ctx.db.query("pipes").collect())).toEqual(before);

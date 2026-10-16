@@ -17,6 +17,14 @@ the gate remains active for the app session even if metadata becomes unavailable
 This policy is not persisted offline and is not server-side access enforcement.
 Clients without the gate retain their shipped update behavior.
 
+## Installed-Version Changes
+
+The Profile footer shows changes for the installed `app.json` version, not the newest
+available update. Notes use that exact GitHub tag's release body, falling back
+to its commit message when the body is empty or the release is absent. Release
+bodies are maintained on GitHub. Notes are rendered as Markdown without images
+or raw HTML; failed lookups offer retry and do not affect update enforcement.
+
 ## Publication Safety
 
 Deploy a backward-compatible backend, publish the APK, verify its download is

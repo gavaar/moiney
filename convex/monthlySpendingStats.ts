@@ -9,7 +9,7 @@ import {
   rankMonthlyOffenders,
 } from "../domain/statistics/monthlySpending";
 import { internal } from "./_generated/api";
-import type { Doc, Id } from "./_generated/dataModel";
+import type { Doc } from "./_generated/dataModel";
 import { internalMutation, query, type MutationCtx } from "./_generated/server";
 import { paginationOptsValidator } from "convex/server";
 import { requireAuth } from "./lib/auth";
@@ -24,8 +24,11 @@ const pipeSpendingValidator = v.object({ pipeId: v.string(), netSpendingCents: v
 const titleSpendingValidator = v.object({ title: v.string(), count: v.number(), netSpendingCents: v.number() });
 const largestSpendingTransactionValidator = v.object({ title: v.string(), amountCents: v.number() });
 const offenderValidator = v.object({
-  pipeId: v.string(), name: v.string(), netSpendingCents: v.number(),
-  capacityCents: v.number(), overageCents: v.number(),
+  pipeId: v.string(),
+  name: v.string(),
+  netSpendingCents: v.number(),
+  capacityCents: v.number(),
+  overageCents: v.number(),
 });
 
 const summaryValidator = v.object({
@@ -95,7 +98,8 @@ export const eventMonthPage = query({
   args: { periodStart: v.number(), paginationOpts: paginationOptsValidator },
   returns: v.object({
     page: v.array(v.object({ summary: summaryValidator, pipeSpending: v.array(pipeSpendingValidator), titleSpending: v.array(titleSpendingValidator) })),
-    isDone: v.boolean(), continueCursor: v.string(),
+    isDone: v.boolean(),
+    continueCursor: v.string(),
   }),
   handler: async (ctx, args) => {
     const userId = await requireAuth(ctx);
@@ -110,7 +114,8 @@ export const eventMonthPage = query({
       .paginate(args.paginationOpts);
     return {
       page: [summarizeMonthlyEventSpending(events.page.map(historyEventFromDocument))],
-      isDone: events.isDone, continueCursor: events.continueCursor,
+      isDone: events.isDone,
+      continueCursor: events.continueCursor,
     };
   },
 });

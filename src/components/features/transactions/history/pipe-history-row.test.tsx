@@ -10,9 +10,17 @@ import { colors } from "@/lib/styles";
 vi.mock("@ui/Icon", () => ({ Icon: ({ name, color }: { name: string; color: string }) => <span data-testid={name} data-color={color} />, safeIconName: (name: string) => name }));
 
 const event: Extract<HistoryEntry, { type: "pipe_creation" }> = {
-  id: "event" as Id<"events">, operationId: "event" as Id<"events">, type: "pipe_creation", createdAt: 0, pipeId: "trip" as Id<"pipes">,
-  ancestorIds: ["parent" as Id<"pipes">], name: "Madrid", icon: "airplane",
-  parentName: "Travel", occurredAt: Date.UTC(2026, 8, 1), pipeType: "pipe",
+  id: "event" as Id<"events">,
+  operationId: "event" as Id<"events">,
+  type: "pipe_creation",
+  createdAt: 0,
+  pipeId: "trip" as Id<"pipes">,
+  ancestorIds: ["parent" as Id<"pipes">],
+  name: "Madrid",
+  icon: "airplane",
+  parentName: "Travel",
+  occurredAt: Date.UTC(2026, 8, 1),
+  pipeType: "pipe",
 };
 
 describe("pipe history rows", () => {

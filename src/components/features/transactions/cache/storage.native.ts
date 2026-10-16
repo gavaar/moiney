@@ -1,15 +1,13 @@
-import { Directory, File, Paths } from "expo-file-system";
+import { File } from "expo-file-system";
+import { eventHistoryCacheDirectory } from "@/lib/storage/directories.native";
 import type { EventHistoryStorage } from "./EventHistoryStore";
 
-const cacheDirectory = new Directory(Paths.cache, "moiney", "transactions");
-// Events already live here under event-history:<account>; keep their persisted location.
-
 function cacheFile(accountKey: string): File {
-  return new File(cacheDirectory, `${encodeURIComponent(accountKey)}.json`);
+  return new File(eventHistoryCacheDirectory, `${encodeURIComponent(accountKey)}.json`);
 }
 
 function ensureDirectory(): void {
-  cacheDirectory.create({ idempotent: true, intermediates: true });
+  eventHistoryCacheDirectory.create({ idempotent: true, intermediates: true });
 }
 
 export const eventHistoryStorage: EventHistoryStorage = {

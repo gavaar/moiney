@@ -26,7 +26,9 @@ describe("Convex boundaries: event operation edits", () => {
     const originalValue = structure === "feed" ? 100 : -100;
     const value = structure === "feed" ? 200 : 50;
     const transaction = await createAndReadOperation(t, auth, {
-      title: "original", value: originalValue, date: 1000,
+      title: "original",
+      value: originalValue,
+      date: 1000,
       ...(structure === "feed" ? { to: sourceId } : { from: sourceId }),
       ...(structure === "transfer" ? { to: targetId } : structure === "external" ? { paidFrom: targetId } : {}),
     });
@@ -98,14 +100,20 @@ describe("Convex boundaries: event operation edits", () => {
   it.each(["feed", "external"] as const)("reassigns a %s entry from a deleted primary pipe without replaying replacement accounting", async structure => {
     const { t, auth, sourceId, targetId, replacementId } = await setup();
     const transaction = await createAndReadOperation(t, auth, {
-      title: "original", value: structure === "feed" ? 100 : -100, date: 1000,
+      title: "original",
+      value: structure === "feed" ? 100 : -100,
+      date: 1000,
       ...(structure === "feed" ? { to: sourceId } : { from: sourceId, paidFrom: targetId }),
     });
     const before = await t.run(ctx => ctx.db.query("events").collect());
     await t.run(ctx => ctx.db.delete("pipes", sourceId));
     await auth.mutation(api.financialOperations.edit, {
-      operationId: transaction.id, title: "changed", value: structure === "feed" ? 200 : -50,
-      date: 2000, primaryPipeId: replacementId, applyReplacementEffects: false,
+      operationId: transaction.id,
+      title: "changed",
+      value: structure === "feed" ? 200 : -50,
+      date: 2000,
+      primaryPipeId: replacementId,
+      applyReplacementEffects: false,
     });
     const after = await t.run(ctx => ctx.db.query("events").collect());
     expect(after.map(event => event._id).sort()).toEqual(before.map(event => event._id).sort());
@@ -140,13 +148,15 @@ describe("Convex boundaries: event operation edits", () => {
     });
     const before = await t.run(async ctx => ({
       transaction: await ctx.db.get("events", transaction.id),
-      source: await ctx.db.get("pipes", sourceId), target: await ctx.db.get("pipes", targetId),
+      source: await ctx.db.get("pipes", sourceId),
+      target: await ctx.db.get("pipes", targetId),
       events: await ctx.db.query("events").collect(),
     }));
     await expect(auth.mutation(api.financialOperations.edit, { operationId: transaction.id, title: "changed", value: -200, date: 2000 })).rejects.toThrow();
     expect(await t.run(async ctx => ({
       transaction: await ctx.db.get("events", transaction.id),
-      source: await ctx.db.get("pipes", sourceId), target: await ctx.db.get("pipes", targetId),
+      source: await ctx.db.get("pipes", sourceId),
+      target: await ctx.db.get("pipes", targetId),
       events: await ctx.db.query("events").collect(),
     }))).toEqual(before);
     expect(await t.run(ctx => ctx.db.query("transactionCorrections").collect())).toEqual([]);

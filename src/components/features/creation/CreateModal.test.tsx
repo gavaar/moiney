@@ -1,8 +1,14 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render as renderComponent, screen, waitFor } from "@testing-library/react";
+import type { ReactNode } from "react";
+import { ConfirmModalProvider } from "@ui/ConfirmModal/ConfirmModalProvider";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Id } from "@convex/_generated/dataModel";
 import { CreateModal } from "./CreateModal";
+
+function render(element: ReactNode) {
+  return renderComponent(element, { wrapper: ConfirmModalProvider });
+}
 
 vi.mock("expo-router/react-navigation", () => ({ useIsFocused: () => true }));
 
@@ -121,8 +127,11 @@ describe("CreateModal", () => {
     expect(screen.getByRole("textbox", { name: "Initial amount" }).getAttribute("value")).toBe("12.34");
     fireEvent.click(screen.getByRole("button", { name: isBoiler ? "Add boiler" : "Add feed" }));
     await waitFor(() => expect(addFeed).toHaveBeenCalledExactlyOnceWith({
-      name: "Savings", icon: "wallet-outline", description: undefined,
-      sourceType: isBoiler ? "boiler" : "feed", initialFed: 1234,
+      name: "Savings",
+      icon: "wallet-outline",
+      description: undefined,
+      sourceType: isBoiler ? "boiler" : "feed",
+      initialFed: 1234,
       ...(isBoiler ? { contributedFed: 1000 } : {}),
     }));
     expect(onClose).toHaveBeenCalledOnce();

@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Id } from "@convex/_generated/dataModel";
 import { HistoryList } from "./history-list";
 import type { HistoryEntry } from "./event-groups";
-import type { DeletedPipeEntry } from "./event-archives";
+import type { DeletedPipeEntry } from "@features/pipes/data/deletedPipes";
 
 const mocks = vi.hoisted(() => ({ query: vi.fn(), navigate: vi.fn() }));
 const client = { query: mocks.query };
@@ -43,8 +43,15 @@ const payer: DeletedPipeEntry = { ...trip, id: id("deleted-payer"), operationId:
 const expense: Extract<HistoryEntry, { type: "third_party_transaction" }> = { id: id("shared"), operationId: id("shared"), type: "third_party_transaction", title: "hotel", occurredAt: june, createdAt: june, value: -6000, pipeId: trip.pipeId, targetPipeId: payer.pipeId };
 const mirror: HistoryEntry = { ...expense, id: id("payment"), type: "transaction", pipeId: payer.pipeId, targetPipeId: trip.pipeId, value: 6000 };
 const settlement: Extract<HistoryEntry, { type: "settlement" }> = {
-  id: id("settlement"), operationId: id("settlement"), pipeId: trip.pipeId, type: "settlement",
-  occurredAt: june, createdAt: june, name: "Madrid", icon: "airplane", cause: "manual",
+  id: id("settlement"),
+  operationId: id("settlement"),
+  pipeId: trip.pipeId,
+  type: "settlement",
+  occurredAt: june,
+  createdAt: june,
+  name: "Madrid",
+  icon: "airplane",
+  cause: "manual",
   before: { capacity: 4000, fed: 4000, spent: 3000, pendingFedAdjustment: 500 },
   after: { capacity: 5000, fed: 1500, spent: 0, pendingFedAdjustment: 0 },
 };

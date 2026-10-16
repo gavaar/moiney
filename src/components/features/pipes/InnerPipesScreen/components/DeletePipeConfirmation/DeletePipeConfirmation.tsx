@@ -110,56 +110,59 @@ export function DeletePipeConfirmation({ visible, onClose, pipeId, onDeleted }: 
 
   return (
     <ModalShell visible={visible} onClose={onClose}>
-      <View className="gap-4 min-w-[300px]">
+      <View className="gap-4 min-w-[300px]" style={{ flexShrink: 1 }}>
         <View className="flex-row items-center gap-2">
           {pipe && <Icon name={pipe.icon as IconName} size={24} color={colors.text} />}
           <Text className="text-text font-bold text-lg">{pipe?.name ?? "Unknown"}</Text>
         </View>
 
-        <Text className="text-text text-sm">This will delete the following pipes:</Text>
+        <ScrollView style={{ flexGrow: 0, flexShrink: 1 }} contentContainerStyle={{ gap: 16 }} keyboardShouldPersistTaps="handled">
+          <Text className="text-text text-sm">This will delete the following pipes:</Text>
 
-        <ScrollView className="max-h-48">
-          {pipe && (
-            <View className="flex-row items-center gap-2 py-1">
-              <View style={{ width: 0 }} />
-              <Icon name={pipe.icon as IconName} size={16} color={colors.text} />
-              <Text className="text-text text-sm font-medium">{pipe.name}</Text>
-              <Text className="text-muted text-xs">(selected)</Text>
-            </View>
-          )}
-          {descendants.map((d) => (
-            <View key={d.id} className="flex-row items-center gap-2 py-1">
-              <View style={{ width: d.depth * 16 }} />
-              <Icon name={d.icon as IconName} size={14} color={colors.muted} />
-              <Text className="text-text text-sm">{d.name}</Text>
-            </View>
-          ))}
+          <View>
+            {pipe && (
+              <View className="flex-row items-center gap-2 py-1">
+                <View style={{ width: 0 }} />
+                <Icon name={pipe.icon as IconName} size={16} color={colors.text} />
+                <Text className="text-text text-sm font-medium">{pipe.name}</Text>
+                <Text className="text-muted text-xs">(selected)</Text>
+              </View>
+            )}
+            {descendants.map((d) => (
+              <View key={d.id} className="flex-row items-center gap-2 py-1">
+                <View style={{ width: d.depth * 16 }} />
+                <Icon name={d.icon as IconName} size={14} color={colors.muted} />
+                <Text className="text-text text-sm">{d.name}</Text>
+              </View>
+            ))}
+          </View>
+
+          <View className="bg-error/10 border border-error rounded-lg p-3">
+            <Text className="text-error text-sm">
+              Warning: You are about to delete this pipe and all its child pipes. This action cannot be undone.
+            </Text>
+          </View>
+
+          <Input
+            type="checkbox"
+            label="Delete orphaned transaction history"
+            value={deleteTransactions}
+            onChange={setDeleteTransactions}
+            disabled={isDeleting}
+          />
+          <Text className="text-muted text-xs">
+            Shared transactions are preserved for surviving pipes.
+          </Text>
+
+          {isDeleting && deletionStatus ? (
+            <Text className="text-muted text-sm">
+              Deleting {deletionStatus.phase === "readyToFinalize"
+                ? deletionStatus.totalMembers
+                : deletionStatus.completedMembers} of {deletionStatus.totalMembers} pipes...
+            </Text>
+          ) : null}
+
         </ScrollView>
-
-        <View className="bg-error/10 border border-error rounded-lg p-3">
-          <Text className="text-error text-sm">
-            Warning: You are about to delete this pipe and all its child pipes. This action cannot be undone.
-          </Text>
-        </View>
-
-        <Input
-          type="checkbox"
-          label="Delete orphaned transaction history"
-          value={deleteTransactions}
-          onChange={setDeleteTransactions}
-          disabled={isDeleting}
-        />
-        <Text className="text-muted text-xs">
-          Shared transactions are preserved for surviving pipes.
-        </Text>
-
-        {isDeleting && deletionStatus ? (
-          <Text className="text-muted text-sm">
-            Deleting {deletionStatus.phase === "readyToFinalize"
-              ? deletionStatus.totalMembers
-              : deletionStatus.completedMembers} of {deletionStatus.totalMembers} pipes...
-          </Text>
-        ) : null}
 
         <Button
           variant="error"

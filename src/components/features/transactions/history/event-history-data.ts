@@ -2,34 +2,13 @@ import type { ConvexReactClient } from "convex/react";
 import { api } from "@convex/_generated/api";
 import type { HistoryFilters } from "./history-filters";
 import type { HistoryEntry } from "./event-groups";
-import type { DeletedPipeEntry } from "./event-archives";
+import type { DeletedPipeEntry } from "@features/pipes/data/deletedPipes";
 import { recognizedHistoryEntries } from "./event-types";
-
-export async function readDeletedPipes(client: ConvexReactClient, isActive: () => boolean) {
-  const entries: DeletedPipeEntry[] = [];
-  const visited = new Set<string>();
-  let cursor: string | undefined;
-  while (true) {
-    if (!isActive()) throw new Error("History read cancelled");
-    const page = await client.query(api.events.deletedPipes, { limit: 100, ...(cursor ? { cursor } : {}) });
-    if (!isActive()) throw new Error("History read cancelled");
-    entries.push(...page.events);
-    if (page.isDone) return entries;
-    if (!page.cursor || visited.has(page.cursor)) throw new Error("Deletion catalog pagination stalled");
-    visited.add(page.cursor);
-    cursor = page.cursor;
-  }
-}
-
-export function eventScopeIds(filters: HistoryFilters, deleted: readonly DeletedPipeEntry[]) {
-  if (!filters.pipeIds?.length) return undefined;
-  const scope = new Set(filters.pipeIds);
-  return new Set([...scope, ...deleted.filter(event => event.ancestorIds.some(id => scope.has(id))).map(event => event.pipeId)]);
-}
+import { preservedPipeScope } from "@domain/pipes/preservedScope";
 
 /** One indexed window per unique pipe; grouping sees only the newest 30 overall. */
 export async function readLatestEvents(client: ConvexReactClient, filters: HistoryFilters, deleted: readonly DeletedPipeEntry[], isActive: () => boolean) {
-  const scope = eventScopeIds(filters, deleted);
+  const scope = filters.pipeIds?.length ? preservedPipeScope(filters.pipeIds, deleted) : undefined;
   const pipeIds = scope ? [...scope] : [undefined];
   let entries: HistoryEntry[] = [];
   for (let offset = 0; offset < pipeIds.length; offset += 8) {
@@ -44,7 +23,7 @@ export async function readLatestEvents(client: ConvexReactClient, filters: Histo
 
 /** Only the main stream supplies visible members; the catalog supplies scope metadata. */
 export function createEventHistoryReader(client: ConvexReactClient, filters: HistoryFilters, deleted: readonly DeletedPipeEntry[]) {
-  const scope = eventScopeIds(filters, deleted);
+  const scope = filters.pipeIds?.length ? preservedPipeScope(filters.pipeIds, deleted) : undefined;
   const pipeId = scope?.size === 1 ? [...scope][0] : undefined;
   const title = filters.title?.trim() || undefined;
   let cursor: string | undefined;
@@ -57,9 +36,12 @@ export function createEventHistoryReader(client: ConvexReactClient, filters: His
       while (!done) {
         if (cancelled) throw new Error("History read cancelled");
         const page = await client.query(api.events.list, {
-          limit, ...(cursor ? { cursor } : {}), ...(pipeId ? { pipeId } : {}),
+          limit,
+          ...(cursor ? { cursor } : {}),
+          ...(pipeId ? { pipeId } : {}),
           ...(filters.fromDate === undefined ? {} : { fromDate: filters.fromDate }),
-          ...(filters.toDate === undefined ? {} : { toDate: filters.toDate }), ...(title ? { title } : {}),
+          ...(filters.toDate === undefined ? {} : { toDate: filters.toDate }),
+          ...(title ? { title } : {}),
         });
         if (cancelled) throw new Error("History read cancelled");
         done = page.isDone || !page.cursor || visited.has(page.cursor);

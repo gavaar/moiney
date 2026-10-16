@@ -1,10 +1,9 @@
-import { Directory, File, Paths } from "expo-file-system";
+import { File } from "expo-file-system";
+import { pipeViewPreferencesDirectory } from "@/lib/storage/directories.native";
 import type { PipeViewStorage } from "./usePipeViewPreferences";
 
-const directory = new Directory(Paths.document, "moiney", "pipe-views");
-
 function fileFor(accountKey: string) {
-  return new File(directory, `${encodeURIComponent(accountKey)}.json`);
+  return new File(pipeViewPreferencesDirectory, `${encodeURIComponent(accountKey)}.json`);
 }
 
 export const pipeViewStorage: PipeViewStorage = {
@@ -18,7 +17,7 @@ export const pipeViewStorage: PipeViewStorage = {
   },
   async write(accountKey, value) {
     try {
-      directory.create({ idempotent: true, intermediates: true });
+      pipeViewPreferencesDirectory.create({ idempotent: true, intermediates: true });
       fileFor(accountKey).write(value);
     } catch {
       // Display preferences should not prevent navigation.

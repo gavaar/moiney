@@ -1,30 +1,35 @@
-import { RefObject, useRef, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { type ReactNode, RefObject, useRef, useState } from "react";
+import { Pressable, Text, useWindowDimensions, View } from "react-native";
 import { Popover } from "@ui/Popover";
 import { Icon, type IconName } from "@ui/Icon";
 import { cn, colors } from "@/lib/styles";
 import { formatAmount } from "@/lib/format";
-import { getDaysInMonth } from "@/lib/dates";
 import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import { prepareContingencyPreview } from "@features/pipes/data/contingencyPreview";
+import { RemainingExpectedDetails } from "./RemainingExpectedDetails";
+import { CoverageDetails, CoverageProvidedDetails } from "./CoverageDetails";
+import { monthlySpendingPace } from "@domain/statistics/monthlySpendingPace";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const GRID_GAP = 8;
 
 type StatItem = {
   displayValue: string;
+  estimated?: boolean;
   title: string;
-  description: string;
+  description: ReactNode;
   guidance?: string;
   ref: RefObject<View | null>;
   icon: IconName;
   testID?: string;
-  tone?: "external" | "growth-negative" | "growth-non-negative" | "warning";
+  tone?: "external" | "negative" | "positive" | "growth-non-negative" | "warning";
 };
 
 type Props = {
   fed: number;
   spent: number;
+  monthlySpent: number | undefined;
   expected: number;
   pendingFedAdjustment?: number;
   sourceType?: "feed" | "boiler";
@@ -46,19 +51,24 @@ function formatGrowthPercentage(value: number): string {
 export function StatisticsRow({
   fed,
   spent,
+  monthlySpent,
   expected,
   pendingFedAdjustment = 0,
   sourceType,
   contributedFed = 0,
   now,
 }: Props) {
+  const { fontScale } = useWindowDimensions();
+  const [gridWidth, setGridWidth] = useState(0);
   const date = new Date(now);
-  const daysInMonth = getDaysInMonth(date);
-  const currentDay = date.getDate();
+  const daysInMonth = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)).getUTCDate();
+  const currentDay = date.getUTCDate();
+  const pace = monthlySpent === undefined ? undefined : monthlySpendingPace(monthlySpent, now);
   const dailyExpected = daysInMonth > 0 ? expected / daysInMonth : 0;
-  const accumulatedSpend = dailyExpected * currentDay - spent;
+  const accruedAllowance = dailyExpected * currentDay;
+  const accumulatedSpend = monthlySpent === undefined ? undefined : accruedAllowance - monthlySpent;
   const daysUntilPositive =
-    accumulatedSpend < 0 && dailyExpected > 0
+    accumulatedSpend !== undefined && accumulatedSpend < 0 && dailyExpected > 0
       ? Math.floor(-accumulatedSpend / dailyExpected) + 1
       : null;
   const growth =
@@ -90,161 +100,248 @@ export function StatisticsRow({
   const coverageProvided = selectedId ? preview.forDonor(selectedId) : undefined;
 
   const daysLeft =
-    currentPipe?.rule === "cron" && currentPipe.cronNextDate != null
+    (currentPipe?.rule === "cron" || currentPipe?.rule === "self_destruct") && currentPipe.cronNextDate != null
       ? Math.max(0, Math.ceil((currentPipe.cronNextDate - now) / DAY_MS))
       : null;
 
   const stats: StatItem[] = [
-      ...(coverageProvided ? [{
-        displayValue: formatAmount(coverageProvided.amountCents),
-        title: "Possible coverage provided",
-        tone: "warning" as const,
-        description: `This pipe could provide ${formatAmount(coverageProvided.amountCents)} in total if all eligible pipes selecting it settled now (${coverageProvided.sources.map(source => source.name).join(", ")}). They share this pipe's unspent funding to cover spending above capacity or carried-forward debt. Original expenses stay attributed to those pipes.`,
-        guidance: "This funding is not reserved. Actual coverage depends on changing balances and settlement order, including scheduled sharing.",
-        icon: "shield" as IconName,
-        ref: coverageProvidedRef,
-      }] : []),
-      ...(coverage ? [{
-        displayValue: formatAmount(coverage.amountCents),
-        title: "Possible coverage",
-        tone: "warning" as const,
-        description: `${coverage.donor.name} could cover ${formatAmount(coverage.amountCents)} if this pipe settled now, using its unspent funding to cover spending above capacity or carried-forward debt. Coverage is applied only at settlement; your original expenses remain attributed to this pipe.`,
-        guidance: "This funding is not reserved. Changing balances and sharing with other scheduled settlements can reduce actual coverage.",
-        icon: "shield" as IconName,
-        ref: coverageRef,
-      }] : []),
-      ...(sourceType !== "boiler"
-        ? [
-            {
-              displayValue: formatAmount(expected - spent),
-              title: "Remaining expected",
-              description: `The monthly expected amount is ${formatAmount(expected)}. After ${formatAmount(spent)} in currently tracked spending, ${formatAmount(expected - spent)} remains. Spending before the last settlement is not included; this is not your available balance or carried-forward capacity.`,
-              icon: "circle-half-full" as IconName,
-              ref: remainingExpectedRef,
-            },
-          ]
-        : []),
-      {
-        displayValue: formatAmount(Math.round(spent / currentDay)),
-        title: "Spent this month per day",
-        description: `An average of ${formatAmount(Math.round(spent / currentDay))} was spent per day over ${currentDay} days in this pipe this month.`,
-        icon: "calculate",
-        ref: stmpdRef,
-      },
-      {
-        displayValue: formatAmount(Math.round(accumulatedSpend)),
-        title: "Accumulated spend this month",
-        description: `You can spend ${formatAmount(Math.round(accumulatedSpend))}. This month expects ${formatAmount(expected)} to be spent, which adds up to ${formatAmount(Math.round(dailyExpected))} spendable per day. Given you have already spent ${formatAmount(spent)}, you can spend up to today ${formatAmount(Math.round(accumulatedSpend))}.`,
-        guidance: accumulatedSpend < 0
-          ? daysUntilPositive !== null &&
-            daysUntilPositive <= daysInMonth - currentDay
-            ? `This value will be positive again in ${daysUntilPositive} ${daysUntilPositive === 1 ? "day" : "days"}.`
-            : "You should not spend anymore from this pipe this month."
-            : undefined,
-        icon: "playlist-add",
-        ref: astmRef,
-      },
-      ...(sourceType === "boiler"
-        ? [
-            {
-              displayValue: growthLabel,
-              title: "Growth",
-              description: `This pipe has received ${formatAmount(contributedFed)} value, but now holds ${formatAmount(fed)}, meaning it has grown ${growthLabel}.`,
-              icon: "trending-up" as IconName,
-              ref: growthRef,
-              testID: "boiler-growth-chip",
-              tone:
+    ...(sourceType === "boiler"
+      ? [
+        {
+          displayValue: growthLabel,
+          title: "Growth",
+          description: `This pipe has received ${formatAmount(contributedFed)} value, but now holds ${formatAmount(fed)}, meaning it has grown ${growthLabel}.`,
+          icon: "trending-up" as IconName,
+          ref: growthRef,
+          testID: "boiler-growth-chip",
+          tone:
                 growth !== null && growth < 0
-                  ? ("growth-negative" as const)
+                   ? ("negative" as const)
                   : ("growth-non-negative" as const),
-            },
-          ]
-        : []),
-      ...(daysLeft != null
-        ? [
-            {
-              displayValue: String(daysLeft),
-              title: "Days left",
-              description: "Days left until this pipe resets",
-              icon: "timer-outline" as IconName,
-              ref: cronRef,
-            },
-          ]
-        : []),
-      ...(pendingFedAdjustment !== 0
-        ? [
-            {
-              displayValue: formatSignedAmount(pendingFedAdjustment),
-              title:
+        },
+      ]
+      : []),
+    ...(sourceType !== "boiler"
+      ? [
+        {
+          displayValue: formatAmount(expected - spent),
+          title: "Remaining expected",
+          description: <RemainingExpectedDetails expected={expected} spent={spent} fed={fed} pendingFedAdjustment={pendingFedAdjustment} />,
+          icon: "circle-half-full" as IconName,
+          ref: remainingExpectedRef,
+        },
+      ]
+      : []),
+    {
+      displayValue: pace ? formatAmount(Math.round(pace.dailyAverageCents)) : "Loading",
+      title: "Spent this month per day",
+      description: pace ? (
+        <View className="gap-2">
+          <Text className="text-text text-sm">
+            {pace.dailyAverageCents < 0 ? "Net spending averaged " : "An average of "}
+            <Text className="text-errorMuted">{formatAmount(Math.round(pace.dailyAverageCents))}</Text>
+            {pace.dailyAverageCents < 0 ? " per day over " : " was spent per day over "}
+            <Text className="text-secondary">{pace.elapsedDays}</Text>
+            {" "}{pace.elapsedDays === 1 ? "day" : "days"} this month.
+          </Text>
+          <Text className="text-text text-sm">
+            If maintained, you would spend{" "}
+            <Text className={pace.projectedCents > expected ? "text-errorDark" : "text-primaryDark"}>
+              {formatAmount(pace.projectedCents)}
+            </Text>
+            {" "}by the end of the month.
+          </Text>
+          {pace.projectedCents > expected ? (
+            <Text className="text-text text-sm">
+              This would set you above your expected spend goal by{" "}
+              <Text className="text-error">{formatAmount(pace.projectedCents - expected)}</Text>.
+            </Text>
+          ) : (
+            <Text className="text-text text-sm">
+              Leaving you with{" "}
+              <Text className="text-primary">{formatAmount(expected - pace.projectedCents)}</Text>
+              {" "}leftover.
+            </Text>
+          )}
+        </View>
+      ) : <Text className="text-muted text-sm">Loading monthly spending…</Text>,
+      icon: "calculate",
+      ref: stmpdRef,
+    },
+    {
+      displayValue: accumulatedSpend === undefined ? "Loading" : formatAmount(Math.round(accumulatedSpend)),
+      title: "Accumulated spend this month",
+      tone: accumulatedSpend === undefined ? undefined : accumulatedSpend < 0 ? "negative" : "positive",
+      description: accumulatedSpend !== undefined && monthlySpent !== undefined ? (
+        <View className="gap-2">
+          <Text className="text-text text-sm">
+            This month’s expected spending is <Text className="text-secondary">{formatAmount(expected)}</Text>,
+            {" or "}<Text className="text-secondary">{formatAmount(Math.round(dailyExpected))}</Text> per day.
+          </Text>
+          <Text className="text-text text-sm">
+            Adding up to today, that gives you an allowance of{" "}
+            <Text className="text-primary">{formatAmount(Math.round(accruedAllowance))}</Text>.
+          </Text>
+          <Text className="text-text text-sm">
+            You’ve spent <Text className="text-errorMuted">{formatAmount(monthlySpent)}</Text> this month,
+            {" leaving an accumulated allowance of "}
+            <Text className={accumulatedSpend < 0 ? "text-error" : "text-primary"}>
+              {formatAmount(Math.round(accumulatedSpend))}
+            </Text>.
+          </Text>
+        </View>
+      ) : <Text className="text-muted text-sm">Loading monthly spending…</Text>,
+      guidance: accumulatedSpend !== undefined && accumulatedSpend < 0
+        ? daysUntilPositive !== null &&
+            daysUntilPositive <= daysInMonth - currentDay
+          ? `Assuming no further spending, this value will be positive again in ${daysUntilPositive} ${daysUntilPositive === 1 ? "day" : "days"}.`
+          : "You’ve used up this month’s allowance. Avoid further spending this month."
+        : undefined,
+      icon: "playlist-add",
+      ref: astmRef,
+    },
+    ...(pendingFedAdjustment !== 0
+      ? [
+        {
+          displayValue: formatSignedAmount(pendingFedAdjustment),
+          title:
                 pendingFedAdjustment > 0
                   ? "Paid elsewhere"
                   : "Refunded elsewhere",
-              description:
-                pendingFedAdjustment > 0
-                  ? `This spending counts toward this pipe, but another pipe paid for it. The next rule run will add ${formatAmount(Math.abs(pendingFedAdjustment))} to this pipe's fed balance.`
-                  : `This refund reduces this pipe's spending, but another pipe received it. The next rule run will subtract ${formatAmount(Math.abs(pendingFedAdjustment))} from this pipe's fed balance.`,
-              icon: "swap-horizontal-outline" as IconName,
-              ref: externalRef,
-              testID: "external-adjustment-chip",
-              tone: "external" as const,
-            },
-          ]
-        : []),
-    ];
+          description: (
+            <View className="gap-2">
+              <Text className="text-text text-sm">
+                {pendingFedAdjustment > 0
+                  ? "Expenses were added and counted towards this pipe’s spending budget, but actual funding was taken from somewhere else."
+                  : "Refunds were added and reduced this pipe’s spending, but actual funding was received somewhere else."}
+              </Text>
+              <Text className="text-text text-sm">
+                This pipe’s funding will be {pendingFedAdjustment > 0 ? "increased" : "decreased"} at next settlement by{" "}
+                <Text className="text-accent">{formatAmount(Math.abs(pendingFedAdjustment))}</Text>.
+              </Text>
+            </View>
+          ),
+          icon: "swap-horizontal-outline" as IconName,
+          ref: externalRef,
+          testID: "external-adjustment-chip",
+          tone: "external" as const,
+        },
+      ]
+      : []),
+    ...(coverageProvided && currentPipe ? [
+      {
+        displayValue: formatAmount(coverageProvided.amountCents),
+        title: "Possible coverage provided",
+        estimated: true,
+        tone: "warning" as const,
+        description: <CoverageProvidedDetails donor={currentPipe} allocations={coverageProvided.allocations} amountCents={coverageProvided.amountCents} />,
+        icon: "shield" as IconName,
+        ref: coverageProvidedRef,
+      }
+    ] : []),
+    ...(coverage && currentPipe ? [
+      {
+        displayValue: formatAmount(coverage.amountCents),
+        title: "Possible coverage",
+        estimated: true,
+        tone: "warning" as const,
+        description: <CoverageDetails source={currentPipe} donor={coverage.donor} amountCents={coverage.amountCents} />,
+        icon: "shield" as IconName,
+        ref: coverageRef,
+      }
+    ] : []),
+    ...(daysLeft != null && currentPipe?.cronNextDate != null
+      ? [
+        {
+          displayValue: String(daysLeft),
+          title: "Days left",
+           description: `This pipe will ${currentPipe.rule === "self_destruct" ? "self-destroy" : "reset"} automatically in ${daysLeft} ${daysLeft === 1 ? "day" : "days"} (${new Date(currentPipe.cronNextDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}).`,
+          icon: "timer-outline" as IconName,
+          ref: cronRef,
+        },
+      ]
+      : []),
+  ];
+
+  // Reserve room for the icon, padding, and the longest amount without shrinking text.
+  let longestValueLength = 0;
+  for (const { displayValue, estimated } of stats) {
+    longestValueLength = Math.max(longestValueLength, displayValue.length + (estimated ? 2 : 0));
+  }
+  const minPillWidth = Math.max(96, 36 + longestValueLength * 8 * fontScale);
+  const columns = Math.max(2, Math.min(
+    fontScale <= 1.2 ? 4 : 2,
+    Math.floor((gridWidth + GRID_GAP) / (minPillWidth + GRID_GAP)),
+  ));
 
   return (
-    <View className="flex-row flex-wrap items-center justify-center gap-1">
+    <View
+      className="flex-row flex-wrap items-stretch justify-start"
+      style={{ columnGap: GRID_GAP, rowGap: 4 }}
+      onLayout={({ nativeEvent }) => setGridWidth(nativeEvent.layout.width)}
+    >
       {stats.map((stat) => (
-        <View key={stat.title} className="items-center justify-center">
+        <View
+          key={stat.title}
+          style={{ width: gridWidth > 0 ? Math.max(0, (gridWidth - GRID_GAP * (columns - 1)) / columns) : "48%" }}
+        >
           <Pressable
             ref={stat.ref}
             testID={stat.testID}
             className={cn(
-              "flex-row items-center justify-center gap-1 border p-2 rounded-md",
-              stat.tone === "growth-negative"
-                ? "border-error/70 bg-error/10"
+              "grow flex-row items-center justify-center gap-1 border px-2 py-1 rounded-md min-h-8",
+              stat.tone === "negative"
+                 ? "border-errorMuted/40 bg-errorMuted/5"
+                : stat.tone === "positive"
+                   ? "border-primaryMuted/40 bg-primaryMuted/5"
                 : stat.tone === "growth-non-negative"
-                  ? "border-secondary/70 bg-secondary/10"
+                   ? "border-secondarySoft/40 bg-secondarySoft/5"
                   : stat.tone === "external"
-                    ? "border-accent/70 bg-accent/10"
+                     ? "border-accentMuted/40 bg-accentMuted/5"
                     : stat.tone === "warning"
-                      ? "border-warning/70 bg-warning/10"
+                       ? "border-warningSoft/40 bg-warningSoft/5"
                       : "border-muted/50",
             )}
             accessibilityRole="button"
-            accessibilityLabel={`${stat.title}, ${stat.displayValue}`}
+            accessibilityLabel={`${stat.title}, ${stat.displayValue}${stat.estimated ? ", estimated" : ""}`}
             onPress={() => setSelectedStatTitle(stat.title)}
           >
             <Icon
               name={stat.icon}
               size={14}
               color={
-                stat.tone === "growth-negative"
-                  ? colors.error
+                stat.tone === "negative"
+                   ? colors.errorMuted
+                  : stat.tone === "positive"
+                     ? colors.primaryMuted
                   : stat.tone === "growth-non-negative"
-                    ? colors.secondary
+                     ? colors.secondarySoft
                     : stat.tone === "external"
-                      ? colors.accent
+                       ? colors.accentMuted
                       : stat.tone === "warning"
-                        ? colors.warning
+                         ? colors.warningSoft
                         : colors.text
               }
             />
             <Text
               className={cn(
-                "text-sm",
-                stat.tone === "growth-negative"
-                  ? "text-error"
+                "text-sm shrink",
+                stat.tone === "negative"
+                   ? "text-errorMuted"
+                  : stat.tone === "positive"
+                     ? "text-primaryMuted"
                   : stat.tone === "growth-non-negative"
-                    ? "text-secondary"
+                     ? "text-secondarySoft"
                     : stat.tone === "external"
-                      ? "text-accent"
+                       ? "text-accentMuted"
                       : stat.tone === "warning"
-                        ? "text-warning"
+                         ? "text-warningSoft"
                         : "text-text",
               )}
+              style={{ fontVariant: ["tabular-nums"] }}
             >
               {stat.displayValue}
+              {stat.estimated ? <Text className="text-muted text-sm"> ?</Text> : null}
             </Text>
           </Pressable>
 
@@ -254,8 +351,10 @@ export function StatisticsRow({
             anchorRef={stat.ref as RefObject<View>}
             anchorPosition="bottom"
           >
-            <Text className="text-text font-bold text-md">{stat.title}:</Text>
-            <Text className="text-text text-sm">{stat.description}</Text>
+            <Text className="font-bold text-md text-primaryMuted mb-2">{stat.title}:</Text>
+            {typeof stat.description === "string"
+              ? <Text className="text-text text-sm">{stat.description}</Text>
+              : stat.description}
             {stat.guidance ? <Text className="text-text text-sm mt-1">{stat.guidance}</Text> : null}
           </Popover>
         </View>

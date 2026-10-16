@@ -1,7 +1,17 @@
 import { defineConfig } from "vitest/config";
 import path from "path";
+import { transformWithOxc } from "vite";
 
 export default defineConfig({
+  plugins: [{
+    name: "markdown-native-jsx",
+    // This native dependency ships JSX in .js files; exercise its real renderer.
+    async transform(code, id) {
+      if (id.includes("/node_modules/react-native-markdown-display/") && id.endsWith(".js")) {
+        return transformWithOxc(code, id, { lang: "jsx", jsx: { runtime: "automatic" } });
+      }
+    },
+  }],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

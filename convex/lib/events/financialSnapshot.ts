@@ -24,11 +24,14 @@ export async function readFinancialSnapshot(ctx: QueryCtx, userId: Id<"users">, 
   const event = operation.canonicalEvent;
   if (event.type === "pipe_creation" || event.type === "pipe_deletion" || event.type === "settlement") throw new ConvexError({ code: "OPERATION_NOT_FOUND" });
   return {
-    operationId, _creationTime: canonical._creationTime,
-    title: event.title, value: event.value, date: event.occurredAt,
+    operationId,
+    _creationTime: canonical._creationTime,
+    title: event.title,
+    value: event.value,
+    date: event.occurredAt,
     ...(event.type === "feed" ? { kind: "feed" as const, to: event.pipeId }
       : event.type === "transfer" ? { kind: "transfer" as const, from: event.pipeId, to: event.targetPipeId }
-      : event.type === "third_party_transaction" ? { kind: "expense" as const, from: event.pipeId, paidFrom: event.targetPipeId }
-      : { kind: "expense" as const, from: event.pipeId }),
+        : event.type === "third_party_transaction" ? { kind: "expense" as const, from: event.pipeId, paidFrom: event.targetPipeId }
+          : { kind: "expense" as const, from: event.pipeId }),
   };
 }

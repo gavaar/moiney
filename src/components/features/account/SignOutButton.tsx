@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@ui/Button";
 import { useAuth } from "@/lib/auth";
 
@@ -9,8 +9,21 @@ type Props = {
 export function SignOutButton({ onSignedOut }: Props) {
   const { signOut } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+
+  useEffect(() => {
+    if (!confirming) return;
+    const timeout = setTimeout(() => setConfirming(false), 3000);
+    return () => clearTimeout(timeout);
+  }, [confirming]);
 
   const handlePress = async () => {
+    if (loading) return;
+    if (!confirming) {
+      setConfirming(true);
+      return;
+    }
+    setConfirming(false);
     setLoading(true);
     try {
       await signOut();
@@ -22,7 +35,7 @@ export function SignOutButton({ onSignedOut }: Props) {
 
   return (
     <Button
-      title="Sign Out"
+      title={confirming ? "confirm?" : "Sign out"}
       variant="error"
       loading={loading}
       disabled={loading}

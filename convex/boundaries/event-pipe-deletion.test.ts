@@ -18,8 +18,13 @@ it.each([false, true])("applies orphan-history policy to event-only operations (
     await ensureLivePipeCreationHistory(ctx, (await ctx.db.get("pipes", deleted))!);
     const orphan = await insertFinancialOperation(ctx, { userId, title: "orphan", value: -100, occurredAt: 1, structure: { type: "expense", from: deleted } });
     const shared = await insertFinancialOperation(ctx, { userId, title: "shared", value: -200, occurredAt: 2, structure: { type: "payByTransfer", from: deleted, paidFrom: survivor } });
-    for (let i = 0; i < 125; i++) await ctx.db.insert("transactionCorrections", { userId, operationId: orphan, editedAt: i + 3,
-      previous: { title: "old", value: -100, date: 1 }, current: { title: "orphan", value: -100, date: 1 } });
+    for (let i = 0; i < 125; i++) await ctx.db.insert("transactionCorrections", {
+      userId,
+      operationId: orphan,
+      editedAt: i + 3,
+      previous: { title: "old", value: -100, date: 1 },
+      current: { title: "orphan", value: -100, date: 1 }
+    });
     return { userId, deleted, survivor, orphan, shared };
   });
   vi.useFakeTimers();
@@ -144,8 +149,13 @@ it("preserves complete paired operations across tied-date payer-only pages", asy
     const fields = { userId, icon: "wallet", priority: 0, capacity: 0, fed: 0, spent: 0 };
     const source = await ctx.db.insert("pipes", { ...fields, name: "Source" });
     const payer = await ctx.db.insert("pipes", { ...fields, name: "Payer" });
-    for (let i = 0; i < 51; i++) await insertFinancialOperation(ctx, { userId, title: "shared", value: -1, occurredAt: 1,
-      structure: { type: "payByTransfer", from: source, paidFrom: payer } });
+    for (let i = 0; i < 51; i++) await insertFinancialOperation(ctx, {
+      userId,
+      title: "shared",
+      value: -1,
+      occurredAt: 1,
+      structure: { type: "payByTransfer", from: source, paidFrom: payer }
+    });
     return { userId, payer };
   });
   const originalEvents = await t.run(ctx => ctx.db.query("events").collect());

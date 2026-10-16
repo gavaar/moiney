@@ -7,7 +7,8 @@ import { colors } from "@/lib/styles";
 import { StackedTransactionItem } from "../components/StackedTransactionItem";
 import { TransactionCorrectionHistoryModal } from "../components/TransactionCorrectionHistory/TransactionCorrectionHistoryModal";
 import type { HistoryFilters } from "./history-filters";
-import { groupMonthlyEventHistory, type DeletedPipeEntry, type MonthlyEventArchive } from "./event-archives";
+import { groupMonthlyEventHistory, type MonthlyEventArchive } from "./event-archives";
+import type { DeletedPipeEntry } from "@features/pipes/data/deletedPipes";
 import type { EventHistoryRow, HistoryEntry, SettlementEntry } from "./event-groups";
 import { EventTransactionItem, eventTransactionPresentation } from "./event-transaction-item";
 import { PipeHistoryRow } from "./pipe-history-row";
@@ -29,9 +30,7 @@ export type HistoryListProps = {
 export function HistoryList({ entries, deletedPipes: catalog, filters, isLoading, isRefreshing, error, hasMore, loadMore, refresh }: HistoryListProps) {
   const router = useRouter();
   const { pipesById } = usePipeCatalog();
-  const deletedPipes = useMemo(() => [...new Map([
-    ...catalog, ...entries.filter((entry): entry is DeletedPipeEntry => entry.type === "pipe_deletion"),
-  ].map(entry => [entry.pipeId, entry])).values()], [catalog, entries]);
+  const deletedPipes = useMemo(() => [...new Map([...catalog, ...entries.filter((entry): entry is DeletedPipeEntry => entry.type === "pipe_deletion"),].map(entry => [entry.pipeId, entry])).values()], [catalog, entries]);
   const [expanded, setExpanded] = useState(new Set<string>());
   const [selected, setSelected] = useState<{ id: Id<"events">; title: string } | null>(null);
   const [selectedSettlement, setSelectedSettlement] = useState<SettlementEntry | null>(null);

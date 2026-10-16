@@ -64,11 +64,13 @@ export async function replaceHistoryOperation(
   }
   historyOperationFromEvents([
     { ...draft.canonicalEvent, id: operationId, operationId },
-    ...(draft.counterpart ? [{
-      ...draft.counterpart,
-      id: operation.counterpart?.id ?? "counterpart",
-      operationId,
-    }] : []),
+    ...(draft.counterpart ? [
+      {
+        ...draft.counterpart,
+        id: operation.counterpart?.id ?? "counterpart",
+        operationId,
+      }
+    ] : []),
   ]);
 
   await ctx.db.replace("events", operationId, { ...draft.canonicalEvent, operationId });

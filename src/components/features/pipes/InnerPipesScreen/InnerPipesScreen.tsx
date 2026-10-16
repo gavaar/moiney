@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
 import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import type { PipeModel } from "@features/pipes/data/pipes";
@@ -14,10 +14,11 @@ import { Breadcrumb } from "./components/Breadcrumb";
 import { OptionsButton } from "./components/OptionsButton";
 import { PipeBars } from "./components/PipeBars";
 import { RulesIcon } from "./components/RulesIcon";
-import { RuleModal } from "./components/RulesIcon/RuleModal";
+import { EditPipeModal } from "./components/EditPipeModal";
 import { StatisticsRow } from "./components/StatisticsRow";
 import { AddChildPipeButton } from "./components/AddChildPipeButton";
 import { useRuleClock } from "@features/pipes/rules/use-rule-clock";
+import { useMonthlyPipeSpending } from "@features/statistics/useMonthlyPipeSpending";
 
 export function InnerPipesScreen() {
   const [compactRulePipeId, setCompactRulePipeId] = useState<PipeModel["id"] | null>(null);
@@ -38,6 +39,7 @@ export function InnerPipesScreen() {
   const coverageProvided = selectedId ? prepareContingencyPreview(allPipes ?? []).forDonor(selectedId) : undefined;
   const children = childrenByParent.get(selectedId) ?? [];
   const ruleNow = useRuleClock(Boolean(selectedPipe));
+  const monthlySpent = useMonthlyPipeSpending(selectedId ?? null, ruleNow);
   const expected = selectedPipe
     ? expectedMonthlyCapacity(
         { ...selectedPipe, capacity },
@@ -74,7 +76,12 @@ export function InnerPipesScreen() {
   return (
     <View className="flex-1">
       <View className="flex flex-col">
-        <Breadcrumb />
+        <View className="flex-row items-center gap-3 pr-5 pb-3">
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-1">
+            <Breadcrumb />
+          </ScrollView>
+          <OptionsButton pipeId={selectedId} disabled={isDeleting} />
+        </View>
         <PipeBars
           fed={fed}
           spent={spent}
@@ -85,19 +92,17 @@ export function InnerPipesScreen() {
           sourceType={selectedPipe?.sourceType}
           coverageProvidedCents={coverageProvided?.amountCents}
         />
-        <View className="flex-row items-center gap-2 px-5 pb-2">
-          <View className="flex-1">
-            <StatisticsRow
-              fed={fed}
-              spent={spent}
-              expected={expected}
-              pendingFedAdjustment={pendingFedAdjustment}
-              sourceType={selectedPipe?.sourceType}
-              contributedFed={selectedPipe?.contributedFed}
-              now={ruleNow}
-            />
-          </View>
-          <OptionsButton pipeId={selectedId} disabled={isDeleting} />
+        <View className="px-5 pb-2">
+          <StatisticsRow
+            fed={fed}
+            spent={spent}
+            monthlySpent={monthlySpent}
+            expected={expected}
+            pendingFedAdjustment={pendingFedAdjustment}
+            sourceType={selectedPipe?.sourceType}
+            contributedFed={selectedPipe?.contributedFed}
+            now={ruleNow}
+          />
         </View>
         <View className="border-b self-center border-muted/50 mb-3 w-3/4" />
       </View>
@@ -128,8 +133,9 @@ export function InnerPipesScreen() {
         /> : null}
       </View>
       {compactRulePipeId && (
-        <RuleModal
+        <EditPipeModal
           visible
+          initialStep={3}
           pipeId={compactRulePipeId}
           onClose={() => setCompactRulePipeId(null)}
         />

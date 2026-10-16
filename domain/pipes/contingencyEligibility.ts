@@ -1,8 +1,24 @@
 import type { PipeRule } from "./rules";
 
+const PREVIEW_CHILD_ID = "new-child";
+
 export type ContingencyTopologyNode<PipeId extends string> = {
   id: PipeId; parentId?: PipeId; rule?: PipeRule; contingencyPipeId?: PipeId; blocked?: boolean;
 };
+
+/** Preview eligibility after creating a child, including the owner's topology resets. */
+export function previewChildContingencyOptions<PipeId extends string>(
+  pipes: readonly ContingencyTopologyNode<PipeId>[], parentId: PipeId, rule?: PipeRule,
+): PipeId[] {
+  const topology: ContingencyTopologyNode<string>[] = pipes.map(pipe => ({
+    ...pipe,
+    ...(pipe.id === parentId ? { rule: undefined, contingencyPipeId: undefined } : {}),
+    ...(pipe.contingencyPipeId === parentId ? { contingencyPipeId: undefined } : {}),
+  }));
+  topology.push({ id: PREVIEW_CHILD_ID, parentId, rule });
+  const eligible = new Set(prepareContingencyEligibility(topology)(PREVIEW_CHILD_ID));
+  return pipes.filter(pipe => eligible.has(pipe.id)).map(pipe => pipe.id).sort();
+}
 
 export function prepareContingencyEligibility<PipeId extends string>(
   pipes: readonly ContingencyTopologyNode<PipeId>[],

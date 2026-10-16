@@ -12,8 +12,14 @@ async function setup(sourceType: "feed" | "boiler" = "feed") {
     const userId = await ctx.db.insert("users", { username: "alice", email: "alice@example.com", password: "hash" });
     const foreignUserId = await ctx.db.insert("users", { username: "bob", email: "bob@example.com", password: "hash" });
     const pipeId = await ctx.db.insert("pipes", {
-      userId, name: "Wallet", icon: "wallet-outline", priority: 0,
-      capacity: 10000, fed: 1000, spent: 200, sourceType,
+      userId,
+      name: "Wallet",
+      icon: "wallet-outline",
+      priority: 0,
+      capacity: 10000,
+      fed: 1000,
+      spent: 200,
+      sourceType,
       ...(sourceType === "boiler" ? { contributedFed: 1000 } : {}),
     });
     return { userId, foreignUserId, pipeId };
@@ -29,7 +35,9 @@ describe("Convex boundaries: single-entry event creation", () => {
   ] as const)("creates one $eventType for $structure at $value cents without changing accounting semantics", async ({ structure, value, eventType, fed, spent }) => {
     const { t, auth, userId, pipeId } = await setup();
     const result = await auth.mutation(api.financialOperations.create, {
-      title: "  LuNcH  ", value, date: 1000,
+      title: "  LuNcH  ",
+      value,
+      date: 1000,
       ...(structure === "feed" ? { to: pipeId } : { from: pipeId }),
     });
     const state = await t.run(async (ctx) => ({
@@ -39,7 +47,12 @@ describe("Convex boundaries: single-entry event creation", () => {
     }));
     expect(state.events).toHaveLength(1);
     expect(state.events[0]).toMatchObject({
-      type: eventType, userId, pipeId, occurredAt: 1000, title: "lunch", value,
+      type: eventType,
+      userId,
+      pipeId,
+      occurredAt: 1000,
+      title: "lunch",
+      value,
       operationId: state.events[0]._id,
     });
     expect(state.events[0]).not.toHaveProperty("targetPipeId");
@@ -87,8 +100,12 @@ describe("Convex boundaries: single-entry event creation", () => {
       if (condition === "foreign") await ctx.db.patch("pipes", pipeId, { userId: foreignUserId });
       if (condition === "frozen") {
         const jobId = await ctx.db.insert("pipeDeletionJobs", {
-          userId, deleteTransactions: false, memberPipeIds: [pipeId], initialBalance: 800,
-          phase: "processingTransactions", memberIndex: 0,
+          userId,
+          deleteTransactions: false,
+          memberPipeIds: [pipeId],
+          initialBalance: 800,
+          phase: "processingTransactions",
+          memberIndex: 0,
         });
         await ctx.db.patch("pipes", pipeId, { deletionJobId: jobId });
       }

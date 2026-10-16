@@ -30,23 +30,46 @@ settlement; this section owns derived pipe-detail statistics.
 A leaf uses `capUpdateValue`, falling back to current `capacity`. Daily, monthly,
 and yearly cron values normalize to monthly integer cents using the current
 month and cron interval, rounding fractional cents to the nearest cent. A pipe
-with children sums each immediate child's normalized `capUpdateValue` or
-fallback capacity. This does not calculate post-rule capacity or include prior
-cycle leftover fed.
+with children sums its descendant leaves' normalized targets. This does not
+calculate post-rule capacity or include prior cycle leftover fed.
 
 Pipe detail bars show fed, expected when nonzero, contributed principal for
 boilers when nonzero, and spent unless the rule settles instantly. Operational
 capacity is not shown as a bar. The non-boiler "Remaining expected" statistic
 is `expected - spent`: it compares the monthly target to spending tracked since
 the last settlement, not to available liquidity or historical carry-over
-capacity. Pipes without a cap update still use current capacity as their
-expected fallback. Boilers omit this statistic under the
-[boiler exception](accounting.md#d015-boiler-feed-pipes). Average daily spending
-divides current-month spending by current day-of-month. Accumulated spendable
-value through today is `expected / daysInMonth * currentDay - spent`, rounded
+capacity. Its popover compares expected and spent on one signed scale, splitting
+spent into net pending external adjustment and `spent - pendingFedAdjustment`,
+not historical gross transaction categories. It also shows funding left as
+`fed - spent + (pendingFedAdjustment ?? 0)`, using shortfall wording when negative.
+This is the current settlement baseline before any contingency coverage or
+scheduled redistribution, not current-cycle liquidity. Pipes without a cap update
+still use current capacity as their expected fallback. Boilers omit this statistic under the
+[boiler exception](accounting.md#d015-boiler-feed-pipes).
+
+Average daily spending uses net logical spending from the shared live monthly
+report, not the settlement-tracked `spent` balance. It includes the selected pipe,
+current descendants, and preserved deleted descendants identified by retained
+ancestry. UTC month boundaries, day-of-month, and month length agree with that
+report; today counts as a full elapsed day. The card remains loading until the
+monthly totals and deletion scope are complete, rather than displaying partial
+totals as zero. Refunds can make the average negative. The month-end projection
+adds remaining days at the unrounded daily average and rounds the final result
+to integer cents. It compares against the same `expected` as the bars: at or
+below is primary-dark; strictly above is error-dark with an above-goal warning.
+The detail quantifies the projected overage in error or the unused expected
+amount in primary, including zero leftover when exactly on target.
+This is a spending-pace comparison, not available funding.
+
+Accumulated spendable value through today is
+`expected / daysInMonth * currentDay - monthlySpent`, using the same complete
+live monthly total and inclusive UTC calendar as average daily spending, not the
+settlement-tracked balance. It remains loading until that total is ready. Details
+show the monthly target, daily allowance, allowance accrued through today, net
+monthly spending, and remaining accumulated allowance. Calculations are rounded
 only at the integer-cent formatting boundary. If negative and daily expected is
 positive, detail states how many whole days the precise value needs to become
-positive. If that exceeds days remaining in the month, or daily expected cannot
+strictly positive, assuming no further spending. If that exceeds days remaining in the month, or daily expected cannot
 increase it, detail advises against further spending from that pipe this month.
 The separate L2S and external settlement presentation is defined by
 [D012](accounting.md#d012-pay-by-transfer-liquidity-and-logical-spending).
@@ -59,9 +82,12 @@ At 05:00 UTC on each month's first day, a bounded scheduled job captures one
 frozen summary per user for the previous UTC calendar month, with inclusive
 start and exclusive end. Users without qualifying activity receive zero-valued
 rows so retries cannot change an originally empty snapshot.
-The Pipes root bar view displays a live, unsaved report for the current UTC
-month; Statistics lists only captured months. Both use the same spending summary
-calculation. The [event reporting contract](events.md#reporting-and-usage-ranking)
+Statistics starts with a live, unsaved report for the current UTC month, followed
+by captured months. The Pipes root bar view also displays this live card by
+default; an account-scoped, device-local Settings checkbox can hide it from Pipes
+without affecting Statistics. The preference survives sign-out and app restarts
+and does not synchronize across devices. Live and captured reports use the same
+spending summary calculation. The [event reporting contract](events.md#reporting-and-usage-ranking)
 preserves these metrics during reader cutover. Live Volume and Produced reflect current root balances;
 captured values reflect balances at capture time. At 00:00 UTC the live report
 switches months; the closed month appears in Statistics only after capture.

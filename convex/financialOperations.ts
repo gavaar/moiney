@@ -8,16 +8,26 @@ import { editEventFinancialOperation, deleteEventFinancialOperation, createTrans
 
 const operationArgs = { operationId: v.id("events") };
 const actionResult = v.object({
-  operationId: v.id("events"), createdAt: v.number(), title: v.string(), value: v.number(), date: v.number(),
+  operationId: v.id("events"),
+  createdAt: v.number(),
+  title: v.string(),
+  value: v.number(),
+  date: v.number(),
   kind: v.union(v.literal("feed"), v.literal("expense"), v.literal("transfer")),
-  from: v.optional(v.id("pipes")), to: v.optional(v.id("pipes")), paidFrom: v.optional(v.id("pipes")),
+  from: v.optional(v.id("pipes")),
+  to: v.optional(v.id("pipes")),
+  paidFrom: v.optional(v.id("pipes")),
   editedAt: v.optional(v.number()),
 });
 
 export const create = mutation({
   args: {
-    title: v.string(), value: v.number(), date: v.number(),
-    from: v.optional(v.id("pipes")), to: v.optional(v.id("pipes")), paidFrom: v.optional(v.id("pipes")),
+    title: v.string(),
+    value: v.number(),
+    date: v.number(),
+    from: v.optional(v.id("pipes")),
+    to: v.optional(v.id("pipes")),
+    paidFrom: v.optional(v.id("pipes")),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -55,8 +65,12 @@ export const get = query({
 
 export const edit = mutation({
   args: {
-    ...operationArgs, title: v.string(), value: v.number(), date: v.number(),
-    primaryPipeId: v.optional(v.id("pipes")), applyReplacementEffects: v.optional(v.boolean()),
+    ...operationArgs,
+    title: v.string(),
+    value: v.number(),
+    date: v.number(),
+    primaryPipeId: v.optional(v.id("pipes")),
+    applyReplacementEffects: v.optional(v.boolean()),
     target: v.optional(v.union(v.object({ type: v.literal("expense") }), v.object({ type: v.literal("transfer"), to: v.id("pipes") }),
       v.object({ type: v.literal("payByTransfer"), paidFrom: v.id("pipes") }))),
   },

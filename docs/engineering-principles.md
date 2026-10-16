@@ -1,6 +1,6 @@
 # Engineering Principles
 
-This document explains how Moiney applies software-design principles. `AGENTS.md` contains the concise mandatory rules; this document contains the reasoning used when choosing a design.
+This document explains how Moiney applies software-design principles, including deep modules and information hiding from *A Philosophy of Software Design*. `AGENTS.md` contains the concise mandatory rules; this document contains the reasoning used when choosing a design.
 
 ## Optimize For Understanding
 
@@ -13,6 +13,26 @@ The primary design goal is to make important behavior easy to understand and dif
 - Avoid making every caller understand the same edge cases.
 
 Before adding an abstraction, identify what complexity it hides. A wrapper that only renames another function is not a deep module.
+
+## Strategic Design
+
+Invest in interfaces and ownership that make the current change and subsequent changes easier to understand. Resolve the underlying source of complexity rather than distributing symptom-specific patches across callers.
+
+Keep that investment proportional to demonstrated needs: strategic design means the smallest complete design that hides today's complexity, not speculative infrastructure for hypothetical consumers. When urgent containment is necessary, distinguish it from the durable correction rather than treating the workaround as an approved pattern.
+
+## Complexity Signals
+
+Use these signals when choosing or reviewing a design:
+
+- **Change amplification:** one conceptual change requires edits across many modules. Move the shared decision into the module that owns it.
+- **Cognitive load:** callers must learn internal representations, sequencing, or repeated edge cases. Hide those requirements behind a simpler interface.
+- **Unknown unknowns:** dependencies or consequences are difficult to discover. Make ownership, invariants, and dependency direction explicit so the affected behavior and tests are discoverable.
+
+## General-Purpose Interfaces
+
+Prefer one coherent operation that serves demonstrated use cases over caller-specific flags and special-case branches. An interface should express domain intent and make correct use straightforward.
+
+Generalize only what actually repeats or varies. Keep the interface focused on current consumers; add configuration or extension seams when a concrete requirement earns their complexity.
 
 ## Make Invalid States Unrepresentable
 

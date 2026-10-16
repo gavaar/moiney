@@ -52,9 +52,9 @@ export function calculatePipeRulePatch(
 }
 
 export function splitEvenly<TPipeId extends string>(
-  children: Array<{ id: TPipeId; capacity?: number; fed?: number }>,
+  children: { id: TPipeId; capacity?: number; fed?: number }[],
   budget: number,
-): Array<{ childId: TPipeId; amount: number }> {
+): { childId: TPipeId; amount: number }[] {
   if (budget === 0 || children.length === 0) return [];
 
   if (budget < 0) {
@@ -130,13 +130,13 @@ export function shouldTriggerPipeRule(
 
 export function calculatePipeAllocations<TPipeId extends string>(
   parentFed: number,
-  children: Array<{
+  children: {
     id: TPipeId;
     priority: number;
     capacity?: number;
     fed?: number;
-  }>,
-): Array<{ childId: TPipeId; amount: number }> {
+  }[],
+): { childId: TPipeId; amount: number }[] {
   if (parentFed === 0 || children.length === 0) return [];
 
   const groups = new Map<number, typeof children>();
@@ -149,7 +149,7 @@ export function calculatePipeAllocations<TPipeId extends string>(
   const sortedPriorities = [...groups.keys()].sort((a, b) =>
     parentFed > 0 ? a - b : b - a,
   );
-  const allocations: Array<{ childId: TPipeId; amount: number }> = [];
+  const allocations: { childId: TPipeId; amount: number }[] = [];
   let remaining = parentFed;
 
   for (const priority of sortedPriorities) {
@@ -186,12 +186,12 @@ export function computePipeDerivedValues(
     fed?: number;
     pendingFedAdjustment?: number;
   },
-  children: Array<{
+  children: {
     capacity?: number;
     spent?: number;
     fed?: number;
     pendingFedAdjustment?: number;
-  }>,
+  }[],
 ): {
   capacity?: number;
   spent: number;
@@ -221,14 +221,14 @@ export function computePipeDerivedValues(
 }
 
 export function computePipeTree<TPipeId extends string>(
-  pipes: Array<{
+  pipes: {
     _id: TPipeId;
     parentId?: TPipeId;
     capacity?: number;
     spent?: number;
     fed?: number;
     pendingFedAdjustment?: number;
-  }>,
+  }[],
 ): Map<
   TPipeId,
   {
@@ -267,7 +267,7 @@ export function computePipeTree<TPipeId extends string>(
 type ReconciliationState<TPipeId extends string> = {
   childrenByParent: Map<
     TPipeId,
-    Array<{ _id: TPipeId; priority: number; capacity?: number }>
+    { _id: TPipeId; priority: number; capacity?: number }[]
   >;
   computed: Map<TPipeId, { capacity?: number }>;
   fedById: Map<TPipeId, number>;
@@ -350,14 +350,14 @@ function distributeFed<TPipeId extends string>(
 }
 
 export function recalculatePipes<TPipeId extends string>(
-  pipes: Array<{
+  pipes: {
     _id: TPipeId;
     parentId?: TPipeId;
     priority: number;
     capacity?: number;
     fed?: number;
-  }>,
-): Array<{ _id: TPipeId; fed: number }> {
+  }[],
+): { _id: TPipeId; fed: number }[] {
   if (pipes.length === 0) return [];
 
   const computed = computePipeTree(pipes);

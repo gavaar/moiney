@@ -8,10 +8,27 @@ import { PipesList } from "./PipesList";
 
 const pipes: PipeModel[] = [
   { id: "root" as Id<"pipes">, name: "Main", icon: "wallet", priority: 0, capacity: 0, fed: 0, spent: 0 },
-  { id: "source" as Id<"pipes">, parentId: "root" as Id<"pipes">, contingencyPipeId: "donor" as Id<"pipes">,
-    name: "Groceries", icon: "cart-outline", priority: 0, capacity: 4000, fed: 4000, spent: 7000 },
-  { id: "donor" as Id<"pipes">, parentId: "root" as Id<"pipes">, name: "Reserve", icon: "cash-outline", priority: 1,
-    capacity: 6000, fed: 6000, spent: 4000 },
+  {
+    id: "source" as Id<"pipes">,
+    parentId: "root" as Id<"pipes">,
+    contingencyPipeId: "donor" as Id<"pipes">,
+    name: "Groceries",
+    icon: "cart-outline",
+    priority: 0,
+    capacity: 4000,
+    fed: 4000,
+    spent: 7000
+  },
+  {
+    id: "donor" as Id<"pipes">,
+    parentId: "root" as Id<"pipes">,
+    name: "Reserve",
+    icon: "cash-outline",
+    priority: 1,
+    capacity: 6000,
+    fed: 6000,
+    spent: 4000
+  },
 ];
 let mockAllPipes: PipeModel[];
 

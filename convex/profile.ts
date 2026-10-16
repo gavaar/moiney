@@ -77,7 +77,7 @@ export const cleanupOrphanedProfilePictures = internalMutation({
     }
 
     const cutoff = Date.now() - ORPHAN_GRACE_MS;
-    const orphans: Array<{ _id: Id<"_storage"> }> = [];
+    const orphans: { _id: Id<"_storage"> }[] = [];
 
     for await (const file of ctx.db.system.query("_storage")) {
       if (orphans.length >= MAX_ORPHAN_DELETIONS_PER_RUN) break;

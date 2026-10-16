@@ -70,9 +70,7 @@ describe("Breadcrumb", () => {
     const selectPipe = vi.fn();
     mockUsePipeSelection.mockReturnValue({
       selectedPipePath: ["pipe-1", "pipe-2", "pipe-3"],
-      allPipes: [
-        { id: "pipe-1", name: "Groceries" },
-      ],
+      allPipes: [{ id: "pipe-1", name: "Groceries" },],
       selectPipe,
     });
     const user = userEvent.setup();

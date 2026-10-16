@@ -14,8 +14,8 @@ export function useAddFeedForm(onSuccess: () => void): FormProps<AddFeedDraft> &
   const [resetVersion, setResetVersion] = useState(0);
   const showAlert = useAlert();
   const addFeed = useMutation(api.pipes.addFeed);
-  const form = buildAddFeedForm(draft, loading);
-  const canSubmit = form.every((field) => {
+  const pages = buildAddFeedForm(draft, loading);
+  const canSubmit = pages.flatMap(page => page.rows.flat()).every((field) => {
     if (field.key === "isBoiler" || field.key === "description") return true;
     return field.input.validator(draft[field.key]) === undefined;
   }) && !loading;
@@ -52,7 +52,7 @@ export function useAddFeedForm(onSuccess: () => void): FormProps<AddFeedDraft> &
   return {
     resetVersion,
     header: <Text accessibilityRole="header" className="text-lg font-semibold text-text">{draft.isBoiler ? "Create Boiler" : "Create Feed"}</Text>,
-    form,
+    pages,
     value: draft,
     onChange: value => setDraft(previous => ({ ...previous, ...value })),
     actions: <FormActionRow onClear={handleClear} clearDisabled={loading}>

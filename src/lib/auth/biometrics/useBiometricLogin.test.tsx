@@ -4,8 +4,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useBiometricLogin } from "./useBiometricLogin";
 
 const vault = vi.hoisted(() => ({
-  isAvailable: vi.fn(), readPreferences: vi.fn(), writePreferences: vi.fn(),
-  save: vi.fn(), unlock: vi.fn(), remove: vi.fn(),
+  isAvailable: vi.fn(),
+  readPreferences: vi.fn(),
+  writePreferences: vi.fn(),
+  save: vi.fn(),
+  unlock: vi.fn(),
+  remove: vi.fn(),
 }));
 vi.mock("./vault", () => ({ biometricVault: vault }));
 const credentials = { accountKey: "https://test.convex.cloud:alice", username: "alice", password: "secret" };

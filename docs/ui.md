@@ -18,8 +18,15 @@ input dispatcher's detailed public contract is in [Input](input.md).
 - Application code uses `src/components/ui/Input/Input.tsx`, not its variant
   components directly. Preserve the dispatcher contract unless an approved
   refactor replaces it.
-- Every modal dismisses on backdrop tap. Modal content has no close button,
+- Every modal requests dismissal on backdrop tap. Pipe creation and editing
+  confirm discarding unsaved changes before dismissal, including system Back;
+  step navigation preserves drafts. Modal content has no close button,
   close icon, or other dismissal-only control; domain actions remain allowed.
+- `ModalShell` bottom-anchors content above reserved keyboard space. Content hugs
+  its height and grows upward within safe-area bounds; a keyboard that overlaps
+  the reserved anchor reduces the available region. Accessories sit below the
+  content in that same region. Content owns overflow scrolling; do not wrap forms
+  or virtualized lists in another shell-level ScrollView.
 - Mandatory [app updates](app-updates.md) use a screen-level gate, not a modal.
 - Pipe list minimization is an account-scoped, device-local display preference.
   It survives sign-out and app restarts, is not synchronized through Convex,

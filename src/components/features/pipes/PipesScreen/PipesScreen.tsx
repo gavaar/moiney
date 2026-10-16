@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, BackHandler, Pressable, Text, View } from "react-native";
+import { BackHandler, Pressable, Text, View } from "react-native";
 import { useFocusEffect } from "expo-router/react-navigation";
 import { useNavigation } from "expo-router";
 import type { ParamListBase } from "expo-router/react-navigation";
@@ -8,8 +8,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { AppScreenHeader } from "@features/app/AppScreenHeader";
 import { SlideToggle } from "@ui/SlideToggle";
 import { Icon } from "@ui/Icon";
-import { MonthlyStatisticsCard } from "@features/statistics/MonthlyStatisticsCard";
-import { useCurrentMonthReportContext } from "@features/statistics/CurrentMonthReportContext";
+import { CurrentMonthStatisticsCard } from "@features/statistics/CurrentMonthStatisticsCard";
+import { useMonthlyCardPreference } from "@features/statistics/preferences/MonthlyCardPreference";
 import { colors } from "@/lib/styles";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
@@ -37,7 +37,7 @@ export function PipesScreen({ openPipeId, onPipeOpened, onOpenCurrentReport }: {
       setLatestExpanded(true);
     }
   }
-  const { report } = useCurrentMonthReportContext();
+  const { ready, showInMain } = useMonthlyCardPreference();
   useEffect(() => {
     if (!openPipeId || !allPipes) return;
     const path: NonNullable<typeof allPipes>[number]["id"][] = [];
@@ -113,13 +113,9 @@ export function PipesScreen({ openPipeId, onPipeOpened, onOpenCurrentReport }: {
         }
       />
 
-      {!treeMode && !selectedName ? (
+      {ready && showInMain && !treeMode && !selectedName ? (
         <View className="px-2 pb-3">
-          {report ? (
-            <MonthlyStatisticsCard report={report} live offenderIcon={allPipes?.find((pipe) => pipe.id === report.offenders?.[0]?.pipeId)?.icon} onPress={() => onOpenCurrentReport?.()} />
-          ) : (
-            <ActivityIndicator accessibilityLabel="Loading current month summary" color={colors.primary} />
-          )}
+          <CurrentMonthStatisticsCard onPress={onOpenCurrentReport} />
         </View>
       ) : null}
       <View className="flex-1 px-2">

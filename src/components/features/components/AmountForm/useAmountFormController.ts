@@ -143,13 +143,13 @@ export function useAmountFormController(props: AmountFormProps) {
   );
   const paidFromGroups = useMemo(() => isNegative
     ? groupPipesByRoot(
-        paidFromPipeItems.flatMap(item => {
-          const pipe = pipesById[item.id];
-          return pipe ? [pipe] : [];
-        }),
-        allPipes ?? [],
-        { preferredPipeId: paidFromPipeId ?? undefined, expandFirst: true },
-      )
+      paidFromPipeItems.flatMap(item => {
+        const pipe = pipesById[item.id];
+        return pipe ? [pipe] : [];
+      }),
+      allPipes ?? [],
+      { preferredPipeId: paidFromPipeId ?? undefined, expandFirst: true },
+    )
     : [], [allPipes, isNegative, paidFromPipeId, paidFromPipeItems, pipesById]);
 
   const invalidPreviousPipeIds = useMemo(() => {
@@ -187,8 +187,10 @@ export function useAmountFormController(props: AmountFormProps) {
     const lines = plan.deltas.map(delta => {
       const pipe = pipesById[delta.pipeId];
       const fields = [
-        ["fed", delta.fedDelta], ["spent", delta.spentDelta],
-        ["pending", delta.pendingFedAdjustmentDelta], ["contributed", pipe?.sourceType === "boiler" ? delta.contributedFedDelta : 0],
+        ["fed", delta.fedDelta],
+        ["spent", delta.spentDelta],
+        ["pending", delta.pendingFedAdjustmentDelta],
+        ["contributed", pipe?.sourceType === "boiler" ? delta.contributedFedDelta : 0],
       ] as const;
       return `${pipe?.name ?? initialTransaction?.pipeName ?? "Previous pipe"}: ${fields.filter(([, amount]) => amount !== 0).map(([field, amount]) => `${field} ${amount > 0 ? "+" : ""}${formatAmount(amount)}`).join(", ")}`;
     });
@@ -214,10 +216,10 @@ export function useAmountFormController(props: AmountFormProps) {
     intent === "edit"
       ? "Update transaction"
       : getButtonLabel(
-          isFeed ? "feed" : "spend",
-          isNegative,
-          destinationPipeName,
-        );
+        isFeed ? "feed" : "spend",
+        isNegative,
+        destinationPipeName,
+      );
 
   const resetForm = useCallback(() => {
     setTitle("");
@@ -301,8 +303,14 @@ export function useAmountFormController(props: AmountFormProps) {
   }, [handleEditSubmit, handleRepeatSubmit, intent, isValid, loading, showAlert]);
 
   const draft: AmountFormDraft = {
-    modeTransfer: spendMode === "transfer", sourcePipeId: pipeId, title, value, date, currentFed: currentFedValue,
-    sentTo: sentToPipeId, paidFrom: paidFromPipeId,
+    modeTransfer: spendMode === "transfer",
+    sourcePipeId: pipeId,
+    title,
+    value,
+    date,
+    currentFed: currentFedValue,
+    sentTo: sentToPipeId,
+    paidFrom: paidFromPipeId,
   };
 
   function updateDraft(next: Partial<AmountFormDraft>) {
@@ -336,10 +344,10 @@ export function useAmountFormController(props: AmountFormProps) {
       : null,
     boiler: props.variant === "boiler"
       ? {
-          contributionAmount: boilerContributionAmount,
-          currentFedChanged,
-          name: props.boilerName,
-        }
+        contributionAmount: boilerContributionAmount,
+        currentFedChanged,
+        name: props.boilerName,
+      }
       : null,
     common: {
       loading,
@@ -349,28 +357,28 @@ export function useAmountFormController(props: AmountFormProps) {
     isFeed,
     spend: !isFeed && (!isTransaction || intent !== "edit" || canEditStructure)
       ? {
-          isNegative,
-          mode: spendMode,
-           paidFromPipeItems,
-           paidFromGroups,
-          pipeItems,
-          setShowPaidFrom,
-          showPaidFrom,
-        }
+        isNegative,
+        mode: spendMode,
+        paidFromPipeItems,
+        paidFromGroups,
+        pipeItems,
+        setShowPaidFrom,
+        showPaidFrom,
+      }
       : null,
     transaction: initialTransaction
       ? {
-          initial: initialTransaction,
-          intent,
-          paidFrom:
+        initial: initialTransaction,
+        intent,
+        paidFrom:
             intent === "edit" && initialStructure?.type === "payByTransfer"
-            ? {
+              ? {
                 items: paidFromPipeItems,
                 groups: paidFromGroups,
                 label: isNegative ? "Paid from" : "Refunded to",
               }
-            : null,
-        }
+              : null,
+      }
       : null,
   };
 }

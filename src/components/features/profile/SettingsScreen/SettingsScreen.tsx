@@ -1,16 +1,18 @@
 import { useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { ScrollView, Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/lib/auth";
 import { ScreenHeader } from "@ui/ScreenHeader/ScreenHeader";
 import { Button } from "@ui/Button";
 import { Input } from "@ui/Input";
 import { ModalShell } from "@ui/Modal";
+import { useMonthlyCardPreference } from "@features/statistics/preferences/MonthlyCardPreference";
 
 type SettingsAction = { type: "enable"; password: string } | { type: "disable" } | null;
 
 export function SettingsScreen({ onBack }: { onBack: () => void }) {
   const { biometrics } = useAuth();
+  const { ready, showInMain, setShowInMain } = useMonthlyCardPreference();
   const [action, setAction] = useState<SettingsAction>(null);
   const close = () => setAction(null);
 
@@ -18,15 +20,21 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
     <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-background px-4">
       <ScreenHeader title="Settings" left={<Button title="Back" icon="arrow-back" variant="muted" onPress={onBack} />} />
       <ScrollView contentContainerClassName="gap-3 pb-8">
-        <Text className="text-lg font-semibold text-text">Use biometric login</Text>
         <Input
-          type="toggle"
+          type="checkbox"
+          label="Show monthly statistics card in main view"
+          value={showInMain}
+          disabled={!ready}
+          onChange={setShowInMain}
+        />
+        <Text className="text-sm leading-5 text-muted">
+          Shows the current month’s live statistics at the top of the main view. You can always find this card in Statistics, even when this option is off.
+        </Text>
+        <Input
+          type="checkbox"
+          label="Use biometric login"
           value={biometrics.enabled}
           disabled={biometrics.loading || biometrics.busy || (!biometrics.available && !biometrics.enabled)}
-          options={[
-            { label: "Disabled", icon: "close", selectedBackgroundClassName: "bg-errorMuted" },
-            { label: "Enabled", icon: "checkmark", selectedBackgroundClassName: "bg-primaryMuted" },
-          ]}
           onChange={(enabled) => {
             if (enabled !== biometrics.enabled) setAction(enabled ? { type: "enable", password: "" } : { type: "disable" });
           }}
@@ -38,7 +46,7 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
         {biometrics.error ? <Text accessibilityRole="alert" className="text-sm text-error">{biometrics.error}</Text> : null}
       </ScrollView>
       <ModalShell visible={action !== null} onClose={close}>
-        {action ? <View className="gap-4">
+        {action ? <ScrollView contentContainerClassName="gap-4" style={{ flexGrow: 0, flexShrink: 1 }} keyboardShouldPersistTaps="handled">
           <Text className="text-lg font-bold text-text">{action.type === "enable" ? "Enable biometric login" : "Disable biometric login?"}</Text>
           <Text className="text-sm leading-5 text-muted">
             {action.type === "enable"
@@ -57,7 +65,7 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
               if (succeeded) setAction(null);
             }}
           />
-        </View> : null}
+        </ScrollView> : null}
       </ModalShell>
     </SafeAreaView>
   );

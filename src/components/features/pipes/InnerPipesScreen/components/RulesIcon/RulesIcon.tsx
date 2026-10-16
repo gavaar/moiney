@@ -8,7 +8,7 @@ import {
   computeCronIntervalProgress,
   type CronUnit,
 } from "@domain/scheduling";
-import { RuleModal } from "./RuleModal";
+import { EditPipeModal } from "@features/pipes/InnerPipesScreen/components/EditPipeModal";
 import { RULE_OPTIONS, type RuleId } from "@features/pipes/rules/config";
 import { selfDestructProgress } from "@domain/pipes/rules";
 
@@ -98,7 +98,7 @@ export function RulesIcon({
         {ruleContent}
       </TouchableOpacity>
       {modalVisible ? (
-        <RuleModal visible onClose={() => setModalVisible(false)} pipeId={pipeId} />
+        <EditPipeModal visible initialStep={3} onClose={() => setModalVisible(false)} pipeId={pipeId} />
       ) : null}
     </>
   );

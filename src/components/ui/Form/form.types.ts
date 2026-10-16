@@ -21,9 +21,24 @@ export type FormField<V extends FormValue, Key extends string = string> = {
     expanded: boolean;
     onReveal: () => void;
   };
-  step?: number;
-  row?: string;
 };
+
+type FieldForValues<
+  Values extends Record<string, FormValue>,
+  Keys extends keyof Values & string = keyof Values & string,
+> = { [K in Keys]: FormField<Values[K], K> }[Keys];
+
+export type FormRow<
+  Values extends Record<string, FormValue>,
+  Keys extends keyof Values & string = keyof Values & string,
+> = readonly FieldForValues<Values, Keys>[];
+
+export type FormPage<
+  Values extends Record<string, FormValue>,
+  Keys extends keyof Values & string = keyof Values & string,
+> = { key: number; rows: readonly FormRow<Values, Keys>[] };
+
+export type FormNavigation = { step: number; onChange: (step: number) => void };
 
 export type FormProps<
   Values extends Record<string, FormValue>,
@@ -32,10 +47,9 @@ export type FormProps<
   header?: JSX.Element;
   warnings?: JSX.Element;
   actions?: JSX.Element;
-  activeStep?: number;
-  onStepChange?: (step: number) => void;
+  navigation?: FormNavigation;
   fill?: boolean;
-  form: readonly { [K in Keys]: FormField<Values[K], K> }[Keys][];
+  pages: readonly FormPage<Values, Keys>[];
   value: Values;
   onChange: (value: Pick<Values, NoInfer<Keys>>) => void;
 };

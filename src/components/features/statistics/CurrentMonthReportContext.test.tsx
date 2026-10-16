@@ -7,10 +7,13 @@ import { CurrentMonthReportProvider, useCurrentMonthReportContext } from "./Curr
 const mocks = vi.hoisted(() => ({
   sessions: 0,
   args: [] as unknown[],
-  results: [{
-    summary: { totalIncomeCents: 0, grossSpendingCents: 700, refundCents: 0, spendingTransactionCount: 1, refundTransactionCount: 0, largestSpendingTransactionCents: 700 },
-    pipeSpending: [], titleSpending: [],
-  }],
+  results: [
+    {
+      summary: { totalIncomeCents: 0, grossSpendingCents: 700, refundCents: 0, spendingTransactionCount: 1, refundTransactionCount: 0, largestSpendingTransactionCents: 700 },
+      pipeSpending: [],
+      titleSpending: [],
+    }
+  ],
   allPipes: [{ id: "root", name: "Root", fed: 1_000, spent: 0, capacity: 0 }],
 }));
 

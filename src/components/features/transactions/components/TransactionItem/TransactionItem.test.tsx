@@ -578,9 +578,7 @@ describe("TransactionItem pay-by-transfer variant", () => {
         "rent-pipe": rentPipe,
         [salaryChild.id]: salaryChild,
       },
-      childrenByParent: new Map([
-        [salaryPipe.id, [salaryChild]],
-      ]),
+      childrenByParent: new Map([[salaryPipe.id, [salaryChild]],]),
     });
     const tx = {
       ...baseTx,
