@@ -1,11 +1,12 @@
 import { useCallback, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { cn } from "@/lib/styles";
 import { Icon } from "@ui/Icon";
-import { getBorderStyle } from "../../input.config";
+import { getBorderStyle } from "../../../input.config";
 import { MONTH_LABELS } from "./calendar";
 import { Calendar } from "./components";
-import { InputError, useInputValidation } from "../../useInputValidation";
+import { InputError, useInputValidation } from "../../../useInputValidation";
+import { InputWrapper } from "../../InputWrapper/InputWrapper";
 
 type Props = {
   label: string;
@@ -57,23 +58,23 @@ export function DateInput({
   return (
     <View className="gap-1">
       {!hideLabel ? <Text className="text-sm font-medium text-text">{label}</Text> : null}
-      <Pressable
+      <InputWrapper
         testID="date-trigger"
         accessibilityRole="button"
         accessibilityLabel={label}
         accessibilityState={{ disabled }}
         onPress={handleTrigger}
+        borderStyle={borderStyle}
         className={cn(
-          "rounded-lg border bg-surface px-3 py-2 flex-row items-center justify-between",
+          "flex-row items-center justify-between",
           disabled && "opacity-50",
-          borderStyle,
         )}
       >
         <Text className={cn("text-base", disabled ? "text-muted" : "text-text")}>
           {value ? formatDate(value) : placeholder ?? "Any date"}
         </Text>
         <Icon name="calendar-outline" size={16} color={disabled ? "#9CA3AF" : "#F8F8F8"} />
-      </Pressable>
+      </InputWrapper>
       <InputError error={error} />
 
       {showPicker && onChange ? (

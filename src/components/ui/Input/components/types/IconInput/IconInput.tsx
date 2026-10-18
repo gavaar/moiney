@@ -9,7 +9,8 @@ import {
 import { cn, colors } from "@/lib/styles";
 import { Icon, CURATED_ICONS, type IconName } from "@ui/Icon";
 import { ModalShell } from "@ui/Modal";
-import { InputError, useInputValidation } from "../../useInputValidation";
+import { InputError, useInputValidation } from "../../../useInputValidation";
+import { InputWrapper } from "../../InputWrapper/InputWrapper";
 
 type Props = {
   label: string;
@@ -38,17 +39,15 @@ export function IconInput({ label, value, onChange, validator, disabled, onError
   return (
     <View className={cn("gap-1", disabled && "opacity-60")}>
       <Text className="text-sm font-medium text-text">{label}</Text>
-      <Pressable
+      <InputWrapper
         testID="icon-picker-trigger"
         accessibilityRole="button"
         accessibilityLabel={label}
         accessibilityState={{ disabled, expanded: open }}
         aria-expanded={open}
         onPress={() => !disabled && setOpen(true)}
-        className={cn(
-          "rounded-lg border bg-surface px-3 py-2 flex-row items-center gap-2",
-          error !== undefined ? "border-error" : "border-border",
-        )}
+        borderStyle={error !== undefined ? "border-error" : "border-border"}
+        className="flex-row items-center gap-2"
       >
         {value ? (
           <>
@@ -58,7 +57,7 @@ export function IconInput({ label, value, onChange, validator, disabled, onError
         ) : (
           <Text className="text-base text-muted">---</Text>
         )}
-      </Pressable>
+      </InputWrapper>
       <InputError error={error} />
 
       <ModalShell

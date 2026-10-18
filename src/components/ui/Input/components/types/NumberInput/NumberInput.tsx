@@ -6,8 +6,9 @@ import {
   View,
 } from "react-native";
 import { cn } from "@/lib/styles";
-import { getBorderStyle } from "../../input.config";
-import { InputError, useInputValidation } from "../../useInputValidation";
+import { getBorderStyle } from "../../../input.config";
+import { InputError, useInputValidation } from "../../../useInputValidation";
+import { InputWrapper } from "../../InputWrapper/InputWrapper";
 
 type Props = {
   label: string;
@@ -106,20 +107,19 @@ export function NumberInput({
           <Text className={cn("text-xl", disabled || atMin ? "text-muted" : "text-text")}>−</Text>
         </Pressable>
 
-        <TextInput
-          className={cn(
-            "flex-1 rounded-lg border bg-surface px-3 py-2 text-center text-base text-text",
-            borderStyle,
-          )}
-          keyboardType="numeric"
-          accessibilityLabel={label}
-          value={String(value)}
-          onChangeText={handleChangeText}
-          editable={!disabled}
-          onFocus={() => !disabled && setFocused(true)}
-          onBlur={handleBlur}
-          placeholderTextColor="#9CA3AF"
-        />
+        <InputWrapper borderStyle={borderStyle} className="flex-1">
+          <TextInput
+            className="w-full p-0 text-center text-base text-text"
+            keyboardType="numeric"
+            accessibilityLabel={label}
+            value={String(value)}
+            onChangeText={handleChangeText}
+            editable={!disabled}
+            onFocus={() => !disabled && setFocused(true)}
+            onBlur={handleBlur}
+            placeholderTextColor="#9CA3AF"
+          />
+        </InputWrapper>
 
         <Pressable
           testID="increment-button"

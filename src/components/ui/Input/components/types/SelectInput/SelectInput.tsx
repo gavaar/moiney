@@ -3,7 +3,8 @@ import { ActivityIndicator, FlatList, Pressable, ScrollView, Text, View, type St
 import { cn, colors } from "@/lib/styles";
 import { Icon, safeIconName } from "@ui/Icon";
 import { ModalShell } from "@ui/Modal";
-import { InputError, useInputValidation } from "../../useInputValidation";
+import { InputError, useInputValidation } from "../../../useInputValidation";
+import { InputWrapper } from "../../InputWrapper/InputWrapper";
 
 export type SelectGroup = {
   id: string;
@@ -153,7 +154,7 @@ export function SelectInput({ label, hideLabel, items, groups, renderItem, itemS
   return (
     <View className={cn("gap-1", disabled && "opacity-60")}>
       {!hideLabel ? <Text className="text-sm font-medium text-text">{label}</Text> : null}
-      <Pressable
+      <InputWrapper
         testID="select-trigger"
         accessibilityRole="button"
         accessibilityLabel={label}
@@ -161,10 +162,8 @@ export function SelectInput({ label, hideLabel, items, groups, renderItem, itemS
         disabled={disabled || loading}
         aria-expanded={open}
         onPress={handleTriggerPress}
-        className={cn(
-          "rounded-lg border bg-surface px-3 py-2 flex-row items-center gap-2",
-          error !== undefined ? "border-error" : "border-border",
-        )}
+        borderStyle={error !== undefined ? "border-error" : "border-border"}
+        className="flex-row items-center gap-2"
       >
         {multiple && value.length > 0 ? (
           <Text className="text-base text-text">{value.length} selected</Text>
@@ -173,7 +172,7 @@ export function SelectInput({ label, hideLabel, items, groups, renderItem, itemS
         ) : (
           <Text className="text-base text-muted">{placeholder ?? "Select..."}</Text>
         )}
-      </Pressable>
+      </InputWrapper>
       <InputError error={error} />
 
       <ModalShell visible={open} onClose={() => {

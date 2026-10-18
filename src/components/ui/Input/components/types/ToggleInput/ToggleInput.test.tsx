@@ -3,7 +3,7 @@ import { describe, expect, expectTypeOf, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { IconName } from "@ui/Icon";
-import { Input, type InputProps } from "../../Input";
+import { Input, type InputProps } from "../../../Input";
 import { useState } from "react";
 
 const options = [

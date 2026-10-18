@@ -1,5 +1,5 @@
 import type { ComponentProps } from "react";
-import { DateInput, DecimalInput, TextInput, NumberInput, IconInput, CheckboxInput, SelectInput, TextSelectInput, ToggleInput } from "./components";
+import { DateInput, DecimalInput, TextInput, NumberInput, IconInput, CheckboxInput, SelectInput, TextSelectInput, ToggleInput } from "./components/types";
 
 export type InputProps =
   | (ComponentProps<typeof TextInput> & { type?: "text" })

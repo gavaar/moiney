@@ -12,7 +12,7 @@ choosing a suggestion. Native event translation belongs inside each variant;
 the dispatcher derives its props from the variants rather than duplicating
 their interfaces. Text inputs do not expose `defaultValue` or `onChangeText`.
 
-| `type` | Component folder under `src/components/ui/Input/components/` |
+| `type` | Component folder under `src/components/ui/Input/components/types/` |
 | --- | --- |
 | `text` | `TextInput/` |
 | `number` | `NumberInput/` |

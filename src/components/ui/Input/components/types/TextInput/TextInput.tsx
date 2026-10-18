@@ -9,8 +9,9 @@ import {
 } from "react-native";
 import { cn, colors } from "@/lib/styles";
 import { Icon } from "@ui/Icon";
-import { getBorderStyle } from "../../input.config";
-import { InputError, useInputValidation } from "../../useInputValidation";
+import { getBorderStyle } from "../../../input.config";
+import { InputError, useInputValidation } from "../../../useInputValidation";
+import { InputWrapper } from "../../InputWrapper/InputWrapper";
 
 type Props = Omit<TextInputProps, "value" | "defaultValue" | "onChange" | "onChangeText"> & {
   value: string;
@@ -56,34 +57,33 @@ export function TextInput({
     <View className="gap-1">
       {!hideLabel ? <Text className="text-sm font-medium text-text">{label}</Text> : null}
       <View className="relative">
-        <RNTextInput
-          {...props}
-          value={value}
-          onChangeText={text => {
-            if (disabled || editable === false) return;
-            onChange?.(text);
-          }}
-          accessibilityLabel={label}
-          accessibilityState={{ disabled }}
-          className={cn(
-            "rounded-lg border bg-surface px-3 py-2 text-base text-text",
-            hasTrailing && "pr-10",
-            disabled && "opacity-60",
-            borderStyle,
-            className,
-          )}
-          placeholderTextColor="#9CA3AF"
-          editable={disabled ? false : editable}
-          onFocus={(event) => {
-            if (!disabled) setFocused(true);
-            onFocus?.(event);
-          }}
-          onBlur={(event) => {
-            setFocused(false);
-            if (!disabled && editable !== false) markAsDirty();
-            onBlur?.(event);
-          }}
-        />
+        <InputWrapper
+          borderStyle={borderStyle}
+          className={cn(hasTrailing && "pr-10", disabled && "opacity-60")}
+        >
+          <RNTextInput
+            {...props}
+            value={value}
+            onChangeText={text => {
+              if (disabled || editable === false) return;
+              onChange?.(text);
+            }}
+            accessibilityLabel={label}
+            accessibilityState={{ disabled }}
+            className={cn("w-full p-0 text-base text-text", className)}
+            placeholderTextColor="#9CA3AF"
+            editable={disabled ? false : editable}
+            onFocus={(event) => {
+              if (!disabled) setFocused(true);
+              onFocus?.(event);
+            }}
+            onBlur={(event) => {
+              setFocused(false);
+              if (!disabled && editable !== false) markAsDirty();
+              onBlur?.(event);
+            }}
+          />
+        </InputWrapper>
         {hasTrailing ? (
           <View className="absolute right-3 top-0 bottom-0 flex-row items-center gap-1">
             {status === "checking" ? (

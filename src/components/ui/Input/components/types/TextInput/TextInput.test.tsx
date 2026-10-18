@@ -7,7 +7,7 @@ import { TextInput } from "./TextInput";
 
 const getBorderStyle = vi.fn((..._args: unknown[]) => "");
 
-vi.mock("../../input.config", () => ({
+vi.mock("../../../input.config", () => ({
   getBorderStyle: (...args: unknown[]) => getBorderStyle(...args),
 }));
 

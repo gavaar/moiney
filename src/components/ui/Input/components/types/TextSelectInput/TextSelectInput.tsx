@@ -1,8 +1,9 @@
 import { useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, Text, TextInput as RNTextInput, View } from "react-native";
 import { cn } from "@/lib/styles";
-import { getBorderStyle } from "../../input.config";
-import { InputError, useInputValidation } from "../../useInputValidation";
+import { getBorderStyle } from "../../../input.config";
+import { InputError, useInputValidation } from "../../../useInputValidation";
+import { InputWrapper } from "../../InputWrapper/InputWrapper";
 
 type Props = {
   label?: string;
@@ -48,31 +49,29 @@ export function TextSelectInput({
     <View className="gap-1">
       {label ? <Text className="text-sm font-medium text-text">{label}</Text> : null}
       <View className="relative">
-        <RNTextInput
-          ref={inputRef}
-          className={cn(
-            "rounded-lg border bg-surface px-3 py-2 text-base text-text",
-            disabled && "opacity-60",
-            borderStyle,
-          )}
-           placeholderTextColor="#9CA3AF"
-           accessibilityLabel={label}
-           accessibilityState={{ disabled }}
-           editable={!disabled}
-          value={value}
-          onChangeText={text => {
-            if (disabled) return;
-            onChange?.(text);
-          }}
-          placeholder={placeholder}
-          multiline={multiline}
-          maxLength={maxLength}
-          onFocus={() => !disabled && setFocused(true)}
-          onBlur={() => {
-            setFocused(false);
-            if (!disabled) markAsDirty();
-          }}
-        />
+        <InputWrapper borderStyle={borderStyle} className={cn(disabled && "opacity-60")}>
+          <RNTextInput
+            ref={inputRef}
+            className="w-full p-0 text-base text-text"
+            placeholderTextColor="#9CA3AF"
+            accessibilityLabel={label}
+            accessibilityState={{ disabled }}
+            editable={!disabled}
+            value={value}
+            onChangeText={text => {
+              if (disabled) return;
+              onChange?.(text);
+            }}
+            placeholder={placeholder}
+            multiline={multiline}
+            maxLength={maxLength}
+            onFocus={() => !disabled && setFocused(true)}
+            onBlur={() => {
+              setFocused(false);
+              if (!disabled) markAsDirty();
+            }}
+          />
+        </InputWrapper>
         {showList && (
           <>
             <View

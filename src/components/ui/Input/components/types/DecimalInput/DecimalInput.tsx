@@ -6,8 +6,9 @@ import {
   View,
 } from "react-native";
 import { cn } from "@/lib/styles";
-import { getBorderStyle } from "../../input.config";
-import { InputError, useInputValidation } from "../../useInputValidation";
+import { getBorderStyle } from "../../../input.config";
+import { InputError, useInputValidation } from "../../../useInputValidation";
+import { InputWrapper } from "../../InputWrapper/InputWrapper";
 
 type Props = {
   label: string;
@@ -70,29 +71,30 @@ export function DecimalInput({ label, validator, disabled, value, onChange, onEr
             <Text className="text-base font-bold text-muted w-2 text-center">{isNegative ? "-" : "+"}</Text>
           </Pressable>
         ) : null}
-        <RNTextInput
-          className={cn(
-            "flex-1 rounded-tr-lg rounded-br-lg border bg-surface px-3 py-2 text-base text-text",
-            disabled && "opacity-60",
-            allowNegative ? "" : "rounded-tl-lg rounded-bl-lg",
-            borderStyle,
-          )}
-          keyboardType="decimal-pad"
-          accessibilityLabel={label}
-          accessibilityState={{ disabled }}
-          value={displayValue}
-          onChangeText={handleChangeText}
-          placeholder={placeholder}
-          placeholderTextColor="#9CA3AF"
-          editable={!disabled}
-          onFocus={() => !disabled && setFocused(true)}
-          onBlur={() => {
-            setFocused(false);
-            if (!disabled) {
-              markAsDirty();
-            }
-          }}
-        />
+        <InputWrapper
+          borderStyle={borderStyle}
+          joinedStart={allowNegative}
+          className={cn("flex-1", disabled && "opacity-60")}
+        >
+          <RNTextInput
+            className="w-full p-0 text-base text-text"
+            keyboardType="decimal-pad"
+            accessibilityLabel={label}
+            accessibilityState={{ disabled }}
+            value={displayValue}
+            onChangeText={handleChangeText}
+            placeholder={placeholder}
+            placeholderTextColor="#9CA3AF"
+            editable={!disabled}
+            onFocus={() => !disabled && setFocused(true)}
+            onBlur={() => {
+              setFocused(false);
+              if (!disabled) {
+                markAsDirty();
+              }
+            }}
+          />
+        </InputWrapper>
       </View>
       <InputError error={error} />
     </View>
