@@ -3,10 +3,10 @@ import { Pressable, ScrollView, Text, TextInput as RNTextInput, View } from "rea
 import { cn } from "@/lib/styles";
 import { getBorderStyle } from "../../../input.config";
 import { InputError, useInputValidation } from "../../InputError";
-import { InputWrapper } from "../../InputWrapper";
+import { InputWrapper, type InputActions } from "../../InputWrapper";
 import { InputLabel } from "../../InputLabel";
 
-type Props = {
+type Props = InputActions & {
   label?: string;
   accessibilityLabel?: string;
   value: string;
@@ -32,6 +32,8 @@ export function TextSelectInput({
   maxLength,
   placeholder,
   multiline,
+  prefix,
+  suffix,
 }: Props) {
   const [focused, setFocused] = useState(false);
   const inputRef = useRef<RNTextInput>(null);
@@ -52,7 +54,8 @@ export function TextSelectInput({
     <View className="gap-1">
       <InputLabel label={label} />
       <View className="relative">
-        <InputWrapper borderStyle={borderStyle} className={cn(disabled && "opacity-60")}>
+        <InputWrapper borderStyle={borderStyle} disabled={disabled} prefix={prefix} suffix={suffix}
+          className={cn(disabled && "opacity-60")}>
           <RNTextInput
             ref={inputRef}
             className="w-full p-0 text-base text-text"

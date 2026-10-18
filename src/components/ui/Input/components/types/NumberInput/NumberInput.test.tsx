@@ -9,8 +9,8 @@ describe("NumberInput", () => {
   it("renders label, minus button, value, and plus button", () => {
     render(<NumberInput label="Priority" value={5} onChange={() => {}} />);
     expect(screen.getByText("Priority")).toBeTruthy();
-    expect(screen.getByTestId("decrement-button")).toBeTruthy();
-    expect(screen.getByTestId("increment-button")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Decrease Priority" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Increase Priority" })).toBeTruthy();
     expect(screen.getByDisplayValue("5")).toBeTruthy();
   });
 
@@ -25,37 +25,37 @@ describe("NumberInput", () => {
   it("increments value on plus press", async () => {
     const onChange = vi.fn();
     render(<NumberInput label="Test" value={5} onChange={onChange} />);
-    await userEvent.click(screen.getByTestId("increment-button"));
+    await userEvent.click(screen.getByRole("button", { name: "Increase Test" }));
     expect(onChange).toHaveBeenCalledWith(6);
   });
 
   it("decrements value on minus press", async () => {
     const onChange = vi.fn();
     render(<NumberInput label="Test" value={5} onChange={onChange} />);
-    await userEvent.click(screen.getByTestId("decrement-button"));
+    await userEvent.click(screen.getByRole("button", { name: "Decrease Test" }));
     expect(onChange).toHaveBeenCalledWith(4);
   });
 
   it("does not decrement below min", () => {
     const onChange = vi.fn();
     render(<NumberInput label="Test" value={0} min={0} onChange={onChange} />);
-    fireEvent.click(screen.getByTestId("decrement-button"));
+    fireEvent.click(screen.getByRole("button", { name: "Decrease Test" }));
     expect(onChange).not.toHaveBeenCalled();
   });
 
   it("does not increment above max", () => {
     const onChange = vi.fn();
     render(<NumberInput label="Test" value={10} max={10} onChange={onChange} />);
-    fireEvent.click(screen.getByTestId("increment-button"));
+    fireEvent.click(screen.getByRole("button", { name: "Increase Test" }));
     expect(onChange).not.toHaveBeenCalled();
   });
 
   it("uses custom step", async () => {
     const onChange = vi.fn();
     render(<NumberInput label="Test" value={5} step={3} onChange={onChange} />);
-    await userEvent.click(screen.getByTestId("increment-button"));
+    await userEvent.click(screen.getByRole("button", { name: "Increase Test" }));
     expect(onChange).toHaveBeenCalledWith(8);
-    await userEvent.click(screen.getByTestId("decrement-button"));
+    await userEvent.click(screen.getByRole("button", { name: "Decrease Test" }));
     expect(onChange).toHaveBeenCalledWith(2);
   });
 

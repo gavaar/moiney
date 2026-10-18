@@ -1,7 +1,6 @@
 import { useState } from "react";
 import {
   ActivityIndicator,
-  Pressable,
   Text,
   TextInput as RNTextInput,
   View,
@@ -11,15 +10,13 @@ import { cn, colors } from "@/lib/styles";
 import { Icon } from "@ui/Icon";
 import { getBorderStyle } from "../../../input.config";
 import { InputError, useInputValidation } from "../../InputError";
-import { InputWrapper } from "../../InputWrapper";
+import { InputWrapper, type InputActions } from "../../InputWrapper";
 import { InputLabel } from "../../InputLabel";
 
-type Props = Omit<TextInputProps, "value" | "defaultValue" | "onChange" | "onChangeText"> & {
+type Props = InputActions & Omit<TextInputProps, "value" | "defaultValue" | "onChange" | "onChangeText"> & {
   value: string;
   label?: string;
   disabled?: boolean;
-  endIcon?: "eye" | "eye-off";
-  onEndIconPress?: () => void;
   status?: "checking" | "available" | "unavailable";
   maxLength?: number;
   onChange?: (value: string) => void;
@@ -33,8 +30,6 @@ export function TextInput({
   validator,
   className,
   disabled,
-  endIcon,
-  onEndIconPress,
   status,
   maxLength,
   editable,
@@ -43,6 +38,8 @@ export function TextInput({
   onChange,
   onError,
   value,
+  prefix,
+  suffix,
   ...props
 }: Props) {
   const [focused, setFocused] = useState(false);
@@ -51,72 +48,58 @@ export function TextInput({
 
   const borderStyle = getBorderStyle(disabled, focused, error);
 
-  const hasTrailing = !!(status || endIcon);
   const currentLength = String(value ?? "").length;
 
   return (
     <View className="gap-1">
       <InputLabel label={label} />
-      <View className="relative">
-        <InputWrapper
-          borderStyle={borderStyle}
-          className={cn(hasTrailing && "pr-10", disabled && "opacity-60")}
-        >
-          <RNTextInput
-            {...props}
-            value={value}
-            onChangeText={text => {
-              if (disabled || editable === false) return;
-              onChange?.(text);
-            }}
-            accessibilityLabel={inputLabel}
-            accessibilityState={{ disabled }}
-            className={cn("w-full p-0 text-base text-text", className)}
-            placeholderTextColor="#9CA3AF"
-            editable={disabled ? false : editable}
-            onFocus={(event) => {
-              if (!disabled) setFocused(true);
-              onFocus?.(event);
-            }}
-            onBlur={(event) => {
-              setFocused(false);
-              if (!disabled && editable !== false) markAsDirty();
-              onBlur?.(event);
-            }}
+      <InputWrapper
+        borderStyle={borderStyle}
+        disabled={disabled}
+        prefix={prefix}
+        suffix={suffix}
+        contentClassName="flex-row items-center gap-2"
+        className={cn(disabled && "opacity-60")}
+      >
+        <RNTextInput
+          {...props}
+          value={value}
+          onChangeText={text => {
+            if (disabled || editable === false) return;
+            onChange?.(text);
+          }}
+          accessibilityLabel={inputLabel}
+          accessibilityState={{ disabled }}
+          className={cn("min-w-0 flex-1 p-0 text-base text-text", className)}
+          placeholderTextColor="#9CA3AF"
+          editable={disabled ? false : editable}
+          onFocus={(event) => {
+            if (!disabled) setFocused(true);
+            onFocus?.(event);
+          }}
+          onBlur={(event) => {
+            setFocused(false);
+            if (!disabled && editable !== false) markAsDirty();
+            onBlur?.(event);
+          }}
+        />
+        {status === "checking" ? (
+          <ActivityIndicator
+            testID="status-checking"
+            accessibilityLabel={`${inputLabel ?? "Input"} checking`}
+            size="small"
+            color={colors.secondary}
           />
-        </InputWrapper>
-        {hasTrailing ? (
-          <View className="absolute right-3 top-0 bottom-0 flex-row items-center gap-1">
-            {status === "checking" ? (
-              <ActivityIndicator
-                testID="status-checking"
-                accessibilityLabel={`${inputLabel ?? "Input"} checking`}
-                size="small"
-                color={colors.secondary}
-              />
-            ) : status === "available" ? (
-              <View accessible accessibilityRole="image" accessibilityLabel={`${inputLabel ?? "Input"} available`}>
-                <Icon testID="status-available" name="checkmark-circle" size={20} color={colors.success} />
-              </View>
-            ) : status === "unavailable" ? (
-              <View accessible accessibilityRole="image" accessibilityLabel={`${inputLabel ?? "Input"} unavailable`}>
-                <Icon testID="status-unavailable" name="close-circle" size={20} color={colors.error} />
-              </View>
-            ) : null}
-            {endIcon ? (
-              <Pressable
-                testID="end-icon-button"
-                accessibilityRole="button"
-                accessibilityLabel={endIcon === "eye" ? "Show password" : "Hide password"}
-                onPress={onEndIconPress}
-                hitSlop={8}
-              >
-                <Icon name={endIcon} size={20} color={colors.secondary} />
-              </Pressable>
-            ) : null}
+        ) : status === "available" ? (
+          <View accessible accessibilityRole="image" accessibilityLabel={`${inputLabel ?? "Input"} available`}>
+            <Icon testID="status-available" name="checkmark-circle" size={20} color={colors.success} />
+          </View>
+        ) : status === "unavailable" ? (
+          <View accessible accessibilityRole="image" accessibilityLabel={`${inputLabel ?? "Input"} unavailable`}>
+            <Icon testID="status-unavailable" name="close-circle" size={20} color={colors.error} />
           </View>
         ) : null}
-      </View>
+      </InputWrapper>
       {error !== undefined ? (
         <InputError error={error} />
       ) : maxLength !== undefined ? (

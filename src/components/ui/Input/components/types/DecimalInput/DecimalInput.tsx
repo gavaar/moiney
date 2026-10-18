@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import {
-  Pressable,
   Text,
   TextInput as RNTextInput,
   View,
@@ -8,10 +7,10 @@ import {
 import { cn } from "@/lib/styles";
 import { getBorderStyle } from "../../../input.config";
 import { InputError, useInputValidation } from "../../InputError";
-import { InputWrapper } from "../../InputWrapper";
+import { InputWrapper, type InputActions } from "../../InputWrapper";
 import { InputLabel } from "../../InputLabel";
 
-type Props = {
+type Props = InputActions & {
   label?: string;
   accessibilityLabel?: string;
   disabled?: boolean;
@@ -29,7 +28,7 @@ const sanitizeDecimal = (input: string): string => {
   return parts[0] + (parts.length > 1 ? "." + parts.slice(1).join("") : "");
 };
 
-export function DecimalInput({ label, accessibilityLabel, validator, disabled, value, onChange, onError, placeholder, allowNegative = true }: Props) {
+export function DecimalInput({ label, accessibilityLabel, validator, disabled, value, onChange, onError, placeholder, allowNegative = true, prefix, suffix }: Props) {
   const [focused, setFocused] = useState(false);
   const { error, markAsDirty } = useInputValidation(value, validator, onError);
   const inputLabel = accessibilityLabel ?? label;
@@ -54,51 +53,41 @@ export function DecimalInput({ label, accessibilityLabel, validator, disabled, v
     onChange(next);
   };
 
+  const signAction = allowNegative ? {
+    content: <Text className="text-base font-bold text-muted">{isNegative ? "-" : "+"}</Text>,
+    accessibilityLabel: `Change ${inputLabel ?? "value"} sign, currently ${isNegative ? "negative" : "positive"}`,
+    onPress: handleSignPress,
+  } : null;
+
   return (
     <View className="gap-1">
       <InputLabel label={label} />
-      <View className="flex-row">
-        {allowNegative ? (
-          <Pressable
-            onPress={handleSignPress}
-            disabled={disabled}
-            accessibilityRole="button"
-            accessibilityLabel={`Change ${inputLabel ?? "value"} sign, currently ${isNegative ? "negative" : "positive"}`}
-            accessibilityState={{ disabled }}
-            className={cn(
-              "justify-center rounded-tl-lg rounded-bl-lg border border-r-0 bg-surface px-2",
-              disabled && "opacity-60",
-              borderStyle
-            )}
-          >
-            <Text className="text-base font-bold text-muted w-2 text-center">{isNegative ? "-" : "+"}</Text>
-          </Pressable>
-        ) : null}
-        <InputWrapper
-          borderStyle={borderStyle}
-          joinedStart={allowNegative}
-          className={cn("flex-1", disabled && "opacity-60")}
-        >
-          <RNTextInput
-            className="w-full p-0 text-base text-text"
-            keyboardType="decimal-pad"
-            accessibilityLabel={inputLabel}
-            accessibilityState={{ disabled }}
-            value={displayValue}
-            onChangeText={handleChangeText}
-            placeholder={placeholder}
-            placeholderTextColor="#9CA3AF"
-            editable={!disabled}
-            onFocus={() => !disabled && setFocused(true)}
-            onBlur={() => {
-              setFocused(false);
-              if (!disabled) {
-                markAsDirty();
-              }
-            }}
-          />
-        </InputWrapper>
-      </View>
+      <InputWrapper
+        borderStyle={borderStyle}
+        disabled={disabled}
+        className={cn(disabled && "opacity-60")}
+        prefix={prefix === undefined ? signAction : prefix}
+        suffix={suffix}
+      >
+        <RNTextInput
+          className="w-full p-0 text-base text-text"
+          keyboardType="decimal-pad"
+          accessibilityLabel={inputLabel}
+          accessibilityState={{ disabled }}
+          value={displayValue}
+          onChangeText={handleChangeText}
+          placeholder={placeholder}
+          placeholderTextColor="#9CA3AF"
+          editable={!disabled}
+          onFocus={() => !disabled && setFocused(true)}
+          onBlur={() => {
+            setFocused(false);
+            if (!disabled) {
+              markAsDirty();
+            }
+          }}
+        />
+      </InputWrapper>
       <InputError error={error} />
     </View>
   );

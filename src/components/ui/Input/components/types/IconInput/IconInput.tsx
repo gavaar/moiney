@@ -10,10 +10,10 @@ import { cn, colors } from "@/lib/styles";
 import { Icon, CURATED_ICONS, type IconName } from "@ui/Icon";
 import { ModalShell } from "@ui/Modal";
 import { InputError, useInputValidation } from "../../InputError";
-import { InputWrapper } from "../../InputWrapper";
+import { InputWrapper, type InputActions } from "../../InputWrapper";
 import { InputLabel } from "../../InputLabel";
 
-type Props = {
+type Props = InputActions & {
   label?: string;
   accessibilityLabel?: string;
   value: IconName | "";
@@ -31,7 +31,7 @@ function filterIcons(search: string, icons: { name: string }[]) {
     : icons;
 }
 
-export function IconInput({ label, accessibilityLabel, value, onChange, validator, disabled, onError }: Props) {
+export function IconInput({ label, accessibilityLabel, value, onChange, validator, disabled, onError, prefix, suffix }: Props) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const { error, markAsDirty } = useInputValidation(value, validator, onError);
@@ -48,8 +48,11 @@ export function IconInput({ label, accessibilityLabel, value, onChange, validato
         accessibilityState={{ disabled, expanded: open }}
         aria-expanded={open}
         onPress={() => !disabled && setOpen(true)}
+        disabled={disabled}
+        prefix={prefix}
+        suffix={suffix}
         borderStyle={error !== undefined ? "border-error" : "border-border"}
-        className="flex-row items-center gap-2"
+        contentClassName="flex-row items-center gap-2"
       >
         {value ? (
           <>

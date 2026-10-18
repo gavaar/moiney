@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
+import { Text } from "react-native";
 import { TextInput } from "./TextInput";
 
 const getBorderStyle = vi.fn((..._args: unknown[]) => "");
@@ -100,23 +101,27 @@ describe("TextInput", () => {
     expect(screen.queryByText("Required")).toBeNull();
   });
 
-  it("renders end icon button", () => {
+  it("renders a suffix button", () => {
     const onPress = vi.fn();
-    render(<TextInput label="Password" value="" onChange={() => {}} endIcon="eye" onEndIconPress={onPress} />);
-    expect(screen.getByTestId("end-icon-button")).toBeTruthy();
+    render(<TextInput label="Password" value="" onChange={() => {}}
+      suffix={{ content: <Text>Eye</Text>, accessibilityLabel: "Show password", onPress }} />);
+    expect(screen.getByRole("button", { name: "Show password" })).toBeTruthy();
   });
 
   it("labels the input and password visibility control", () => {
-    render(<TextInput label="Password" value="" onChange={() => {}} endIcon="eye" onEndIconPress={() => {}} />);
+    render(<TextInput label="Password" value="" onChange={() => {}}
+      suffix={{ content: <Text>Eye</Text>, accessibilityLabel: "Show password", onPress: () => {} }} />);
 
     expect(screen.getByRole("textbox", { name: "Password" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Show password" })).toBeTruthy();
   });
 
-  it("handles end icon press", async () => {
+  it("handles suffix presses alongside an informational status", async () => {
     const onPress = vi.fn();
-    render(<TextInput label="Password" value="" onChange={() => {}} endIcon="eye" onEndIconPress={onPress} />);
-    await userEvent.click(screen.getByTestId("end-icon-button"));
+    render(<TextInput label="Password" value="" onChange={() => {}} status="available"
+      suffix={{ content: <Text>Eye</Text>, accessibilityLabel: "Show password", onPress }} />);
+    expect(screen.getByRole("img", { name: "Password available" })).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Show password" }));
     expect(onPress).toHaveBeenCalled();
   });
 

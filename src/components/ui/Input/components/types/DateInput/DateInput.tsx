@@ -6,10 +6,10 @@ import { getBorderStyle } from "../../../input.config";
 import { MONTH_LABELS } from "./calendar";
 import { Calendar } from "./components";
 import { InputError, useInputValidation } from "../../InputError";
-import { InputWrapper } from "../../InputWrapper";
+import { InputWrapper, type InputActions } from "../../InputWrapper";
 import { InputLabel } from "../../InputLabel";
 
-type Props = {
+type Props = InputActions & {
   label?: string;
   accessibilityLabel?: string;
   disabled?: boolean;
@@ -37,7 +37,9 @@ export function DateInput({
   value,
   placeholder,
   onChange,
-  onError
+  onError,
+  prefix,
+  suffix,
 }: Props) {
   const [focused, setFocused] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
@@ -65,11 +67,12 @@ export function DateInput({
         accessibilityLabel={accessibilityLabel ?? label}
         accessibilityState={{ disabled }}
         onPress={handleTrigger}
+        disabled={disabled}
+        prefix={prefix}
+        suffix={suffix}
         borderStyle={borderStyle}
-        className={cn(
-          "flex-row items-center justify-between",
-          disabled && "opacity-50",
-        )}
+        contentClassName="flex-row items-center justify-between"
+        className={cn(disabled && "opacity-50")}
       >
         <Text className={cn("text-base", disabled ? "text-muted" : "text-text")}>
           {value ? formatDate(value) : placeholder ?? "Any date"}

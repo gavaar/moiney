@@ -98,7 +98,7 @@ describe("Form controlled fields", () => {
     expect(screen.getByRole("alert").textContent).toBe("Too short");
     fireEvent.change(name, { target: { value: "Ada" } });
     expect(screen.queryByRole("alert")).toBeNull();
-    await userEvent.click(screen.getByTestId("increment-button"));
+    await userEvent.click(screen.getByRole("button", { name: "Increase Count" }));
     expect(screen.getByDisplayValue("4")).toBeTruthy();
     await userEvent.click(screen.getByRole("checkbox", { name: "Accepted" }));
     expect(screen.getByRole("checkbox").getAttribute("aria-checked")).toBe("false");

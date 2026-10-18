@@ -1,6 +1,5 @@
 import { useCallback, useState } from "react";
 import {
-  Pressable,
   Text,
   TextInput,
   View,
@@ -8,10 +7,10 @@ import {
 import { cn } from "@/lib/styles";
 import { getBorderStyle } from "../../../input.config";
 import { InputError, useInputValidation } from "../../InputError";
-import { InputWrapper } from "../../InputWrapper";
+import { InputWrapper, type InputActions } from "../../InputWrapper";
 import { InputLabel } from "../../InputLabel";
 
-type Props = {
+type Props = InputActions & {
   label?: string;
   accessibilityLabel?: string;
   disabled?: boolean;
@@ -45,6 +44,8 @@ export function NumberInput({
   min = 0,
   max = Infinity,
   step = 1,
+  prefix,
+  suffix,
 }: Props) {
   const [focused, setFocused] = useState(false);
   const { error, markAsDirty } = useInputValidation(value, validator, onError);
@@ -95,51 +96,34 @@ export function NumberInput({
   return (
     <View className={cn("gap-1", disabled && "opacity-60")}>
       <InputLabel label={label} />
-      <View className="flex-row items-center gap-1">
-        <Pressable
-          testID="decrement-button"
-          onPress={handleDecrement}
-          disabled={disabled || atMin}
-          accessibilityRole="button"
-          accessibilityLabel={`Decrease ${inputLabel ?? "value"}`}
-          accessibilityState={{ disabled: disabled || atMin }}
-          className={cn(
-            "h-10 w-10 items-center justify-center rounded-lg border border-border",
-            disabled || atMin ? "opacity-40" : "",
-          )}
-        >
-          <Text className={cn("text-xl", disabled || atMin ? "text-muted" : "text-text")}>−</Text>
-        </Pressable>
-
-        <InputWrapper borderStyle={borderStyle} className="flex-1">
-          <TextInput
-            className="w-full p-0 text-center text-base text-text"
-            keyboardType="numeric"
-            accessibilityLabel={inputLabel}
-            value={String(value)}
-            onChangeText={handleChangeText}
-            editable={!disabled}
-            onFocus={() => !disabled && setFocused(true)}
-            onBlur={handleBlur}
-            placeholderTextColor="#9CA3AF"
-          />
-        </InputWrapper>
-
-        <Pressable
-          testID="increment-button"
-          onPress={handleIncrement}
-          disabled={disabled || atMax}
-          accessibilityRole="button"
-          accessibilityLabel={`Increase ${inputLabel ?? "value"}`}
-          accessibilityState={{ disabled: disabled || atMax }}
-          className={cn(
-            "h-10 w-10 items-center justify-center rounded-lg border",
-            disabled || atMax ? "border-border opacity-40" : "border-border",
-          )}
-        >
-          <Text className={cn("text-xl", disabled || atMax ? "text-muted" : "text-text")}>+</Text>
-        </Pressable>
-      </View>
+      <InputWrapper
+        borderStyle={borderStyle}
+        disabled={disabled}
+        prefix={prefix === undefined ? {
+          content: <Text className={cn("text-xl", disabled || atMin ? "text-muted" : "text-text")}>−</Text>,
+          accessibilityLabel: `Decrease ${inputLabel ?? "value"}`,
+          onPress: handleDecrement,
+          disabled: atMin,
+        } : prefix}
+        suffix={suffix === undefined ? {
+          content: <Text className={cn("text-xl", disabled || atMax ? "text-muted" : "text-text")}>+</Text>,
+          accessibilityLabel: `Increase ${inputLabel ?? "value"}`,
+          onPress: handleIncrement,
+          disabled: atMax,
+        } : suffix}
+      >
+        <TextInput
+          className="w-full p-0 text-center text-base text-text"
+          keyboardType="numeric"
+          accessibilityLabel={inputLabel}
+          value={String(value)}
+          onChangeText={handleChangeText}
+          editable={!disabled}
+          onFocus={() => !disabled && setFocused(true)}
+          onBlur={handleBlur}
+          placeholderTextColor="#9CA3AF"
+        />
+      </InputWrapper>
       <InputError error={error} />
     </View>
   );

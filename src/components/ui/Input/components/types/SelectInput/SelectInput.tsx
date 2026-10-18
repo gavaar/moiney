@@ -4,7 +4,7 @@ import { cn, colors } from "@/lib/styles";
 import { Icon, safeIconName } from "@ui/Icon";
 import { ModalShell } from "@ui/Modal";
 import { InputError, useInputValidation } from "../../InputError";
-import { InputWrapper } from "../../InputWrapper";
+import { InputWrapper, type InputActions } from "../../InputWrapper";
 import { InputLabel } from "../../InputLabel";
 
 export type SelectGroup = {
@@ -15,7 +15,7 @@ export type SelectGroup = {
   initiallyExpanded?: boolean;
 };
 
-type CommonSelectInputProps = {
+type CommonSelectInputProps = InputActions & {
   label?: string;
   accessibilityLabel?: string;
   items: readonly ({ id: string } & Record<string, any>)[];
@@ -45,7 +45,7 @@ export type SelectInputProps = CommonSelectInputProps &
       }
   );
 
-export function SelectInput({ label, accessibilityLabel, items, groups, renderItem, itemStyle, value, disabled, placeholder, validator, multiple, onChange, onError, presentation = "modal", loading = false }: SelectInputProps) {
+export function SelectInput({ label, accessibilityLabel, items, groups, renderItem, itemStyle, value, disabled, placeholder, validator, multiple, onChange, onError, presentation = "modal", loading = false, prefix, suffix }: SelectInputProps) {
   const [open, setOpen] = useState(false);
   const [modalContentHeight, setModalContentHeight] = useState<number | null>(null);
   const [expandedOverrides, setExpandedOverrides] = useState<Record<string, boolean>>({});
@@ -165,8 +165,10 @@ export function SelectInput({ label, accessibilityLabel, items, groups, renderIt
         disabled={disabled || loading}
         aria-expanded={open}
         onPress={handleTriggerPress}
+        prefix={prefix}
+        suffix={suffix}
         borderStyle={error !== undefined ? "border-error" : "border-border"}
-        className="flex-row items-center gap-2"
+        contentClassName="flex-row items-center gap-2"
       >
         {multiple && value.length > 0 ? (
           <Text className="text-base text-text">{value.length} selected</Text>

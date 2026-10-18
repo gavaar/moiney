@@ -99,8 +99,8 @@ describe("Input", () => {
   it("renders NumberInput for type='number'", () => {
     render(<Input type="number" label="Priority" value={5} onChange={() => {}} />);
     expect(screen.getByText("Priority")).toBeTruthy();
-    expect(screen.getByTestId("decrement-button")).toBeTruthy();
-    expect(screen.getByTestId("increment-button")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Decrease Priority" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Increase Priority" })).toBeTruthy();
     expect(screen.getByDisplayValue("5")).toBeTruthy();
   });
 
