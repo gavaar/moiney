@@ -2,7 +2,7 @@ import { Text, View } from "react-native";
 import { cn } from "@/lib/styles";
 import type { IconName } from "@ui/Icon";
 import { SlideToggle } from "@ui/SlideToggle";
-import { InputError, useInputValidation } from "../../../useInputValidation";
+import { InputError, useInputValidation } from "../../InputError";
 
 type ToggleOption = { label: string; icon: IconName; selectedBackgroundClassName?: string };
 

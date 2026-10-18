@@ -7,7 +7,7 @@ import {
 } from "react-native";
 import { cn } from "@/lib/styles";
 import { getBorderStyle } from "../../../input.config";
-import { InputError, useInputValidation } from "../../../useInputValidation";
+import { InputError, useInputValidation } from "../../InputError";
 import { InputWrapper } from "../../InputWrapper";
 import { InputLabel } from "../../InputLabel";
 

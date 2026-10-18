@@ -5,7 +5,7 @@ import { Icon } from "@ui/Icon";
 import { getBorderStyle } from "../../../input.config";
 import { MONTH_LABELS } from "./calendar";
 import { Calendar } from "./components";
-import { InputError, useInputValidation } from "../../../useInputValidation";
+import { InputError, useInputValidation } from "../../InputError";
 import { InputWrapper } from "../../InputWrapper";
 import { InputLabel } from "../../InputLabel";
 

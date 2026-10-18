@@ -10,7 +10,7 @@ import {
 import { cn, colors } from "@/lib/styles";
 import { Icon } from "@ui/Icon";
 import { getBorderStyle } from "../../../input.config";
-import { InputError, useInputValidation } from "../../../useInputValidation";
+import { InputError, useInputValidation } from "../../InputError";
 import { InputWrapper } from "../../InputWrapper";
 import { InputLabel } from "../../InputLabel";
 

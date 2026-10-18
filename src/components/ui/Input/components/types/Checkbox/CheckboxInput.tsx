@@ -1,7 +1,7 @@
 import { Pressable, Text, View } from "react-native";
 import { cn, colors } from "@/lib/styles";
 import { Icon } from "@ui/Icon";
-import { InputError, useInputValidation } from "../../../useInputValidation";
+import { InputError, useInputValidation } from "../../InputError";
 
 type Props = {
   label: string;

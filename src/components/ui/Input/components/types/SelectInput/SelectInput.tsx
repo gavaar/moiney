@@ -3,7 +3,7 @@ import { ActivityIndicator, FlatList, Pressable, ScrollView, Text, View, type St
 import { cn, colors } from "@/lib/styles";
 import { Icon, safeIconName } from "@ui/Icon";
 import { ModalShell } from "@ui/Modal";
-import { InputError, useInputValidation } from "../../../useInputValidation";
+import { InputError, useInputValidation } from "../../InputError";
 import { InputWrapper } from "../../InputWrapper";
 import { InputLabel } from "../../InputLabel";
 
