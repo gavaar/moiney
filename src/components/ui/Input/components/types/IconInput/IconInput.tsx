@@ -10,10 +10,12 @@ import { cn, colors } from "@/lib/styles";
 import { Icon, CURATED_ICONS, type IconName } from "@ui/Icon";
 import { ModalShell } from "@ui/Modal";
 import { InputError, useInputValidation } from "../../../useInputValidation";
-import { InputWrapper } from "../../InputWrapper/InputWrapper";
+import { InputWrapper } from "../../InputWrapper";
+import { InputLabel } from "../../InputLabel";
 
 type Props = {
-  label: string;
+  label?: string;
+  accessibilityLabel?: string;
   value: IconName | "";
   disabled?: boolean;
   onChange?: (name: IconName) => void;
@@ -29,7 +31,7 @@ function filterIcons(search: string, icons: { name: string }[]) {
     : icons;
 }
 
-export function IconInput({ label, value, onChange, validator, disabled, onError }: Props) {
+export function IconInput({ label, accessibilityLabel, value, onChange, validator, disabled, onError }: Props) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const { error, markAsDirty } = useInputValidation(value, validator, onError);
@@ -38,11 +40,11 @@ export function IconInput({ label, value, onChange, validator, disabled, onError
 
   return (
     <View className={cn("gap-1", disabled && "opacity-60")}>
-      <Text className="text-sm font-medium text-text">{label}</Text>
+      <InputLabel label={label} />
       <InputWrapper
         testID="icon-picker-trigger"
         accessibilityRole="button"
-        accessibilityLabel={label}
+        accessibilityLabel={accessibilityLabel ?? label}
         accessibilityState={{ disabled, expanded: open }}
         aria-expanded={open}
         onPress={() => !disabled && setOpen(true)}

@@ -103,8 +103,7 @@ function HistoryFilterControls({
         <View className="w-48">
           <Input
             type="text"
-            hideLabel
-            label="Title contains"
+            accessibilityLabel="Title contains"
             value={draft.title}
             onChange={(title) => setDraft((current) => ({ ...current, title }))}
             placeholder="Any title"
@@ -114,8 +113,7 @@ function HistoryFilterControls({
           <View className="w-32">
             <Input
               type="date"
-              hideLabel
-              label="From date"
+              accessibilityLabel="From date"
               value={draft.fromDate}
               onChange={(fromDate) => setDraft((current) => ({ ...current, fromDate }))}
               placeholder="From"
@@ -125,8 +123,7 @@ function HistoryFilterControls({
           <View className="w-32">
             <Input
               type="date"
-              hideLabel
-              label="To date"
+              accessibilityLabel="To date"
               value={draft.toDate}
               onChange={(toDate) => setDraft((current) => ({ ...current, toDate }))}
               placeholder="To"
@@ -137,8 +134,7 @@ function HistoryFilterControls({
           <Input
             type="select"
             multiple
-            hideLabel
-            label="Pipes"
+            accessibilityLabel="Pipes"
             items={allPipes ?? []}
             renderItem={(pipe) => <Text className="text-text">{pipe.name}</Text>}
             value={draft.pipeIds}

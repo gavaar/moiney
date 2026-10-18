@@ -11,12 +11,12 @@ import { cn, colors } from "@/lib/styles";
 import { Icon } from "@ui/Icon";
 import { getBorderStyle } from "../../../input.config";
 import { InputError, useInputValidation } from "../../../useInputValidation";
-import { InputWrapper } from "../../InputWrapper/InputWrapper";
+import { InputWrapper } from "../../InputWrapper";
+import { InputLabel } from "../../InputLabel";
 
 type Props = Omit<TextInputProps, "value" | "defaultValue" | "onChange" | "onChangeText"> & {
   value: string;
-  label: string;
-  hideLabel?: boolean;
+  label?: string;
   disabled?: boolean;
   endIcon?: "eye" | "eye-off";
   onEndIconPress?: () => void;
@@ -29,7 +29,7 @@ type Props = Omit<TextInputProps, "value" | "defaultValue" | "onChange" | "onCha
 
 export function TextInput({
   label,
-  hideLabel,
+  accessibilityLabel,
   validator,
   className,
   disabled,
@@ -47,6 +47,7 @@ export function TextInput({
 }: Props) {
   const [focused, setFocused] = useState(false);
   const { error, markAsDirty } = useInputValidation(value, validator, onError);
+  const inputLabel = accessibilityLabel ?? label;
 
   const borderStyle = getBorderStyle(disabled, focused, error);
 
@@ -55,7 +56,7 @@ export function TextInput({
 
   return (
     <View className="gap-1">
-      {!hideLabel ? <Text className="text-sm font-medium text-text">{label}</Text> : null}
+      <InputLabel label={label} />
       <View className="relative">
         <InputWrapper
           borderStyle={borderStyle}
@@ -68,7 +69,7 @@ export function TextInput({
               if (disabled || editable === false) return;
               onChange?.(text);
             }}
-            accessibilityLabel={label}
+            accessibilityLabel={inputLabel}
             accessibilityState={{ disabled }}
             className={cn("w-full p-0 text-base text-text", className)}
             placeholderTextColor="#9CA3AF"
@@ -89,16 +90,16 @@ export function TextInput({
             {status === "checking" ? (
               <ActivityIndicator
                 testID="status-checking"
-                accessibilityLabel={`${label} checking`}
+                accessibilityLabel={`${inputLabel ?? "Input"} checking`}
                 size="small"
                 color={colors.secondary}
               />
             ) : status === "available" ? (
-              <View accessible accessibilityRole="image" accessibilityLabel={`${label} available`}>
+              <View accessible accessibilityRole="image" accessibilityLabel={`${inputLabel ?? "Input"} available`}>
                 <Icon testID="status-available" name="checkmark-circle" size={20} color={colors.success} />
               </View>
             ) : status === "unavailable" ? (
-              <View accessible accessibilityRole="image" accessibilityLabel={`${label} unavailable`}>
+              <View accessible accessibilityRole="image" accessibilityLabel={`${inputLabel ?? "Input"} unavailable`}>
                 <Icon testID="status-unavailable" name="close-circle" size={20} color={colors.error} />
               </View>
             ) : null}

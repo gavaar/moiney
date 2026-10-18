@@ -8,10 +8,12 @@ import {
 import { cn } from "@/lib/styles";
 import { getBorderStyle } from "../../../input.config";
 import { InputError, useInputValidation } from "../../../useInputValidation";
-import { InputWrapper } from "../../InputWrapper/InputWrapper";
+import { InputWrapper } from "../../InputWrapper";
+import { InputLabel } from "../../InputLabel";
 
 type Props = {
-  label: string;
+  label?: string;
+  accessibilityLabel?: string;
   disabled?: boolean;
   value: string;
   placeholder?: string;
@@ -27,9 +29,10 @@ const sanitizeDecimal = (input: string): string => {
   return parts[0] + (parts.length > 1 ? "." + parts.slice(1).join("") : "");
 };
 
-export function DecimalInput({ label, validator, disabled, value, onChange, onError, placeholder, allowNegative = true }: Props) {
+export function DecimalInput({ label, accessibilityLabel, validator, disabled, value, onChange, onError, placeholder, allowNegative = true }: Props) {
   const [focused, setFocused] = useState(false);
   const { error, markAsDirty } = useInputValidation(value, validator, onError);
+  const inputLabel = accessibilityLabel ?? label;
   const borderStyle = useMemo(() => getBorderStyle(disabled, focused, error), [disabled, focused, error]);
 
   const displayValue = useMemo(() => sanitizeDecimal(value), [value]);
@@ -53,14 +56,14 @@ export function DecimalInput({ label, validator, disabled, value, onChange, onEr
 
   return (
     <View className="gap-1">
-      <Text className="text-sm font-medium text-text">{label}</Text>
+      <InputLabel label={label} />
       <View className="flex-row">
         {allowNegative ? (
           <Pressable
             onPress={handleSignPress}
             disabled={disabled}
             accessibilityRole="button"
-            accessibilityLabel={`Change ${label} sign, currently ${isNegative ? "negative" : "positive"}`}
+            accessibilityLabel={`Change ${inputLabel ?? "value"} sign, currently ${isNegative ? "negative" : "positive"}`}
             accessibilityState={{ disabled }}
             className={cn(
               "justify-center rounded-tl-lg rounded-bl-lg border border-r-0 bg-surface px-2",
@@ -79,7 +82,7 @@ export function DecimalInput({ label, validator, disabled, value, onChange, onEr
           <RNTextInput
             className="w-full p-0 text-base text-text"
             keyboardType="decimal-pad"
-            accessibilityLabel={label}
+            accessibilityLabel={inputLabel}
             accessibilityState={{ disabled }}
             value={displayValue}
             onChangeText={handleChangeText}

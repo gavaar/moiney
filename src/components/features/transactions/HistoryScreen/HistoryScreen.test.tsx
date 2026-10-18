@@ -37,10 +37,11 @@ vi.mock("@features/pipes/context/PipeCatalogContext", () => {
 });
 vi.mock("@ui/Input", () => ({
   Input: (props: any) => {
+    const label = props.accessibilityLabel ?? props.label;
     if (props.type === "text") {
       return (
         <input
-          aria-label={props.label}
+          aria-label={label}
           value={props.value}
           onChange={(event) => props.onChange(event.target.value)}
         />
@@ -49,11 +50,11 @@ vi.mock("@ui/Input", () => ({
     if (props.type === "date") {
       return (
         <button
-          aria-label={props.label}
+          aria-label={label}
           data-value={props.value?.toISOString() ?? ""}
           onClick={() =>
             props.onChange(
-              new Date(Date.UTC(2026, props.label === "From date" ? 0 : 1, 1, 12)),
+              new Date(Date.UTC(2026, label === "From date" ? 0 : 1, 1, 12)),
             )
           }
         />

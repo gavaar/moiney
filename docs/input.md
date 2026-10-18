@@ -24,6 +24,12 @@ their interfaces. Text inputs do not expose `defaultValue` or `onChangeText`.
 | `text-select` | `TextSelectInput/` |
 | `toggle` | `ToggleInput/` |
 
+Text, number, decimal, date, icon, select, and text-select inputs accept an optional
+visible `label` and optional `accessibilityLabel`. Omitted or empty labels render
+no visible label; the control's accessible name is `accessibilityLabel ?? label`.
+Supply `accessibilityLabel` when omitting the visible label. The shared
+`components/InputLabel/InputLabel.tsx` owns visible label presentation.
+
 Toggle inputs take two labeled icon options: the first represents `false`,
 the second `true`. The selected label is displayed beside the toggle.
 Each option may supply `selectedBackgroundClassName`; otherwise the selected

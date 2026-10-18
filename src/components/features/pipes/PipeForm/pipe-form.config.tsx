@@ -39,8 +39,7 @@ export function buildPipeForm({ pipes, disabled, loading, draft, now, editing, l
           input: {
             type: "select",
             presentation: "inline",
-            label: "Owner pipe",
-            hideLabel: true,
+            accessibilityLabel: "Owner pipe",
             items: pipes,
             disabled,
             loading,

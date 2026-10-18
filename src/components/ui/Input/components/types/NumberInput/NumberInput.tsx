@@ -8,10 +8,12 @@ import {
 import { cn } from "@/lib/styles";
 import { getBorderStyle } from "../../../input.config";
 import { InputError, useInputValidation } from "../../../useInputValidation";
-import { InputWrapper } from "../../InputWrapper/InputWrapper";
+import { InputWrapper } from "../../InputWrapper";
+import { InputLabel } from "../../InputLabel";
 
 type Props = {
-  label: string;
+  label?: string;
+  accessibilityLabel?: string;
   disabled?: boolean;
   value: number;
   min?: number;
@@ -34,6 +36,7 @@ function parseDigits(input: string): number {
 
 export function NumberInput({
   label,
+  accessibilityLabel,
   validator,
   disabled,
   value,
@@ -45,6 +48,7 @@ export function NumberInput({
 }: Props) {
   const [focused, setFocused] = useState(false);
   const { error, markAsDirty } = useInputValidation(value, validator, onError);
+  const inputLabel = accessibilityLabel ?? label;
 
   const clamp = useCallback(
     (n: number) => Math.max(min, Math.min(max, n)),
@@ -90,14 +94,14 @@ export function NumberInput({
 
   return (
     <View className={cn("gap-1", disabled && "opacity-60")}>
-      <Text className="text-sm font-medium text-text">{label}</Text>
+      <InputLabel label={label} />
       <View className="flex-row items-center gap-1">
         <Pressable
           testID="decrement-button"
           onPress={handleDecrement}
           disabled={disabled || atMin}
           accessibilityRole="button"
-          accessibilityLabel={`Decrease ${label}`}
+          accessibilityLabel={`Decrease ${inputLabel ?? "value"}`}
           accessibilityState={{ disabled: disabled || atMin }}
           className={cn(
             "h-10 w-10 items-center justify-center rounded-lg border border-border",
@@ -111,7 +115,7 @@ export function NumberInput({
           <TextInput
             className="w-full p-0 text-center text-base text-text"
             keyboardType="numeric"
-            accessibilityLabel={label}
+            accessibilityLabel={inputLabel}
             value={String(value)}
             onChangeText={handleChangeText}
             editable={!disabled}
@@ -126,7 +130,7 @@ export function NumberInput({
           onPress={handleIncrement}
           disabled={disabled || atMax}
           accessibilityRole="button"
-          accessibilityLabel={`Increase ${label}`}
+          accessibilityLabel={`Increase ${inputLabel ?? "value"}`}
           accessibilityState={{ disabled: disabled || atMax }}
           className={cn(
             "h-10 w-10 items-center justify-center rounded-lg border",

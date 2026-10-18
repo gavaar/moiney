@@ -6,11 +6,12 @@ import { getBorderStyle } from "../../../input.config";
 import { MONTH_LABELS } from "./calendar";
 import { Calendar } from "./components";
 import { InputError, useInputValidation } from "../../../useInputValidation";
-import { InputWrapper } from "../../InputWrapper/InputWrapper";
+import { InputWrapper } from "../../InputWrapper";
+import { InputLabel } from "../../InputLabel";
 
 type Props = {
-  label: string;
-  hideLabel?: boolean;
+  label?: string;
+  accessibilityLabel?: string;
   disabled?: boolean;
   value: Date | null;
   placeholder?: string;
@@ -30,7 +31,7 @@ function currentUtcDate(): Date {
 
 export function DateInput({
   label,
-  hideLabel,
+  accessibilityLabel,
   validator,
   disabled,
   value,
@@ -57,11 +58,11 @@ export function DateInput({
 
   return (
     <View className="gap-1">
-      {!hideLabel ? <Text className="text-sm font-medium text-text">{label}</Text> : null}
+      <InputLabel label={label} />
       <InputWrapper
         testID="date-trigger"
         accessibilityRole="button"
-        accessibilityLabel={label}
+        accessibilityLabel={accessibilityLabel ?? label}
         accessibilityState={{ disabled }}
         onPress={handleTrigger}
         borderStyle={borderStyle}

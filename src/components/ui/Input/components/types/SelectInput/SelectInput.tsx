@@ -4,7 +4,8 @@ import { cn, colors } from "@/lib/styles";
 import { Icon, safeIconName } from "@ui/Icon";
 import { ModalShell } from "@ui/Modal";
 import { InputError, useInputValidation } from "../../../useInputValidation";
-import { InputWrapper } from "../../InputWrapper/InputWrapper";
+import { InputWrapper } from "../../InputWrapper";
+import { InputLabel } from "../../InputLabel";
 
 export type SelectGroup = {
   id: string;
@@ -15,8 +16,8 @@ export type SelectGroup = {
 };
 
 type CommonSelectInputProps = {
-  label: string;
-  hideLabel?: boolean;
+  label?: string;
+  accessibilityLabel?: string;
   items: readonly ({ id: string } & Record<string, any>)[];
   groups?: readonly SelectGroup[];
   renderItem: (item: CommonSelectInputProps["items"][number]) => React.ReactNode;
@@ -44,7 +45,7 @@ export type SelectInputProps = CommonSelectInputProps &
       }
   );
 
-export function SelectInput({ label, hideLabel, items, groups, renderItem, itemStyle, value, disabled, placeholder, validator, multiple, onChange, onError, presentation = "modal", loading = false }: SelectInputProps) {
+export function SelectInput({ label, accessibilityLabel, items, groups, renderItem, itemStyle, value, disabled, placeholder, validator, multiple, onChange, onError, presentation = "modal", loading = false }: SelectInputProps) {
   const [open, setOpen] = useState(false);
   const [modalContentHeight, setModalContentHeight] = useState<number | null>(null);
   const [expandedOverrides, setExpandedOverrides] = useState<Record<string, boolean>>({});
@@ -53,6 +54,7 @@ export function SelectInput({ label, hideLabel, items, groups, renderItem, itemS
     return typeof next === "string" || next === null ? validator?.(next) : undefined;
   }, [multiple, validator]);
   const { error, markAsDirty } = useInputValidation(value, validateValue, onError);
+  const inputLabel = accessibilityLabel ?? label;
 
   const selectedItem = !multiple && value
     ? items.find((item) => item.id === value) ?? null
@@ -132,9 +134,10 @@ export function SelectInput({ label, hideLabel, items, groups, renderItem, itemS
   if (presentation === "inline") {
     return (
       <View className={cn("gap-1", disabled && "opacity-60")} style={{ flexShrink: 1 }}>
-        {!hideLabel ? <Text className="text-sm font-medium text-text">{label}</Text> : null}
-        {loading ? <ActivityIndicator accessibilityLabel={`Loading ${label}`} /> : (
+        <InputLabel label={label} />
+        {loading ? <ActivityIndicator accessibilityLabel={`Loading ${inputLabel ?? "options"}`} /> : (
           <FlatList
+            accessibilityLabel={inputLabel}
             data={rows}
             extraData={{ value, disabled }}
             keyExtractor={row => row.key}
@@ -153,11 +156,11 @@ export function SelectInput({ label, hideLabel, items, groups, renderItem, itemS
 
   return (
     <View className={cn("gap-1", disabled && "opacity-60")}>
-      {!hideLabel ? <Text className="text-sm font-medium text-text">{label}</Text> : null}
+      <InputLabel label={label} />
       <InputWrapper
         testID="select-trigger"
         accessibilityRole="button"
-        accessibilityLabel={label}
+        accessibilityLabel={inputLabel}
         accessibilityState={{ disabled, expanded: open }}
         disabled={disabled || loading}
         aria-expanded={open}

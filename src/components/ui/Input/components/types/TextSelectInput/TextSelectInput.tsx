@@ -3,10 +3,12 @@ import { Pressable, ScrollView, Text, TextInput as RNTextInput, View } from "rea
 import { cn } from "@/lib/styles";
 import { getBorderStyle } from "../../../input.config";
 import { InputError, useInputValidation } from "../../../useInputValidation";
-import { InputWrapper } from "../../InputWrapper/InputWrapper";
+import { InputWrapper } from "../../InputWrapper";
+import { InputLabel } from "../../InputLabel";
 
 type Props = {
   label?: string;
+  accessibilityLabel?: string;
   value: string;
   options: readonly string[];
   disabled?: boolean;
@@ -20,6 +22,7 @@ type Props = {
 
 export function TextSelectInput({
   label,
+  accessibilityLabel,
   value,
   onChange,
   onError,
@@ -47,14 +50,14 @@ export function TextSelectInput({
 
   return (
     <View className="gap-1">
-      {label ? <Text className="text-sm font-medium text-text">{label}</Text> : null}
+      <InputLabel label={label} />
       <View className="relative">
         <InputWrapper borderStyle={borderStyle} className={cn(disabled && "opacity-60")}>
           <RNTextInput
             ref={inputRef}
             className="w-full p-0 text-base text-text"
             placeholderTextColor="#9CA3AF"
-            accessibilityLabel={label}
+            accessibilityLabel={accessibilityLabel ?? label}
             accessibilityState={{ disabled }}
             editable={!disabled}
             value={value}

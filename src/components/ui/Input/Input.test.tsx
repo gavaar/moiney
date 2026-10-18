@@ -6,6 +6,43 @@ import { Input, type InputProps } from "./Input";
 import { useState } from "react";
 
 describe("Input", () => {
+  const labeledInputs = [
+    { name: "text", props: { type: "text", value: "" }, role: "textbox" },
+    { name: "number", props: { type: "number", value: 0 }, role: "textbox" },
+    { name: "decimal", props: { type: "decimal", value: "" }, role: "textbox" },
+    { name: "date", props: { type: "date", value: null }, role: "button" },
+    { name: "icon", props: { type: "icon", value: "" }, role: "button" },
+    { name: "select", props: { type: "select", value: null, items: [], renderItem: () => null }, role: "button" },
+    { name: "text-select", props: { type: "text-select", value: "", options: [] }, role: "textbox" },
+  ] as const;
+
+  describe.each(labeledInputs)("$name labels", ({ props, role }) => {
+    it("uses the visible label as the accessible name by default", () => {
+      render(<Input {...props} label="Visible field" />);
+      expect(screen.getByText("Visible field")).toBeTruthy();
+      expect(screen.getByRole(role, { name: "Visible field" })).toBeTruthy();
+    });
+
+    it("allows a separate accessible name without replacing the visible label", () => {
+      render(<Input {...props} label="Visible field" accessibilityLabel="Accessible field" />);
+      expect(screen.getByText("Visible field")).toBeTruthy();
+      expect(screen.getByRole(role, { name: "Accessible field" })).toBeTruthy();
+    });
+
+    it.each([undefined, ""])("supports an accessible name with visible label %s", label => {
+      render(<Input {...props} label={label} accessibilityLabel="Accessible field" />);
+      expect(screen.queryByText("Accessible field")).toBeNull();
+      expect(screen.getByRole(role, { name: "Accessible field" })).toBeTruthy();
+    });
+  });
+
+  it("uses the accessible name for unlabeled inline select loading feedback", () => {
+    render(<Input type="select" presentation="inline" accessibilityLabel="Owner pipe" value={null}
+      items={[]} renderItem={() => null} loading />);
+    expect(screen.queryByText("Owner pipe")).toBeNull();
+    expect(screen.getByLabelText("Loading Owner pipe")).toBeTruthy();
+  });
+
   it("requires controlled values and preserves variant-specific emissions", () => {
     type TextProps = Extract<InputProps, { type?: "text" }>;
     type DateProps = Extract<InputProps, { type: "date" }>;

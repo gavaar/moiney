@@ -38,8 +38,7 @@ export function buildAmountForm(form: AmountFormConfiguration, sourcePicker?: So
           input: {
             type: "select",
             presentation: "inline",
-            label: "Transaction pipe",
-            hideLabel: true,
+            accessibilityLabel: "Transaction pipe",
             items: transactionPipeItems(sourcePicker.pipes, pipesById, true),
             groups: sourcePicker.groups,
             renderItem: renderTransactionPipe,
