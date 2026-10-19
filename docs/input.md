@@ -30,7 +30,7 @@ no visible label; the control's accessible name is `accessibilityLabel ?? label`
 Supply `accessibilityLabel` when omitting the visible label. The shared
 `components/InputLabel/InputLabel.tsx` owns visible label presentation.
 
-Surface-based inputs accept optional `prefix` and `suffix` buttons described by
+Inputs accept optional `prefix` and `suffix` buttons described by
 `{ content, accessibilityLabel, onPress, disabled? }`. Each side resolves
 independently: omission uses the variant's default, a description replaces it,
 and `null` hides it. Number defaults to decrement/increment buttons with its
@@ -39,8 +39,13 @@ The shared wrapper owns button presentation. Variants own the default actions
 and validation timing; custom callbacks own their effects. Buttons are disabled
 when either the input or the button is disabled. Accessory presses do not also
 activate the central control. Informational status and decorative icons remain
-separate from these buttons. Inline Select, Checkbox, and Toggle do not render
-accessory buttons.
+separate from these buttons. Inline Select does not render accessory buttons.
+
+Checkbox and Toggle use the shared wrapper with a transparent, borderless surface,
+no accessory dividers, and standard input padding. Inner controls retain their
+own styling, and validation messages remain below the wrapper. Checkbox keeps the
+central row clickable; Toggle selection stays on its two segments. Accessory
+buttons remain independent.
 
 Toggle inputs take two labeled icon options: the first represents `false`,
 the second `true`. The selected label is displayed beside the toggle.

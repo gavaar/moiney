@@ -49,6 +49,66 @@ describe.each(variants)("$type accessories", props => {
   });
 });
 
+describe.each([
+  { type: "checkbox", label: "Accept", value: false },
+  {
+    type: "toggle",
+    value: false,
+    options: [
+      { label: "First option", icon: "align-horizontal-left" },
+      { label: "Second option", icon: "file-tree" },
+    ],
+  },
+] as const)("$type accessories", props => {
+  it("runs accessory actions without selecting or validating the control", async () => {
+    const before = vi.fn();
+    const after = vi.fn();
+    const onChange = vi.fn();
+    const validator = vi.fn(() => "Choose an option");
+    render(<Input {...props} onChange={onChange} validator={validator}
+      prefix={{ content: <Text>Before</Text>, accessibilityLabel: "Before action", onPress: before }}
+      suffix={{ content: <Text>After</Text>, accessibilityLabel: "After action", onPress: after }} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Before action" }));
+    await userEvent.click(screen.getByRole("button", { name: "After action" }));
+    expect(before).toHaveBeenCalledOnce();
+    expect(after).toHaveBeenCalledOnce();
+    expect(onChange).not.toHaveBeenCalled();
+    expect(validator).not.toHaveBeenCalled();
+    expect(screen.queryByRole("alert")).toBeNull();
+
+    if (props.type === "checkbox") {
+      await userEvent.click(screen.getByText("Accept"));
+    } else {
+      await userEvent.click(screen.getByText("First option"));
+      expect(onChange).not.toHaveBeenCalled();
+      await userEvent.click(screen.getByRole("radio", { name: "Second option" }));
+    }
+    expect(onChange).toHaveBeenCalledExactlyOnceWith(true);
+    expect(screen.getByRole("alert").textContent).toBe("Choose an option");
+  });
+
+  it("disables accessories and selection with the input", () => {
+    const onPress = vi.fn();
+    const onChange = vi.fn();
+    render(<Input {...props} onChange={onChange} disabled
+      prefix={{ content: <Text>Before</Text>, accessibilityLabel: "Before action", onPress }}
+      suffix={{ content: <Text>After</Text>, accessibilityLabel: "After action", onPress }} />);
+
+    for (const name of ["Before action", "After action"]) {
+      const button = screen.getByRole("button", { name });
+      expect(button.getAttribute("aria-disabled")).toBe("true");
+      fireEvent.click(button);
+    }
+    const control = props.type === "checkbox"
+      ? screen.getByRole("checkbox", { name: "Accept" })
+      : screen.getByRole("radio", { name: "Second option" });
+    fireEvent.click(control);
+    expect(onPress).not.toHaveBeenCalled();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+});
+
 describe("numeric accessory defaults", () => {
   it("replaces only Number's prefix and retains the default increment action", () => {
     const before = vi.fn();

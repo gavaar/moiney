@@ -16,6 +16,7 @@ export type InputActions = {
 
 type Props = InputActions & {
   borderStyle: string;
+  appearance?: "outlined" | "borderless";
   className?: string;
   contentClassName?: string;
   disabled?: boolean;
@@ -24,7 +25,7 @@ type Props = InputActions & {
   | (Omit<PressableProps, "className" | "children"> & { onPress: NonNullable<PressableProps["onPress"]>; children?: ReactNode })
 );
 
-export function InputWrapper({ borderStyle, className, contentClassName, disabled, prefix, suffix, ...props }: Props) {
+export function InputWrapper({ borderStyle, appearance = "outlined", className, contentClassName, disabled, prefix, suffix, ...props }: Props) {
   const contentStyle = cn("min-w-0 flex-1 px-3 py-2", contentClassName);
 
   function renderAction(action: InputAction | null | undefined, side: "prefix" | "suffix") {
@@ -39,7 +40,7 @@ export function InputWrapper({ borderStyle, className, contentClassName, disable
         onPress={() => { if (!actionDisabled) action.onPress(); }}
         className={cn(
           "min-w-[32px] self-stretch items-center justify-center px-2",
-          side === "prefix" ? "border-r" : "border-l",
+          appearance === "outlined" && (side === "prefix" ? "border-r" : "border-l"),
           borderStyle,
           actionDisabled && "opacity-40",
         )}
@@ -51,7 +52,8 @@ export function InputWrapper({ borderStyle, className, contentClassName, disable
 
   return (
     <View className={cn(
-      "flex-row overflow-hidden rounded-lg border bg-surface",
+      "flex-row",
+      appearance === "borderless" ? "bg-transparent" : "overflow-hidden rounded-lg border bg-surface",
       borderStyle,
       className,
     )}>

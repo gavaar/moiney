@@ -77,7 +77,7 @@ export function DateInput({
         <Text className={cn("text-base", disabled ? "text-muted" : "text-text")}>
           {value ? formatDate(value) : placeholder ?? "Any date"}
         </Text>
-        <Icon name="calendar-outline" size={16} color={disabled ? "#9CA3AF" : "#F8F8F8"} />
+        <Icon name="calendar-outline" size={12} color={disabled ? "#9CA3AF" : "#F8F8F8"} />
       </InputWrapper>
       <InputError error={error} />
 

@@ -52,13 +52,10 @@ export function IconInput({ label, accessibilityLabel, value, onChange, validato
         prefix={prefix}
         suffix={suffix}
         borderStyle={error !== undefined ? "border-error" : "border-border"}
-        contentClassName="flex-row items-center gap-2"
+        contentClassName="flex-row items-center gap-2 justify-center"
       >
         {value ? (
-          <>
-            <Icon name={value} size={20} color={colors.text} />
-            <Text className="text-base text-text">{value}</Text>
-          </>
+          <Icon name={value} size={16} color={colors.text} />
         ) : (
           <Text className="text-base text-muted">---</Text>
         )}

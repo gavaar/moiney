@@ -11,8 +11,10 @@ describe("IconInput", () => {
     expect(screen.getByText("---")).toBeTruthy();
   });
 
-  it("shows selected icon name when set", () => {
+  it("hides the selected icon name in the trigger but keeps names in the picker", async () => {
     render(<IconInput label="Icon" value="wallet-outline" onChange={() => {}} />);
+    expect(screen.queryByText("wallet-outline")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Icon" }));
     expect(screen.getByText("wallet-outline")).toBeTruthy();
   });
 
