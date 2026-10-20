@@ -69,7 +69,8 @@ controls a readonly ID array and emits mutable ID arrays. The public interface
 has no `multiple` flag; both types share a picker implementation internally.
 Select inputs accept `renderItem(item)` for custom option content. All selects
 open a bounded, virtualized picker from the shared field; there is no inline
-presentation. Multiple selections expose checkbox semantics. Optional `loading`
+presentation. Pickers fit their contents up to the available modal height, then
+scroll; short lists remain compact. Multiple selections expose checkbox semantics. Optional `loading`
 displays a loading indicator in the trigger and prevents selection while loading.
 Empty lists display an empty state inside the picker.
 Optional `itemStyle(item)` styles option rows; the

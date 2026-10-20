@@ -89,32 +89,33 @@ afterEach(() => vi.restoreAllMocks());
 describe.each(["ios", "android"] as const)("ModalShell keyboard placement (%s)", platform => {
   beforeEach(() => { native.platform = platform; });
 
-  it("keeps the bottom anchor when the keyboard fits the reservation, including a resized window", () => {
+  it("bounds growth between 10% and 80% of the viewport and moves above the keyboard", () => {
     const content = <ModalShell visible onClose={() => {}}><div>Content</div></ModalShell>;
     const { rerender } = render(content);
     const initial = bounds();
-    expect(initial.top).toBe(44);
-    expect(initial.top + initial.height).toBe(576);
+    expect(initial.top).toBe(100);
+    expect(initial.top + initial.height).toBe(800);
     expect(screen.getByTestId("modal-content-region").style.justifyContent).toBe("flex-end");
     keyboardFrame(700);
+    expect(bounds().top + bounds().height).toBe(676);
     native.windowHeight = 700;
     rerender(<ModalShell visible onClose={() => {}}><div>More content</div></ModalShell>);
-    expect(bounds()).toEqual(initial);
+    expect(bounds()).toEqual({ top: 100, height: 566 });
     expect(screen.getByText("More content")).toBeTruthy();
   });
 
-  it("moves above a taller keyboard, restores the anchor on hide, and adapts to rotation", () => {
+  it("moves above the keyboard, restores the bottom anchor on hide, and adapts to rotation", () => {
     const renderModal = () => <ModalShell visible onClose={() => {}}><div>Content</div></ModalShell>;
     const { rerender, unmount } = render(renderModal());
     keyboardFrame(500);
-    expect(bounds()).toEqual({ top: 44, height: 432 });
+    expect(bounds()).toEqual({ top: 100, height: 376 });
     act(() => native.listeners.get(platform === "ios" ? "keyboardWillHide" : "keyboardDidHide")?.(keyboardEvent(1000)));
-    expect(bounds()).toEqual({ top: 44, height: 532 });
+    expect(bounds()).toEqual({ top: 100, height: 700 });
     native.screenHeight = 600;
     native.windowHeight = 600;
     native.windowWidth = 1000;
     rerender(renderModal());
-    expect(bounds()).toEqual({ top: 44, height: 292 });
+    expect(bounds()).toEqual({ top: 60, height: 420 });
     unmount();
     expect(native.listeners.size).toBe(0);
   });
@@ -122,7 +123,7 @@ describe.each(["ios", "android"] as const)("ModalShell keyboard placement (%s)",
   it("respects a keyboard that is already open when a modal mounts", () => {
     native.keyboardTop = 500;
     render(<ModalShell visible onClose={() => {}}><div>Content</div></ModalShell>);
-    expect(bounds()).toEqual({ top: 44, height: 432 });
+    expect(bounds()).toEqual({ top: 100, height: 376 });
   });
 
   it("converts screen keyboard coordinates after a delayed viewport-origin measurement", () => {
@@ -131,21 +132,21 @@ describe.each(["ios", "android"] as const)("ModalShell keyboard placement (%s)",
     keyboardFrame(500);
     act(() => native.completeMeasurement?.(20));
     const region = bounds();
-    expect(region.top).toBe(44);
+    expect(region.top).toBe(80);
     expect(20 + region.top + region.height).toBe(476);
   });
 });
 
-it("uses the browser layout viewport rather than the monitor or shrinking visual viewport", () => {
+it("stays inside the browser viewport rather than reserving part of the monitor height", () => {
   native.platform = "web";
   native.screenHeight = 2000;
   const layoutHeight = vi.spyOn(document.documentElement, "clientHeight", "get").mockReturnValue(1000);
   const renderModal = () => <ModalShell visible onClose={() => {}}><div>Content</div></ModalShell>;
   const { rerender } = render(renderModal());
-  expect(bounds()).toEqual({ top: 44, height: 532 });
+  expect(bounds()).toEqual({ top: 100, height: 700 });
   native.windowHeight = 700;
   rerender(renderModal());
-  expect(bounds()).toEqual({ top: 44, height: 532 });
+  expect(bounds()).toEqual({ top: 100, height: 566 });
   native.windowHeight = 450;
   rerender(renderModal());
   expect(bounds().top + bounds().height).toBeLessThan(450);
@@ -153,5 +154,5 @@ it("uses the browser layout viewport rather than the monitor or shrinking visual
   native.windowHeight = 600;
   native.windowWidth = 1000;
   rerender(renderModal());
-  expect(bounds()).toEqual({ top: 44, height: 292 });
+  expect(bounds()).toEqual({ top: 60, height: 420 });
 });

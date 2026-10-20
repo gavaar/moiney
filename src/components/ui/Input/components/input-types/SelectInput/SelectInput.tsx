@@ -140,7 +140,7 @@ export function SelectInput({ accessibilityLabel, items, groups, renderItem, ite
         setOpen(false);
         onFocusChange(false);
       }}>
-        <FlatList className="max-h-64" style={{ flexShrink: 1, height: modalContentHeight && modalContentHeight > 0 ? Math.min(modalContentHeight, 256) : undefined }}
+        <FlatList style={{ flexShrink: 1, height: modalContentHeight && modalContentHeight > 0 ? modalContentHeight : undefined }}
           accessibilityLabel={inputLabel}
           data={rows}
           extraData={{ value, disabled, loading }}
