@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Pressable, View, type PressableProps, type ViewProps } from "react-native";
 import { cn } from "@/lib/styles";
+import { INPUT_CONTENT_PADDING } from "../../input.config";
 
 export type InputAction = {
   content: ReactNode;
@@ -19,14 +20,15 @@ type Props = InputActions & {
   appearance?: "outlined" | "borderless";
   className?: string;
   contentClassName?: string;
+  contentPadding?: boolean;
   disabled?: boolean;
 } & (
   | (ViewProps & { onPress?: never })
   | (Omit<PressableProps, "className" | "children"> & { onPress: NonNullable<PressableProps["onPress"]>; children?: ReactNode })
 );
 
-export function InputWrapper({ borderStyle, appearance = "outlined", className, contentClassName, disabled, prefix, suffix, ...props }: Props) {
-  const contentStyle = cn("min-w-0 flex-1 px-3 py-2", contentClassName);
+export function InputWrapper({ borderStyle, appearance = "outlined", className, contentClassName, contentPadding = true, disabled, prefix, suffix, ...props }: Props) {
+  const contentStyle = cn("min-w-0 flex-1", contentPadding && INPUT_CONTENT_PADDING, contentClassName);
 
   function renderAction(action: InputAction | null | undefined, side: "prefix" | "suffix") {
     if (!action) return null;
@@ -53,7 +55,7 @@ export function InputWrapper({ borderStyle, appearance = "outlined", className, 
   return (
     <View className={cn(
       "flex-row",
-      appearance === "borderless" ? "bg-transparent" : "overflow-hidden rounded-lg border bg-surface",
+      appearance === "borderless" ? "bg-transparent" : "rounded-lg border bg-surface",
       borderStyle,
       className,
     )}>

@@ -110,7 +110,7 @@ describe("AddPipeModal", () => {
       fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "Madrid" } });
       fireEvent.click(screen.getByRole("button", { name: "Next step" }));
       fireEvent.click(screen.getByRole("button", { name: "Next step" }));
-      fireEvent.click(screen.getByTestId("select-trigger"));
+      fireEvent.click(screen.getByRole("button", { name: "Rule" }));
       fireEvent.click(screen.getByText("Self-destruct"));
       expect(screen.getByRole("button", { name: "Submit" }).getAttribute("aria-disabled")).toBe("true");
       fireEvent.click(screen.getByRole("button", { name: "Deletion date" }));
@@ -140,7 +140,7 @@ describe("AddPipeModal", () => {
       fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "Madrid" } });
       fireEvent.click(screen.getByRole("button", { name: "Next step" }));
       fireEvent.click(screen.getByRole("button", { name: "Next step" }));
-      fireEvent.click(screen.getByTestId("select-trigger"));
+      fireEvent.click(screen.getByRole("button", { name: "Rule" }));
       fireEvent.click(screen.getByText("Self-destruct"));
       fireEvent.click(screen.getByRole("button", { name: "Deletion date" }));
       fireEvent.click(screen.getByTestId("day-21"));
@@ -174,17 +174,19 @@ describe("AddPipeModal", () => {
     catalog.isLoading = false;
   });
 
-  it("starts without an owner, selects inline, advances, and allows returning to the selected row", async () => {
+  it("starts without an owner, selects through the picker, advances, and preserves selection on return", async () => {
     render(<AddPipeModal visible onClose={onClose} />);
     expect(screen.getByRole("heading", { name: "Select owner pipe" })).toBeTruthy();
     expect(screen.queryByRole("textbox", { name: "Name" })).toBeNull();
-    await userEvent.click(screen.getByRole("radio", { name: "Wallet" }));
+    await userEvent.click(screen.getByRole("button", { name: "Owner pipe" }));
+    await userEvent.click(screen.getByRole("button", { name: "Wallet" }));
     expect(screen.getByRole("heading", { name: "Wallet" })).toBeTruthy();
     expect(screen.getByRole("textbox", { name: "Name" })).toBeTruthy();
     await userEvent.click(screen.getByRole("button", { name: "Previous step" }));
-    expect(screen.getByRole("radio", { name: "Wallet" }).getAttribute("aria-checked")).toBe("true");
+    expect(screen.getByRole("button", { name: "Owner pipe" }).textContent).toBe("Wallet");
     expect(screen.queryByRole("textbox", { name: "Name" })).toBeNull();
-    await userEvent.click(screen.getByRole("radio", { name: "Wallet" }));
+    await userEvent.click(screen.getByRole("button", { name: "Owner pipe" }));
+    await userEvent.click(screen.getByRole("button", { name: "Wallet" }));
     expect(screen.getByRole("textbox", { name: "Name" })).toBeTruthy();
   });
 
@@ -193,7 +195,8 @@ describe("AddPipeModal", () => {
     expect(screen.getByRole("heading", { name: "Wallet" })).toBeTruthy();
     fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "Food" } });
     await userEvent.click(screen.getByRole("button", { name: "Previous step" }));
-    await userEvent.click(screen.getByRole("radio", { name: "Savings" }));
+    await userEvent.click(screen.getByRole("button", { name: "Owner pipe" }));
+    await userEvent.click(screen.getByRole("button", { name: "Savings" }));
     expect(screen.getByDisplayValue("Food")).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Savings" })).toBeTruthy();
     await userEvent.click(screen.getByRole("button", { name: "Next step" }));
@@ -228,8 +231,9 @@ describe("AddPipeModal", () => {
     catalog.isLoading = false;
     catalog.allPipes = [{ ...owner, deletionJobId: "job" as Id<"pipeDeletionJobs"> }];
     rerender(<AddPipeModal visible onClose={onClose} />);
+    fireEvent.click(screen.getByRole("button", { name: "Owner pipe" }));
     expect(screen.getByText("No options")).toBeTruthy();
-    expect(screen.queryByRole("radio")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Wallet" })).toBeNull();
   });
 
   it("cannot submit without an eligible owner even after completing the other steps", async () => {
@@ -257,7 +261,8 @@ describe("AddPipeModal", () => {
     const { rerender } = renderModal();
     fireEvent.blur(screen.getByRole("textbox", { name: "Name" }));
     await userEvent.click(screen.getByRole("button", { name: "Previous step" }));
-    await userEvent.click(screen.getByRole("radio", { name: "Savings" }));
+    await userEvent.click(screen.getByRole("button", { name: "Owner pipe" }));
+    await userEvent.click(screen.getByRole("button", { name: "Savings" }));
     await userEvent.click(screen.getByRole("button", { name: "Next step" }));
     rerender(<AddPipeModal visible={false} onClose={onClose} parentId={parentId} />);
     rerender(<AddPipeModal visible onClose={onClose} parentId={parentId} />);

@@ -26,8 +26,7 @@ export function Form<
     return {
       key: page.key,
       hasError: visibleFields.some(field => errors[field.key] !== undefined),
-      // Inline selects own their vertical scrolling; don't nest them in a ScrollView.
-      scrollable: !visibleFields.some(field => field.input.type === "select" && field.input.presentation === "inline"),
+      scrollable: true,
       content: page.rows.filter(row => row.length > 0).map(row => (
         <View key={row[0].key} className="flex-row items-start gap-4">
           {row.map(field => {

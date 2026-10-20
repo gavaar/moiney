@@ -12,6 +12,7 @@ const variants = [
   { type: "date", value: null },
   { type: "icon", value: "" },
   { type: "select", value: null, items: [], renderItem: () => null },
+  { type: "select-multiple", value: [], items: [], renderItem: () => null },
   { type: "text-select", value: "", options: [] },
 ] as const;
 
@@ -50,7 +51,7 @@ describe.each(variants)("$type accessories", props => {
 });
 
 describe.each([
-  { type: "checkbox", label: "Accept", value: false },
+  { type: "checkbox", checkboxLabel: "Accept", value: false },
   {
     type: "toggle",
     value: false,

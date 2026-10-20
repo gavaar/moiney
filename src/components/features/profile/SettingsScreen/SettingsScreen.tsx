@@ -22,7 +22,7 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
       <ScrollView contentContainerClassName="gap-3 pb-8">
         <Input
           type="checkbox"
-          label="Show monthly statistics card in main view"
+          checkboxLabel="Show monthly statistics card in main view"
           value={showInMain}
           disabled={!ready}
           onChange={setShowInMain}
@@ -32,7 +32,7 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
         </Text>
         <Input
           type="checkbox"
-          label="Use biometric login"
+          checkboxLabel="Use biometric login"
           value={biometrics.enabled}
           disabled={biometrics.loading || biometrics.busy || (!biometrics.available && !biometrics.enabled)}
           onChange={(enabled) => {

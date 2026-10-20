@@ -13,6 +13,7 @@ describe("Input", () => {
     { name: "date", props: { type: "date", value: null }, role: "button" },
     { name: "icon", props: { type: "icon", value: "" }, role: "button" },
     { name: "select", props: { type: "select", value: null, items: [], renderItem: () => null }, role: "button" },
+    { name: "select-multiple", props: { type: "select-multiple", value: [], items: [], renderItem: () => null }, role: "button" },
     { name: "text-select", props: { type: "text-select", value: "", options: [] }, role: "textbox" },
   ] as const;
 
@@ -36,8 +37,8 @@ describe("Input", () => {
     });
   });
 
-  it("uses the accessible name for unlabeled inline select loading feedback", () => {
-    render(<Input type="select" presentation="inline" accessibilityLabel="Owner pipe" value={null}
+  it("uses the accessible name for unlabeled select loading feedback", () => {
+    render(<Input type="select" accessibilityLabel="Owner pipe" value={null}
       items={[]} renderItem={() => null} loading />);
     expect(screen.queryByText("Owner pipe")).toBeNull();
     expect(screen.getByLabelText("Loading Owner pipe")).toBeTruthy();
@@ -46,8 +47,8 @@ describe("Input", () => {
   it("requires controlled values and preserves variant-specific emissions", () => {
     type TextProps = Extract<InputProps, { type?: "text" }>;
     type DateProps = Extract<InputProps, { type: "date" }>;
-    type SingleSelectProps = Extract<InputProps, { type: "select"; multiple?: false }>;
-    type MultipleSelectProps = Extract<InputProps, { type: "select"; multiple: true }>;
+    type SingleSelectProps = Extract<InputProps, { type: "select" }>;
+    type MultipleSelectProps = Extract<InputProps, { type: "select-multiple" }>;
 
     expectTypeOf<TextProps["value"]>().toEqualTypeOf<string>();
     expectTypeOf<TextProps["onChange"]>().toEqualTypeOf<((value: string) => void) | undefined>();
@@ -55,6 +56,7 @@ describe("Input", () => {
     expectTypeOf<Extract<keyof Extract<InputProps, { type: "checkbox" }>, "checked">>().toEqualTypeOf<never>();
     expectTypeOf<Extract<keyof Extract<InputProps, { type: "icon" }>, "onSelect">>().toEqualTypeOf<never>();
     expectTypeOf<Extract<keyof SingleSelectProps, "onSelect">>().toEqualTypeOf<never>();
+    expectTypeOf<Extract<keyof SingleSelectProps | keyof MultipleSelectProps, "multiple">>().toEqualTypeOf<never>();
     expectTypeOf<Extract<keyof Extract<InputProps, { type: "text-select" }>, "onChangeText" | "onOptionSelect">>().toEqualTypeOf<never>();
     expectTypeOf<DateProps["value"]>().toEqualTypeOf<Date | null>();
     expectTypeOf<Parameters<NonNullable<DateProps["onChange"]>>>().toEqualTypeOf<[Date]>();
@@ -62,7 +64,7 @@ describe("Input", () => {
     expectTypeOf<Parameters<NonNullable<SingleSelectProps["onChange"]>>>().toEqualTypeOf<[string]>();
     expectTypeOf<MultipleSelectProps["value"]>().toEqualTypeOf<readonly string[]>();
     expectTypeOf<Parameters<NonNullable<MultipleSelectProps["onChange"]>>>().toEqualTypeOf<[string[]]>();
-    expectTypeOf<Extract<keyof InputProps, "error">>().toEqualTypeOf<never>();
+    expectTypeOf<Extract<keyof InputProps, "error" | "onFocusChange" | "onInteractionEnd" | "triggerClassName">>().toEqualTypeOf<never>();
     expectTypeOf<NonNullable<TextProps["validator"]>>().toEqualTypeOf<(value: string) => string | undefined>();
     expectTypeOf<Parameters<NonNullable<DateProps["validator"]>>>().toEqualTypeOf<[Date | null]>();
     expectTypeOf<Parameters<NonNullable<SingleSelectProps["validator"]>>>().toEqualTypeOf<[string | null]>();
@@ -88,6 +90,23 @@ describe("Input", () => {
     expect(screen.getByRole("alert").textContent).toBe("Required");
     expect(screen.getByRole("checkbox").getAttribute("aria-checked")).toBe("false");
     expect(onChange).toHaveBeenCalledWith(false);
+  });
+
+  it("keeps the optional checkbox row label separate from its top label", async () => {
+    const onChange = vi.fn();
+    render(<Input type="checkbox" value={false} label="Consent" checkboxLabel="Accept terms" onChange={onChange} />);
+    expect(screen.getByText("Consent")).toBeTruthy();
+    expect(screen.getByRole("checkbox", { name: "Consent" })).toBeTruthy();
+    await userEvent.click(screen.getByText("Accept terms"));
+    expect(onChange).toHaveBeenCalledExactlyOnceWith(true);
+  });
+
+  it("resets validation when the caller changes the key", () => {
+    const { rerender } = render(<Input key="first" value="" validator={() => "Required"} />);
+    fireEvent.blur(screen.getByRole("textbox"));
+    expect(screen.getByRole("alert")).toBeTruthy();
+    rerender(<Input key="second" value="" validator={() => "Required"} />);
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   it("renders TextInput for type='text' (default)", () => {

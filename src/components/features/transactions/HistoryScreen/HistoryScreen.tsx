@@ -132,8 +132,7 @@ function HistoryFilterControls({
         </View>
         <View className="w-40">
           <Input
-            type="select"
-            multiple
+            type="select-multiple"
             accessibilityLabel="Pipes"
             items={allPipes ?? []}
             renderItem={(pipe) => <Text className="text-text">{pipe.name}</Text>}

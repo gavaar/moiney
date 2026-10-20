@@ -79,7 +79,8 @@ describe("CreateModal", () => {
   it("defaults to transaction and preserves its draft while switching modes", () => {
     render(<CreateModal onClose={onClose} />);
     expect(screen.getByRole("tab", { name: "transaction" }).getAttribute("aria-selected")).toBe("true");
-    fireEvent.click(screen.getByRole("radio", { name: /Transport/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Transaction pipe" }));
+    fireEvent.click(screen.getByRole("button", { name: /Transport/ }));
     fireEvent.change(screen.getByPlaceholderText("What was this for?"), { target: { value: "Lunch" } });
     fireEvent.click(screen.getByRole("tab", { name: "pipe" }));
     expect(screen.getByRole("heading", { name: "Select owner pipe" })).toBeTruthy();
@@ -99,7 +100,8 @@ describe("CreateModal", () => {
   it("creates a pipe for the selected owner and preserves its draft across modes", async () => {
     render(<CreateModal onClose={onClose} />);
     fireEvent.click(screen.getByRole("tab", { name: "pipe" }));
-    fireEvent.click(screen.getByRole("radio", { name: "Groceries" }));
+    fireEvent.click(screen.getByRole("button", { name: "Owner pipe" }));
+    fireEvent.click(screen.getByRole("button", { name: "Groceries" }));
     fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "Snacks" } });
     fireEvent.click(screen.getByRole("tab", { name: "root" }));
     fireEvent.click(screen.getByRole("tab", { name: "pipe" }));
@@ -140,7 +142,8 @@ describe("CreateModal", () => {
   it("selects ranked pipes, preserves the draft on Back, and submits for the newly selected pipe", async () => {
     render(<CreateModal onClose={onClose} />);
 
-    const pipeButtons = screen.getAllByRole("radio");
+    fireEvent.click(screen.getByRole("button", { name: "Transaction pipe" }));
+    const pipeButtons = screen.getAllByRole("button", { name: /Transport|Groceries/ });
     expect(pipeButtons.map((button) => button.textContent)).toEqual([
       "Transport (50.00 / 200.00)",
       "Groceries (123.45 / 500.00)",
@@ -152,8 +155,9 @@ describe("CreateModal", () => {
     fireEvent.change(screen.getByPlaceholderText("What was this for?"), { target: { value: "Lunch" } });
     fireEvent.change(screen.getByRole("textbox", { name: "Value" }), { target: { value: "5.00" } });
     fireEvent.click(screen.getByRole("button", { name: "Previous step" }));
-    expect(screen.getByRole("radio", { name: /Transport/ }).getAttribute("aria-checked")).toBe("true");
-    fireEvent.click(screen.getByRole("radio", { name: /Groceries/ }));
+    expect(screen.getByRole("button", { name: "Transaction pipe" }).textContent).toContain("Transport");
+    fireEvent.click(screen.getByRole("button", { name: "Transaction pipe" }));
+    fireEvent.click(screen.getByRole("button", { name: /Groceries/ }));
     expect(screen.getByDisplayValue("Lunch")).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Create: Groceries (123.45 / 500.00)" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Add expense" }));

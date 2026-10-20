@@ -66,8 +66,7 @@ const fields: FormRow<Values> = [
   {
     key: "categories",
     input: {
-      type: "select",
-      multiple: true,
+      type: "select-multiple",
       label: "Categories",
       items,
       renderItem: (item) => <>{item.name}</>,
