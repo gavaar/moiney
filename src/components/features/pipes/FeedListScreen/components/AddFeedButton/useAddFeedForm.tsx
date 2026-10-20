@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Text } from "react-native";
 import { useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { Button } from "@ui/Button";
@@ -51,7 +50,7 @@ export function useAddFeedForm(onSuccess: () => void): FormProps<AddFeedDraft> &
 
   return {
     resetVersion,
-    header: <Text accessibilityRole="header" className="text-lg font-semibold text-text">{draft.isBoiler ? "Create Boiler" : "Create Feed"}</Text>,
+    header: { title: draft.isBoiler ? "Create Boiler" : "Create Feed" },
     pages,
     value: draft,
     onChange: value => setDraft(previous => ({ ...previous, ...value })),

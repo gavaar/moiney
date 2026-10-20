@@ -5,10 +5,9 @@ import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { parseMoney } from "@domain/money";
 import { previewChildContingencyOptions, prepareContingencyEligibility } from "@domain/pipes/contingencyEligibility";
-import { colors } from "@/lib/styles";
 import { Button } from "@ui/Button";
 import { Form, FormActionRow } from "@ui/Form";
-import { Icon, safeIconName } from "@ui/Icon";
+import { safeIconName } from "@ui/Icon";
 import { useAlert } from "@ui/Alert";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import type { PipeModel } from "@features/pipes/data/pipes";
@@ -37,7 +36,6 @@ export function PipeForm(props: PipeFormProps) {
   const baseline = editing ? createPipeDraft(pipe) : initialDraft;
   const draft = editing ? { ...baseline, ...edits } : creationDraft;
   const [formVersion, setFormVersion] = useState(0);
-  const [activeStep, setActiveStep] = useState(props.mode === "edit" ? props.initialStep ?? 1 : parentId ? 1 : 0);
   const [busy, setBusy] = useState(false);
   const [submitError, setSubmitError] = useState<string>();
   const validationTime = useRuleClock(draft.selectedRule === "cron" || draft.selectedRule === "self_destruct");
@@ -81,8 +79,6 @@ export function PipeForm(props: PipeFormProps) {
       if (merged.selectedRule !== previous.selectedRule && ruleDisallowsContingency(merged.selectedRule)) merged.contingencyPipeId = null;
       return merged;
     });
-    // Auto-advance is an interaction, not an effect: Back must stay on Owner.
-    if (!editing && activeStep === 0 && pipes.some(item => item.id === next.ownerId)) setActiveStep(1);
     setSubmitError(undefined);
   }
 
@@ -91,7 +87,6 @@ export function PipeForm(props: PipeFormProps) {
     if (editing) setEdits({});
     else {
       setCreationDraft(createPipeDraft(undefined, draft.ownerId));
-      setActiveStep(draft.ownerId ? 1 : 0);
     }
     setSubmitError(undefined);
     setFormVersion(version => version + 1);
@@ -159,27 +154,21 @@ export function PipeForm(props: PipeFormProps) {
         removalPending: Boolean(pipe?.contingencyPipeId && ruleDisallowsContingency(draft.selectedRule))
       })}
       value={{ ...draft, contingencyPipeId: draft.contingencyPipeId ?? "none" }} onChange={handleChange}
-      navigation={{ step: activeStep, onChange: step => { if (!busy) setActiveStep(step); } }}
-      header={<View className="flex-row items-center gap-2 border-b border-muted/20 p-2"
-        accessibilityRole="header" accessibilityLabel={headerPipe?.name ?? "Select owner pipe"}>
-        <Icon name={headerPipe ? safeIconName(headerPipe.icon) : "pipe-disconnected"} size={24} color={colors.muted} />
-        <Text className="flex-1 text-md font-medium text-muted" numberOfLines={1}>{headerPipe?.name ?? "Select owner pipe"}</Text>
-      </View>}
-      warnings={warnings.length || submitError || canRun && dirty ? <View className="gap-1">
-        {warnings.map(message => <View key={message} className="bg-warning/10 border border-warning/30 rounded-xl px-3 py-1">
-          <Text className="text-warning text-sm">{message}</Text>
-        </View>)}
+      navigationStart={editing ? props.initialStep ?? 1 : draft.ownerId ? 1 : 0}
+      header={{ title: headerPipe?.name ?? "Select owner pipe", icon: headerPipe ? safeIconName(headerPipe.icon) : "pipe-disconnected" }}
+      warnings={warnings}
+      actions={<View className="gap-1">
+        <FormActionRow onClear={reset} clearDisabled={busy} clearLabel={editing ? "Reset changes" : "Clear form"}
+          clearIcon={editing ? "restore" : "eraser"}>
+          <View className="flex-row flex-wrap justify-end gap-2 flex-1">
+            {canRun ? <Button title="Run now" icon="water-outline" variant="secondary" disabled={dirty || !valid || busy} onPress={() => void runNow()} /> : null}
+            <Button title="Submit" icon={editing ? "checkmark" : "add"} variant="outline" onPress={() => void submit(Date.now())} loading={busy}
+              disabled={!valid || editing && !dirty} />
+          </View>
+        </FormActionRow>
         {canRun && dirty ? <Text className="text-sm text-muted">Save changes before running.</Text> : null}
         {submitError ? <Text accessibilityRole="alert" className="text-sm text-error">{submitError}</Text> : null}
-      </View> : undefined}
-      actions={<FormActionRow onClear={reset} clearDisabled={busy} clearLabel={editing ? "Reset changes" : "Clear form"}
-        clearIcon={editing ? "restore" : "eraser"}>
-        <View className="flex-row flex-wrap justify-end gap-2 flex-1">
-          {canRun ? <Button title="Run now" icon="water-outline" variant="secondary" disabled={dirty || !valid || busy} onPress={() => void runNow()} /> : null}
-          <Button title="Submit" icon={editing ? "checkmark" : "add"} variant="outline" onPress={() => void submit(Date.now())} loading={busy}
-            disabled={!valid || editing && !dirty} />
-        </View>
-      </FormActionRow>}
+      </View>}
     />
   </View>;
 }

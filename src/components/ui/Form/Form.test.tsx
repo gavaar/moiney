@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { useState } from "react";
-import { Text } from "react-native";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, expectTypeOf, it, vi } from "vitest";
 import { Form, type FormProps, type FormRow } from ".";
@@ -19,10 +18,18 @@ const singlePage: FormProps<Values>["pages"] = [{ key: 0, rows: fields.map(field
 
 function Controlled({ pages = singlePage }: { pages?: FormProps<Values>["pages"] }) {
   const [value, setValue] = useState<Values>({ name: "", count: 2, accepted: true });
-  return <Form header={<Text>Custom header</Text>} pages={pages} value={value} onChange={setValue} />;
+  return <Form header={{ title: "Custom header" }} pages={pages} value={value} onChange={setValue} />;
 }
 
 describe("Form controlled fields", () => {
+  it("renders header badges and a distinct accessible title", () => {
+    render(<Form pages={singlePage} value={{ name: "Ada", count: 2, accepted: true }} onChange={() => {}}
+      header={{ title: "Groceries", icon: "pipe", accessibilityLabel: "Edit Groceries", badge: { label: "edit", icon: "pencil-outline" } }} />);
+    expect(screen.getByRole("heading", { name: "Edit Groceries" })).toBeTruthy();
+    expect(screen.getByText("Groceries")).toBeTruthy();
+    expect(screen.getByText("edit")).toBeTruthy();
+  });
+
   it("reveals optional fields without changing values and clears hidden error indicators on reset", async () => {
     const onChange = vi.fn();
     function Example({ disabled = false }: { disabled?: boolean }) {
@@ -65,7 +72,7 @@ describe("Form controlled fields", () => {
     expect(screen.getByDisplayValue("Retained")).toBeTruthy();
   });
 
-  it("renders a JSX header and description without single-step navigation", () => {
+  it("renders a configured header and description without single-step navigation", () => {
     render(<Controlled />);
     expect(screen.getByText("Custom header")).toBeTruthy();
     expect(screen.getByText("Your display name")).toBeTruthy();
@@ -153,37 +160,52 @@ function rgb(color: string) {
 }
 
 describe("Form steps", () => {
-  it("keeps caller warnings between the current page and actions while navigating", async () => {
+  it("owns warning dismissal by message for the lifetime of the form", async () => {
+    const value: Values = { name: "Ada", count: 2, accepted: true };
+    const example = (warnings: readonly string[]) => <Form pages={steps} value={value} onChange={() => {}}
+      warnings={warnings} actions={<Button title="Submit" onPress={() => {}} />} />;
+    const { rerender, unmount } = render(example(["First warning", "Second warning"]));
+    await userEvent.click(within(screen.getByText("First warning").parentElement!).getByRole("button", { name: "Dismiss warning" }));
+    expect(screen.queryByText("First warning")).toBeNull();
+    expect(screen.getByText("Second warning")).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Next step" }));
+    rerender(example(["Second warning"]));
+    rerender(example([]));
+    expect(screen.queryByRole("button", { name: "Dismiss warning" })).toBeNull();
+    rerender(example(["First warning", "Second warning", "New warning"]));
+    expect(screen.queryByText("First warning")).toBeNull();
+    expect(screen.getByText("New warning")).toBeTruthy();
+    expect(screen.getByRole("textbox", { name: "Count" })).toBeTruthy();
+    unmount();
+    render(example(["First warning"]));
+    expect(screen.getByText("First warning")).toBeTruthy();
+  });
+
+  it("keeps caller warnings below actions while navigating", async () => {
     const value: Values = { name: "Ada", count: 2, accepted: true };
     render(<Form pages={steps} value={value} onChange={() => {}}
-      warnings={<Text accessibilityRole="alert">Check the effect on this pipe</Text>}
+      warnings={["Check the effect on this pipe"]}
       actions={<Button title="Submit" onPress={() => {}} />} />);
     const warning = screen.getByRole("alert");
     const action = screen.getByRole("button", { name: "Submit" });
     expect(screen.getByRole("textbox", { name: "Name" }).compareDocumentPosition(warning) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(warning.compareDocumentPosition(action) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(action.compareDocumentPosition(warning) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     await userEvent.click(screen.getByRole("button", { name: "Next step" }));
     expect(screen.getByRole("alert")).toBe(warning);
     expect(screen.getByRole("button", { name: "Submit" })).toBe(action);
   });
 
-  it("supports caller-controlled steps, navigation buttons, and swiping", async () => {
-    function ControlledStep({ initialStep }: { initialStep: number }) {
-      const [activeStep, setActiveStep] = useState(initialStep);
-      const value: Values = { name: "Ada", count: 2, accepted: true };
-      return <>
-        <button onClick={() => setActiveStep(8)}>Jump to last</button>
-        <Form pages={steps} value={value} onChange={() => {}}
-          navigation={{ step: activeStep, onChange: setActiveStep }} />
-      </>;
-    }
-    render(<ControlledStep initialStep={3} />);
+  it("starts at a page key, ignores later start changes, and owns buttons and swiping", async () => {
+    const value: Values = { name: "Ada", count: 2, accepted: true };
+    const { rerender } = render(<Form pages={steps} value={value} onChange={() => {}} navigationStart={3} />);
+    expect(screen.getByRole("textbox", { name: "Count" })).toBeTruthy();
+    rerender(<Form pages={steps} value={value} onChange={() => {}} navigationStart={8} />);
     expect(screen.getByRole("textbox", { name: "Count" })).toBeTruthy();
     await userEvent.click(screen.getByRole("button", { name: "Previous step" }));
     expect(screen.getByRole("textbox", { name: "Name" })).toBeTruthy();
     await userEvent.click(screen.getByRole("button", { name: "Next step" }));
     expect(screen.getByRole("textbox", { name: "Count" })).toBeTruthy();
-    await userEvent.click(screen.getByText("Jump to last"));
+    await userEvent.click(screen.getByRole("button", { name: "Next step" }));
     expect(screen.getByRole("checkbox")).toBeTruthy();
     const pager = screen.getByTestId("form-pager");
     Object.defineProperty(pager, "offsetWidth", { configurable: true, value: 320 });
@@ -235,12 +257,12 @@ describe("Form steps", () => {
     const submit = vi.fn();
     const value: Values = { name: "Ada", count: 2, accepted: true };
     render(<Form pages={singlePage} value={value} onChange={() => {}}
-      warnings={<Text accessibilityRole="alert">Check your details</Text>}
+      warnings={["Check your details"]}
       actions={<Button title="Create" onPress={submit} />} />);
     expect(screen.queryByRole("button", { name: "Next step" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Previous step" })).toBeNull();
     expect(screen.queryByLabelText(/Step \d+ of/)).toBeNull();
-    expect(screen.getByRole("alert").compareDocumentPosition(screen.getByRole("button", { name: "Create" })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Create" }).compareDocumentPosition(screen.getByRole("alert")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     await userEvent.click(screen.getByRole("button", { name: "Create" }));
     expect(submit).toHaveBeenCalledOnce();
   });

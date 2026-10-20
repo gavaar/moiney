@@ -1,33 +1,30 @@
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { Keyboard, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent, type ScrollView } from "react-native";
-import type { FormNavigation } from "./form.types";
 
 type Props = {
   pageKeys: readonly number[];
-  navigation?: FormNavigation;
-  fill: boolean;
+  navigationStart?: number;
 };
 
 type PageMeasurement = { width: number; height: number };
 
 /** Owns step keys, measured page geometry, and synchronization with native offsets. */
-export function useFormPagerController({ pageKeys, navigation, fill }: Props) {
-  const activeStep = navigation?.step;
-  const [selectedKey, setSelectedKey] = useState<number | null>(null);
+export function useFormPagerController({ pageKeys, navigationStart }: Props) {
+  const [selectedKey, setSelectedKey] = useState<number | null>(navigationStart ?? null);
   const [width, setWidth] = useState(0);
   const [measurements, setMeasurements] = useState<Record<number, PageMeasurement>>({});
-  const activeIndex = Math.max(0, pageKeys.findIndex(key => key === (activeStep ?? selectedKey)));
+  const activeIndex = Math.max(0, pageKeys.findIndex(key => key === selectedKey));
   const multiple = pageKeys.length > 1;
   const pageSignature = pageKeys.join(",");
   const activeMeasurement = measurements[pageKeys[activeIndex]];
-  const height = !fill && activeMeasurement?.width === width ? activeMeasurement.height : undefined;
+  const height = activeMeasurement?.width === width ? activeMeasurement.height : undefined;
 
   const scrollRef = useRef<ScrollView>(null);
   const alignmentTarget = useRef<number | null>(null);
   const contentWidth = useRef(0);
 
   function measurePage(key: number, height: number) {
-    if (!multiple || fill || width <= 0) return;
+    if (!multiple || width <= 0) return;
     setMeasurements(previous => previous[key]?.height === height && previous[key]?.width === width
       ? previous : { ...previous, [key]: { width, height } });
   }
@@ -44,20 +41,19 @@ export function useFormPagerController({ pageKeys, navigation, fill }: Props) {
   const alignLatestPage = useEffectEvent(alignToSelectedPage);
   useEffect(() => {
     alignLatestPage();
-  }, [width, pageSignature, activeStep]);
+  }, [width, pageSignature]);
 
   function selectPage(index: number) {
     const key = pageKeys[index];
     if (key === undefined) return;
-    if (activeStep === undefined) setSelectedKey(key);
-    if (key !== (activeStep ?? selectedKey)) navigation?.onChange(key);
+    setSelectedKey(key);
   }
 
   function navigateToPage(index: number) {
     const nextIndex = Math.max(0, Math.min(pageKeys.length - 1, index));
     Keyboard.dismiss();
     selectPage(nextIndex);
-    if (activeStep === undefined) scrollRef.current?.scrollTo({ x: nextIndex * width, animated: true });
+    scrollRef.current?.scrollTo({ x: nextIndex * width, animated: true });
   }
 
   function handleViewportLayout(event: LayoutChangeEvent) {

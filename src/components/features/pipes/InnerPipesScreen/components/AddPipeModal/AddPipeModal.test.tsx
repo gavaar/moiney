@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { act, fireEvent, render as renderComponent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render as renderComponent, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { ConfirmModalProvider } from "@ui/ConfirmModal/ConfirmModalProvider";
 import userEvent from "@testing-library/user-event";
@@ -50,6 +50,22 @@ function renderModal(visible = true) {
 }
 
 describe("AddPipeModal", () => {
+  it("dismisses individual owner warnings until the modal is closed and reopened", async () => {
+    catalog.allPipes = [{ ...owner, rule: "cron" }, other];
+    const { rerender } = renderModal();
+    const warning = screen.getByText(/current rule.*removed/i);
+    await userEvent.click(within(warning.parentElement!).getByRole("button", { name: "Dismiss warning" }));
+    expect(screen.queryByText(/current rule.*removed/i)).toBeNull();
+    expect(screen.getByText(/remove current capacity and spent/i)).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Next step" }));
+    expect(screen.queryByText(/current rule.*removed/i)).toBeNull();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(mockAddPipe).not.toHaveBeenCalled();
+    rerender(<AddPipeModal visible={false} onClose={onClose} parentId={parentId} />);
+    rerender(<AddPipeModal visible onClose={onClose} parentId={parentId} />);
+    expect(screen.getByText(/current rule.*removed/i)).toBeTruthy();
+  });
+
   it("offers contingency for the future child and submits it from any step without Run now", async () => {
     const reserve = { ...other, id: "reserve" as Id<"pipes">, parentId };
     catalog.allPipes = [owner, reserve];
@@ -115,7 +131,7 @@ describe("AddPipeModal", () => {
       expect(screen.getByRole("button", { name: "Submit" }).getAttribute("aria-disabled")).toBe("true");
       fireEvent.click(screen.getByRole("button", { name: "Deletion date" }));
       fireEvent.click(screen.getByTestId("day-20"));
-      expect(screen.getByRole("alert").textContent).toBe("Choose a future deletion date (05:00 UTC)");
+      expect(screen.getByText("Choose a future deletion date (05:00 UTC)")).toBeTruthy();
       fireEvent.click(screen.getByRole("button", { name: "Deletion date" }));
       fireEvent.click(screen.getByTestId("day-21"));
       fireEvent.click(screen.getByRole("button", { name: "Previous step" }));
@@ -160,7 +176,7 @@ describe("AddPipeModal", () => {
     await userEvent.click(screen.getByRole("button", { name: "Next step" }));
     const warning = screen.getByText(/current rule.*removed/i);
     const submit = screen.getByRole("button", { name: "Submit" });
-    expect(warning.compareDocumentPosition(submit) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(submit.compareDocumentPosition(warning) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     await userEvent.click(screen.getByRole("button", { name: "Next step" }));
     expect(screen.getByLabelText("Step 4 of 4").getAttribute("aria-selected")).toBe("true");
     expect(screen.getByText("No rule")).toBeTruthy();
@@ -174,19 +190,23 @@ describe("AddPipeModal", () => {
     catalog.isLoading = false;
   });
 
-  it("starts without an owner, selects through the picker, advances, and preserves selection on return", async () => {
+  it("selects an owner without auto-advancing and preserves selection on return", async () => {
     render(<AddPipeModal visible onClose={onClose} />);
     expect(screen.getByRole("heading", { name: "Select owner pipe" })).toBeTruthy();
     expect(screen.queryByRole("textbox", { name: "Name" })).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Owner pipe" }));
     await userEvent.click(screen.getByRole("button", { name: "Wallet" }));
     expect(screen.getByRole("heading", { name: "Wallet" })).toBeTruthy();
+    expect(screen.queryByRole("textbox", { name: "Name" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Next step" }));
     expect(screen.getByRole("textbox", { name: "Name" })).toBeTruthy();
     await userEvent.click(screen.getByRole("button", { name: "Previous step" }));
     expect(screen.getByRole("button", { name: "Owner pipe" }).textContent).toBe("Wallet");
     expect(screen.queryByRole("textbox", { name: "Name" })).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Owner pipe" }));
     await userEvent.click(screen.getByRole("button", { name: "Wallet" }));
+    expect(screen.queryByRole("textbox", { name: "Name" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Next step" }));
     expect(screen.getByRole("textbox", { name: "Name" })).toBeTruthy();
   });
 
@@ -197,6 +217,7 @@ describe("AddPipeModal", () => {
     await userEvent.click(screen.getByRole("button", { name: "Previous step" }));
     await userEvent.click(screen.getByRole("button", { name: "Owner pipe" }));
     await userEvent.click(screen.getByRole("button", { name: "Savings" }));
+    await userEvent.click(screen.getByRole("button", { name: "Next step" }));
     expect(screen.getByDisplayValue("Food")).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Savings" })).toBeTruthy();
     await userEvent.click(screen.getByRole("button", { name: "Next step" }));
@@ -217,7 +238,7 @@ describe("AddPipeModal", () => {
     const input = screen.getByRole("textbox", { name: "Initial capacity?" });
     fireEvent.change(input, { target: { value: "-" } });
     fireEvent.blur(input);
-    expect(screen.getByRole("alert").textContent).toBe("Enter a valid capacity");
+    expect(screen.getByText("Enter a valid capacity")).toBeTruthy();
     await userEvent.click(screen.getByRole("button", { name: "Next step" }));
     expect(screen.getByRole("button", { name: "Submit" }).getAttribute("aria-disabled")).toBe("true");
     expect(mockAddPipe).not.toHaveBeenCalled();
@@ -269,7 +290,7 @@ describe("AddPipeModal", () => {
     expect(screen.getByRole("heading", { name: "Wallet" })).toBeTruthy();
     expect(screen.getByRole("textbox", { name: "Name" }).getAttribute("value")).toBe("");
     expect(screen.getByLabelText("Step 2 of 4").getAttribute("aria-selected")).toBe("true");
-    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByText("Name is required")).toBeNull();
   });
 
   it.each([["0", 0], ["12.34", 1234]] as const)("submits capacity %s as integer cents", async (capacity, cents) => {
@@ -343,9 +364,9 @@ describe("AddPipeModal", () => {
     await user.click(input);
     await user.tab();
     await user.type(input, "a");
-    expect(screen.getByRole("alert").textContent).toBe("Name must be at least 3 characters");
+    expect(screen.getByText("Name must be at least 3 characters")).toBeTruthy();
     await user.type(input, "bc");
-    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByText("Name must be at least 3 characters")).toBeNull();
   });
 
   it("calls addPipe mutation with form data on valid submit", async () => {
@@ -378,6 +399,9 @@ describe("AddPipeModal", () => {
     await waitFor(() => {
       expect(screen.getByText("Server error")).toBeDefined();
     });
+    for (const dismiss of screen.getAllByRole("button", { name: "Dismiss warning" })) await user.click(dismiss);
+    expect(screen.getByRole("alert").textContent).toBe("Server error");
+    expect(screen.queryByRole("button", { name: "Dismiss warning" })).toBeNull();
     expect(screen.getByText("Submit")).toBeDefined();
   });
 

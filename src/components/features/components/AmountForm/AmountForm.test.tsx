@@ -1525,6 +1525,26 @@ describe("AmountForm", () => {
     });
 
     describe("edit mode", () => {
+      it("lets users dismiss the accounting warning without submitting or changing the draft", () => {
+        render(<AmountForm pipeId={PIPE_ID} variant="transaction" initState={{
+          pipeIcon: "cart",
+          pipeName: "Previous pipe",
+          title: "coffee",
+          value: "-5",
+          structure: { type: "expense", from: "missing-pipe" as Id<"pipes"> },
+          operationId: "transaction-1" as Id<"events">,
+          date: new Date(2026, 6, 20).getTime(),
+          intent: "edit",
+        }} />);
+        const warning = screen.getByRole("alert");
+        const action = screen.getByTestId("submit-button");
+        expect(action.compareDocumentPosition(warning) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        fireEvent.click(screen.getByRole("button", { name: "Dismiss warning" }));
+        expect(screen.queryByRole("alert")).toBeNull();
+        expect(screen.getByDisplayValue("coffee")).toBeTruthy();
+        expect(mockEditTransactionFn).not.toHaveBeenCalled();
+      });
+
       it("keeps structural role controls visible for an ordinary expense", () => {
         render(
           <AmountForm

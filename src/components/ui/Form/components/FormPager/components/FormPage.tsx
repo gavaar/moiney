@@ -13,12 +13,11 @@ type Props = {
   active: boolean;
   width: number;
   multiple: boolean;
-  fill: boolean;
   onMeasure: (key: number, height: number) => void;
 };
 
 /** Keeps inactive inputs mounted, but removes them from interaction/accessibility. */
-export function FormPage({ page, active, width, multiple, fill, onMeasure }: Props) {
+export function FormPage({ page, active, width, multiple, onMeasure }: Props) {
   const accessibility = {
     "aria-hidden": !active,
     accessibilityElementsHidden: !active,
@@ -28,7 +27,7 @@ export function FormPage({ page, active, width, multiple, fill, onMeasure }: Pro
   };
   const style = {
     width: multiple ? width || "100%" as const : undefined,
-    flexGrow: !multiple && fill ? 1 : 0,
+    flexGrow: 0,
     flexShrink: multiple ? 0 : 1,
     // ScrollViews report full content height within a bounded viewport. Inline
     // lists own vertical scrolling and report their naturally bounded layout.

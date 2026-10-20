@@ -38,17 +38,22 @@ export type FormPage<
   Keys extends keyof Values & string = keyof Values & string,
 > = { key: number; rows: readonly FormRow<Values, Keys>[] };
 
-export type FormNavigation = { step: number; onChange: (step: number) => void };
+export type FormHeader = {
+  title: string;
+  icon?: IconName;
+  accessibilityLabel?: string;
+  badge?: { label: string; icon?: IconName };
+};
 
 export type FormProps<
   Values extends Record<string, FormValue>,
   Keys extends keyof Values & string = keyof Values & string,
 > = {
-  header?: JSX.Element;
-  warnings?: JSX.Element;
+  header?: FormHeader;
+  warnings?: readonly string[];
   actions?: JSX.Element;
-  navigation?: FormNavigation;
-  fill?: boolean;
+  /** Initial page key, read on mount. Defaults to the first non-empty page. */
+  navigationStart?: number;
   pages: readonly FormPage<Values, Keys>[];
   value: Values;
   onChange: (value: Pick<Values, NoInfer<Keys>>) => void;

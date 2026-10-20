@@ -71,6 +71,8 @@ describe("transaction forms", () => {
     expect(screen.queryByRole("button", { name: /^Wallet/ })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Expand Wallet" }));
     fireEvent.click(screen.getByRole("button", { name: /^Wallet/ }));
+    expect(screen.getByRole("button", { name: "Transaction pipe" }).textContent).toContain("Wallet");
+    fireEvent.click(screen.getByRole("button", { name: "Next step" }));
     expect(screen.getByDisplayValue("Lunch")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Paid from" }).textContent).toBe("None");
     fireEvent.click(screen.getByRole("button", { name: "Add expense" }));

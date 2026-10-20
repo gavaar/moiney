@@ -123,9 +123,15 @@ Its optional `header` is a JSX element, not a string.
 An optional JSX `actions` renders below the fields on every step, including
 single-step forms. The caller owns its callbacks, eligibility, and loading
 state; Form does not submit or infer submit readiness from displayed errors.
-An optional JSX `warnings` renders between the pannable fields and actions.
-The caller decides when to show it and owns its content. On multi-step forms,
-only the fields are flanked by chevrons; warnings, actions, and step indicators
+Optional `warnings: readonly string[]` supplies messages rendered below the
+actions. Form owns their shared styling and top-right dismiss buttons; callers
+do not compose warning JSX. Message text is warning identity: duplicate messages
+share one card, and dismissed messages stay hidden through step changes and
+rerenders, even if temporarily removed and reintroduced. Dismissal resets when
+the form remounts, including on modal reopen. New messages remain visible.
+Validation and submission errors are not dismissible warnings; caller-owned
+submission errors and action guidance belong with `actions`. On multi-step forms,
+only the fields are flanked by chevrons; actions, warnings, and step indicators
 sit below them at full form width with space between each section.
 The optional `fill` layout fills a height-constrained parent and gives remaining
 space to the scrollable fields, keeping the header and actions outside that

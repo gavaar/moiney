@@ -21,7 +21,6 @@ function SelectableTransactionForm({ pipeId, initState, onSuccess }: Props) {
   const { allPipes, childrenByParent, isLoading } = usePipeCatalog();
   const { entries, isLoading: historyLoading } = useEventHistory();
   const [selectedId, setSelectedId] = useState<Id<"pipes"> | null>(pipeId ?? null);
-  const [activeStep, setActiveStep] = useState(pipeId ? 1 : 0);
   const isFeed = initState?.structure?.type === "feed";
   const pipes = isFeed
     ? (allPipes ?? []).filter(pipe => !pipe.parentId && !pipe.deletionJobId)
@@ -52,8 +51,7 @@ function SelectableTransactionForm({ pipeId, initState, onSuccess }: Props) {
       pipes,
       groups,
       loading: isLoading || historyLoading,
-      activeStep,
-      onStepChange: setActiveStep,
-      onSelect: id => { setSelectedId(id); setActiveStep(1); },
+      navigationStart: pipeId ? 1 : 0,
+      onSelect: setSelectedId,
     }} />;
 }

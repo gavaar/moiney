@@ -3,7 +3,7 @@ import { Form } from "@ui/Form";
 import type { AmountFormDraft, AmountFormProps } from "./types";
 import { useAmountFormController } from "./useAmountFormController";
 import { buildAmountForm } from "./amountForm.config";
-import { AmountFormHeader } from "./AmountFormHeader";
+import { getAmountFormHeader } from "./amountFormHeader";
 import { AmountFormActions } from "./AmountFormActions";
 
 export function AmountForm(props: AmountFormProps) {
@@ -17,28 +17,21 @@ export function AmountForm(props: AmountFormProps) {
 
   function handleFormChange(next: AmountFormDraft) {
     form.updateDraft(next);
-    if (picker?.activeStep === 0) {
+    if (picker && next.sourcePipeId !== form.draft.sourcePipeId) {
       const pipe = picker.pipes.find(pipe => pipe.id === next.sourcePipeId);
       if (pipe) picker.onSelect(pipe.id);
     }
   }
 
   return (
-    <View className="px-4 py-4" style={props.fill ? { flex: 1 } : { flexShrink: 1 }}>
+    <View className="px-4 py-4" style={{ flexShrink: 1 }}>
       <Form
-        fill={props.fill}
         pages={buildAmountForm(form, picker)}
         value={form.draft}
         onChange={handleFormChange}
-        navigation={picker ? { step: picker.activeStep, onChange: picker.onStepChange } : undefined}
-        header={heading ? (
-          <AmountFormHeader transaction={heading} sourceSelected={props.pipeId !== null} />
-        ) : undefined}
-        warnings={form.editWarning ? (
-          <View accessibilityRole="alert" className="rounded-lg border border-muted px-2 py-1">
-            {form.editWarning.map((line, index) => <Text key={index} className="text-sm text-muted">{line}</Text>)}
-          </View>
-        ) : undefined}
+        navigationStart={picker?.navigationStart}
+        header={heading ? getAmountFormHeader(heading, props.pipeId !== null) : undefined}
+        warnings={form.editWarning ? [form.editWarning.join("\n")] : undefined}
         actions={<View className="gap-2">
           {form.replacementChoice ? (
             <View className="flex-row items-center justify-between gap-2">

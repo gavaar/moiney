@@ -81,6 +81,7 @@ describe("CreateModal", () => {
     expect(screen.getByRole("tab", { name: "transaction" }).getAttribute("aria-selected")).toBe("true");
     fireEvent.click(screen.getByRole("button", { name: "Transaction pipe" }));
     fireEvent.click(screen.getByRole("button", { name: /Transport/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Next step" }));
     fireEvent.change(screen.getByPlaceholderText("What was this for?"), { target: { value: "Lunch" } });
     fireEvent.click(screen.getByRole("tab", { name: "pipe" }));
     expect(screen.getByRole("heading", { name: "Select owner pipe" })).toBeTruthy();
@@ -102,6 +103,7 @@ describe("CreateModal", () => {
     fireEvent.click(screen.getByRole("tab", { name: "pipe" }));
     fireEvent.click(screen.getByRole("button", { name: "Owner pipe" }));
     fireEvent.click(screen.getByRole("button", { name: "Groceries" }));
+    fireEvent.click(screen.getByRole("button", { name: "Next step" }));
     fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "Snacks" } });
     fireEvent.click(screen.getByRole("tab", { name: "root" }));
     fireEvent.click(screen.getByRole("tab", { name: "pipe" }));
@@ -150,6 +152,8 @@ describe("CreateModal", () => {
     ]);
 
     fireEvent.click(pipeButtons[0]);
+    expect(screen.queryByRole("textbox", { name: "Value" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Next step" }));
 
     expect(screen.getByRole("heading", { name: "Create: Transport (50.00 / 200.00)" })).toBeTruthy();
     fireEvent.change(screen.getByPlaceholderText("What was this for?"), { target: { value: "Lunch" } });
@@ -158,6 +162,7 @@ describe("CreateModal", () => {
     expect(screen.getByRole("button", { name: "Transaction pipe" }).textContent).toContain("Transport");
     fireEvent.click(screen.getByRole("button", { name: "Transaction pipe" }));
     fireEvent.click(screen.getByRole("button", { name: /Groceries/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Next step" }));
     expect(screen.getByDisplayValue("Lunch")).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Create: Groceries (123.45 / 500.00)" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Add expense" }));

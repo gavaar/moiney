@@ -1,17 +1,12 @@
-import { Text, View } from "react-native";
 import { formatAmount } from "@/lib/format";
-import { colors } from "@/lib/styles";
-import { Icon, safeIconName, type IconName } from "@ui/Icon";
+import { safeIconName, type IconName } from "@ui/Icon";
 import type { TransactionInitialState } from "./types";
+import type { FormHeader } from "@ui/Form";
 
 type Intent = "create" | "repeat" | "edit" | "feed";
 type TransactionHeading = {
   intent: Intent;
   initial: Pick<TransactionInitialState, "pipeName" | "pipeIcon" | "title" | "spent" | "capacity">;
-};
-type Props = {
-  transaction: TransactionHeading | null;
-  sourceSelected: boolean;
 };
 
 const intentIcons: Record<Intent, IconName> = {
@@ -34,23 +29,12 @@ function getHeading(transaction: TransactionHeading, selected: boolean) {
   return { title, accessibleTitle, icon };
 }
 
-export function AmountFormHeader({ transaction, sourceSelected }: Props) {
-  const heading = transaction ? getHeading(transaction, sourceSelected) : null;
-  return (
-    <View className="gap-2">
-      {transaction && heading ? (
-        <View accessibilityRole="header" accessibilityLabel={heading.accessibleTitle}
-          className="flex-row items-center justify-between gap-2 border-b border-muted/20 p-2">
-          <View className="flex-1 flex-row items-center gap-2">
-            <Icon name={heading.icon} size={24} color={colors.muted} />
-            <Text className="flex-1 text-md font-medium text-muted" numberOfLines={1}>{heading.title}</Text>
-          </View>
-          <View className="flex-row items-center gap-1">
-            <Text className="text-sm text-muted">{transaction.intent}</Text>
-            <Icon name={intentIcons[transaction.intent]} size={18} color={colors.muted} />
-          </View>
-        </View>
-      ) : null}
-    </View>
-  );
+export function getAmountFormHeader(transaction: TransactionHeading, sourceSelected: boolean): FormHeader {
+  const heading = getHeading(transaction, sourceSelected);
+  return {
+    title: heading.title,
+    accessibilityLabel: heading.accessibleTitle,
+    icon: heading.icon,
+    badge: { label: transaction.intent, icon: intentIcons[transaction.intent] },
+  };
 }

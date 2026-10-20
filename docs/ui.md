@@ -18,10 +18,16 @@ input dispatcher's detailed public contract is in [Input](input.md).
 - Application code uses `src/components/ui/Input/Input.tsx`, not its variant
   components directly. Preserve the dispatcher contract unless an approved
   refactor replaces it.
+- `Form` sizes to its active page, shrinks when constrained, and owns overflow
+  scrolling. It owns page navigation; `navigationStart` is an initial page key
+  read on mount, not a controlled selection. Headers use presentation config
+  (title, optional icon, accessibility label, and badge); features own domain
+  wording and formatting. Actions remain caller-rendered.
 - Every modal requests dismissal on backdrop tap. Pipe creation and editing
   confirm discarding unsaved changes before dismissal, including system Back;
-  step navigation preserves drafts. Modal content has no close button,
-  close icon, or other dismissal-only control; domain actions remain allowed.
+  step navigation preserves drafts. Modal content has no control whose sole
+  purpose is dismissing the modal; domain actions and inline warning dismissal
+  remain allowed.
 - `ModalShell` bottom-anchors content 20% above the viewport bottom and permits
   upward growth no farther than 10% from the top. Safe-area bounds and a 24px
   keyboard gap can further constrain this region. Content hugs its height;
