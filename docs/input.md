@@ -183,3 +183,40 @@ scroll area. Content-sized modal forms omit it.
   an effect that would also fire when navigating Back.
 - Form steps remain vertically scrollable; Select option lists scroll separately
   inside their pickers.
+
+### Configuration Helpers
+
+`formBuilder<Values>()` from `@ui/Form` supplies `form`, `page`, `row`, and
+`input` functions. They compose ordinary Form configuration, not mutable builder
+state:
+
+```ts
+const { form, page, row, input } = formBuilder<Draft>({
+  defaults: { disabled },
+});
+
+const ownerPage = editing ? null : page(0, row(input("ownerId", ownerInput)));
+
+const pages = form(
+  ownerPage,
+  page(1,
+    row(input("name", { label: "Name" })),
+    row(input("icon", { type: "icon" }), input("priority", { type: "number" })),
+  ),
+);
+```
+
+- `input(key, configuration, metadata?)` preserves field/value compatibility and
+  contextual callback types. Optional metadata contains `description` and `reveal`.
+  The shared `disabled` default applies when creating inputs; explicit input
+  settings override it. Reusable row factories own their inputs' defaults.
+- `row`, `page`, and `form` accept `false`, `null`, and `undefined` children as
+  omissions. Reusable rows remain ordinary readonly arrays; compose collections
+  with `page(...rows)`.
+- `page(...rows)` receives the next number during `form(...)`, starting at zero.
+  `page(key, ...rows)` uses that key and continues numbering from `key + 1`.
+  Omitted pages consume no number. Use explicit keys where conditional page
+  presence must not change later page identities or `navigationStart` targets.
+- `form(...)` finalizes immediately, rejecting duplicate page keys, duplicate
+  field keys across the form, and empty rows or pages after omissions. These
+  stricter authoring checks do not change Form's handling of raw configuration.

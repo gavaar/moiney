@@ -16,7 +16,8 @@ export function useAddFeedForm(onSuccess: () => void): FormProps<AddFeedDraft> &
   const pages = buildAddFeedForm(draft, loading);
   const canSubmit = pages.flatMap(page => page.rows.flat()).every((field) => {
     if (field.key === "isBoiler" || field.key === "description") return true;
-    return field.input.validator(draft[field.key]) === undefined;
+    const validator = field.input.validator;
+    return validator !== undefined && validator(draft[field.key]) === undefined;
   }) && !loading;
 
   function handleClear() {

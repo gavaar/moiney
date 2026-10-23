@@ -1,6 +1,6 @@
 import { Text } from "react-native";
 import { formatAmount } from "@/lib/format";
-import type { FormPage, FormRow } from "@ui/Form";
+import { formBuilder } from "@ui/Form";
 import type { AmountFormDraft, SourcePicker } from "./types";
 import type { PipeModel } from "@features/pipes/data/pipes";
 import type { InputProps } from "@ui/Input";
@@ -25,140 +25,119 @@ type AmountFormConfiguration = {
   boiler: { name: string; contributionAmount: number; currentFedChanged: boolean } | null;
 };
 
-export function buildAmountForm(form: AmountFormConfiguration, sourcePicker?: SourcePicker) {
-  const { common, spend, boiler, transaction, pipesById } = form;
-  const pages: FormPage<AmountFormDraft>[] = [];
+export function buildAmountForm(configuration: AmountFormConfiguration, sourcePicker?: SourcePicker) {
+  const { common, spend, boiler, transaction, pipesById } = configuration;
+  const { form, page, row, input } = formBuilder<AmountFormDraft>({ defaults: { disabled: common.loading } });
 
-  if (sourcePicker) pages.push({
-    key: 0,
-    rows: [
-      [
-        {
-          key: "sourcePipeId",
-          input: {
-            type: "select",
-            accessibilityLabel: "Transaction pipe",
-            items: transactionPipeItems(sourcePicker.pipes, pipesById, true),
-            groups: sourcePicker.groups,
-            renderItem: renderTransactionPipe,
-            itemStyle: transactionPipeStyle,
-            loading: sourcePicker.loading,
-            disabled: common.loading,
-          },
-        }
-      ]
-    ],
-  });
-
-  const rows: FormRow<AmountFormDraft>[] = [];
-  if (spend) rows.push([
-    {
-      key: "modeTransfer",
-      input: {
-        type: "toggle",
-        options: [
-          { label: "Transaction", icon: "upload" },
-          { label: "Transfer", icon: "repeat" },
-        ],
-        disabled: common.loading,
-      },
-    }
-  ]);
-
-  rows.push(
-    [
-      {
-        key: "title",
-        input: {
-          type: "text-select",
-          options: common.recentTitles,
-          maxLength: 140,
-          multiline: true,
-          placeholder: "What was this for?",
-          disabled: common.loading,
-        }
-      }
-    ],
-    [
-      {
-        key: "value",
-        input: {
-          type: "decimal",
-          label: form.isFeed ? "Amount" : "Value",
-          placeholder: "0.00",
-          allowNegative: !form.isFeed,
-          disabled: common.loading,
-        },
-      },
-      {
-        key: "date",
-        input: {
-          type: "date",
-          label: "Date",
-          disabled: common.loading,
-        },
-      },
-    ],
+  const sourcePage = sourcePicker && page(0,
+    row(
+      input("sourcePipeId", {
+        type: "select",
+        accessibilityLabel: "Transaction pipe",
+        items: transactionPipeItems(sourcePicker.pipes, pipesById, true),
+        groups: sourcePicker.groups,
+        renderItem: renderTransactionPipe,
+        itemStyle: transactionPipeStyle,
+        loading: sourcePicker.loading,
+      }),
+    ),
   );
 
-  const paidFrom = transaction?.paidFrom;
-  if (paidFrom || spend?.mode === "spend") rows.push([
-    {
-      key: "paidFrom",
-      input: {
-        type: "select",
-        label: paidFrom?.label ?? (spend?.isNegative ? "Paid from" : "Refunded to"),
-        items: transactionPipeItems(paidFrom?.items ?? spend?.paidFromPipeItems ?? [], pipesById),
-        groups: paidFrom?.groups ?? spend?.paidFromGroups,
-        renderItem: renderTransactionPipe,
-        itemStyle: transactionPipeStyle,
-        placeholder: "None",
-        disabled: common.loading,
-      },
-      ...(!paidFrom && spend ? {
-        reveal: {
-          label: "Paid from another pipe?",
-          icon: "wallet-outline" as const,
-          expanded: spend.showPaidFrom,
-          onReveal: () => spend.setShowPaidFrom(true),
-        },
-      } : {}),
-    }
-  ]);
+  const modeRow = spend && row(
+    input("modeTransfer", {
+      type: "toggle",
+      options: [
+        { label: "Transaction", icon: "upload" },
+        { label: "Transfer", icon: "repeat" },
+      ],
+    })
+  );
 
-  if (spend?.mode === "transfer") rows.push([
-    {
-      key: "sentTo",
-      input: {
-        type: "select",
-        label: "Transfer to",
-        placeholder: "None",
-        disabled: common.loading,
-        items: transactionPipeItems(spend.pipeItems, pipesById),
-        renderItem: renderTransactionPipe,
-        itemStyle: transactionPipeStyle,
+  const paidFromRow = transaction?.paidFrom && row(
+    input("paidFrom", {
+      type: "select",
+      label: transaction.paidFrom.label,
+      items: transactionPipeItems(transaction.paidFrom.items, pipesById),
+      groups: transaction.paidFrom.groups,
+      renderItem: renderTransactionPipe,
+      itemStyle: transactionPipeStyle,
+      placeholder: "None",
+    })
+  );
+  const spendRow = spend?.mode === "spend" && row(
+    input("paidFrom", {
+      type: "select",
+      label: spend.isNegative ? "Paid from" : "Refunded to",
+      items: transactionPipeItems(spend.paidFromPipeItems, pipesById),
+      groups: spend.paidFromGroups,
+      renderItem: renderTransactionPipe,
+      itemStyle: transactionPipeStyle,
+      placeholder: "None",
+    }, {
+      reveal: {
+        label: "Paid from another pipe?",
+        icon: "wallet-outline",
+        expanded: spend.showPaidFrom,
+        onReveal: () => spend.setShowPaidFrom(true),
       },
-    }
-  ]);
+    }),
+  );
+  const transferRow = spend?.mode === "transfer" && row(
+    input("sentTo", {
+      type: "select",
+      label: "Transfer to",
+      placeholder: "None",
+      items: transactionPipeItems(spend.pipeItems, pipesById),
+      renderItem: renderTransactionPipe,
+      itemStyle: transactionPipeStyle,
+    }),
+  );
+  const externalPipeRow = paidFromRow ?? spendRow ?? transferRow;
 
-  if (boiler) rows.push([
+  const boilerRow = boiler && row(
+    input("currentFed", {
+      type: "decimal",
+      label: `Current in ${boiler.name}`,
+      allowNegative: false,
+    },
     {
-      key: "currentFed",
-      input: {
-        type: "decimal",
-        label: `Current in ${boiler.name}`,
-        allowNegative: false,
-        disabled: common.loading,
-      },
       description: boiler.contributionAmount > 0 && !boiler.currentFedChanged ? (
         <Text testID="boiler-growth-hint" className="text-xs text-muted">
           <Text testID="boiler-growth-amount" className="font-bold">+{formatAmount(boiler.contributionAmount)}:</Text>{" "}
-        current will also grow by {formatAmount(boiler.contributionAmount)} after this operation, unless manually modified
+          current will also grow by {formatAmount(boiler.contributionAmount)} after this operation, unless manually modified
         </Text>
       ) : undefined,
-    }
-  ]);
-  pages.push({ key: 1, rows });
+    }),
+  );
 
-  return pages;
+  const titleRow = row(
+    input("title", {
+      type: "text-select",
+      options: common.recentTitles,
+      maxLength: 140,
+      multiline: true,
+      placeholder: "What was this for?",
+    }),
+  );
+
+  const valueDateRow = row(
+    input("value", {
+      type: "decimal",
+      label: configuration.isFeed ? "Amount" : "Value",
+      placeholder: "0.00",
+      allowNegative: !configuration.isFeed,
+    }),
+    input("date", { type: "date", label: "Date" }),
+  );
+
+  return form(
+    sourcePage,
+    page(1,
+      modeRow,
+      titleRow,
+      valueDateRow,
+      externalPipeRow,
+      boilerRow,
+    ),
+  );
 }

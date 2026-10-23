@@ -1,5 +1,5 @@
 import { parseMoney } from "@domain/money";
-import type { FormProps } from "@ui/Form";
+import { formBuilder } from "@ui/Form";
 import { ICON_REGISTRY, type IconName } from "@ui/Icon";
 
 export type AddFeedDraft = {
@@ -30,100 +30,73 @@ function validateOptionalMoney(value: string, error: string): string | undefined
 }
 
 export function buildAddFeedForm(draft: AddFeedDraft, disabled = false) {
-  return [
-    {
-      key: 0,
-      rows: [
-        [
-          {
-            key: "isBoiler",
-            input: {
-              type: "toggle",
-              options: [
-                {
-                  label: "Feed",
-                  icon: "pipe",
-                },
-                {
-                  label: "Boiler",
-                  icon: "water-boiler",
-                }
-              ],
-              disabled,
-            },
-            description: draft.isBoiler
-              ? "A boiler tracks an asset's current value and contributed principal separately. Think of investment accounts."
-              : "A feed is a source for money entering your budget. Accounts, cash, and wallets are all feeds.",
-          }
-        ],
-        [
-          {
-            key: "name",
-            input: {
-              type: "text",
-              label: "Name",
-              placeholder: draft.isBoiler ? "Boiler name" : "Feed name",
-              disabled,
-              validator: (value: string) => {
-                if (!value.trim()) return "Name is required";
-                return value.trim().length < 2 ? "Name must be at least 2 characters" : undefined;
-              },
-            },
+  const { form, page, row, input } = formBuilder<AddFeedDraft>({ defaults: { disabled } });
+  const contributedRow = draft.isBoiler && row(input("contributed", {
+    type: "decimal",
+    label: "Contributed amount",
+    placeholder: "How much was put in it?",
+    allowNegative: false,
+    validator: value => validateOptionalMoney(value, "Enter a valid contribution"),
+  }, {
+    description: "The total principal you have put into this asset, excluding gains or losses. Leave blank to start at zero.",
+  }));
+
+  return form(
+    page(
+      row(
+        input("isBoiler", {
+          type: "toggle",
+          options: [
+            { label: "Feed", icon: "pipe" },
+            { label: "Boiler", icon: "water-boiler" },
+          ],
+        },
+        {
+          description: draft.isBoiler
+            ? "A boiler tracks an asset's current value and contributed principal separately. Think of investment accounts."
+            : "A feed is a source for money entering your budget. Accounts, cash, and wallets are all feeds.",
+        }),
+      ),
+      row(
+        input("name", {
+          label: "Name",
+          placeholder: draft.isBoiler ? "Boiler name" : "Feed name",
+          validator: value => {
+            if (!value.trim()) return "Name is required";
+            return value.trim().length < 2 ? "Name must be at least 2 characters" : undefined;
           },
-          {
-            key: "icon",
-            input: {
-              type: "icon",
-              label: "Icon",
-              disabled,
-              validator: (value: string) => Object.hasOwn(ICON_REGISTRY, value) ? undefined : "Icon is required",
-            },
-          }
-        ],
-        [
-          {
-            key: "description",
-            input: { type: "text", label: "Description", placeholder: "Optional description", multiline: true, numberOfLines: 3, disabled },
-          },
-        ],
-      ],
-    },
-    {
-      key: 1,
-      rows: [
-        [
-          {
-            key: "amount",
-            input: {
-              type: "decimal",
-              label: "Initial amount",
-              placeholder: "Current value?",
-              allowNegative: false,
-              disabled,
-              validator: (value: string) => validateOptionalMoney(value, "Enter a valid amount"),
-            },
-            description: draft.isBoiler
-              ? "The asset's current value, including any gains or losses. Leave blank to start at zero."
-              : "The money currently available in this feed. Leave blank to start at zero.",
-          },
-        ],
-        ...(draft.isBoiler ? [
-          [
-            {
-              key: "contributed" as const,
-              input: {
-                type: "decimal" as const,
-                label: "Contributed amount",
-                placeholder: "How much was put in it?",
-                allowNegative: false,
-                disabled,
-                validator: (value: string) => validateOptionalMoney(value, "Enter a valid contribution"),
-              },
-              description: "The total principal you have put into this asset, excluding gains or losses. Leave blank to start at zero.",
-            }
-          ]
-        ] : [])
-      ],
-    },
-  ] satisfies FormProps<AddFeedDraft>["pages"];
+        }),
+        input("icon", {
+          type: "icon",
+          label: "Icon",
+          validator: value => Object.hasOwn(ICON_REGISTRY, value) ? undefined : "Icon is required",
+        }),
+      ),
+      row(
+        input("description", {
+          label: "Description",
+          placeholder: "Optional description",
+          multiline: true,
+          numberOfLines: 3,
+        }),
+      ),
+    ),
+    page(
+      row(
+        input("amount", {
+          type: "decimal",
+          label: "Initial amount",
+          placeholder: "Current value?",
+          allowNegative: false,
+          validator: value => validateOptionalMoney(value, "Enter a valid amount"),
+        },
+        {
+          description: draft.isBoiler
+            ? "The asset's current value, including any gains or losses. Leave blank to start at zero."
+            : "The money currently available in this feed. Leave blank to start at zero.",
+        }),
+      ),
+      contributedRow,
+    ),
+  );
 }
