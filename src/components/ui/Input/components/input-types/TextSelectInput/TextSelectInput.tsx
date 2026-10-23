@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from "react";
-import { Pressable, ScrollView, Text, TextInput as RNTextInput, View } from "react-native";
+import { Text, TextInput as RNTextInput, View } from "react-native";
+import { AnchoredOptionList, OptionRow } from "@ui/OptionList";
 import type { InputInteraction, InputValueProps } from "../../../input.types";
 
 export type TextSelectInputProps = InputValueProps<string> & {
@@ -25,6 +26,7 @@ export function TextSelectInput({
 }: Props) {
   const [focused, setFocused] = useState(false);
   const inputRef = useRef<RNTextInput>(null);
+  const anchorRef = useRef<View>(null);
 
   const filteredOptions = useMemo(() => {
     if (!value) return options;
@@ -35,61 +37,58 @@ export function TextSelectInput({
   const showList = focused && filteredOptions.length > 0;
 
   return (
-      <>
-          <RNTextInput
-            ref={inputRef}
-            className="w-full p-0 text-base text-text"
-            placeholderTextColor="#9CA3AF"
-            accessibilityLabel={accessibilityLabel}
-            accessibilityState={{ disabled }}
-            editable={!disabled}
-            value={value}
-            onChangeText={text => {
+    <View ref={anchorRef} collapsable={false}>
+      <RNTextInput
+        ref={inputRef}
+        className="w-full p-0 text-base text-text"
+        placeholderTextColor="#9CA3AF"
+        accessibilityLabel={accessibilityLabel}
+        accessibilityState={{ disabled }}
+        editable={!disabled}
+        value={value}
+        onChangeText={text => {
+          if (disabled) return;
+          onChange?.(text);
+        }}
+        placeholder={placeholder}
+        multiline={multiline}
+        maxLength={maxLength}
+        onFocus={() => { if (!disabled) { setFocused(true); onFocusChange(true); } }}
+        onBlur={() => {
+          setFocused(false);
+          onFocusChange(false);
+          if (!disabled) onInteractionEnd();
+        }}
+      />
+      {showList && !disabled && <AnchoredOptionList
+        visible
+        anchorRef={anchorRef}
+        maxHeight={160}
+        className="rounded-lg border border-border bg-surface shadow-lg"
+        accessibilityLabel={accessibilityLabel ? `${accessibilityLabel} suggestions` : "Suggestions"}
+        data={filteredOptions}
+        keyExtractor={option => option}
+        onClose={() => {
+          setFocused(false);
+          onFocusChange(false);
+          inputRef.current?.blur();
+        }}
+        renderItem={({ item: option }) => (
+          <OptionRow
+            onPress={() => {
               if (disabled) return;
-              onChange?.(text);
-            }}
-            placeholder={placeholder}
-            multiline={multiline}
-            maxLength={maxLength}
-            onFocus={() => { if (!disabled) { setFocused(true); onFocusChange(true); } }}
-            onBlur={() => {
+              onInteractionEnd();
+              onChange?.(option);
               setFocused(false);
               onFocusChange(false);
-              if (!disabled) onInteractionEnd();
+              inputRef.current?.blur();
             }}
-          />
-        {showList && (
-          <>
-            <View
-              className="absolute left-0 right-0 z-40"
-              style={{ top: "100%", height: 2000 }}
-              onStartShouldSetResponder={() => {
-                inputRef.current?.blur();
-                return true;
-              }}
-            />
-            <View className="absolute left-0 right-0 top-full z-50 mt-1 rounded-lg border border-border bg-surface shadow-lg">
-              <ScrollView className="max-h-40" keyboardShouldPersistTaps="handled">
-                {filteredOptions.map((option) => (
-                  <Pressable
-                    key={option}
-                    onPress={() => {
-                      if (disabled) return;
-                      onInteractionEnd();
-                      onChange?.(option);
-                      setFocused(false);
-                      onFocusChange(false);
-                      inputRef.current?.blur();
-                    }}
-                    className="px-3 py-3 border-b border-border/30 last:border-b-0 active:opacity-70"
-                  >
-                    <Text className="text-text text-base">{option}</Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
-            </View>
-          </>
+            className="px-3 py-3"
+          >
+            <Text className="text-text text-base">{option}</Text>
+          </OptionRow>
         )}
-      </>
+      />}
+    </View>
   );
 }

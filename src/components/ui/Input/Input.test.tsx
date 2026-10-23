@@ -3,6 +3,7 @@ import { describe, expect, expectTypeOf, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Input, type InputProps } from "./Input";
+import { OptionListHost } from "@ui/OptionList";
 import { useState } from "react";
 
 describe("Input", () => {
@@ -173,7 +174,7 @@ describe("Input", () => {
 
   it("emits suggestions through text-select onChange", () => {
     const onChange = vi.fn();
-    render(<Input type="text-select" label="Title" value="" onChange={onChange} options={["gas"]} />);
+    render(<OptionListHost><Input type="text-select" label="Title" value="" onChange={onChange} options={["gas"]} /></OptionListHost>);
     fireEvent.focus(screen.getByRole("textbox", { name: "Title" }));
     fireEvent.click(screen.getByText("gas"));
     expect(onChange).toHaveBeenCalledExactlyOnceWith("gas");

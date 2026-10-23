@@ -18,6 +18,14 @@ input dispatcher's detailed public contract is in [Input](input.md).
 - Application code uses `src/components/ui/Input/Input.tsx`, not its variant
   components directly. Preserve the dispatcher contract unless an approved
   refactor replaces it.
+- `Popover` uses a native modal for menus. Input choices share the virtualized
+  `OptionList` and accessible `OptionRow` primitives; input variants own their
+  selection policy and presentation. Select keeps its modal picker, while
+  text-select uses `AnchoredOptionList` to keep the anchor interactive and bound
+  scrolling above or below it around the keyboard. Anchored lists require an
+  `OptionListHost` outside clipping containers in the same native window; the app
+  root and `ModalShell` provide separate hosts. Do not open a second native modal
+  for autocomplete suggestions.
 - `Form` sizes to its active page, shrinks when constrained, and owns overflow
   scrolling. It owns page navigation; `navigationStart` is an initial page key
   read on mount, not a controlled selection. Headers use presentation config

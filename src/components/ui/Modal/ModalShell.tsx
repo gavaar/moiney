@@ -7,6 +7,7 @@ import {
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { cn } from "@/lib/styles";
 import { useModalFrame } from "./useModalFrame";
+import { OptionListHost } from "@ui/OptionList";
 
 type Props = {
   visible: boolean;
@@ -58,9 +59,11 @@ export function ModalShell({ visible, onClose, children, bottomAccessory, width 
       onRequestClose={onClose}
     >
       <SafeAreaProvider>
-        <ModalContent onClose={onClose} bottomAccessory={bottomAccessory} width={width}>
-          {children}
-        </ModalContent>
+        <OptionListHost>
+          <ModalContent onClose={onClose} bottomAccessory={bottomAccessory} width={width}>
+            {children}
+          </ModalContent>
+        </OptionListHost>
       </SafeAreaProvider>
     </RNModal>
   );

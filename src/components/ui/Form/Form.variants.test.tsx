@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { IconName } from "@ui/Icon";
 import { Form, type FormRow } from ".";
+import { OptionListHost } from "@ui/OptionList";
 
 type Values = {
   amount: string;
@@ -99,7 +100,7 @@ function renderControlledForm() {
       />
     );
   }
-  render(<ControlledForm />);
+  render(<OptionListHost><ControlledForm /></OptionListHost>);
   expect(screen.queryByRole("alert")).toBeNull();
   return onChange;
 }

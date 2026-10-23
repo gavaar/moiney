@@ -32,6 +32,11 @@ props, not subtracted from the public interface. Text inputs do not expose
 | `text-select` | `TextSelectInput/` |
 | `toggle` | `ToggleInput/` |
 
+Text-select suggestions use the shared [anchored option list](ui.md#shared-primitives),
+outside the form's scrolling area. Typing
+keeps input focus, and a suggestion commits with one tap without first dismissing
+the keyboard.
+
 Every type accepts an optional top `label` and optional `accessibilityLabel`.
 Omitted or empty labels render no visible label; the control's accessible name
 is `accessibilityLabel ?? label`. Supply `accessibilityLabel` when omitting the

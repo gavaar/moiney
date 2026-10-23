@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, Text, View, type StyleProp, type ViewStyle } from "react-native";
+import { ActivityIndicator, Pressable, Text, View, type StyleProp, type ViewStyle } from "react-native";
 import { cn, colors } from "@/lib/styles";
 import { Icon, safeIconName } from "@ui/Icon";
 import { ModalShell } from "@ui/Modal";
+import { OptionList, OptionRow } from "@ui/OptionList";
 import type { InputInteraction, InputTriggerProps, InputValueProps } from "../../../input.types";
 
 export type SelectGroup = {
@@ -34,7 +35,6 @@ type Props = InputInteraction & InputTriggerProps & (
 
 export function SelectInput({ accessibilityLabel, items, groups, renderItem, itemStyle, value, disabled, placeholder, multiple, onChange, loading = false, onFocusChange, onInteractionEnd, triggerClassName }: Props) {
   const [open, setOpen] = useState(false);
-  const [modalContentHeight, setModalContentHeight] = useState<number | null>(null);
   const [expandedOverrides, setExpandedOverrides] = useState<Record<string, boolean>>({});
   const inputLabel = accessibilityLabel;
 
@@ -82,19 +82,13 @@ export function SelectInput({ accessibilityLabel, items, groups, renderItem, ite
 
   function renderOption(item: (typeof items)[number]) {
     const checked = multiple ? value.includes(item.id) : value === item.id;
-    return <Pressable
-      accessibilityRole={multiple ? "checkbox" : "button"}
-      accessibilityState={{ disabled: disabled || loading, ...(multiple ? { checked } : {}) }}
-      aria-checked={multiple ? checked : undefined}
+    return <OptionRow
+      multiple={multiple}
+      selected={checked}
       disabled={disabled || loading}
       onPress={() => handleItemPress(item.id)}
-      className="px-2 py-2 border-b border-border/30 last:border-b-0 active:opacity-70"
-      style={[
-        itemStyle?.(item), checked
-          ? { backgroundColor: `${colors.muted}1A`, borderRadius: 8 }
-          : undefined
-      ]}
-    >{renderItem(item)}</Pressable>;
+      style={itemStyle?.(item)}
+    >{renderItem(item)}</OptionRow>;
   }
 
   function renderRow(row: (typeof rows)[number]) {
@@ -140,13 +134,11 @@ export function SelectInput({ accessibilityLabel, items, groups, renderItem, ite
         setOpen(false);
         onFocusChange(false);
       }}>
-        <FlatList style={{ flexShrink: 1, height: modalContentHeight && modalContentHeight > 0 ? modalContentHeight : undefined }}
+        <OptionList
           accessibilityLabel={inputLabel}
           data={rows}
           extraData={{ value, disabled, loading }}
           keyExtractor={row => row.key}
-          keyboardShouldPersistTaps="handled"
-          onContentSizeChange={(_, height) => setModalContentHeight(height)}
           ListEmptyComponent={<Text className="text-center text-sm text-muted py-4">No options</Text>}
           renderItem={({ item }) => renderRow(item)} />
       </ModalShell>

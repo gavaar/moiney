@@ -9,7 +9,7 @@ type AnchorPosition =
 type PopoverProps = {
   visible: boolean;
   onClose: () => void;
-  anchorRef: React.RefObject<View>;
+  anchorRef: React.RefObject<View | null>;
   children: React.ReactNode;
   anchorPosition?: AnchorPosition;
 };
@@ -61,10 +61,12 @@ export function Popover({
 
   useEffect(() => {
     if (!visible || !anchorRef.current) return;
+    let active = true;
     anchorRef.current.measureInWindow((x, y, width, height) => {
-      setTriggerRect({ x, y, width, height });
+      if (active) setTriggerRect({ x, y, width, height });
     });
-  }, [visible, anchorRef]);
+    return () => { active = false; };
+  }, [visible, anchorRef, windowWidth, windowHeight]);
 
   const top = useMemo(
     () => calcTop(anchorPosition, triggerRect.y, triggerRect.height, contentSize.height, windowHeight),

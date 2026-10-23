@@ -1,0 +1,1 @@
+export { anchoredFrame, type WindowRect } from './anchored-frame';
