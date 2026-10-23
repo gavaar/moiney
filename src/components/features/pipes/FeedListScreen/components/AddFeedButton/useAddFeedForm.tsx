@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import type { OnDismissStateChange } from "@ui/Form/use-form-dismissal";
 import { useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { Button } from "@ui/Button";
@@ -7,13 +8,15 @@ import { useAlert } from "@ui/Alert";
 import { parseMoney } from "@domain/money";
 import { ADD_FEED_DEFAULTS, buildAddFeedForm, type AddFeedDraft } from "./addFeedForm.config";
 
-export function useAddFeedForm(onSuccess: () => void): FormProps<AddFeedDraft> & { resetVersion: number } {
+export function useAddFeedForm(onSuccess: () => void, onDismissStateChange?: OnDismissStateChange): FormProps<AddFeedDraft> & { resetVersion: number } {
   const [loading, setLoading] = useState(false);
   const [draft, setDraft] = useState(ADD_FEED_DEFAULTS);
   const [resetVersion, setResetVersion] = useState(0);
   const showAlert = useAlert();
   const addFeed = useMutation(api.pipes.addFeed);
   const pages = buildAddFeedForm(draft, loading);
+  const dirty = (Object.keys(ADD_FEED_DEFAULTS) as (keyof AddFeedDraft)[]).some(key => draft[key] !== ADD_FEED_DEFAULTS[key]);
+  useEffect(() => { onDismissStateChange?.(dirty, loading); }, [dirty, loading, onDismissStateChange]);
   const canSubmit = pages.flatMap(page => page.rows.flat()).every((field) => {
     if (field.key === "isBoiler" || field.key === "description") return true;
     const validator = field.input.validator;

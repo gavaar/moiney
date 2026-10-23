@@ -7,6 +7,7 @@ import { parseMoney } from "@domain/money";
 import { previewChildContingencyOptions, prepareContingencyEligibility } from "@domain/pipes/contingencyEligibility";
 import { Button } from "@ui/Button";
 import { Form, FormActionRow } from "@ui/Form";
+import type { OnDismissStateChange } from "@ui/Form/use-form-dismissal";
 import { safeIconName } from "@ui/Icon";
 import { useAlert } from "@ui/Alert";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
@@ -19,7 +20,7 @@ import { changePipeEdits, createPipeDraft, isPipeDraftDirty, pipeUpdateFromDraft
 
 export type PipeFormProps = ({ mode: "create"; parentId?: Id<"pipes"> } | { mode: "edit"; pipe: PipeModel; initialStep?: number }) & {
   onClose: () => void;
-  onDismissStateChange?: (dirty: boolean, busy: boolean) => void;
+  onDismissStateChange?: OnDismissStateChange;
 };
 
 export function PipeForm(props: PipeFormProps) {

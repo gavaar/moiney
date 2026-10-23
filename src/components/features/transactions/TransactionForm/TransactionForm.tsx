@@ -7,8 +7,9 @@ import { useEventHistory } from "@features/transactions/cache/useEventHistory";
 import { getFrequentlyUsedEventSourcePipeIds } from "../history/event-usage";
 import { getQuickTransactionPipes } from "../QuickTransactionModal/helpers";
 import { groupPipesByRoot } from "@features/components/AmountForm/pipeGroups";
+import type { OnDismissStateChange } from "@ui/Form/use-form-dismissal";
 
-type Props = { onSuccess?: () => void } & (
+type Props = { onSuccess?: () => void; onDismissStateChange?: OnDismissStateChange } & (
   | { pipeId?: Id<"pipes">; initState: TransactionInitialState }
   | { pipeId?: never; initState?: never }
 );
@@ -17,7 +18,7 @@ export function TransactionForm(props: Props) {
   return <SelectableTransactionForm {...props} />;
 }
 
-function SelectableTransactionForm({ pipeId, initState, onSuccess }: Props) {
+function SelectableTransactionForm({ pipeId, initState, onSuccess, onDismissStateChange }: Props) {
   const { allPipes, childrenByParent, isLoading } = usePipeCatalog();
   const { entries, isLoading: historyLoading } = useEventHistory();
   const [selectedId, setSelectedId] = useState<Id<"pipes"> | null>(pipeId ?? null);
@@ -46,7 +47,7 @@ function SelectableTransactionForm({ pipeId, initState, onSuccess }: Props) {
     value: "-",
   };
 
-  return <AmountForm variant="transaction" pipeId={selected?.id ?? null} initState={initial} onSuccess={onSuccess}
+  return <AmountForm variant="transaction" pipeId={selected?.id ?? null} initState={initial} onSuccess={onSuccess} onDismissStateChange={onDismissStateChange}
     sourcePicker={{
       pipes,
       groups,

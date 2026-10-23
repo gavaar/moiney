@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
@@ -63,6 +63,22 @@ export function useAmountFormController(props: AmountFormProps) {
     initialStructure?.type === "transfer" ? "transfer" : "spend",
   );
   const [applyReplacementEffects, setApplyReplacementEffects] = useState(false);
+  const [baseline, setBaseline] = useState(() => ({
+    title,
+    value,
+    date: date.getTime(),
+    currentFed: currentFedValue,
+    sourcePipeId: pipeId,
+    sentTo: sentToPipeId,
+    paidFrom: paidFromPipeId,
+    modeTransfer: spendMode === "transfer",
+  }));
+  const dirty = title !== baseline.title || value !== baseline.value || date.getTime() !== baseline.date ||
+    currentFedValue !== baseline.currentFed || pipeId !== baseline.sourcePipeId ||
+    sentToPipeId !== baseline.sentTo || paidFromPipeId !== baseline.paidFrom ||
+    (spendMode === "transfer") !== baseline.modeTransfer || applyReplacementEffects;
+  const { onDismissStateChange } = props;
+  useEffect(() => { onDismissStateChange?.(dirty, loading); }, [dirty, loading, onDismissStateChange]);
 
   const showAlert = useAlert();
   const historyCache = useOptionalEventHistoryCache();
@@ -222,15 +238,26 @@ export function useAmountFormController(props: AmountFormProps) {
       );
 
   const resetForm = useCallback(() => {
+    const resetDate = new Date();
     setTitle("");
     setValue(isBoiler ? "0" : isFeed ? "" : "-");
     setCurrentFedValue(initialCurrentFedValue);
-    setDate(new Date());
+    setDate(resetDate);
     setSentToPipeId(null);
     setPaidFromPipeId(null);
     setShowPaidFrom(false);
     setSpendMode("spend");
-  }, [initialCurrentFedValue, isBoiler, isFeed]);
+    setBaseline({
+      title: "",
+      value: isBoiler ? "0" : isFeed ? "" : "-",
+      date: resetDate.getTime(),
+      currentFed: initialCurrentFedValue,
+      sourcePipeId: pipeId,
+      sentTo: null,
+      paidFrom: null,
+      modeTransfer: false,
+    });
+  }, [initialCurrentFedValue, isBoiler, isFeed, pipeId]);
 
   const handleEditSubmit = useCallback(async () => {
     if (!initialTransaction?.operationId) return;

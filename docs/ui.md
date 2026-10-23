@@ -31,11 +31,13 @@ input dispatcher's detailed public contract is in [Input](input.md).
   read on mount, not a controlled selection. Headers use presentation config
   (title, optional icon, accessibility label, and badge); features own domain
   wording and formatting. Actions remain caller-rendered.
-- Every modal requests dismissal on backdrop tap. Pipe creation and editing
-  confirm discarding unsaved changes before dismissal, including system Back;
-  step navigation preserves drafts. Modal content has no control whose sole
-  purpose is dismissing the modal; domain actions and inline warning dismissal
-  remain allowed.
+- Every modal requests dismissal on backdrop tap. The plus creation modal and pipe
+  creation/editing confirm discarding unsaved changes before dismissal, including
+  system Back; plus-modal dismissal checks all drafts, including hidden modes, and is
+  blocked while any form is saving. Mode and step navigation preserve drafts
+  without confirmation; successful submission closes directly. Modal content has
+  no control whose sole purpose is dismissing the modal; domain actions and inline
+  warning dismissal remain allowed.
 - `ModalShell` bottom-anchors content 20% above the viewport bottom and permits
   upward growth no farther than 10% from the top. Safe-area bounds and a 24px
   keyboard gap can further constrain this region. Content hugs its height;

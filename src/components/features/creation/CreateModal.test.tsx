@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, render as renderComponent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render as renderComponent, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { ConfirmModalProvider } from "@ui/ConfirmModal/ConfirmModalProvider";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -76,6 +76,95 @@ vi.mock("@ui/Icon", async importOriginal => ({
 }));
 
 describe("CreateModal", () => {
+  it("closes untouched forms without confirmation", () => {
+    render(<CreateModal onClose={onClose} />);
+    fireEvent.click(screen.getByRole("button", { name: "Backdrop" }));
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(screen.queryByText("Discard changes?")).toBeNull();
+  });
+
+  it.each(["transaction", "root"] as const)("clearing the %s draft removes its dismissal warning", mode => {
+    render(<CreateModal onClose={onClose} />);
+    fireEvent.click(screen.getByRole("tab", { name: mode }));
+    if (mode === "transaction") {
+      fireEvent.click(screen.getByRole("button", { name: "Transaction pipe" }));
+      fireEvent.click(screen.getByRole("button", { name: /Groceries/ }));
+      fireEvent.click(screen.getByRole("button", { name: "Next step" }));
+    }
+    fireEvent.change(screen.getByPlaceholderText(mode === "root" ? "Feed name" : "What was this for?"), { target: { value: "Lunch" } });
+    fireEvent.click(screen.getByRole("button", { name: "Clear form" }));
+    fireEvent.click(screen.getByRole("button", { name: "Backdrop" }));
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(screen.queryByText("Discard changes?")).toBeNull();
+  });
+
+  it("clearing one form does not forget another form's unsaved changes", () => {
+    render(<CreateModal onClose={onClose} />);
+    fireEvent.click(screen.getByRole("button", { name: "Transaction pipe" }));
+    fireEvent.click(screen.getByRole("button", { name: /Groceries/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Next step" }));
+    fireEvent.change(screen.getByPlaceholderText("What was this for?"), { target: { value: "Lunch" } });
+    fireEvent.click(screen.getByRole("tab", { name: "root" }));
+    fireEvent.change(screen.getByPlaceholderText("Feed name"), { target: { value: "Savings" } });
+    fireEvent.click(screen.getByRole("button", { name: "Clear form" }));
+    fireEvent.click(screen.getByRole("button", { name: "Backdrop" }));
+    expect(screen.getByText("Discard changes?")).toBeTruthy();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it.each(["transaction", "pipe", "root"] as const)("blocks dismissal while a hidden %s form is saving and closes on success", async mode => {
+    let finish!: () => void;
+    const mutation = mode === "transaction" ? createTransaction : mode === "pipe" ? addPipe : addFeed;
+    mutation.mockReturnValueOnce(new Promise<void>(resolve => { finish = resolve; }));
+    render(<CreateModal onClose={onClose} />);
+    fireEvent.click(screen.getByRole("tab", { name: mode }));
+    if (mode === "root") {
+      fireEvent.change(screen.getByPlaceholderText("Feed name"), { target: { value: "Savings" } });
+      fireEvent.click(screen.getByRole("button", { name: "Icon" }));
+      fireEvent.click(screen.getByText("wallet-outline"));
+    } else {
+      fireEvent.click(screen.getByRole("button", { name: mode === "pipe" ? "Owner pipe" : "Transaction pipe" }));
+      fireEvent.click(screen.getByRole("button", { name: /Groceries/ }));
+      fireEvent.click(screen.getByRole("button", { name: "Next step" }));
+      fireEvent.change(mode === "pipe" ? screen.getByRole("textbox", { name: "Name" }) : screen.getByPlaceholderText("What was this for?"), { target: { value: "Lunch" } });
+      if (mode === "transaction") fireEvent.change(screen.getByRole("textbox", { name: "Value" }), { target: { value: "5.00" } });
+    }
+    fireEvent.click(screen.getByRole("button", { name: mode === "root" ? "Add feed" : mode === "pipe" ? "Submit" : "Add expense" }));
+    expect(mutation).toHaveBeenCalledOnce();
+    fireEvent.click(screen.getByRole("tab", { name: mode === "root" ? "transaction" : "root" }));
+    fireEvent.click(screen.getByRole("button", { name: "Backdrop" }));
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.queryByText("Discard changes?")).toBeNull();
+    await act(async () => { finish(); });
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(screen.queryByText("Discard changes?")).toBeNull();
+  });
+
+  it.each(["transaction", "pipe", "root"] as const)("protects a %s draft even after switching to another mode", async mode => {
+    render(<CreateModal onClose={onClose} />);
+    fireEvent.click(screen.getByRole("tab", { name: mode }));
+    if (mode === "root") {
+      fireEvent.change(screen.getByPlaceholderText("Feed name"), { target: { value: "Savings" } });
+    } else {
+      fireEvent.click(screen.getByRole("button", { name: mode === "pipe" ? "Owner pipe" : "Transaction pipe" }));
+      fireEvent.click(screen.getByRole("button", { name: /Groceries/ }));
+      fireEvent.click(screen.getByRole("button", { name: "Next step" }));
+      fireEvent.change(mode === "pipe" ? screen.getByRole("textbox", { name: "Name" }) : screen.getByPlaceholderText("What was this for?"), { target: { value: "Lunch" } });
+    }
+    fireEvent.click(screen.getByRole("tab", { name: mode === "root" ? "transaction" : "root" }));
+    expect(screen.queryByText("Discard changes?")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Backdrop" }));
+    expect(screen.getByText("Discard changes?")).toBeTruthy();
+    expect(screen.getByText("Your unsaved changes will be lost.")).toBeTruthy();
+    fireEvent.click(screen.getByText("Keep editing"));
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("tab", { name: mode }));
+    expect(screen.getByDisplayValue(mode === "root" ? "Savings" : "Lunch")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Backdrop" }));
+    fireEvent.click(screen.getByText("Discard changes"));
+    await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
+  });
+
   it("defaults to transaction and preserves its draft while switching modes", () => {
     render(<CreateModal onClose={onClose} />);
     expect(screen.getByRole("tab", { name: "transaction" }).getAttribute("aria-selected")).toBe("true");
