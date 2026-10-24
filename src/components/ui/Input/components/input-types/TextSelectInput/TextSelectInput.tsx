@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { Text, TextInput as RNTextInput, View } from "react-native";
+import { Text, TextInput as RNTextInput, View, type TextInputInstance, type ViewInstance } from "react-native";
 import { colors } from "@/lib/styles";
 import { AnchoredOptionList, OptionRow } from "@ui/OptionList";
 import type { InputInteraction, InputValueProps } from "../../../input.types";
@@ -26,8 +26,8 @@ export function TextSelectInput({
   onInteractionEnd,
 }: Props) {
   const [focused, setFocused] = useState(false);
-  const inputRef = useRef<RNTextInput>(null);
-  const anchorRef = useRef<View>(null);
+  const inputRef = useRef<TextInputInstance>(null);
+  const anchorRef = useRef<ViewInstance>(null);
 
   const filteredOptions = useMemo(() => {
     if (!value) return options;

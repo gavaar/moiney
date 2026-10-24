@@ -1,5 +1,5 @@
 import { type ReactNode, RefObject, useRef, useState } from "react";
-import { Pressable, Text, useWindowDimensions, View } from "react-native";
+import { Pressable, Text, useWindowDimensions, View, type ViewInstance } from "react-native";
 import { Popover } from "@ui/Popover";
 import { Icon, type IconName } from "@ui/Icon";
 import { cn, colors } from "@/lib/styles";
@@ -20,7 +20,7 @@ type StatItem = {
   title: string;
   description: ReactNode;
   guidance?: string;
-  ref: RefObject<View | null>;
+  ref: RefObject<ViewInstance | null>;
   icon: IconName;
   testID?: string;
   tone?: "external" | "negative" | "positive" | "growth-non-negative" | "warning";
@@ -79,14 +79,14 @@ export function StatisticsRow({
   const [selectedStatTitle, setSelectedStatTitle] = useState<string | null>(
     null,
   );
-  const remainingExpectedRef = useRef<View>(null);
-  const stmpdRef = useRef<View>(null);
-  const astmRef = useRef<View>(null);
-  const cronRef = useRef<View>(null);
-  const externalRef = useRef<View>(null);
-  const growthRef = useRef<View>(null);
-  const coverageRef = useRef<View>(null);
-  const coverageProvidedRef = useRef<View>(null);
+  const remainingExpectedRef = useRef<ViewInstance>(null);
+  const stmpdRef = useRef<ViewInstance>(null);
+  const astmRef = useRef<ViewInstance>(null);
+  const cronRef = useRef<ViewInstance>(null);
+  const externalRef = useRef<ViewInstance>(null);
+  const growthRef = useRef<ViewInstance>(null);
+  const coverageRef = useRef<ViewInstance>(null);
+  const coverageProvidedRef = useRef<ViewInstance>(null);
   const { selectedPipePath } = usePipeSelection();
   const { pipesById } = usePipeCatalog();
 
@@ -348,7 +348,7 @@ export function StatisticsRow({
           <Popover
             visible={selectedStatTitle === stat.title}
             onClose={() => setSelectedStatTitle(null)}
-            anchorRef={stat.ref as RefObject<View>}
+            anchorRef={stat.ref}
             anchorPosition="bottom"
           >
             <Text className="font-bold text-md text-primaryMuted mb-2">{stat.title}:</Text>

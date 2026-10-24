@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Dimensions, Keyboard, Platform, useWindowDimensions, type KeyboardEvent, type LayoutChangeEvent, type View } from "react-native";
+import { Dimensions, Keyboard, Platform, useWindowDimensions, type KeyboardEvent, type LayoutChangeEvent, type ViewInstance } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const EDGE_GAP = 24;
@@ -10,7 +10,7 @@ const VIEWPORT_BOTTOM_MARGIN = 0.2;
 export function useModalFrame() {
   const windowSize = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const viewportRef = useRef<View>(null);
+  const viewportRef = useRef<ViewInstance>(null);
   const [viewport, setViewport] = useState<{ top: number; height: number; windowWidth: number }>();
   const [keyboardTop, setKeyboardTop] = useState(() => Keyboard.metrics?.()?.screenY);
 

@@ -1,8 +1,8 @@
 import { createContext, useContext, type ReactNode, type RefObject } from "react";
-import type { View } from "react-native";
+import type { ViewInstance } from "react-native";
 
 export type OptionListHostValue = {
-  viewportRef: RefObject<View | null>;
+  viewportRef: RefObject<ViewInstance | null>;
   present: (id: symbol, content: ReactNode) => void;
   dismiss: (id: symbol) => void;
 };

@@ -1,5 +1,5 @@
-import { memo, useRef, useState, type ReactNode, type RefObject } from "react";
-import { Platform, Pressable, ScrollView, Text, View } from "react-native";
+import { memo, useRef, useState, type ReactNode } from "react";
+import { Platform, Pressable, ScrollView, Text, View, type KeyDownEvent, type ViewInstance } from "react-native";
 import { PipeBox, type ChildSnapshot } from "@features/pipes/components/PipeBox";
 import { Popover } from "@ui/Popover";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
@@ -51,8 +51,8 @@ export const PipesList = memo(function PipesList({
   const contingencyPreview = prepareContingencyPreview(allPipes ?? []);
   const { ready, minimized, minimize, maximize } = usePipeViewPreferences(allPipes?.map((pipe) => pipe.id));
   const [menuPipe, setMenuPipe] = useState<Pipe | null>(null);
-  const anchorRef = useRef<View>(null);
-  const rowRefs = useRef(new Map<Pipe["id"], View>());
+  const anchorRef = useRef<ViewInstance>(null);
+  const rowRefs = useRef(new Map<Pipe["id"], ViewInstance>());
   const minimizedPipes = pipes.filter((pipe) => minimized.has(pipe.id));
   const fullPipes = pipes.filter((pipe) => !minimized.has(pipe.id));
   const openMenu = (pipe: Pipe) => {
@@ -67,8 +67,9 @@ export const PipesList = memo(function PipesList({
       event.preventDefault();
       openMenu(pipe);
     },
-    onKeyDown: (event: { key: string; shiftKey: boolean; preventDefault: () => void }) => {
-      if (event.key !== "ContextMenu" && !(event.key === "F10" && event.shiftKey)) return;
+    onKeyDown: (event: KeyDownEvent | { key: string; shiftKey: boolean; preventDefault: () => void }) => {
+      const { key, shiftKey } = "key" in event ? event : event.nativeEvent;
+      if (key !== "ContextMenu" && !(key === "F10" && shiftKey)) return;
       event.preventDefault();
       openMenu(pipe);
     },
@@ -132,7 +133,7 @@ export const PipesList = memo(function PipesList({
       )}
 
       {footer}
-      <Popover visible={menuPipe !== null} onClose={closeMenu} anchorRef={anchorRef as RefObject<View>}>
+      <Popover visible={menuPipe !== null} onClose={closeMenu} anchorRef={anchorRef}>
         {menuPipe && (
           <View className="gap-2">
             <Pressable accessibilityRole="button" className="px-2 py-1" onPress={() => {

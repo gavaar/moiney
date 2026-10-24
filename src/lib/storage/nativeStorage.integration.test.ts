@@ -3,7 +3,12 @@ import { eventHistoryStorage } from "@features/transactions/cache/storage.native
 import { pipeViewStorage } from "@features/pipes/preferences/storage.native";
 import { monthlyCardStorage } from "@features/statistics/preferences/storage.native";
 
-const filesystem = vi.hoisted(() => ({ files: new Map<string, string>(), directories: new Set<string>() }));
+const filesystem = vi.hoisted(() => ({
+  files: new Map<string, string>(),
+  directories: new Set<string>(),
+  completeWrite: undefined as (() => void) | undefined,
+  rejectWrite: undefined as ((error: Error) => void) | undefined,
+}));
 
 vi.mock("expo-file-system", () => ({
   Paths: { cache: "cache", document: "documents" },
@@ -22,8 +27,15 @@ vi.mock("expo-file-system", () => ({
     get exists() { return filesystem.files.has(this.uri); }
     async text() { return filesystem.files.get(this.uri) ?? ""; }
     write(value: string) {
-      if (!filesystem.directories.has(this.directory)) throw new Error("Missing directory");
-      filesystem.files.set(this.uri, value);
+      return new Promise<void>((resolve, reject) => {
+        filesystem.completeWrite = () => {
+          if (!filesystem.directories.has(this.directory)) return reject(new Error("Missing directory"));
+          filesystem.files.set(this.uri, value);
+          resolve();
+        };
+        filesystem.rejectWrite = reject;
+        queueMicrotask(() => filesystem.completeWrite?.());
+      });
     }
     delete() { filesystem.files.delete(this.uri); }
   },
@@ -32,6 +44,8 @@ vi.mock("expo-file-system", () => ({
 beforeEach(() => {
   filesystem.files.clear();
   filesystem.directories.clear();
+  filesystem.completeWrite = undefined;
+  filesystem.rejectWrite = undefined;
 });
 
 describe.each([
@@ -52,6 +66,34 @@ describe.each([
     expect(filesystem.files.get(path)).toBe("new value");
     expect(await storage.read(accountKey)).toBe("new value");
     expect(await storage.read("deployment:bob")).toBeNull();
+  });
+
+  it("waits for asynchronous device writes before reporting completion", async () => {
+    const microtask = vi.spyOn(globalThis, "queueMicrotask").mockImplementation(() => {});
+    try {
+      let finished = false;
+      const writing = storage.write(accountKey, "saved value").then(() => { finished = true; });
+      await Promise.resolve();
+      expect(finished).toBe(false);
+      filesystem.completeWrite?.();
+      await writing;
+      expect(filesystem.files.get(path)).toBe("saved value");
+    } finally {
+      microtask.mockRestore();
+    }
+  });
+
+  it("treats asynchronous device write failures as best effort", async () => {
+    const microtask = vi.spyOn(globalThis, "queueMicrotask").mockImplementation(() => {});
+    try {
+      const writing = storage.write(accountKey, "saved value");
+      const handled = expect(writing).resolves.toBeUndefined();
+      filesystem.rejectWrite?.(new Error("Device storage unavailable"));
+      await handled;
+      expect(filesystem.files.has(path)).toBe(false);
+    } finally {
+      microtask.mockRestore();
+    }
   });
 });
 

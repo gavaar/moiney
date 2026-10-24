@@ -62,9 +62,9 @@ export function HistoryList({ entries, deletedPipes: catalog, filters, isLoading
     <FlatList data={rows} keyExtractor={row => row.key} className="flex-1 px-4" contentContainerClassName="gap-1 pb-4"
       onRefresh={refresh} refreshing={isRefreshing}
       onEndReached={() => { if (hasMore && !isLoading && !error) loadMore(); }} onEndReachedThreshold={0.5}
-      ListHeaderComponent={error ? <Text accessibilityRole="alert" className="text-error text-center py-2">{error}</Text> : null}
-      ListEmptyComponent={!isLoading && !error ? <Text className="text-muted text-center pt-16">No history yet</Text> : null}
-      ListFooterComponent={isLoading ? <ActivityIndicator accessibilityLabel="Loading history" color={colors.primary} /> : null}
+      ListHeaderComponent={error ? <Text accessibilityRole="alert" className="text-error text-center py-2">{error}</Text> : undefined}
+      ListEmptyComponent={!isLoading && !error ? <Text className="text-muted text-center pt-16">No history yet</Text> : undefined}
+      ListFooterComponent={isLoading ? <ActivityIndicator accessibilityLabel="Loading history" color={colors.primary} /> : undefined}
       renderItem={({ item }) => {
         if (item.kind === "month") return <Text className="text-sm text-muted mt-3 mb-1">{monthFormatter.format(new Date(`${item.month}-01T00:00:00Z`))}</Text>;
         if (item.kind === "archive") return <PipeHistoryRow event={item.archive.event} expanded={expanded.has(item.key)}

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import type { KeyboardEvent, LayoutChangeEvent, View as NativeView } from "react-native";
+import type { KeyboardEvent, LayoutChangeEvent, ViewInstance } from "react-native";
 import { act, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ModalShell } from "./ModalShell";
@@ -26,7 +26,7 @@ vi.mock("react-native", async importOriginal => {
         measureInWindow: (callback: (x: number, y: number, width: number, height: number) => void) => {
           native.completeMeasurement = top => callback(0, top, native.windowWidth, native.windowHeight);
         },
-      }) as NativeView);
+      }) as ViewInstance);
       if (ref && props.onLayout) {
         native.measureViewport = () => props.onLayout?.({
           nativeEvent: { layout: { x: 0, y: 0, width: native.windowWidth, height: native.windowHeight } },
@@ -66,6 +66,8 @@ function keyboardEvent(screenY: number): KeyboardEvent {
   return {
     duration: 250,
     easing: "keyboard",
+    startCoordinates: { screenY: 1000, screenX: 0, width: 400, height: 0 },
+    isEventFromThisApp: true,
     endCoordinates: { screenY, screenX: 0, width: 400, height: 1000 - screenY },
   };
 }

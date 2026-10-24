@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { type GestureResponderEvent, Modal as RNModal, Pressable, ScrollView, useWindowDimensions, View } from "react-native";
+import { type GestureResponderEvent, Modal as RNModal, Pressable, ScrollView, useWindowDimensions, View, type ViewInstance } from "react-native";
 
 type AnchorPosition =
   | "bottom-start" | "bottom-end" | "bottom"
@@ -9,7 +9,7 @@ type AnchorPosition =
 type PopoverProps = {
   visible: boolean;
   onClose: () => void;
-  anchorRef: React.RefObject<View | null>;
+  anchorRef: React.RefObject<ViewInstance | null>;
   children: React.ReactNode;
   anchorPosition?: AnchorPosition;
 };

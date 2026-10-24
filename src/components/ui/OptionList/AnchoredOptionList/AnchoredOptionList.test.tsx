@@ -2,7 +2,7 @@
 import { createRef } from "react";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import { Dimensions, Keyboard, View } from "react-native";
+import { Dimensions, Keyboard, View, type ViewInstance } from "react-native";
 import { AnchoredOptionList } from "./AnchoredOptionList";
 import { OptionListHost } from "../components/OptionListHost/OptionListHost";
 
@@ -17,7 +17,7 @@ const listProps = {
 afterEach(() => vi.restoreAllMocks());
 
 it("renders non-modal content outside a clipping ancestor in the current window", async () => {
-  const anchorRef = createRef<View>();
+  const anchorRef = createRef<ViewInstance>();
   render(
     <OptionListHost>
       <View testID="clipped-form" style={{ overflow: "hidden", height: 40 }}>
@@ -45,7 +45,7 @@ it("remeasures placement when the keyboard appears and releases its listeners on
     vi.spyOn(subscription, "remove").mockImplementation(remove);
     return subscription;
   });
-  const anchorRef = createRef<View>();
+  const anchorRef = createRef<ViewInstance>();
   function Fixture({ visible }: { visible: boolean }) {
     return <OptionListHost>
       <View ref={anchorRef} />
@@ -70,7 +70,7 @@ it("remeasures placement when the keyboard appears and releases its listeners on
 });
 
 it("uses the nearest native-window host and removes floating content when its owner unmounts", async () => {
-  const anchorRef = createRef<View>();
+  const anchorRef = createRef<ViewInstance>();
   function Fixture({ visible }: { visible: boolean }) {
     return <OptionListHost>
       <View testID="modal-window">

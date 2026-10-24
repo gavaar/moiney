@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { createRef, type ComponentPropsWithRef } from "react";
-import type { FlatListProps, LayoutChangeEvent, View } from "react-native";
+import type { FlatListProps, LayoutChangeEvent, ViewInstance } from "react-native";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { AnchoredOptionList, OptionListHost } from "..";
@@ -35,7 +35,7 @@ it.each([
   { contentHeight: 100, surfaceHeight: 124, listHeight: 100, top: "172px" },
   { contentHeight: 300, surfaceHeight: 160, listHeight: 136, top: "136px" },
 ])("positions natural content ($contentHeight) plus measured padding above the anchor", async ({ contentHeight, surfaceHeight, listHeight, top }) => {
-  const anchorRef = createRef<View>();
+  const anchorRef = createRef<ViewInstance>();
   const { View } = await import("react-native");
   function Fixture({ visible }: { visible: boolean }) {
     return <OptionListHost>

@@ -15,7 +15,7 @@ export const monthlyCardStorage = {
   async write(accountKey: string, value: string): Promise<void> {
     try {
       monthlyCardPreferencesDirectory.create({ idempotent: true, intermediates: true });
-      fileFor(accountKey).write(value);
+      await fileFor(accountKey).write(value);
     } catch {
       // Display preferences should not prevent navigation.
     }

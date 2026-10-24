@@ -1,5 +1,5 @@
 import { useEffect, useEffectEvent, useRef, useState } from "react";
-import { Keyboard, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent, type ScrollView } from "react-native";
+import { Keyboard, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent, type ScrollViewInstance } from "react-native";
 
 type Props = {
   pageKeys: readonly number[];
@@ -19,7 +19,7 @@ export function useFormPagerController({ pageKeys, navigationStart }: Props) {
   const activeMeasurement = measurements[pageKeys[activeIndex]];
   const height = activeMeasurement?.width === width ? activeMeasurement.height : undefined;
 
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   const alignmentTarget = useRef<number | null>(null);
   const contentWidth = useRef(0);
 

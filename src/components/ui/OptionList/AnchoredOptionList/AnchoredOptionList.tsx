@@ -1,5 +1,5 @@
 import { useEffect, useState, type RefObject } from "react";
-import { Keyboard, type KeyboardEvent, Platform, Pressable, useWindowDimensions, View } from "react-native";
+import { Keyboard, type KeyboardEvent, Platform, Pressable, useWindowDimensions, View, type ViewInstance } from "react-native";
 import { OptionList, type OptionListProps } from "../OptionList/OptionList";
 import { OptionListLayer } from "./components";
 import { useOptionListHost } from "../components/OptionListHost/optionListHost.context";
@@ -8,7 +8,7 @@ import { anchoredFrame, type WindowRect } from "./utils";
 type Props<Item> = Omit<OptionListProps<Item>, "onContentSizeChange" | "onLayout"> & {
   visible: boolean;
   onClose: () => void;
-  anchorRef: RefObject<View | null>;
+  anchorRef: RefObject<ViewInstance | null>;
   maxHeight: number;
   className?: string;
 };
