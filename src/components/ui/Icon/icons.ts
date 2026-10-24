@@ -1,9 +1,10 @@
-type IconFamily = "Ionicons" | "MaterialCommunityIcons" | "MaterialIcons";
+import type { Ionicons, MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
+import type { ComponentProps } from "react";
 
-type CuratedIcon = {
-  name: string;
-  family: IconFamily;
-};
+type CuratedIcon =
+  | { family: "Ionicons"; name: ComponentProps<typeof Ionicons>["name"] }
+  | { family: "MaterialCommunityIcons"; name: ComponentProps<typeof MaterialCommunityIcons>["name"] }
+  | { family: "MaterialIcons"; name: ComponentProps<typeof MaterialIcons>["name"] };
 
 const CURATED_ICONS = [
   { name: "add", family: "Ionicons" as const },
@@ -97,21 +98,29 @@ const CURATED_ICONS = [
   { name: "water-outline", family: "Ionicons" as const },
   { name: "water-boiler", family: "MaterialCommunityIcons" as const },
   { name: "warning-outline", family: "Ionicons" as const },
-] satisfies CuratedIcon[];
+] as const satisfies readonly CuratedIcon[];
 
-type IconName = (typeof CURATED_ICONS)[number]["name"];
+type IconDefinition = (typeof CURATED_ICONS)[number];
+type IconName = IconDefinition["name"];
 
-const ICON_REGISTRY: Record<string, IconFamily> = {};
-for (const icon of CURATED_ICONS) {
-  ICON_REGISTRY[icon.name] = icon.family;
+const iconsByName = new Map<string, IconDefinition>(CURATED_ICONS.map(icon => [icon.name, icon]));
+
+export function isIconName(name: string | undefined | null): name is IconName {
+  return typeof name === "string" && iconsByName.has(name);
+}
+
+export function getIcon(name: IconName): IconDefinition {
+  const icon = iconsByName.get(name);
+  if (!icon) throw new Error(`Unsupported icon: ${name}`);
+  return icon;
 }
 
 export function safeIconName(
   name: string | undefined | null,
   fallback: IconName = "pipe",
 ): IconName {
-  return name && name in ICON_REGISTRY ? (name as IconName) : fallback;
+  return isIconName(name) ? name : fallback;
 }
 
-export { CURATED_ICONS, ICON_REGISTRY };
-export type { IconFamily, IconName };
+export { CURATED_ICONS };
+export type { IconName };

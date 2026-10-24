@@ -1,6 +1,6 @@
 import { View } from "react-native";
 import { colors } from "@/lib/styles";
-import type { FormPageDefinition } from "./FormPage";
+import type { FormPageDefinition } from "../FormPage/FormPage";
 
 type Props = {
   pages: readonly Pick<FormPageDefinition, "key" | "hasError">[];

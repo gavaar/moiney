@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { FormPager } from "./components/FormPager";
+import { FormPager } from "./FormPager";
 
 // Model the native boundary: scrollTo is clamped until content has been laid out.
 const native = vi.hoisted(() => ({

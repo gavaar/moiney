@@ -1,7 +1,7 @@
 import type { Id } from "@convex/_generated/dataModel";
 import type { PipeCatalogContextValue } from "@features/pipes/context/PipeCatalogContext";
 import { colors } from "@/lib/styles";
-import { safeIconName } from "@ui/Icon/icons";
+import { safeIconName, type IconName } from "@ui/Icon";
 import type { TransactionPresentation } from "@features/transactions/data/transactions";
 
 export type StackedTransactionGroup = {
@@ -52,7 +52,7 @@ function getGroupIconColor(group: StackedTransactionGroup): string {
 function getGroupIconName(
   group: StackedTransactionGroup,
   pipesById: PipeCatalogContextValue["pipesById"],
-): string {
+): IconName {
   if (group.visiblePipeIds.length > 1) return "card-multiple";
 
   const visiblePipeId = group.visiblePipeIds[0];

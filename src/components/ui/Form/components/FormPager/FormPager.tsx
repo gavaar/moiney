@@ -14,19 +14,19 @@ type Props = {
 
 function PagerBackButton({ disabled, onPress }: { disabled: boolean; onPress: () => void }) {
   return <View className="w-7">
-    <Pressable accessibilityRole="button" accessibilityLabel="Previous step"
-      className="flex-1 items-center justify-center" onPress={onPress} disabled={disabled}>
-      <Icon name="chevron-back" size={18} color={disabled ? colors.border : colors.muted} />
-    </Pressable>
+    {!disabled ? <Pressable accessibilityRole="button" accessibilityLabel="Previous step"
+      className="flex-1 items-center justify-center" onPress={onPress}>
+      <Icon name="chevron-back" size={18} color={colors.muted} />
+    </Pressable> : null}
   </View>;
 }
 
 function PagerForwardButton({ disabled, onPress }: { disabled: boolean; onPress: () => void }) {
   return <View className="w-7">
-    <Pressable accessibilityRole="button" accessibilityLabel="Next step"
-      className="flex-1 items-center justify-center" onPress={onPress} disabled={disabled}>
-      <Icon name="chevron-forward" size={18} color={disabled ? colors.border : colors.muted} />
-    </Pressable>
+    {!disabled ? <Pressable accessibilityRole="button" accessibilityLabel="Next step"
+      className="flex-1 items-center justify-center" onPress={onPress}>
+      <Icon name="chevron-forward" size={18} color={colors.muted} />
+    </Pressable> : null}
   </View>;
 }
 

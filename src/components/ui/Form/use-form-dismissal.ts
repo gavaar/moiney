@@ -1,5 +1,5 @@
 import { useCallback, useRef } from "react";
-import { useConfirmWithModal } from "@ui/ConfirmModal/ConfirmModalProvider";
+import { useConfirmWithModal } from "@ui/ConfirmModal";
 
 export type OnDismissStateChange = (dirty: boolean, busy: boolean) => void;
 

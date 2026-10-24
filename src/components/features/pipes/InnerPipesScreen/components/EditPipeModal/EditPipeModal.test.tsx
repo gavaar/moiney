@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { fireEvent, render as renderComponent, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { ConfirmModalProvider } from "@ui/ConfirmModal/ConfirmModalProvider";
+import { ConfirmModalProvider } from "@ui/ConfirmModal";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { EditPipeModal } from "./EditPipeModal";
 import type { Id } from "@convex/_generated/dataModel";

@@ -2,7 +2,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { CreateTabAction } from "./CreateTabAction";
-import { ConfirmModalProvider } from "@ui/ConfirmModal/ConfirmModalProvider";
+import { ConfirmModalProvider } from "@ui/ConfirmModal";
 
 vi.mock("expo-router/react-navigation", () => ({ useIsFocused: () => true }));
 

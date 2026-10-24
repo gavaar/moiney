@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, render as renderComponent, screen, fireEvent } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { ConfirmModalProvider } from "@ui/ConfirmModal/ConfirmModalProvider";
+import { ConfirmModalProvider } from "@ui/ConfirmModal";
 import { type Id } from "@convex/_generated/dataModel";
 import { computeElapsedIntervals } from "@domain/scheduling";
 import { EditPipeModal } from "./EditPipeModal";

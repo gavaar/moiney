@@ -19,6 +19,9 @@ export function useAddFeedForm(onSuccess: () => void, onDismissStateChange?: OnD
   useEffect(() => { onDismissStateChange?.(dirty, loading); }, [dirty, loading, onDismissStateChange]);
   const canSubmit = pages.flatMap(page => page.rows.flat()).every((field) => {
     if (field.key === "isBoiler" || field.key === "description") return true;
+    if (field.key === "icon") {
+      return field.input.validator !== undefined && field.input.validator(draft.icon) === undefined;
+    }
     const validator = field.input.validator;
     return validator !== undefined && validator(draft[field.key]) === undefined;
   }) && !loading;

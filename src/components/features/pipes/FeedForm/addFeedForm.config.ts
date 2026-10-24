@@ -1,6 +1,6 @@
 import { parseMoney } from "@domain/money";
 import { formBuilder } from "@ui/Form";
-import { ICON_REGISTRY, type IconName } from "@ui/Icon";
+import { isIconName, type IconName } from "@ui/Icon";
 
 export type AddFeedDraft = {
   isBoiler: boolean;
@@ -69,7 +69,7 @@ export function buildAddFeedForm(draft: AddFeedDraft, disabled = false) {
         input("icon", {
           type: "icon",
           label: "Icon",
-          validator: value => Object.hasOwn(ICON_REGISTRY, value) ? undefined : "Icon is required",
+          validator: value => isIconName(value) ? undefined : "Icon is required",
         }),
       ),
       row(

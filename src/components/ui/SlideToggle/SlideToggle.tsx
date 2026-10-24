@@ -2,21 +2,21 @@ import { Pressable, View } from "react-native";
 import { cn, colors } from "@/lib/styles";
 import { Icon, type IconName } from "@ui/Icon";
 
-type ToggleOption = {
-  value: string;
+type ToggleOption<Value extends string> = {
+  value: Value;
   label: string;
   icon: IconName;
   selectedBackgroundClassName?: string;
 };
 
-type Props = {
-  options: [ToggleOption, ToggleOption];
-  value: string;
-  onChange: (value: string) => void;
+type Props<Value extends string> = {
+  options: readonly [ToggleOption<Value>, ToggleOption<Value>];
+  value: NoInfer<Value>;
+  onChange: (value: NoInfer<Value>) => void;
   disabled?: boolean;
 };
 
-export function SlideToggle({ options, value, onChange, disabled }: Props) {
+export function SlideToggle<const Value extends string>({ options, value, onChange, disabled }: Props<Value>) {
   return (
     <View className={cn("flex-row rounded-lg border border-border bg-surface", disabled && "opacity-50")}>
       {options.map((option, index) => {

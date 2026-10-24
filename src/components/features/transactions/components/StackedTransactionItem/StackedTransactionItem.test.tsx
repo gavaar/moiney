@@ -46,8 +46,9 @@ vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
   usePipeCatalog: () => mockUsePipeCatalog(),
 }));
 
-vi.mock("@ui/Icon", () => ({
-  Icon: ({ name, color }: any) => (
+vi.mock("@ui/Icon", async importOriginal => ({
+  ...await importOriginal<typeof import("@ui/Icon")>(),
+  Icon: ({ name, color }: { name: string; color: string }) => (
     <span data-testid="mock-icon" data-name={name} data-color={color} />
   ),
 }));

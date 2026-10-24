@@ -15,7 +15,7 @@ export type IconInputProps = InputValueProps<IconName | "", IconName>;
 
 type Props = IconInputProps & InputInteraction & InputTriggerProps;
 
-function filterIcons(search: string, icons: { name: string }[]) {
+function filterIcons(search: string, icons: readonly { name: IconName }[]) {
   return search
     ? icons.filter((icon) =>
         icon.name.toLowerCase().includes(search.toLowerCase()),

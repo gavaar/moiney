@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render as renderComponent, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { ConfirmModalProvider } from "@ui/ConfirmModal/ConfirmModalProvider";
+import { ConfirmModalProvider } from "@ui/ConfirmModal";
 import userEvent from "@testing-library/user-event";
 import { InnerPipesScreen } from "./InnerPipesScreen";
 function render(element: ReactNode) {
