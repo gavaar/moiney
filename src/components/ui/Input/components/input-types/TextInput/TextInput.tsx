@@ -45,7 +45,7 @@ export function TextInput({
         accessibilityLabel={inputLabel}
         accessibilityState={{ disabled }}
         className={cn("min-w-0 flex-1 p-0 text-base text-text", className)}
-        placeholderTextColor="#9CA3AF"
+        placeholderTextColor={colors.muted}
         editable={disabled ? false : editable}
         onFocus={(event) => {
           if (!disabled) onFocusChange(true);

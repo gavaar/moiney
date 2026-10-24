@@ -6,13 +6,6 @@ import { useState } from "react";
 import { Text } from "react-native";
 import { Input as TextInput } from "../../../Input";
 
-const getBorderStyle = vi.fn((..._args: unknown[]) => "");
-
-vi.mock("../../../input.config", async importOriginal => ({
-  ...await importOriginal<typeof import("../../../input.config")>(),
-  getBorderStyle: (...args: unknown[]) => getBorderStyle(...args),
-}));
-
 describe("TextInput", () => {
   it("renders label and input", () => {
     render(<TextInput label="Name" value="" onChange={() => {}} placeholder="Enter name" />);
@@ -141,7 +134,8 @@ describe("TextInput", () => {
     expect(screen.getByTestId("status-unavailable")).toBeTruthy();
   });
 
-  it("composes consumer focus handlers with internal focus state", () => {
+  it("preserves input focus and consumer handlers while validating on blur", async () => {
+    const user = userEvent.setup();
     const onFocus = vi.fn();
     const onBlur = vi.fn();
     render(
@@ -152,17 +146,20 @@ describe("TextInput", () => {
         placeholder="Enter name"
         onFocus={onFocus}
         onBlur={onBlur}
+        validator={() => "Required"}
       />,
     );
     const input = screen.getByPlaceholderText("Enter name");
 
-    fireEvent.focus(input);
+    await user.click(input);
     expect(onFocus).toHaveBeenCalledOnce();
-    expect(getBorderStyle).toHaveBeenLastCalledWith(undefined, true, undefined);
+    expect(document.activeElement).toBe(input);
+    expect(screen.queryByRole("alert")).toBeNull();
 
-    fireEvent.blur(input);
+    await user.tab();
     expect(onBlur).toHaveBeenCalledOnce();
-    expect(getBorderStyle).toHaveBeenLastCalledWith(undefined, false, undefined);
+    expect(document.activeElement).not.toBe(input);
+    expect(screen.getByRole("alert").textContent).toBe("Required");
   });
 
   it("keeps disabled authoritative over the editable prop", () => {

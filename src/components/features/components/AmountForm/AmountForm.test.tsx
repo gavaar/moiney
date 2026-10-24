@@ -111,7 +111,7 @@ vi.mock("@features/transactions/cache/EventHistoryCacheContext", () => ({
 }));
 
 vi.mock("@ui/Input", () => ({
-  Input: ({ label, type, value, onChange, disabled, placeholder, allowNegative, error, maxLength, items, options }: any) => {
+  Input: ({ label, type, value, onChange, disabled, placeholder, allowNegative, error, maxLength, items, options, renderItem }: any) => {
     if (type === "toggle") {
       return <div data-testid="input-transaction-mode">
         <span>{options[value ? 1 : 0].label}</span>
@@ -132,6 +132,7 @@ vi.mock("@ui/Input", () => ({
       );
     }
     if (type === "select") {
+      const selectedItem = items?.find((item: any) => item.id === value);
       return (
         <div
           data-testid={`input-${label}`}
@@ -140,7 +141,7 @@ vi.mock("@ui/Input", () => ({
           <span>{label}</span>
           <span data-testid={`select-value-${label}`}>
             {value
-              ? items?.find((i: any) => i.id === value)?.name ?? "Unknown"
+              ? selectedItem ? renderItem(selectedItem) : "Unknown"
               : placeholder ?? "Select..."}
           </span>
           <div data-testid={`select-items-${label}`}>
@@ -151,7 +152,7 @@ vi.mock("@ui/Input", () => ({
                 onClick={() => onChange?.(item.id)}
                 disabled={disabled}
               >
-                {item.name}
+                {renderItem(item)}
               </button>
             ))}
           </div>

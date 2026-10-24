@@ -1,17 +1,5 @@
-import { createContext, useContext, useLayoutEffect, useState, type ReactNode, type RefObject } from "react";
-import type { View } from "react-native";
-
-export type OptionListHostValue = {
-  viewportRef: RefObject<View | null>;
-  present: (id: symbol, content: ReactNode) => void;
-  dismiss: (id: symbol) => void;
-};
-
-export const OptionListHostContext = createContext<OptionListHostValue | null>(null);
-
-export function useOptionListHost() {
-  return useContext(OptionListHostContext);
-}
+import { useLayoutEffect, useState, type ReactNode } from "react";
+import { useOptionListHost } from "../../components/OptionListHost/optionListHost.context";
 
 export function OptionListLayer({ children }: { children: ReactNode }) {
   const host = useOptionListHost();

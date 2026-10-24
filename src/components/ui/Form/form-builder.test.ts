@@ -1,9 +1,34 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { formBuilder } from "./form-builder";
 
 type Draft = { name: string; priority: number; accepted: boolean };
 
 describe("form configuration composition", () => {
+  it.each(["select", "select-multiple"] as const)("keeps %s rendering and styling lazy and bound to the original item", type => {
+    const { input } = formBuilder<{ owner: string | null; categories: readonly string[] }>();
+    const original = { id: "wallet", name: "Wallet", opacity: 0.75 };
+    const renderItem = vi.fn((item: typeof original) => item === original ? item.name : "Wrong item");
+    const itemStyle = vi.fn((item: typeof original) => ({ opacity: item === original ? item.opacity : 0 }));
+    const configuration = { items: [original], renderItem, itemStyle };
+    const field = type === "select"
+      ? input("owner", { type, ...configuration })
+      : input("categories", { type, ...configuration });
+
+    expect(renderItem).not.toHaveBeenCalled();
+    expect(itemStyle).not.toHaveBeenCalled();
+    if (field.input.type !== "select" && field.input.type !== "select-multiple") throw new Error("Expected selection field");
+    const item = field.input.items[0];
+    expect(item.id).toBe("wallet");
+    expect(field.input.renderItem(item)).toBe("Wallet");
+    expect(field.input.itemStyle?.(item)).toEqual({ opacity: 0.75 });
+  });
+
+  it("keeps selection styling absent when the caller did not supply it", () => {
+    const { input } = formBuilder<{ owner: string | null }>();
+    const field = input("owner", { type: "select", items: [{ id: "wallet", name: "Wallet" }], renderItem: item => item.name });
+    expect(field.input.itemStyle).toBeUndefined();
+  });
+
   it("composes pages and rows with shared defaults, explicit overrides, and field metadata", () => {
     const { form, page, row, input } = formBuilder<Draft>({ defaults: { disabled: true } });
     const reveal = { label: "More", expanded: false, onReveal: () => {} };

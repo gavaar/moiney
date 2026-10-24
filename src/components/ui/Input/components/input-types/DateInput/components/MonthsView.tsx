@@ -13,7 +13,7 @@ export function MonthsView({ cursor, value, onSelectMonth }: Props) {
   const selectedMonth = value.getUTCMonth();
 
   return (
-    <View className="gap-2">
+    <View accessibilityRole="radiogroup" accessibilityLabel={`Months in ${cursor.year}`} className="gap-2">
       {Array.from({ length: 3 }, (_, row) => (
         <View key={row} className="flex-row gap-2">
           {Array.from({ length: 4 }, (_, col) => {

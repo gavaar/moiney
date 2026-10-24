@@ -92,7 +92,7 @@ export function buildAmountForm(configuration: AmountFormConfiguration, sourcePi
       itemStyle: transactionPipeStyle,
     }),
   );
-  const externalPipeRow = paidFromRow ?? spendRow ?? transferRow;
+  const externalPipeRow = paidFromRow || spendRow || transferRow;
 
   const boilerRow = boiler && row(
     input("currentFed", {

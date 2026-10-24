@@ -1,7 +1,7 @@
 import { memo, useMemo } from "react";
 import { Pressable, Text, View } from "react-native";
 import { cn } from "@/lib/styles";
-import { WEEKDAY_LABELS, getMonthGrid, type Cursor } from "../calendar";
+import { MONTH_LABELS, WEEKDAY_LABELS, getMonthGrid, monthLabel, type Cursor } from "../calendar";
 
 const CELL = "h-9 w-9 items-center justify-center rounded-full";
 const COLUMN = "items-center";
@@ -18,16 +18,20 @@ type Props = {
 
 type DayCellProps = {
   day: number;
+  label: string;
   selected: boolean;
   isToday: boolean;
   onPress: (day: number) => void;
 };
 
-const DayCell = memo(function DayCell({ day, selected, isToday, onPress }: DayCellProps) {
+const DayCell = memo(function DayCell({ day, label, selected, isToday, onPress }: DayCellProps) {
   return (
     <Pressable
       testID={`day-${day}`}
-      aria-selected={selected}
+      accessibilityRole="radio"
+      accessibilityLabel={label}
+      accessibilityState={{ checked: selected }}
+      aria-checked={selected}
       aria-current={isToday ? "date" : undefined}
       onPress={() => onPress(day)}
       className={cn(CELL, selected ? "bg-primary" : isToday ? "border border-primary" : "")}
@@ -55,7 +59,7 @@ export function DaysView({ cursor, value, today, onSelectDay }: Props) {
   const selectedDay = value.getUTCDate();
 
   return (
-    <View className="w-full flex-row">
+    <View accessibilityRole="radiogroup" accessibilityLabel={monthLabel(cursor.year, cursor.month)} className="w-full flex-row">
       {WEEKDAY_LABELS.map((weekday, index) => (
         <View key={index} className={COLUMN} style={COLUMN_STYLE}>
           <View className="h-9 mb-1 items-center justify-center">
@@ -80,6 +84,7 @@ export function DaysView({ cursor, value, today, onSelectDay }: Props) {
                 <DayCell
                   key={`day-${cell}`}
                   day={cell}
+                  label={`${MONTH_LABELS[cursor.month]} ${cell}, ${cursor.year}`}
                   selected={isSelected}
                   isToday={isToday}
                   onPress={onSelectDay}

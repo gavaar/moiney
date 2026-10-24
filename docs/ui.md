@@ -1,7 +1,9 @@
 # UI Contracts
 
 Read for feature UI, forms, inputs, modals, and component organization. The
-input dispatcher's detailed public contract is in [Input](input.md).
+input dispatcher's detailed public contract is in [Input](input.md). Apply the
+global [code-quality guide](engineering-principles.md) to interface and ownership
+decisions.
 
 ## Ownership
 
@@ -20,7 +22,8 @@ input dispatcher's detailed public contract is in [Input](input.md).
   refactor replaces it.
 - `Popover` uses a native modal for menus. Input choices share the virtualized
   `OptionList` and accessible `OptionRow` primitives; input variants own their
-  selection policy and presentation. Select keeps its modal picker, while
+  selection policy and content. `OptionRow` owns standard selected-row
+  presentation. Select keeps its modal picker, while
   text-select uses `AnchoredOptionList` to keep the anchor interactive and bound
   scrolling above or below it around the keyboard. Anchored lists require an
   `OptionListHost` outside clipping containers in the same native window; the app
@@ -57,6 +60,22 @@ naming-only sweeps.
 
 ## Verification
 
-Test behavior and accessibility rather than exact utility classes. Navigation,
-keyboard, modal, and platform-sensitive behavior should use native-oriented
-tools where practical.
+Interactive primitives expose meaningful names, roles, and applicable selected,
+checked, expanded, and disabled states. Use native accessibility properties and
+the web aliases required by the supported React Native Web version; names and
+state must describe the actual interaction, including loading-disabled controls.
+
+Test behavior and accessibility rather than exact utility classes. The current
+Vitest component suite uses React Native Web; it verifies exposed web semantics,
+not VoiceOver/TalkBack announcements or native focus traversal. Navigation,
+keyboard, modal, and platform-sensitive behavior should also use native-oriented
+tools where practical; report when that verification is unavailable.
+
+## Theme
+
+Prefer semantic theme tokens from `src/lib/styles/colors.js`, directly for native
+color props or through NativeWind utilities. Preserve semantic distinctions even
+when tokens currently share a value. Derive opacity from a token where needed;
+transparent surfaces and framework-default shadows need not become color tokens.
+If an intended color has no close semantic token, ask before creating one rather
+than silently adding a literal or choosing a misleading token.

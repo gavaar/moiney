@@ -1,72 +1,52 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { ActivityIndicator, Pressable, Text, View, type StyleProp, type ViewStyle } from "react-native";
 import { cn, colors } from "@/lib/styles";
 import { Icon, safeIconName } from "@ui/Icon";
 import { ModalShell } from "@ui/Modal";
 import { OptionList, OptionRow } from "@ui/OptionList";
 import type { InputInteraction, InputTriggerProps, InputValueProps } from "../../../input.types";
+import { buildSelectRows, type SelectGroup } from "./selectRows";
 
-export type SelectGroup = {
-  id: string;
-  name: string;
-  icon?: string;
-  itemIds: readonly string[];
-  initiallyExpanded?: boolean;
-};
+export type { SelectGroup } from "./selectRows";
 
-type CommonSelectInputProps = {
+type CommonSelectInputProps<Item extends { id: string }> = {
   accessibilityLabel?: string;
-  items: readonly ({ id: string } & Record<string, any>)[];
+  items: readonly Item[];
   groups?: readonly SelectGroup[];
-  renderItem: (item: CommonSelectInputProps["items"][number]) => React.ReactNode;
-  itemStyle?: (item: CommonSelectInputProps["items"][number]) => StyleProp<ViewStyle>;
+  renderItem: (item: Item) => ReactNode;
+  itemStyle?: (item: Item) => StyleProp<ViewStyle>;
   disabled?: boolean;
   placeholder?: string;
   loading?: boolean;
 };
 
-export type SelectInputProps = CommonSelectInputProps & InputValueProps<string | null, string>;
-export type SelectMultipleInputProps = CommonSelectInputProps & InputValueProps<readonly string[], string[]>;
+export type SelectInputProps<Item extends { id: string } = { id: string }> = CommonSelectInputProps<Item> & InputValueProps<string | null, string>;
+export type SelectMultipleInputProps<Item extends { id: string } = { id: string }> = CommonSelectInputProps<Item> & InputValueProps<readonly string[], string[]>;
 
-type Props = InputInteraction & InputTriggerProps & (
-  | (SelectInputProps & { multiple?: false })
-  | (SelectMultipleInputProps & { multiple: true })
+type Props<Item extends { id: string }> = InputInteraction & InputTriggerProps & (
+  | (SelectInputProps<Item> & { multiple?: false })
+  | (SelectMultipleInputProps<Item> & { multiple: true })
 );
 
-export function SelectInput({ accessibilityLabel, items, groups, renderItem, itemStyle, value, disabled, placeholder, multiple, onChange, loading = false, onFocusChange, onInteractionEnd, triggerClassName }: Props) {
+export function SelectInput<Item extends { id: string }>({ accessibilityLabel, items, groups, renderItem, itemStyle, value, disabled, placeholder, multiple, onChange, loading = false, onFocusChange, onInteractionEnd, triggerClassName }: Props<Item>) {
   const [open, setOpen] = useState(false);
   const [expandedOverrides, setExpandedOverrides] = useState<Record<string, boolean>>({});
   const inputLabel = accessibilityLabel;
+  const interactionDisabled = disabled || loading;
 
   const selectedItem = !multiple && value
     ? items.find((item) => item.id === value) ?? null
     : null;
-  const groupedIds = new Set(groups?.flatMap(group => group.itemIds) ?? []);
-  const itemsById = new Map(items.map(item => [item.id, item]));
-  const rows: ({ key: string; kind: "option"; item: (typeof items)[number]; grouped?: boolean } | { key: string; kind: "group"; group: SelectGroup })[] = [
-    ...items.filter(item => !groupedIds.has(item.id)).map(item => ({ key: `item:${item.id}`, kind: "option" as const, item })),
-    ...(groups ?? []).flatMap(group => {
-      const members = group.itemIds.flatMap(id => {
-        const item = itemsById.get(id);
-        return item ? [item] : [];
-      });
-      if (members.length === 0) return [];
-      return [
-        { key: `group:${group.id}`, kind: "group" as const, group },
-        ...((expandedOverrides[group.id] ?? group.initiallyExpanded ?? false)
-          ? members.map(item => ({ key: `item:${item.id}`, kind: "option" as const, item, grouped: true })) : []),
-      ];
-    }),
-  ];
+  const rows = buildSelectRows(items, groups, expandedOverrides);
 
   const handleTriggerPress = () => {
-    if (disabled || loading) return;
+    if (interactionDisabled) return;
     setOpen(true);
     onFocusChange(true);
   };
 
   const handleItemPress = (id: string) => {
-    if (disabled || loading) return;
+    if (interactionDisabled) return;
     if (multiple) {
       const next = value.includes(id)
         ? value.filter((selectedId) => selectedId !== id)
@@ -85,7 +65,7 @@ export function SelectInput({ accessibilityLabel, items, groups, renderItem, ite
     return <OptionRow
       multiple={multiple}
       selected={checked}
-      disabled={disabled || loading}
+      disabled={interactionDisabled}
       onPress={() => handleItemPress(item.id)}
       style={itemStyle?.(item)}
     >{renderItem(item)}</OptionRow>;
@@ -98,7 +78,7 @@ export function SelectInput({ accessibilityLabel, items, groups, renderItem, ite
     const { group } = row;
     const expanded = expandedOverrides[group.id] ?? group.initiallyExpanded ?? false;
     return <Pressable accessibilityRole="button" accessibilityLabel={`${expanded ? "Collapse" : "Expand"} ${group.name}`}
-      accessibilityState={{ expanded, disabled }} aria-expanded={expanded} disabled={disabled || loading}
+      accessibilityState={{ expanded, disabled: interactionDisabled }} aria-expanded={expanded} disabled={interactionDisabled}
       onPress={() => setExpandedOverrides(previous => ({ ...previous, [group.id]: !expanded }))}
       className="flex-row items-center gap-1.5 rounded-lg border border-border bg-surface px-2 py-2">
       {group.icon ? <Icon name={safeIconName(group.icon)} size={16} color={colors.muted} /> : null}
@@ -114,8 +94,8 @@ export function SelectInput({ accessibilityLabel, items, groups, renderItem, ite
         testID="select-trigger"
         accessibilityRole="button"
         accessibilityLabel={inputLabel}
-        accessibilityState={{ disabled: disabled || loading, expanded: open }}
-        disabled={disabled || loading}
+        accessibilityState={{ disabled: interactionDisabled, expanded: open }}
+        disabled={interactionDisabled}
         aria-expanded={open}
         onPress={handleTriggerPress}
         className={cn(triggerClassName, "flex-row items-center gap-2")}

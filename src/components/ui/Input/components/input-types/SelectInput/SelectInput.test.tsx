@@ -5,8 +5,8 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Input, type InputProps } from "../../../Input";
 
-const SelectInput = (props: Omit<Extract<InputProps, { type: "select" }>, "type">) => <Input type="select" {...props} />;
-const SelectMultipleInput = (props: Omit<Extract<InputProps, { type: "select-multiple" }>, "type">) => <Input type="select-multiple" {...props} />;
+const SelectInput = <Item extends { id: string },>(props: Omit<Extract<InputProps<Item>, { type: "select" }>, "type">) => <Input type="select" {...props} />;
+const SelectMultipleInput = <Item extends { id: string },>(props: Omit<Extract<InputProps<Item>, { type: "select-multiple" }>, "type">) => <Input type="select-multiple" {...props} />;
 
 const items = [
   { id: "1", name: "Groceries" },

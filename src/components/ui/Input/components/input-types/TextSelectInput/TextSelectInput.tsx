@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { Text, TextInput as RNTextInput, View } from "react-native";
+import { colors } from "@/lib/styles";
 import { AnchoredOptionList, OptionRow } from "@ui/OptionList";
 import type { InputInteraction, InputValueProps } from "../../../input.types";
 
@@ -41,7 +42,7 @@ export function TextSelectInput({
       <RNTextInput
         ref={inputRef}
         className="w-full p-0 text-base text-text"
-        placeholderTextColor="#9CA3AF"
+        placeholderTextColor={colors.muted}
         accessibilityLabel={accessibilityLabel}
         accessibilityState={{ disabled }}
         editable={!disabled}

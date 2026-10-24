@@ -14,7 +14,7 @@ the scripts in `package.json`.
 | Task | Read |
 | --- | --- |
 | Production behavior change or bug fix | `.agents/skills/tdd/SKILL.md` |
-| Architecture, substantial refactoring, or performance | `docs/engineering-principles.md` |
+| Handwritten code changes, architecture, or performance | `docs/engineering-principles.md` |
 | Convex functions or persisted schema | `docs/backend.md` and the relevant Convex skill |
 | Money, allocation, rules, scheduling, boiler balances | `docs/domain/accounting.md` |
 | Transaction creation, editing, grouping, or eligibility | `docs/domain/transactions.md` |

@@ -1,7 +1,8 @@
 import { useEffect, useState, type RefObject } from "react";
 import { Keyboard, type KeyboardEvent, Platform, Pressable, useWindowDimensions, View } from "react-native";
 import { OptionList, type OptionListProps } from "../OptionList/OptionList";
-import { OptionListLayer, useOptionListHost } from "./components";
+import { OptionListLayer } from "./components";
+import { useOptionListHost } from "../components/OptionListHost/optionListHost.context";
 import { anchoredFrame, type WindowRect } from "./utils";
 
 type Props<Item> = Omit<OptionListProps<Item>, "onContentSizeChange" | "onLayout"> & {

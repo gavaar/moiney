@@ -46,8 +46,32 @@ describe("Calendar", () => {
 
   it("marks the selected day", () => {
     renderCalendar();
-    expect(screen.getByTestId("day-21").getAttribute("aria-selected")).toBe("true");
-    expect(screen.getByTestId("day-1").getAttribute("aria-selected")).toBe("false");
+    expect(screen.getByTestId("day-21").getAttribute("aria-checked")).toBe("true");
+    expect(screen.getByTestId("day-1").getAttribute("aria-checked")).toBe("false");
+  });
+
+  it("exposes dated single-choice controls and their selection state", () => {
+    renderCalendar();
+    expect(screen.getByRole("radiogroup", { name: "Jul 2026" })).toBeTruthy();
+    expect(screen.getByRole("radio", { name: "Jul 21, 2026", checked: true })).toBeTruthy();
+    expect(screen.getByRole("radio", { name: "Jul 1, 2026", checked: false })).toBeTruthy();
+  });
+
+  it("exposes month and year selections with navigation labels matching the view", async () => {
+    const user = userEvent.setup();
+    renderCalendar();
+
+    await user.click(screen.getByRole("button", { name: "Select calendar view" }));
+    expect(screen.getByRole("radio", { name: "Jul", checked: true })).toBeTruthy();
+    expect(screen.getByRole("radio", { name: "Aug", checked: false })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Previous year" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Next year" })).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: "Select calendar view" }));
+    expect(screen.getByRole("radio", { name: "2026", checked: true })).toBeTruthy();
+    expect(screen.getByRole("radio", { name: "2025", checked: false })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Previous 10 years" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Next 10 years" })).toBeTruthy();
   });
 
   it("marks today in the current month", () => {

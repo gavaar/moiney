@@ -1,11 +1,19 @@
 import type { JSX, ReactNode } from "react";
 import type { IconName } from "@ui/Icon";
 import type { InputProps } from "@ui/Input";
+import type { StyleProp, ViewStyle } from "react-native";
 
 export type FormValue = InputProps["value"];
 
+// Each field can retain its own domain item type behind bound presentation.
+export type BoundSelectItem = {
+  id: string;
+  content: () => ReactNode;
+  style?: () => StyleProp<ViewStyle>;
+};
+
 // A field must both supply a supported value and accept every value its input can emit.
-type InputConfiguration<V, P = InputProps> = P extends InputProps
+export type InputConfiguration<V, Item extends { id: string }, P = InputProps<Item>> = P extends InputProps<Item>
   ? [V] extends [P["value"]]
     ? [Parameters<NonNullable<P["onChange"]>>[0]] extends [V] ? Omit<P, "value" | "onChange" | "onError"> : never
     : never
@@ -13,7 +21,7 @@ type InputConfiguration<V, P = InputProps> = P extends InputProps
 
 export type FormField<V extends FormValue, Key extends string = string> = {
   key: Key;
-  input: InputConfiguration<V>;
+  input: InputConfiguration<V, BoundSelectItem>;
   description?: ReactNode;
   reveal?: {
     label: string;

@@ -1,5 +1,5 @@
 import { expectTypeOf, it } from "vitest";
-import type { FormPage, FormProps } from "./form.types";
+import type { FormField, FormPage, FormProps, FormRow } from "./form.types";
 import { formBuilder } from "./form-builder";
 
 type Draft = {
@@ -50,7 +50,7 @@ it("accepts nullable dates and selections and readonly multiple selections", () 
     }),
     input("ownerId", {
       type: "select",
-      items: [],
+      items: [{ id: "owner" }],
       validator: value => {
         expectTypeOf(value).toEqualTypeOf<string | null>();
         return undefined;
@@ -59,7 +59,7 @@ it("accepts nullable dates and selections and readonly multiple selections", () 
     }),
     input("selectedIds", {
       type: "select-multiple",
-      items: [],
+      items: [{ id: "category" }],
       renderItem: item => item.id,
       validator: value => {
         expectTypeOf(value).toEqualTypeOf<readonly string[]>();
@@ -68,6 +68,41 @@ it("accepts nullable dates and selections and readonly multiple selections", () 
     }),
   )));
   expectTypeOf(pages).toExtend<readonly FormPage<Draft>[]>();
+});
+
+it("infers different selection item types before storing them in an explicit row", () => {
+  interface Pipe { id: string; name: string; balance: number }
+  const pipes: readonly Pipe[] = [{ id: "pipe", name: "Wallet", balance: 100 }];
+  const categories = [{ id: "category", title: "Food" }] as const;
+  const { input } = formBuilder<Draft>();
+  const owner: FormField<string | null, "ownerId"> = input("ownerId", {
+    type: "select",
+    items: pipes,
+    renderItem: pipe => {
+      expectTypeOf(pipe).toEqualTypeOf<Pipe>();
+      // @ts-expect-error Item properties are checked before heterogeneous storage.
+      expectTypeOf(pipe.missing);
+      return pipe.name;
+    },
+    itemStyle: pipe => {
+      expectTypeOf(pipe).toEqualTypeOf<Pipe>();
+      return { opacity: pipe.balance > 0 ? 1 : 0.5 };
+    },
+  });
+  const fields: FormRow<Draft> = [
+    owner,
+    input("selectedIds", {
+      type: "select-multiple",
+      items: categories,
+      renderItem: category => {
+        expectTypeOf(category).toEqualTypeOf<(typeof categories)[number]>();
+        // @ts-expect-error One field's item shape does not leak into another.
+        expectTypeOf(category.balance);
+        return category.title;
+      },
+    }),
+  ];
+  expectTypeOf(fields).toEqualTypeOf<FormRow<Draft>>();
 });
 
 it("rejects unknown keys, incompatible variants, narrow values, and controlled props", () => {

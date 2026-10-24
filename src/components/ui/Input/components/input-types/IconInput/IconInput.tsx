@@ -53,6 +53,7 @@ export function IconInput({ accessibilityLabel, value, onChange, disabled, onFoc
         onClose={() => { setOpen(false); onFocusChange(false); }}
       >
         <TextInput
+          accessibilityLabel="Search icons"
           placeholder="Search icons..."
           placeholderTextColor={colors.muted}
           value={search}
@@ -64,12 +65,17 @@ export function IconInput({ accessibilityLabel, value, onChange, disabled, onFoc
             No icons found
           </Text>
         ) : (
-          <ScrollView contentContainerStyle={{ flexDirection: "row", flexWrap: "wrap" }}>
+          <ScrollView accessibilityRole="radiogroup" accessibilityLabel="Icons" contentContainerStyle={{ flexDirection: "row", flexWrap: "wrap" }}>
             {filtered.map((icon) => {
               const selected = value === icon.name;
               return (
                 <View key={icon.name} className="w-1/4 p-1 items-center">
                   <Pressable
+                    accessibilityRole="radio"
+                    accessibilityLabel={icon.name}
+                    accessibilityState={{ checked: selected, disabled: disabled || !onChange }}
+                    aria-checked={selected}
+                    disabled={disabled || !onChange}
                     onPress={() => {
                       if (disabled || !onChange) return;
                       onInteractionEnd();
@@ -78,8 +84,7 @@ export function IconInput({ accessibilityLabel, value, onChange, disabled, onFoc
                       onFocusChange(false);
                       setSearch("");
                     }}
-                    className="items-center py-2 px-1 rounded-lg"
-                    style={selected && { backgroundColor: "rgba(70, 174, 130, 0.1)" }}
+                    className={cn("items-center py-2 px-1 rounded-lg", selected && "bg-primary/10")}
                   >
                     <Icon
                       name={icon.name}

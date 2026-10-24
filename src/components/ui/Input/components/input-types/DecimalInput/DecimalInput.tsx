@@ -1,4 +1,5 @@
 import { TextInput as RNTextInput } from "react-native";
+import { colors } from "@/lib/styles";
 import type { InputInteraction, InputValueProps } from "../../../input.types";
 import { sanitizeDecimal } from "../../../input.utils";
 
@@ -31,7 +32,7 @@ export function DecimalInput({ accessibilityLabel, disabled, value, onChange, pl
       value={displayValue}
       onChangeText={handleChangeText}
       placeholder={placeholder}
-      placeholderTextColor="#9CA3AF"
+      placeholderTextColor={colors.muted}
       editable={!disabled}
       onFocus={() => !disabled && onFocusChange(true)}
       onBlur={() => {

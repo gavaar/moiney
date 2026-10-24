@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { Pressable, Text } from "react-native";
-import { cn } from "@/lib/styles";
+import { cn, colors } from "@/lib/styles";
 import { Icon } from "@ui/Icon";
 import { MONTH_LABELS } from "./calendar";
 import { Calendar } from "./components";
@@ -50,7 +50,8 @@ export function DateInput({
         testID="date-trigger"
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}
-        accessibilityState={{ disabled }}
+        accessibilityState={{ disabled, expanded: showPicker && !!onChange }}
+        aria-expanded={showPicker && !!onChange}
         onPress={handleTrigger}
         disabled={disabled}
         className={cn(triggerClassName, "flex-row items-center justify-between")}
@@ -58,7 +59,7 @@ export function DateInput({
         <Text className={cn("text-base", disabled ? "text-muted" : "text-text")}>
           {value ? formatDate(value) : placeholder ?? "Any date"}
         </Text>
-        <Icon name="calendar-outline" size={12} color={disabled ? "#9CA3AF" : "#F8F8F8"} />
+        <Icon name="calendar-outline" size={12} color={disabled ? colors.muted : colors.text} />
       </Pressable>
 
       {showPicker && onChange ? (

@@ -1,1 +1,1 @@
-export { OptionListLayer, useOptionListHost } from './OptionListLayer';
+export { OptionListLayer } from './OptionListLayer';

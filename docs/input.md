@@ -9,6 +9,9 @@ and completed interactions through private callbacks, not presentation registrat
 effects. Variants keep their tests and private helpers colocated; application
 callers and field-behavior tests use the public Input entry point.
 `InputProps` is exported from the public entry point for typed composition.
+For select variants, `InputProps<Item>` preserves the item shape through
+`items`, `renderItem`, and `itemStyle`; direct calls infer it from `items`.
+Unparameterized composition permits only the shared `{ id: string }` shape.
 
 Every variant is controlled through a required `value` and optional `onChange`,
 including checkbox's boolean value. `onChange` receives the variant's value,
@@ -79,7 +82,7 @@ scroll; short lists remain compact. Multiple selections expose checkbox semantic
 displays a loading indicator in the trigger and prevents selection while loading.
 Empty lists display an empty state inside the picker.
 Optional `itemStyle(item)` styles option rows; the
-selected background remains owned by Select. Domain-specific colors belong in
+standard selected background remains owned by `OptionRow`. Domain-specific colors belong in
 feature renderers and style callbacks, not in Select.
 
 Every type accepts optional `supportingText` (text or JSX). Text receives shared
@@ -212,7 +215,12 @@ const pages = form(
 ```
 
 - `input(key, configuration, metadata?)` preserves field/value compatibility and
-  contextual callback types. Optional metadata contains `description` and `reveal`.
+  contextual callback types, including the original select item shape. Construct
+  select fields through `input()` even inside manually composed `FormField` or
+  `FormRow` arrays. It binds each item's rendering and styling lazily before
+  heterogeneous fields share storage; stored items are presentation data, not
+  domain models. Raw non-select field definitions remain supported.
+  Optional metadata contains `description` and `reveal`.
   The shared `disabled` default applies when creating inputs; explicit input
   settings override it. Reusable row factories own their inputs' defaults.
 - `row`, `page`, and `form` accept `false`, `null`, and `undefined` children as

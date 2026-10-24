@@ -6,7 +6,8 @@ import type { DateInputProps, DecimalInputProps, TextInputProps, NumberInputProp
 import { InputLabel } from "./components/InputLabel";
 import { InputWrapper, type InputActions } from "./components/InputWrapper";
 import { getBorderStyle, getDefaultActions, INPUT_CONTENT_PADDING } from "./input.config";
-import { InputHelperText, useInputValidation } from './components/InputHelperText';
+import { InputHelperText } from './components/InputHelperText';
+import { useInputValidation } from "./useInputValidation";
 
 type FieldProps<Value> = InputActions & {
   label?: string;
@@ -19,7 +20,7 @@ type FieldProps<Value> = InputActions & {
 
 type Field<Props extends { value: unknown }> = Props & FieldProps<Props["value"]>;
 
-export type InputProps =
+export type InputProps<Item extends { id: string } = { id: string }> =
   | (Field<TextInputProps> & { type?: "text" })
   | (Field<NumberInputProps> & { type: "number" })
   | (Field<DecimalInputProps> & { type: "decimal" })
@@ -27,15 +28,15 @@ export type InputProps =
   | (Field<IconInputProps> & { type: "icon" })
   | (Field<CheckboxInputProps> & { type: "checkbox" })
   | (Field<ToggleInputProps> & { type: "toggle" })
-  | (Field<SelectInputProps> & { type: "select" })
-  | (Field<SelectMultipleInputProps> & { type: "select-multiple" })
+  | (Field<SelectInputProps<Item>> & { type: "select" })
+  | (Field<SelectMultipleInputProps<Item>> & { type: "select-multiple" })
   | (Field<TextSelectInputProps> & { type: "text-select" });
 
-function validateInput({ value, validator }: InputProps) {
+function validateInput<Item extends { id: string }>({ value, validator }: InputProps<Item>) {
   return (validator as ((value: InputProps["value"]) => string | undefined) | undefined)?.(value);
 }
 
-export function Input(props: InputProps) {
+export function Input<Item extends { id: string }>(props: InputProps<Item>) {
   const [focused, setFocused] = useState(false);
   const { error, markAsDirty } = useInputValidation(props, validateInput, props.onError);
   const { disabled, label, prefix, suffix, validateOn = "blur" } = props;

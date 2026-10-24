@@ -31,6 +31,15 @@ describe("IconInput", () => {
     expect(screen.getByPlaceholderText("Search icons...")).toBeTruthy();
   });
 
+  it("exposes named icon choices, their selection, and a named search field", async () => {
+    render(<IconInput label="Icon" value="wallet-outline" onChange={() => {}} />);
+    await userEvent.click(screen.getByRole("button", { name: "Icon" }));
+    expect(screen.getByRole("textbox", { name: "Search icons" })).toBeTruthy();
+    expect(screen.getByRole("radiogroup", { name: "Icons" })).toBeTruthy();
+    expect(screen.getByRole("radio", { name: "wallet-outline", checked: true })).toBeTruthy();
+    expect(screen.getByRole("radio", { name: "cash-outline", checked: false })).toBeTruthy();
+  });
+
   it("selects icon and calls onChange", async () => {
     const onChange = vi.fn();
     render(<IconInput label="Icon" value="" onChange={onChange} />);

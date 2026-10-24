@@ -1,4 +1,5 @@
 import { TextInput } from "react-native";
+import { colors } from "@/lib/styles";
 import type { InputInteraction, InputValueProps } from "../../../input.types";
 import { clampNumber } from "../../../input.utils";
 
@@ -45,7 +46,7 @@ export function NumberInput({ accessibilityLabel, disabled, value, onChange, min
       editable={!disabled}
       onFocus={() => !disabled && onFocusChange(true)}
       onBlur={handleBlur}
-      placeholderTextColor="#9CA3AF"
+      placeholderTextColor={colors.muted}
     />
   );
 }

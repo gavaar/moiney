@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { View } from "react-native";
-import { getYearRange, type Cursor } from "../calendar";
+import { getYearRange, yearRangeLabel, type Cursor } from "../calendar";
 import { PickerCell } from "./PickerCell";
 
 type Props = {
@@ -14,7 +14,7 @@ export function YearsView({ cursor, value, onSelectYear }: Props) {
   const selectedYear = value.getUTCFullYear();
 
   return (
-    <View className="gap-2">
+    <View accessibilityRole="radiogroup" accessibilityLabel={`Years ${yearRangeLabel(cursor.year)}`} className="gap-2">
       {Array.from({ length: 5 }, (_, row) => (
         <View key={row} className="flex-row gap-2">
           {yearRange.slice(row * 2, row * 2 + 2).map((year) => {

@@ -14,7 +14,9 @@ export function PickerCell({ testID, selected, label, onPress }: Props) {
   return (
     <Pressable
       testID={testID}
-      aria-selected={selected}
+      accessibilityRole="radio"
+      accessibilityState={{ checked: selected }}
+      aria-checked={selected}
       onPress={onPress}
       className={cn(MONTH_CELL, selected ? "bg-primary" : "")}
     >

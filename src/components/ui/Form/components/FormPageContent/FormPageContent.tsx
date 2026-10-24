@@ -2,7 +2,7 @@ import { Pressable, Text, View } from "react-native";
 import { Icon } from "@ui/Icon";
 import { colors } from "@/lib/styles";
 import { Input, type InputProps } from "@ui/Input";
-import type { FormField, FormRow, FormValue } from "../../form.types";
+import type { BoundSelectItem, FormField, FormRow, FormValue } from "../../form.types";
 
 type Props<Values extends Record<string, FormValue>, Keys extends keyof Values & string> = {
   rows: readonly FormRow<Values, Keys>[];
@@ -38,12 +38,13 @@ function FormFieldContent<
   Keys extends keyof Values & string,
 >({ field, value, onChange, onError }: FieldProps<Values, Keys>) {
   const { reveal, description, input, key } = field;
+  // FormField checks value/emission compatibility; the same key binds both here.
   const inputProps = {
     ...input,
     value: value[key],
     onChange: (nextValue: Values[Keys]) => onChange(key, nextValue),
     onError: (error?: string) => onError(key, error),
-  } as InputProps;
+  } as InputProps<BoundSelectItem>;
 
   return (
     <View className="gap-1 flex-1">

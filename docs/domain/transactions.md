@@ -186,7 +186,7 @@ pipe as `name (spent / capacity)` with integer-cent presentation formatting.
 Create uses a plus marker; repeat retains its repeat marker.
 Transaction pipe options use red icons and borders when `spent >= fed` and white
 otherwise, including equality as overflow. This is a presentation rule, not an
-eligibility filter. Selected rows retain the shared Select's neutral background;
+eligibility filter. Selected rows retain the shared `OptionRow`'s neutral background;
 the `None` option is neutral. Owner selection in Add Pipe is independent of this
 transaction-specific styling.
 

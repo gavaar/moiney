@@ -1,4 +1,5 @@
-import type { FormField, FormRow, FormValue } from "./form.types";
+import type { FormField, FormRow, FormValue, InputConfiguration } from "./form.types";
+import { prepareInput } from "./form-input";
 
 type Optional<T> = T | false | null | undefined;
 type Field<Values extends Record<string, FormValue>, Keys extends keyof Values & string> =
@@ -19,12 +20,12 @@ export function formBuilder<Values extends Record<string, FormValue>>(
 ) {
   type Key = keyof Values & string;
 
-  function input<K extends Key>(
+  function input<K extends Key, Item extends { id: string } = { id: string }>(
     key: K,
-    configuration: FormField<Values[K], K>["input"],
+    configuration: InputConfiguration<Values[K], Item>,
     metadata: Pick<FormField<Values[K], K>, "description" | "reveal"> = {},
   ): FormField<Values[K], K> {
-    return { key, input: { ...options.defaults, ...configuration }, ...metadata };
+    return { key, input: prepareInput<Values[K], Item>({ ...options.defaults, ...configuration }), ...metadata };
   }
 
   function row<K extends Key>(...fields: Optional<Field<Values, K>>[]): Row<Values, K> {

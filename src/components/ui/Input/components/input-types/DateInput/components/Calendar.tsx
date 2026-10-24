@@ -54,6 +54,7 @@ export function Calendar({ visible, value, onChange, onClose }: Props) {
       : view === "months"
         ? String(cursor.year)
         : yearRangeLabel(cursor.year);
+  const navigationUnit = view === "days" ? "month" : view === "months" ? "year" : "10 years";
 
   const handleTitlePress = useCallback(() => {
     setView((v) => NEXT_VIEW[v]);
@@ -105,7 +106,7 @@ export function Calendar({ visible, value, onChange, onClose }: Props) {
           <Pressable
             testID="calendar-prev"
             accessibilityRole="button"
-            accessibilityLabel="Previous month"
+            accessibilityLabel={`Previous ${navigationUnit}`}
             onPress={handlePrev}
             hitSlop={8}
             className="p-2 rounded-full"
@@ -125,7 +126,7 @@ export function Calendar({ visible, value, onChange, onClose }: Props) {
           <Pressable
             testID="calendar-next"
             accessibilityRole="button"
-            accessibilityLabel="Next month"
+            accessibilityLabel={`Next ${navigationUnit}`}
             onPress={handleNext}
             hitSlop={8}
             className="p-2 rounded-full"

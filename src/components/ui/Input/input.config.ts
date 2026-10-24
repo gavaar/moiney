@@ -25,7 +25,7 @@ export function getBorderStyle(
   return BORDER_STYLES.default;
 }
 
-export function getDefaultActions(props: InputProps, interaction: {
+export function getDefaultActions<Item extends { id: string }>(props: InputProps<Item>, interaction: {
   onInteractionEnd: () => void;
   onValueChange: () => void;
 }): InputActions {

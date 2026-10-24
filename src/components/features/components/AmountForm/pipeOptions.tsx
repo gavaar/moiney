@@ -3,7 +3,6 @@ import { colors } from "@/lib/styles";
 import { formatAmount } from "@/lib/format";
 import { Icon, safeIconName } from "@ui/Icon";
 import type { PipeModel } from "@features/pipes/data/pipes";
-import type { InputProps } from "@ui/Input";
 
 export function getTransactionPipeColor(pipe?: Pick<PipeModel, "spent" | "fed">) {
   return !pipe ? colors.muted : pipe.spent >= pipe.fed ? colors.error : colors.text;
@@ -24,7 +23,7 @@ export function transactionPipeItems(
   });
 }
 
-type Item = Extract<InputProps, { type: "select" }>["items"][number];
+type Item = ReturnType<typeof transactionPipeItems>[number];
 
 export function renderTransactionPipe(item: Item) {
   return <View className="flex-row items-center gap-2">
