@@ -1526,6 +1526,25 @@ describe("AmountForm", () => {
     });
 
     describe("edit mode", () => {
+      it("previews replacement accounting only when explicitly enabled", () => {
+        render(<AmountForm pipeId={PIPE_ID} variant="transaction" initState={{
+          pipeIcon: "cart-outline",
+          pipeName: "Previous pipe",
+          title: "coffee",
+          value: "-5",
+          structure: { type: "expense", from: "missing-pipe" as Id<"pipes"> },
+          operationId: "transaction-1" as Id<"events">,
+          date: 1,
+          intent: "edit",
+        }} />);
+        expect(screen.getByRole("alert").textContent).toContain("Replacement pipes receive no accounting update.");
+        expect(screen.getByRole("alert").textContent).not.toContain("Main: spent");
+        fireEvent.click(screen.getByRole("switch", { name: "Apply accounting to replacement pipes" }));
+        expect(screen.getByRole("alert").textContent).toContain("Main: spent +5.00");
+        expect(screen.getByRole("alert").textContent).toContain("Rules may run; final balances can differ.");
+        expect(mockEditTransactionFn).not.toHaveBeenCalled();
+      });
+
       it("lets users dismiss the accounting warning without submitting or changing the draft", () => {
         render(<AmountForm pipeId={PIPE_ID} variant="transaction" initState={{
           pipeIcon: "cart",

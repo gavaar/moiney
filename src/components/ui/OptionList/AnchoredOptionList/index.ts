@@ -1,1 +1,0 @@
-export { AnchoredOptionList } from './AnchoredOptionList';

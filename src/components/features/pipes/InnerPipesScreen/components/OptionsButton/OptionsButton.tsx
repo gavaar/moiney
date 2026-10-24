@@ -30,6 +30,8 @@ export function OptionsButton({ pipeId, disabled = false }: OptionsButtonProps) 
         disabled={disabled}
         accessibilityRole="button"
         accessibilityLabel="Pipe options"
+        accessibilityState={{ disabled, expanded: showOptions }}
+        aria-expanded={showOptions}
         className={disabled ? "opacity-50" : undefined}
         onPress={() => setShowOptions(true)}
       >
@@ -43,6 +45,8 @@ export function OptionsButton({ pipeId, disabled = false }: OptionsButtonProps) 
         anchorPosition="left-start"
       >
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Add pipe"
           className="flex-row items-center gap-2 px-2 py-1"
           onPress={() => {
             setShowOptions(false);
@@ -54,6 +58,8 @@ export function OptionsButton({ pipeId, disabled = false }: OptionsButtonProps) 
         </Pressable>
         <View className="h-2" />
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Edit"
           className="flex-row items-center gap-2 px-2 py-1"
           onPress={() => {
             setShowOptions(false);
@@ -65,6 +71,8 @@ export function OptionsButton({ pipeId, disabled = false }: OptionsButtonProps) 
         </Pressable>
         <View className="h-2" />
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Delete"
           className="flex-row items-center gap-2 px-2 py-1"
           onPress={() => {
             setShowOptions(false);

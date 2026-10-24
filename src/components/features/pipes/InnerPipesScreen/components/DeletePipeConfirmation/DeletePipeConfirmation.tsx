@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { FlatList, Text, View } from "react-native";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import type {
@@ -7,7 +7,7 @@ import type {
 } from "@features/pipes/data/pipes";
 import { Button } from "@ui/Button";
 import { Input } from "@ui/Input";
-import { Icon, type IconName } from "@ui/Icon";
+import { Icon, safeIconName } from "@ui/Icon";
 import { ModalShell } from "@ui/Modal";
 import { colors } from "@/lib/styles";
 import { useAlert } from "@ui/Alert";
@@ -112,57 +112,60 @@ export function DeletePipeConfirmation({ visible, onClose, pipeId, onDeleted }: 
     <ModalShell visible={visible} onClose={onClose}>
       <View className="gap-4 min-w-[300px]" style={{ flexShrink: 1 }}>
         <View className="flex-row items-center gap-2">
-          {pipe && <Icon name={pipe.icon as IconName} size={24} color={colors.text} />}
+          {pipe && <Icon name={safeIconName(pipe.icon)} size={24} color={colors.text} />}
           <Text className="text-text font-bold text-lg">{pipe?.name ?? "Unknown"}</Text>
         </View>
 
-        <ScrollView style={{ flexGrow: 0, flexShrink: 1 }} contentContainerStyle={{ gap: 16 }} keyboardShouldPersistTaps="handled">
-          <Text className="text-text text-sm">This will delete the following pipes:</Text>
-
-          <View>
-            {pipe && (
-              <View className="flex-row items-center gap-2 py-1">
-                <View style={{ width: 0 }} />
-                <Icon name={pipe.icon as IconName} size={16} color={colors.text} />
-                <Text className="text-text text-sm font-medium">{pipe.name}</Text>
-                <Text className="text-muted text-xs">(selected)</Text>
+        <FlatList
+          data={descendants}
+          keyExtractor={descendant => descendant.id}
+          style={{ flexGrow: 0, flexShrink: 1 }}
+          keyboardShouldPersistTaps="handled"
+          ListHeaderComponent={
+            <View className="gap-4">
+              <Text className="text-text text-sm">This will delete the following pipes:</Text>
+              {pipe && (
+                <View className="flex-row items-center gap-2 py-1">
+                  <View style={{ width: 0 }} />
+                  <Icon name={safeIconName(pipe.icon)} size={16} color={colors.text} />
+                  <Text className="text-text text-sm font-medium">{pipe.name}</Text>
+                  <Text className="text-muted text-xs">(selected)</Text>
+                </View>
+              )}
+            </View>
+          }
+          renderItem={({ item: d }) => (
+            <View className="flex-row items-center gap-2 py-1">
+              <View style={{ width: d.depth * 16 }} />
+              <Icon name={safeIconName(d.icon)} size={14} color={colors.muted} />
+              <Text className="text-text text-sm">{d.name}</Text>
+            </View>
+          )}
+          ListFooterComponent={
+            <View className="gap-4 mt-4">
+              <View className="bg-error/10 border border-error rounded-lg p-3">
+                <Text className="text-error text-sm">
+                  Warning: You are about to delete this pipe and all its child pipes. This action cannot be undone.
+                </Text>
               </View>
-            )}
-            {descendants.map((d) => (
-              <View key={d.id} className="flex-row items-center gap-2 py-1">
-                <View style={{ width: d.depth * 16 }} />
-                <Icon name={d.icon as IconName} size={14} color={colors.muted} />
-                <Text className="text-text text-sm">{d.name}</Text>
-              </View>
-            ))}
-          </View>
-
-          <View className="bg-error/10 border border-error rounded-lg p-3">
-            <Text className="text-error text-sm">
-              Warning: You are about to delete this pipe and all its child pipes. This action cannot be undone.
-            </Text>
-          </View>
-
-          <Input
-            type="checkbox"
-            checkboxLabel="Delete orphaned transaction history"
-            value={deleteTransactions}
-            onChange={setDeleteTransactions}
-            disabled={isDeleting}
-          />
-          <Text className="text-muted text-xs">
-            Shared transactions are preserved for surviving pipes.
-          </Text>
-
-          {isDeleting && deletionStatus ? (
-            <Text className="text-muted text-sm">
-              Deleting {deletionStatus.phase === "readyToFinalize"
-                ? deletionStatus.totalMembers
-                : deletionStatus.completedMembers} of {deletionStatus.totalMembers} pipes...
-            </Text>
-          ) : null}
-
-        </ScrollView>
+              <Input
+                type="checkbox"
+                checkboxLabel="Delete orphaned transaction history"
+                value={deleteTransactions}
+                onChange={setDeleteTransactions}
+                disabled={isDeleting}
+              />
+              <Text className="text-muted text-xs">Shared transactions are preserved for surviving pipes.</Text>
+              {isDeleting && deletionStatus ? (
+                <Text className="text-muted text-sm">
+                  Deleting {deletionStatus.phase === "readyToFinalize"
+                    ? deletionStatus.totalMembers
+                    : deletionStatus.completedMembers} of {deletionStatus.totalMembers} pipes...
+                </Text>
+              ) : null}
+            </View>
+          }
+        />
 
         <Button
           variant="error"

@@ -1,1 +1,1 @@
-export { MiniChildBox, spentBg } from "./MiniChildBox";
+export { MiniChildBox } from "./MiniChildBox";

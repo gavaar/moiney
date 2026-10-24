@@ -59,7 +59,7 @@ export function FeedListScreen({
             <Pressable className="p-2 rounded-full" accessibilityRole="button"
               accessibilityLabel={`Add money to ${pipe.name}`} testID="feed-amount-trigger"
               onPress={() => setFundingFeedId(pipe.id)}>
-              <Icon name="add-circle-outline" size={24} color="white" />
+              <Icon name="add-circle-outline" size={24} color={colors.text} />
             </Pressable>
           )}
           footer={<AddFeedButton />}

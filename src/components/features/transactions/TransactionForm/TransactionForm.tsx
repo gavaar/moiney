@@ -1,12 +1,10 @@
 import { useState } from "react";
 import type { Id } from "@convex/_generated/dataModel";
-import { AmountForm } from "@features/components/AmountForm";
-import type { TransactionInitialState } from "@features/components/AmountForm/types";
+import { AmountForm, groupPipesByRoot, type TransactionInitialState } from "@features/components/AmountForm";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import { useEventHistory } from "@features/transactions/cache/useEventHistory";
 import { getFrequentlyUsedEventSourcePipeIds } from "../history/event-usage";
 import { getQuickTransactionPipes } from "../QuickTransactionModal/helpers";
-import { groupPipesByRoot } from "@features/components/AmountForm/pipeGroups";
 import type { OnDismissStateChange } from "@ui/Form/use-form-dismissal";
 
 type Props = { onSuccess?: () => void; onDismissStateChange?: OnDismissStateChange } & (
@@ -15,10 +13,7 @@ type Props = { onSuccess?: () => void; onDismissStateChange?: OnDismissStateChan
 );
 
 export function TransactionForm(props: Props) {
-  return <SelectableTransactionForm {...props} />;
-}
-
-function SelectableTransactionForm({ pipeId, initState, onSuccess, onDismissStateChange }: Props) {
+  const { pipeId, initState, onSuccess, onDismissStateChange } = props;
   const { allPipes, childrenByParent, isLoading } = usePipeCatalog();
   const { entries, isLoading: historyLoading } = useEventHistory();
   const [selectedId, setSelectedId] = useState<Id<"pipes"> | null>(pipeId ?? null);

@@ -36,6 +36,30 @@ const mockPipes = [
 
 describe("PipesList", () => {
   beforeEach(() => localStorage.clear());
+  it("does not mount the entire growing catalog in the initial viewport", async () => {
+    const pipes = Array.from({ length: 200 }, (_, index) => ({
+      ...mockPipes[0], id: String(index) as Id<"pipes">, name: `Pipe ${index}`,
+    }));
+    render(<PipesList pipes={pipes} />);
+    const boxes = await screen.findAllByTestId("feed-box");
+    expect(boxes.length).toBeLessThan(pipes.length);
+    fireEvent.contextMenu(boxes[0]);
+    expect(screen.getByRole("button", { name: "Minimize" })).toBeDefined();
+  });
+
+  it("bounds mounted compact tiles as the minimized catalog grows", async () => {
+    const pipes = Array.from({ length: 200 }, (_, index) => ({
+      ...mockPipes[0], id: String(index) as Id<"pipes">, name: `Pipe ${index}`,
+    }));
+    localStorage.setItem("moiney:pipe-views:deployment%3Aalice", JSON.stringify(pipes.map(pipe => pipe.id)));
+    render(<PipesList pipes={pipes} />);
+    await screen.findByRole("button", { name: "Pipe 0" });
+    const tiles = screen.getAllByRole("button", { name: /^Pipe \d+$/ });
+    expect(tiles.length).toBeLessThan(pipes.length);
+    fireEvent.contextMenu(tiles[0]);
+    expect(screen.getByRole("button", { name: "Maximize" })).toBeDefined();
+  });
+
   it("moves held rows to compact tiles below full rows and restores them in original order", async () => {
     const user = userEvent.setup();
     const onSelectPipe = vi.fn();

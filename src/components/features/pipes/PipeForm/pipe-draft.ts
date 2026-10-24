@@ -3,7 +3,7 @@ import type { api } from "@convex/_generated/api";
 import { formatMoneyInput, parseMoney } from "@domain/money";
 import type { PipeModel } from "@features/pipes/data/pipes";
 import { safeIconName, type IconName } from "@ui/Icon";
-import { createRuleDraft, mergeRuleDraft, ruleConfigurationFromDraft, ruleDraftValues, type RuleDraft } from "@features/pipes/rules/rule-form";
+import { createRuleDraft, mergeRuleDraft, ruleConfigurationFromDraft, ruleDraftValues, type RuleDraft } from "@features/pipes/rules/rule-draft";
 import { hasRuleDiff } from "@features/pipes/rules/helpers";
 
 export type PipeDraft = RuleDraft & {

@@ -33,14 +33,14 @@ export function PipeHistoryRow({ event, expanded, onPress, summary, date = event
   </>;
   return <View className="flex-row gap-1">
     {expandable ? <Pressable accessibilityRole="button" accessibilityLabel={`${expanded ? "Collapse" : "Expand"} ${event.name} history`}
-      accessibilityState={{ expanded }} onPress={onPress}
+      accessibilityState={{ expanded }} aria-expanded={expanded} onPress={onPress}
       className="self-stretch rounded-full border border-border px-2 flex-row items-center justify-center gap-0.5 bg-surface">
       <Icon name={expanded ? "chevron-up" : "chevron-down"} size={12} color={colors.muted} />
       <Text className="text-muted text-xs font-bold">x{summary.count}</Text>
     </Pressable> : null}
     {deleted && !expandable ? <View className={rowClass} style={{ borderColor }}>{content}</View> :
       <Pressable accessibilityRole="button" accessibilityLabel={deleted ? `${event.name} archived history` : `Open ${event.name}`}
-        accessibilityState={deleted ? { expanded } : undefined} onPress={onPress}
+        accessibilityState={deleted ? { expanded } : undefined} aria-expanded={deleted ? expanded : undefined} onPress={onPress}
         className={rowClass} style={{ borderColor }}>{content}</Pressable>}
   </View>;
 }

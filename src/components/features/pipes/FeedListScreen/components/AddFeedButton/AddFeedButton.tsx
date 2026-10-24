@@ -4,7 +4,7 @@ import { colors } from "@/lib/styles";
 import { Icon } from "@ui/Icon";
 import { Form } from "@ui/Form";
 import { ModalShell } from "@ui/Modal";
-import { useAddFeedForm } from "./useAddFeedForm";
+import { useAddFeedForm } from "@features/pipes/FeedForm";
 
 export function AddFeedButton() {
   const [visible, setVisible] = useState(false);

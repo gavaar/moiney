@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AddFeedButton } from "./AddFeedButton";
-import { ADD_FEED_DEFAULTS, buildAddFeedForm } from "./addFeedForm.config";
+import { ADD_FEED_DEFAULTS, buildAddFeedForm } from "@features/pipes/FeedForm/addFeedForm.config";
 
 const mockAddFeed = vi.fn();
 const mockShowAlert = { success: vi.fn(), error: vi.fn() };

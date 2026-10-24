@@ -3,7 +3,7 @@ import { createElement } from "react";
 import { Text } from "react-native";
 import { cn } from "@/lib/styles";
 import type { InputProps } from "./Input";
-import type { InputActions } from "./components/InputWrapper";
+import type { InputActions } from "./input.types";
 import { clampNumber, sanitizeDecimal } from "./input.utils";
 
 export const INPUT_CONTENT_PADDING = "px-3 py-2";

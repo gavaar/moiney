@@ -87,12 +87,54 @@ threshold. Query ownership, mutation orchestration, domain transitions, and
 rendering may need different owners; a cohesive interaction may not. Prefer a
 pure model or controller extraction over arbitrary visual fragments.
 
-Folder structure should reveal ownership: put shared orchestration and context
-contracts with their owner, not under a presentation descendant that happens to
-use them. Colocate private helpers and tests with the behavior they serve.
 Extract substantive transformations or policy with an independent reason to
 change; leave trivial transformations and cohesive interaction state local.
 Neither a `hooks/` directory nor a controller hook is mandatory.
+
+## Folder Structure
+
+- Each standalone React component module has a matching PascalCase folder and
+  implementation basename, even when it starts as one file. Keep component-owned
+  configuration, helpers, types, and tests directly beside that implementation.
+- Put child component modules under their owner's `components/`, each in its own
+  matching folder. A single-owner child stays nested with that owner; shared
+  children belong under their nearest common owning module's `components/`.
+- Put shared helpers, orchestration, and protocols at the nearest common owning
+  module within the correct architectural layer. A provider creating a context
+  does not make its shared contract private to that provider's component folder.
+  Keep the provider's private state and rendering with the provider.
+- Promote files only for actual consumers. Avoid root-level `shared/` dumping
+  grounds and automatic `hooks/`, `types/`, or `utils/` buckets. Companion files
+  should describe their responsibility; create no empty scaffold files/folders.
+- Use module-per-folder, not function-per-folder, for non-React code: colocate a
+  cohesive responsibility and its companions, without wrapping each function or
+  hook in another directory. A shared hook may be a direct owner-local file.
+- Small private components may remain inside their owner's implementation file.
+  Extracting one into a standalone module gives it its own folder. Identify
+  component modules by their role, not just `.tsx`: JSX-producing configuration
+  still belongs with its owner, and exporting a component from a config/helper
+  file does not evade the component-folder rule.
+- Platform implementations of one logical module stay together, for example
+  `Picker/Picker.native.tsx` and `Picker/Picker.web.tsx`. Tests and local fixtures
+  stay with the behavior they verify, not in a parallel component tree.
+
+```text
+Owner/
+  Owner.tsx
+  Owner.test.tsx
+  model.ts
+  model.test.ts
+  components/
+    Child/
+      Child.tsx
+      Child.test.tsx
+```
+
+Existing layouts are not exceptions. Correct mismatches within the agreed scope
+rather than copying them. A framework-required filename or location must have a
+demonstrated requirement; keep that entry thin and place implementation and
+companions with their owner instead of exempting the entire subtree. Folder
+ownership does not make every folder public or require an `index.ts` barrel.
 
 ## Dependency Direction
 

@@ -5,7 +5,8 @@ import userEvent from "@testing-library/user-event";
 import { type Id } from "@convex/_generated/dataModel";
 import { PipeTreeView } from "./PipeTreeView";
 
-vi.mock("@ui/Icon", () => ({
+vi.mock("@ui/Icon", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@ui/Icon")>(),
   Icon: ({ name }: any) => <span data-testid="icon" data-icon-name={name} />,
 }));
 

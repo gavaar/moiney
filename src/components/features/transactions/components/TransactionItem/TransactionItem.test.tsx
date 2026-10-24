@@ -187,6 +187,7 @@ describe("TransactionItem", () => {
   it("renders the transaction title with first letter capitalized", () => {
     render(<TransactionItem transaction={baseTx} />);
     expect(screen.getByText("Shopping mall")).toBeDefined();
+    expect(screen.getByRole("button", { name: "Repeat shopping mall, -50.00, Mar 15, 2024" })).toBeDefined();
   });
 
   it("renders the formatted date", () => {

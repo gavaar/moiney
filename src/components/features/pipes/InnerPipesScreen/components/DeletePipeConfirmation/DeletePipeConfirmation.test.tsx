@@ -3,8 +3,10 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { act, render, screen, fireEvent } from "@testing-library/react";
 import { type Id } from "@convex/_generated/dataModel";
 import { DeletePipeConfirmation } from "./DeletePipeConfirmation";
+import type { PipeModel } from "@features/pipes/data/pipes";
 
 const pId = (id: string) => id as Id<"pipes">;
+const extraChildren: PipeModel[] = [];
 
 const mockStartPipeDeletion = vi.fn();
 const mockDeletionStatus = vi.fn();
@@ -40,7 +42,8 @@ vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
       [
         pId("pipe_root"), [
           { id: pId("pipe_child_1"), name: "Child 1", icon: "cafe", parentId: pId("pipe_root"), priority: 0, capacity: 0, fed: 0, spent: 0 },
-          { id: pId("pipe_child_2"), name: "Child 2", icon: "car-sport-outline", parentId: pId("pipe_root"), priority: 0, capacity: 0, fed: 0, spent: 0 },
+           { id: pId("pipe_child_2"), name: "Child 2", icon: "car-sport-outline", parentId: pId("pipe_root"), priority: 0, capacity: 0, fed: 0, spent: 0 },
+           ...extraChildren,
         ]
       ],
       [pId("pipe_child_1"), [{ id: pId("pipe_gc_1"), name: "Grandchild 1", icon: "game-controller-outline", parentId: pId("pipe_child_1"), priority: 0, capacity: 0, fed: 0, spent: 0 },]],
@@ -50,6 +53,7 @@ vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
 
 describe("DeletePipeConfirmation", () => {
   beforeEach(() => {
+    extraChildren.length = 0;
     mockStartPipeDeletion.mockResolvedValue({ jobId: pId("job-1"), phase: "processingTransactions" });
     mockDeletionStatus.mockReturnValue(undefined);
     mockConvexQuery.mockResolvedValue([]);
@@ -70,6 +74,22 @@ describe("DeletePipeConfirmation", () => {
     expect(screen.getByText("Child 1")).toBeTruthy();
     expect(screen.getByText("Child 2")).toBeTruthy();
     expect(screen.getByText("Grandchild 1")).toBeTruthy();
+  });
+
+  it("keeps a large subtree confirmation bounded without changing the deletion count", () => {
+    extraChildren.push(...Array.from({ length: 200 }, (_, index) => ({
+      id: pId(`extra-${index}`),
+      parentId: pId("pipe_root"),
+      name: `Extra child ${index}`,
+      icon: "pipe",
+      priority: 0,
+      fed: 0,
+      spent: 0,
+      capacity: 0,
+    })));
+    render(<DeletePipeConfirmation visible pipeId={pId("pipe_root")} onClose={() => {}} onDeleted={() => {}} />);
+    expect(screen.getByRole("button", { name: "Delete 204 pipes" })).toBeDefined();
+    expect(screen.getAllByText(/^Extra child \d+$/).length).toBeLessThan(200);
   });
 
   it("renders warning box", () => {

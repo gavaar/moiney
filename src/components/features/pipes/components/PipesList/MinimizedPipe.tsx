@@ -1,5 +1,5 @@
 import { Pressable, Text, View } from "react-native";
-import { Icon, type IconName } from "@ui/Icon";
+import { Icon, safeIconName } from "@ui/Icon";
 import { colors } from "@/lib/styles";
 import { Liquidity } from "@features/pipes/components/PipeBox/components";
 import type { Pipe } from "./PipesList";
@@ -30,7 +30,7 @@ export function MinimizedPipe({ pipe, onPress, onLongPress }: Props) {
           spent={pipe.spent}
         />
       </View>
-      <Icon name={pipe.icon as IconName} size={16} color={colors.text} />
+      <Icon name={safeIconName(pipe.icon)} size={16} color={colors.text} />
       <Text className="text-text font-medium text-xs text-center" numberOfLines={1} ellipsizeMode="tail">{pipe.name}</Text>
     </Pressable>
   );

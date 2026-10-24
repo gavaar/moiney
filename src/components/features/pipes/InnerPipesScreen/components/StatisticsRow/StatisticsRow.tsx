@@ -10,6 +10,7 @@ import { prepareContingencyPreview } from "@features/pipes/data/contingencyPrevi
 import { RemainingExpectedDetails } from "./RemainingExpectedDetails";
 import { CoverageDetails, CoverageProvidedDetails } from "./CoverageDetails";
 import { monthlySpendingPace } from "@domain/statistics/monthlySpendingPace";
+import { monthlyAllowance } from "@domain/statistics/monthlyAllowance";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const GRID_GAP = 8;
@@ -60,17 +61,8 @@ export function StatisticsRow({
 }: Props) {
   const { fontScale } = useWindowDimensions();
   const [gridWidth, setGridWidth] = useState(0);
-  const date = new Date(now);
-  const daysInMonth = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)).getUTCDate();
-  const currentDay = date.getUTCDate();
   const pace = monthlySpent === undefined ? undefined : monthlySpendingPace(monthlySpent, now);
-  const dailyExpected = daysInMonth > 0 ? expected / daysInMonth : 0;
-  const accruedAllowance = dailyExpected * currentDay;
-  const accumulatedSpend = monthlySpent === undefined ? undefined : accruedAllowance - monthlySpent;
-  const daysUntilPositive =
-    accumulatedSpend !== undefined && accumulatedSpend < 0 && dailyExpected > 0
-      ? Math.floor(-accumulatedSpend / dailyExpected) + 1
-      : null;
+  const allowance = monthlySpent === undefined ? undefined : monthlyAllowance(expected, monthlySpent, now);
   const growth =
     sourceType === "boiler" && contributedFed !== 0
       ? ((fed - contributedFed) / contributedFed) * 100
@@ -169,34 +161,33 @@ export function StatisticsRow({
       ref: stmpdRef,
     },
     {
-      displayValue: accumulatedSpend === undefined ? "Loading" : formatAmount(Math.round(accumulatedSpend)),
+      displayValue: allowance === undefined ? "Loading" : formatAmount(Math.round(allowance.accumulatedSpend)),
       title: "Accumulated spend this month",
-      tone: accumulatedSpend === undefined ? undefined : accumulatedSpend < 0 ? "negative" : "positive",
-      description: accumulatedSpend !== undefined && monthlySpent !== undefined ? (
+      tone: allowance === undefined ? undefined : allowance.accumulatedSpend < 0 ? "negative" : "positive",
+      description: allowance !== undefined && monthlySpent !== undefined ? (
         <View className="gap-2">
           <Text className="text-text text-sm">
             This month’s expected spending is <Text className="text-secondary">{formatAmount(expected)}</Text>,
-            {" or "}<Text className="text-secondary">{formatAmount(Math.round(dailyExpected))}</Text> per day.
+            {" or "}<Text className="text-secondary">{formatAmount(Math.round(allowance.dailyExpected))}</Text> per day.
           </Text>
           <Text className="text-text text-sm">
             Adding up to today, that gives you an allowance of{" "}
-            <Text className="text-primary">{formatAmount(Math.round(accruedAllowance))}</Text>.
+            <Text className="text-primary">{formatAmount(Math.round(allowance.accruedAllowance))}</Text>.
           </Text>
           <Text className="text-text text-sm">
             You’ve spent <Text className="text-errorMuted">{formatAmount(monthlySpent)}</Text> this month,
             {" leaving an accumulated allowance of "}
-            <Text className={accumulatedSpend < 0 ? "text-error" : "text-primary"}>
-              {formatAmount(Math.round(accumulatedSpend))}
+            <Text className={allowance.accumulatedSpend < 0 ? "text-error" : "text-primary"}>
+              {formatAmount(Math.round(allowance.accumulatedSpend))}
             </Text>.
           </Text>
         </View>
       ) : <Text className="text-muted text-sm">Loading monthly spending…</Text>,
-      guidance: accumulatedSpend !== undefined && accumulatedSpend < 0
-        ? daysUntilPositive !== null &&
-            daysUntilPositive <= daysInMonth - currentDay
-          ? `Assuming no further spending, this value will be positive again in ${daysUntilPositive} ${daysUntilPositive === 1 ? "day" : "days"}.`
-          : "You’ve used up this month’s allowance. Avoid further spending this month."
-        : undefined,
+      guidance: allowance?.recovery.status === "recovering"
+        ? `Assuming no further spending, this value will be positive again in ${allowance.recovery.days} ${allowance.recovery.days === 1 ? "day" : "days"}.`
+        : allowance?.recovery.status === "exhausted"
+          ? "You’ve used up this month’s allowance. Avoid further spending this month."
+          : undefined,
       icon: "playlist-add",
       ref: astmRef,
     },

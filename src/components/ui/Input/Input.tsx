@@ -1,10 +1,11 @@
 import { useState, type ReactNode } from "react";
 import { View } from "react-native";
 import { cn } from "@/lib/styles";
-import { DateInput, DecimalInput, TextInput, NumberInput, IconInput, CheckboxInput, SelectInput, TextSelectInput, ToggleInput } from "./components/input-types";
-import type { DateInputProps, DecimalInputProps, TextInputProps, NumberInputProps, IconInputProps, CheckboxInputProps, SelectInputProps, SelectMultipleInputProps, TextSelectInputProps, ToggleInputProps } from "./components/input-types";
+import { DateInput, DecimalInput, TextInput, NumberInput, IconInput, CheckboxInput, SelectInput, TextSelectInput, ToggleInput } from "./components";
+import type { DateInputProps, DecimalInputProps, TextInputProps, NumberInputProps, IconInputProps, CheckboxInputProps, SelectInputProps, SelectMultipleInputProps, TextSelectInputProps, ToggleInputProps } from "./components";
 import { InputLabel } from "./components/InputLabel";
-import { InputWrapper, type InputActions } from "./components/InputWrapper";
+import { InputWrapper } from "./components/InputWrapper";
+import type { InputActions } from "./input.types";
 import { getBorderStyle, getDefaultActions, INPUT_CONTENT_PADDING } from "./input.config";
 import { InputHelperText } from './components/InputHelperText';
 import { useInputValidation } from "./useInputValidation";

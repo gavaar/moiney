@@ -108,6 +108,7 @@ export function TransactionItem({ transaction, resolveTransaction, onShowEditHis
   }
 
   const formModel = actionTransaction ? getTransactionItemModel(actionTransaction, catalog) : null;
+  const dateLabel = new Date(transaction.date).toLocaleDateString("en-US", DATE_FORMAT);
 
   return (
     <View className="flex-row gap-1 items-center">
@@ -128,6 +129,9 @@ export function TransactionItem({ transaction, resolveTransaction, onShowEditHis
         } : undefined}
       >
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`${model.disabled ? `Why ${transaction.title} cannot be repeated` : `Repeat ${transaction.title}`}, ${formatAmount(transaction.value)}, ${dateLabel}`}
+          accessibilityState={{ disabled: isResolving }}
           className={cn(
             "w-full flex-row gap-1 items-center rounded-2xl border border-border px-2 py-2",
             model.bgClass,
@@ -146,13 +150,13 @@ export function TransactionItem({ transaction, resolveTransaction, onShowEditHis
           >
             {transaction.title.charAt(0).toUpperCase() + transaction.title.slice(1)}
           </Text>
-          <Text className={cn("text-xs mr-4", model.disabled ? "text-muted" : "text-white")}>
-            {new Date(transaction.date).toLocaleDateString("en-US", DATE_FORMAT)}
+          <Text className={cn("text-xs mr-4", model.disabled ? "text-muted" : "text-text")}>
+            {dateLabel}
           </Text>
           <Text
             className={cn(
               "text-sm font-bold w-16 mr-2 text-right",
-              model.disabled ? "text-muted" : "text-white",
+              model.disabled ? "text-muted" : "text-text",
             )}
           >
             {formatAmount(transaction.value)}

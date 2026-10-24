@@ -1,5 +1,5 @@
 import { usePaginatedQuery } from "convex/react";
-import { ActivityIndicator, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, FlatList, Text, View } from "react-native";
 import { api } from "@convex/_generated/api";
 import { Button } from "@ui/Button";
 import { ModalShell } from "@ui/Modal";
@@ -59,10 +59,14 @@ export function TransactionCorrectionHistoryModal({
         ) : results.length === 0 ? (
           <Text className="text-muted">No edit history available.</Text>
         ) : (
-          <ScrollView className="max-h-96" style={{ flexGrow: 0, flexShrink: 1 }} contentContainerClassName="gap-3">
-            {results.map((correction) => (
+          <FlatList
+            data={results}
+            keyExtractor={correction => correction.correctionId}
+            className="max-h-96"
+            style={{ flexGrow: 0, flexShrink: 1 }}
+            contentContainerClassName="gap-3"
+            renderItem={({ item: correction }) => (
               <View
-                key={correction.correctionId}
                 className="gap-2 rounded-xl border border-border bg-background p-3"
               >
                 <Text className="text-muted text-xs">
@@ -96,8 +100,8 @@ export function TransactionCorrectionHistoryModal({
                   </View>
                 ) : null}
               </View>
-            ))}
-          </ScrollView>
+            )}
+          />
         )}
 
         {status === "CanLoadMore" ? (

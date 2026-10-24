@@ -12,7 +12,7 @@ import { safeIconName } from "@ui/Icon";
 import { useAlert } from "@ui/Alert";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import type { PipeModel } from "@features/pipes/data/pipes";
-import { mergeRuleDraft, ruleConfigurationFromDraft, ruleDraftValues, validateRuleDraft } from "@features/pipes/rules/rule-form";
+import { mergeRuleDraft, ruleConfigurationFromDraft, ruleDraftValues, validateRuleDraft } from "@features/pipes/rules/rule-draft";
 import { useRuleClock } from "@features/pipes/rules/use-rule-clock";
 import { useOptionalEventHistoryCache } from "@features/transactions/cache/EventHistoryCacheContext";
 import { buildPipeForm, validatePipeCapacity, validatePipeName } from "./pipe-form.config";

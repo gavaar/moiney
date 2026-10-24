@@ -2,18 +2,7 @@ import type { ReactNode } from "react";
 import { Pressable, View, type PressableProps, type ViewProps } from "react-native";
 import { cn } from "@/lib/styles";
 import { INPUT_CONTENT_PADDING } from "../../input.config";
-
-export type InputAction = {
-  content: ReactNode;
-  accessibilityLabel: string;
-  onPress: () => void;
-  disabled?: boolean;
-};
-
-export type InputActions = {
-  prefix?: InputAction | null;
-  suffix?: InputAction | null;
-};
+import type { InputAction, InputActions } from "../../input.types";
 
 type Props = InputActions & {
   borderStyle: string;

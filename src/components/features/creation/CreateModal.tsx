@@ -5,7 +5,7 @@ import { Keyboard, View } from "react-native";
 import { PillGroup } from "@ui/PillGroup/PillGroup";
 import { Form } from "@ui/Form";
 import { AddPipeForm } from "@features/pipes/InnerPipesScreen/components/AddPipeModal/AddPipeModal";
-import { useAddFeedForm } from "@features/pipes/FeedListScreen/components/AddFeedButton/useAddFeedForm";
+import { useAddFeedForm } from "@features/pipes/FeedForm";
 import { useFormDismissal } from "@ui/Form/use-form-dismissal";
 
 type Props = { onClose: () => void };

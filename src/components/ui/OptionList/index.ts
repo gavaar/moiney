@@ -1,3 +1,4 @@
-export { OptionList } from "./OptionList";
-export { OptionRow, OptionListHost } from "./components";
-export { AnchoredOptionList } from "./AnchoredOptionList";
+export { OptionList } from "./components/OptionList";
+export { OptionRow } from "./components/OptionRow";
+export { OptionListHost } from "./components/OptionListHost";
+export { AnchoredOptionList } from "./components/AnchoredOptionList";

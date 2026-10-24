@@ -1,3 +1,17 @@
+import type { ReactNode } from "react";
+
+export type InputAction = {
+  content: ReactNode;
+  accessibilityLabel: string;
+  onPress: () => void;
+  disabled?: boolean;
+};
+
+export type InputActions = {
+  prefix?: InputAction | null;
+  suffix?: InputAction | null;
+};
+
 /** Private interaction signals consumed by the shared field presentation. */
 export type InputInteraction = {
   onFocusChange: (focused: boolean) => void;

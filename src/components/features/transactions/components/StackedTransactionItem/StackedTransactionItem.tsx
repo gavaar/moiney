@@ -34,6 +34,7 @@ export function StackedTransactionItem({
         accessibilityRole="button"
         accessibilityLabel={`${expanded ? "Collapse" : "Expand"} ${group.count} transactions`}
         accessibilityState={{ expanded }}
+        aria-expanded={expanded}
         onPress={onToggle}
       >
         <View
@@ -46,6 +47,10 @@ export function StackedTransactionItem({
 
       <Pressable
         testID="transaction-group-main"
+        accessibilityRole="button"
+        accessibilityLabel={`${expanded ? "Collapse" : "Expand"} ${group.title} transactions, ${group.count} transactions, ${formatAmount(group.totalValue)}, ${model.dateRange}`}
+        accessibilityState={{ expanded }}
+        aria-expanded={expanded}
         className={cn(
           "flex-1 flex-row gap-1 items-center rounded-2xl border border-border px-2 py-2",
           model.bgClass,

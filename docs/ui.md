@@ -52,11 +52,12 @@ decisions.
   It survives sign-out and app restarts, is not synchronized through Convex,
   and removes saved IDs only after a complete pipe catalog load.
 
-## Naming
+## Organization And Naming
 
-Use PascalCase for React component modules. For non-component modules, follow
-the convention already established in that feature directory. Do not perform
-naming-only sweeps.
+Follow the global [folder-structure rules](engineering-principles.md#folder-structure)
+for component folders, companion files, nesting, and shared ownership. For
+non-component filenames, follow the convention established in that feature.
+Do not perform naming-only sweeps unrelated to an approved structural change.
 
 ## Verification
 

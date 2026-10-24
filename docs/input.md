@@ -22,14 +22,14 @@ field props. Private interaction callbacks are added only to implementation
 props, not subtracted from the public interface. Text inputs do not expose
 `defaultValue` or `onChangeText`.
 
-| `type` | Component folder under `src/components/ui/Input/components/input-types/` |
+| `type` | Component folder under `src/components/ui/Input/components/` |
 | --- | --- |
 | `text` | `TextInput/` |
 | `number` | `NumberInput/` |
 | `decimal` | `DecimalInput/` |
 | `date` | `DateInput/` |
 | `icon` | `IconInput/` |
-| `checkbox` | `Checkbox/` |
+| `checkbox` | `CheckboxInput/` |
 | `select` | `SelectInput/` |
 | `select-multiple` | `SelectInput/` |
 | `text-select` | `TextSelectInput/` |

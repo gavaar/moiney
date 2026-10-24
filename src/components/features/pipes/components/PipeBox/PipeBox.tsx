@@ -1,5 +1,5 @@
 import { Text, TouchableOpacity, View } from "react-native";
-import { Icon, safeIconName, type IconName } from "@ui/Icon";
+import { Icon, safeIconName } from "@ui/Icon";
 import { colors } from "@/lib/styles";
 import { formatAmount } from "@/lib/format";
 import { Liquidity, MiniChildBox } from './components';
@@ -42,7 +42,7 @@ export function PipeBox({ name, icon, priority, capacity, fed, spent, showPriori
           <Text className="absolute top-1 left-1 text-muted text-[10px] z-10">{priority}</Text>
         )}
         <View className="w-16 rounded-bl-md rounded-tl-md border border-border bg-surface items-center justify-center p-1 gap-0.5">
-          <Icon name={icon as IconName} size={16} color={colors.text} />
+          <Icon name={safeIconName(icon)} size={16} color={colors.text} />
           <Text className="text-text font-medium text-xs text-center" numberOfLines={1} ellipsizeMode="tail">{name}</Text>
         </View>
 
