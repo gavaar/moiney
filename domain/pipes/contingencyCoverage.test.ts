@@ -17,8 +17,11 @@ describe("settlement-time contingency coverage", () => {
       { fed: row.fed, spent: row.donorSpent })).toBe(row.expected);
   });
 
-  it.each(["instant_settlement", "self_destruct"] as const)("does not create a claim for a %s source", rule => {
+  it.each(["instant_settlement"] as const)("does not create a claim for a %s source", rule => {
     expect(calculateContingencyCoverage({ capacity: -1000, spent: 3000, rule }, { fed: 8000, spent: 0 })).toBe(0);
+  });
+  it("allows self-destruct to cover overspending before its final settlement", () => {
+    expect(calculateContingencyCoverage({ capacity: -1000, spent: 3000, rule: "self_destruct" }, { fed: 8000, spent: 0 })).toBe(4000);
   });
 
   it.each([0.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1])("rejects non-integer or unsafe balances (%s)", value => {

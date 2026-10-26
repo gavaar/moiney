@@ -17,7 +17,6 @@ export async function recordSettlementHistory(
   now: number,
   coverage?: AppliedContingencyCoverage,
 ) {
-  if (before.rule === "self_destruct") throw new Error("Self-destruct is not a settlement");
   await insertHistoryOperation(ctx, {
     canonicalEvent: {
       type: "settlement",

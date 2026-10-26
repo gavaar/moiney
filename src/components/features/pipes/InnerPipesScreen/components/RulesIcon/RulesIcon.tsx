@@ -98,7 +98,7 @@ export function RulesIcon({
         {ruleContent}
       </TouchableOpacity>
       {modalVisible ? (
-        <EditPipeModal visible initialStep={3} onClose={() => setModalVisible(false)} pipeId={pipeId} />
+        <EditPipeModal visible initialStep={0} onClose={() => setModalVisible(false)} pipeId={pipeId} />
       ) : null}
     </>
   );

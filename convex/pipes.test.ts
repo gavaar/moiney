@@ -18,6 +18,7 @@ vi.mock("./lib/auth", () => ({
 function mockDb() {
   const chain = {
     collect: vi.fn().mockResolvedValue([]),
+    first: vi.fn().mockResolvedValue(null),
   };
   return {
     get: vi.fn(),
@@ -39,6 +40,10 @@ function mockCtx() {
 }
 
 const A_PIPE = { _id: "pipe-1", userId: "user-1", capacity: 500 };
+function mockInnerPipe(ctx: ReturnType<typeof mockCtx>, pipe: Record<string, unknown>) {
+  ctx.db.get.mockImplementation((_table: string, id: string) => Promise.resolve(id === "root"
+    ? { ...A_PIPE, _id: "root" } : { ...pipe, parentId: "root" }));
+}
 
 describe("updatePipe", () => {
   it("clears an existing description when explicitly requested", async () => {
@@ -61,7 +66,7 @@ describe("updatePipe", () => {
 
   it("recascades after a capacity update", async () => {
     const ctx = mockCtx();
-    ctx.db.get.mockResolvedValue(A_PIPE);
+    mockInnerPipe(ctx, A_PIPE);
 
     await (updatePipe as any)._handler(ctx, {
       pipeId: "pipe-1",
@@ -73,7 +78,7 @@ describe("updatePipe", () => {
 
   it("recascades after a priority update", async () => {
     const ctx = mockCtx();
-    ctx.db.get.mockResolvedValue(A_PIPE);
+    mockInnerPipe(ctx, A_PIPE);
 
     await (updatePipe as any)._handler(ctx, {
       pipeId: "pipe-1",
@@ -91,7 +96,7 @@ describe("updatePipeRule", () => {
 
   it("clears the rule and all rule options when rule is null", async () => {
     const ctx = mockCtx();
-    ctx.db.get.mockResolvedValue(A_PIPE);
+    mockInnerPipe(ctx, A_PIPE);
 
     await (updatePipeRule as any)._handler(ctx, {
       pipeId: "pipe-1",
@@ -108,7 +113,7 @@ describe("updatePipeRule", () => {
 
   it("clears the rule and all rule options when rule is undefined", async () => {
     const ctx = mockCtx();
-    ctx.db.get.mockResolvedValue(A_PIPE);
+    mockInnerPipe(ctx, A_PIPE);
 
     await (updatePipeRule as any)._handler(ctx, {
       pipeId: "pipe-1",
@@ -124,7 +129,7 @@ describe("updatePipeRule", () => {
 
   it("sets spend_overflow and clears rule options", async () => {
     const ctx = mockCtx();
-    ctx.db.get.mockResolvedValue(A_PIPE);
+    mockInnerPipe(ctx, A_PIPE);
 
     await (updatePipeRule as any)._handler(ctx, {
       pipeId: "pipe-1",
@@ -141,7 +146,7 @@ describe("updatePipeRule", () => {
 
   it("persists capUpdateValue for spend_overflow", async () => {
     const ctx = mockCtx();
-    ctx.db.get.mockResolvedValue(A_PIPE);
+    mockInnerPipe(ctx, A_PIPE);
 
     await (updatePipeRule as any)._handler(ctx, {
       pipeId: "pipe-1",
@@ -159,7 +164,7 @@ describe("updatePipeRule", () => {
 
   it("persists capUpdateValue for instant_settlement", async () => {
     const ctx = mockCtx();
-    ctx.db.get.mockResolvedValue(A_PIPE);
+    mockInnerPipe(ctx, A_PIPE);
 
     await (updatePipeRule as any)._handler(ctx, {
       pipeId: "pipe-1",
@@ -177,7 +182,7 @@ describe("updatePipeRule", () => {
 
   it("sets instant_settlement and clears rule options", async () => {
     const ctx = mockCtx();
-    ctx.db.get.mockResolvedValue(A_PIPE);
+    mockInnerPipe(ctx, A_PIPE);
 
     await (updatePipeRule as any)._handler(ctx, {
       pipeId: "pipe-1",
@@ -194,7 +199,7 @@ describe("updatePipeRule", () => {
 
   it("sets a cron rule with interval, computed next date, and capUpdateValue", async () => {
     const ctx = mockCtx();
-    ctx.db.get.mockResolvedValue(A_PIPE);
+    mockInnerPipe(ctx, A_PIPE);
     const starting = Date.UTC(2099, 8, 15, 8, 30);
 
     await (updatePipeRule as any)._handler(ctx, {
@@ -218,7 +223,7 @@ describe("updatePipeRule", () => {
 
   it("sets a cron rule without capUpdateValue", async () => {
     const ctx = mockCtx();
-    ctx.db.get.mockResolvedValue(A_PIPE);
+    mockInnerPipe(ctx, A_PIPE);
     const starting = Date.UTC(2099, 8, 15, 8, 30);
 
     await (updatePipeRule as any)._handler(ctx, {
@@ -239,7 +244,7 @@ describe("updatePipeRule", () => {
 
   it("throws when cron interval, unit, or starting is missing", async () => {
     const ctx = mockCtx();
-    ctx.db.get.mockResolvedValue(A_PIPE);
+    mockInnerPipe(ctx, A_PIPE);
 
     await expect(
       (updatePipeRule as any)._handler(ctx, {
@@ -278,7 +283,7 @@ describe("updatePipeRule", () => {
 
   it("credits missed intervals to capacity when started is in the past", async () => {
     const ctx = mockCtx();
-    ctx.db.get.mockResolvedValue({ _id: "pipe-1", userId: "user-1", capacity: 100 });
+    mockInnerPipe(ctx, { ...A_PIPE, capacity: 100 });
     const starting = Date.UTC(2026, 0, 15);
 
     await (updatePipeRule as any)._handler(ctx, {
@@ -303,7 +308,7 @@ describe("updatePipeRule", () => {
 
   it("does not credit capacity when the same cron rule is saved again", async () => {
     const ctx = mockCtx();
-    ctx.db.get.mockResolvedValue({ _id: "pipe-1", userId: "user-1", capacity: 0 });
+    mockInnerPipe(ctx, { ...A_PIPE, capacity: 0 });
     const args = {
       pipeId: "pipe-1",
       rule: "cron",
@@ -317,7 +322,7 @@ describe("updatePipeRule", () => {
     const first = ctx.db.patch.mock.calls[0][2].capacity;
     const firstNextDate = ctx.db.patch.mock.calls[0][2].cronNextDate;
 
-    ctx.db.get.mockResolvedValue({
+    mockInnerPipe(ctx, {
       _id: "pipe-1",
       userId: "user-1",
       capacity: first,
@@ -333,7 +338,7 @@ describe("updatePipeRule", () => {
 
   it("does not credit capacity when capUpdateValue is not provided", async () => {
     const ctx = mockCtx();
-    ctx.db.get.mockResolvedValue(A_PIPE);
+    mockInnerPipe(ctx, A_PIPE);
 
     await (updatePipeRule as any)._handler(ctx, {
       pipeId: "pipe-1",

@@ -23,6 +23,8 @@ export type FormField<V extends FormValue, Key extends string = string> = {
   key: Key;
   input: InputConfiguration<V, BoundSelectItem>;
   description?: ReactNode;
+  /** Relative column width within its row. Must be positive and finite; defaults to 1. */
+  grow?: number;
   reveal?: {
     label: string;
     icon?: IconName;

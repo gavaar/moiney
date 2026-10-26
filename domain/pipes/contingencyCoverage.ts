@@ -10,7 +10,7 @@ function cents(value: number): number {
 
 function demand(source: CoverageSource): number {
   const shortfall = cents(cents(source.spent) - cents(source.capacity));
-  return source.rule === "instant_settlement" || source.rule === "self_destruct" ? 0 : Math.max(0, shortfall);
+  return source.rule === "instant_settlement" ? 0 : Math.max(0, shortfall);
 }
 
 function availableFunding(donor: CoverageDonor): number {

@@ -24,16 +24,16 @@ Status: Implemented
 This section owns execution; [D008 presentation statistics](reporting.md#d008-presentation-statistics)
 owns the derived pipe-detail display.
 
-Child-pipe creation offers owner, details, capacity, and rule steps, defaulting to
-no rule. Creation atomically persists the pipe, selected rule, eligible contingency,
-and creation event. Editing uses the same details, capacity, and rule steps,
-without owner selection; details, capacity, rule, and contingency changes are saved
-atomically. Unchanged fields and rules are omitted so unrelated edits cannot
+Pipe creation explicitly selects a root source type or an inner pipe's settlement
+behavior. Manual inner pipes persist no automatic rule. Creation atomically persists
+the pipe, selected rule, eligible contingency, and creation event. Inner-pipe editing
+can change behavior but not ownership or root/source type; details, capacity, rule,
+and contingency changes are saved atomically. Unchanged fields and rules are omitted so unrelated edits cannot
 overwrite live accounting or restart schedules. When capacity and a backdated cron
 rule change together, accrued credit is applied after the entered capacity.
 Adding a child clears the owner's rule and all its options, including scheduled
 deletion. The creation wizard explains that rules must be added to children.
-Root creation retains the [D020 default](#d020-childless-root-settlement-default).
+Roots obey the [D020 invariant](#d020-childless-root-settlement).
 
 `instant_settlement` and `spend_overflow` accept the same optional
 `capUpdateValue` as cron rules. Without it, execution consolidates
@@ -71,8 +71,8 @@ A source can select a same-tree leaf sibling, or a leaf sibling of one of its
 ancestors, as its contingency donor. The selector and authoritative backend
 validation must use the same eligible-target list. Missing/cyclic ancestry,
 non-leaf sources, and blocked sources, donors, or ancestry are ineligible.
-`instant_settlement` sources cannot request coverage; self-destruct executes
-deletion rather than settlement. A donor cannot itself have a contingency donor,
+`instant_settlement` sources cannot request coverage. Self-destruct sources may
+request coverage for their final settlement before deletion. A donor cannot itself have a contingency donor,
 and a pipe already serving as a donor cannot request coverage. Several sources
 may share one donor, but contingency chains are prohibited.
 
@@ -80,7 +80,7 @@ The optional `pipes.contingencyPipeId` stores the selection; absence means no
 contingency. Pipe edits distinguish omission (unchanged), an eligible pipe ID
 (set), and `null` (clear). Configuration does not move money. Becoming a parent
 clears the pipe's own selection and selections that name it as donor. Switching
-a source to `instant_settlement` or `self_destruct` clears its selection; donor
+a source to `instant_settlement` clears its selection; donor
 deletion clears surviving references at finalization.
 
 For a source and eligible donor, in whole integer cents:
@@ -98,13 +98,13 @@ the source's settlement rule. It does not additionally transfer `fed`. Original
 expenses remain wholly attributed to the source in history and reporting;
 coverage is permanent, and subsequent refunds do not reclaim it.
 
-One donor's claims at the same scheduled occurrence and priority share available
+One donor's claims at the same recurring-settlement occurrence and priority share available
 funding equally, capped by each claim's demand. Unused shares are redistributed;
 integer-cent remainders go to ascending source IDs, independent of input order.
 The scheduler owns grouping by occurrence, priority, and donor; the allocator
 must not combine unrelated groups. Duplicate source claims are invalid.
 
-Scheduled groups run in ascending occurrence date, then ascending priority.
+Recurring-settlement groups run in ascending occurrence date, then ascending priority.
 Coverage for the complete group is applied before its settlement rules, including
 a donor's own scheduled rule when it is in that group. Earlier groups consume
 liquidity before later groups; redistribution follows all scheduled rule effects.
@@ -199,23 +199,29 @@ opening value defaults to zero; explicit values need not be zero or equal.
 Current balances cannot safely reconstruct historical contributions, and no
 principal backfill is required for pre-boiler data.
 
-## D020: Childless Root Settlement Default
+## D020: Childless Root Settlement
 
 Status: Implemented
 
-A childless root acts as both feed and drain. New ordinary feeds and boilers
-default to `instant_settlement` so spending consolidates immediately. Adding the
+A childless root always uses `instant_settlement`, without capacity-update options,
+so spending consolidates immediately. Other settlement behaviors belong to inner
+pipes, not root feeds or boilers. Existing roots are normalized without executing
+settlement or changing monetary fields. Root editors expose presentation, not
+opening balances, contributed principal, capacity, or rule selection. Adding the
 first child settles the former leaf under [D012](#d012-pay-by-transfer-liquidity-and-logical-spending)
 and clears its rule and rule options. Deletion finalization restores
 `instant_settlement` when deleting the final child makes a root childless.
-Nested pipes do not receive this topology-driven default.
+Nested pipes do not receive this topology-driven default. Roots with children are
+ruleless; intermediate pipes group and allocate money but cannot originate new
+expenses or transfers or execute a settlement rule of their own. Root parents can
+still receive money under the normal root transaction rules.
 
 ## D022: Self-destruct Rules
 
 Status: Implemented
 
 Self-destruct is a rule for childless, non-root pipes. It tracks spending without
-automatic settlement until scheduled deletion. It has a deletion date, no
+automatic settlement until its final settlement and scheduled deletion. It has a deletion date, no
 capacity update, and no manual rule-execution action. The server normalizes the
 selected UTC date to 05:00 UTC and requires that instant to be strictly in the
 future when configuring or changing the rule.
@@ -239,9 +245,14 @@ it stays full while an overdue deletion is pending. One focused list clock
 updates its timed icons once per minute.
 
 The daily 06:00 UTC rule workflow processes recurring settlement before scanning
-due self-destruct deadlines through the existing rule/date index. Due pipes enter
+due self-destruct deadlines through the existing rule/date index. Each due pipe first
+applies eligible contingency coverage, then settles, then enters
 the [D002 deletion job](deletion.md#d002-pipe-deletion-and-transaction-history)
-with history preservation enabled. Delayed executions run after the deadline.
+with history preservation enabled. Settlement and deletion planning/freezing are
+atomic; the deletion balance uses the post-coverage, post-settlement snapshot.
+Insufficient coverage does not prevent deletion: remaining money or debt returns
+to the owner under the normal deletion policy. The final settlement and any donor
+coverage are retained in history. Delayed executions run after the deadline.
 Automatic deletions are serialized per account and resume after deletion
 completion, preserving planned balances without busy-retrying frozen trees.
 The retained creation event becomes the ordinary deleted-pipe archive described

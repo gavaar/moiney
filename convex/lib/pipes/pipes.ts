@@ -25,6 +25,7 @@ export async function executePipeRule(
   const patch = calculatePipeRulePatch(covered, { now, capUpdateValue: opts.capUpdateValue });
   await ctx.db.patch("pipes", pipeId, patch);
   if (cause) await recordSettlementHistory(ctx, pipe, { ...pipe, ...patch }, cause, now, coverage);
+  return { after: { ...pipe, ...patch }, coverage };
 }
 
 // ── DB operations ──

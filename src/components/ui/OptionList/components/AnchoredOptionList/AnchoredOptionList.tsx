@@ -1,7 +1,7 @@
 import { useEffect, useState, type RefObject } from "react";
 import { Keyboard, type KeyboardEvent, Platform, Pressable, useWindowDimensions, View, type ViewInstance } from "react-native";
 import { OptionList, type OptionListProps } from "../OptionList/OptionList";
-import { OptionListLayer } from "./components";
+import { OptionListLayer } from "../OptionListLayer/OptionListLayer";
 import { useOptionListHost } from "../../optionListHost.context";
 import { anchoredFrame, type WindowRect } from "./anchored-frame";
 

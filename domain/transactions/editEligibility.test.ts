@@ -2,8 +2,10 @@ import { expect, it } from "vitest";
 import { invalidPreviousTransactionPipeIds } from "./editEligibility";
 
 const pipes = [
-  { id: "root" }, { id: "leaf", parentId: "root" },
-  { id: "frozen", blocked: true }, { id: "other" },
+  { id: "root" },
+  { id: "leaf", parentId: "root" },
+  { id: "frozen", blocked: true },
+  { id: "other" },
 ];
 
 it("distinguishes missing, frozen, non-leaf source and non-root destination roles", () => {

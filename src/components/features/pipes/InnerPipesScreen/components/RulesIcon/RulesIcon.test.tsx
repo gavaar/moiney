@@ -121,7 +121,7 @@ describe("RulesIcon", () => {
     expect(screen.getByTestId("rule-modal")).toBeTruthy();
     expect(lastRuleModalProps.visible).toBe(true);
     expect(lastRuleModalProps.pipeId).toBe(pId("pipe-1"));
-    expect(lastRuleModalProps.initialStep).toBe(3);
+    expect(lastRuleModalProps.initialStep).toBe(0);
   });
 
   it("gives the rule trigger an accessible name", () => {

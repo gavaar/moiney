@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { useState } from "react";
+import { Text } from "react-native";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, expectTypeOf, it, vi } from "vitest";
@@ -22,6 +23,12 @@ function Controlled({ pages = singlePage }: { pages?: FormProps<Values>["pages"]
 }
 
 describe("Form controlled fields", () => {
+  it.each([0, -1, NaN, Infinity, -Infinity])("rejects invalid field growth %s", grow => {
+    const pages = [{ key: 0, rows: [[{ ...fields[0], grow }]] }];
+    expect(() => render(<Controlled pages={pages} />))
+      .toThrow('Invalid grow for field "name": expected a positive finite number');
+  });
+
   it("renders header badges and a distinct accessible title", () => {
     render(<Form pages={singlePage} value={{ name: "Ada", count: 2, accepted: true }} onChange={() => {}}
       header={{ title: "Groceries", icon: "pipe", accessibilityLabel: "Edit Groceries", badge: { label: "edit", icon: "pencil-outline" } }} />);
@@ -78,6 +85,41 @@ describe("Form controlled fields", () => {
     expect(screen.getByText("Your display name")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Next step" })).toBeNull();
     expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it.each([
+    ["text", "Your display name"],
+    ["JSX", <Text key="description">Your display name</Text>],
+  ])("replaces a %s description with its field error and restores it when fixed", (_kind, description) => {
+    render(<Controlled pages={[{ key: 0, rows: [[{ ...fields[0], description }, fields[1]]] }]} />);
+    const name = screen.getByRole("textbox", { name: "Name" });
+    expect(screen.getByText("Your display name")).toBeTruthy();
+    fireEvent.blur(name);
+    expect(screen.getByRole("alert").textContent).toBe("Too short");
+    expect(screen.queryByText("Your display name")).toBeNull();
+    expect(screen.getByRole("textbox", { name: "Count" }).getAttribute("value")).toBe("2");
+    fireEvent.change(name, { target: { value: "Ada" } });
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByText("Your display name")).toBeTruthy();
+  });
+
+  it.each([
+    { supportingText: undefined, description: "Field hint", expected: "Field hint" },
+    { supportingText: "Explicit hint", description: "Field hint", expected: "Explicit hint" },
+    { supportingText: null, description: "Field hint", expected: undefined },
+    { supportingText: "", description: "Field hint", expected: undefined },
+    { supportingText: undefined, description: undefined, expected: "3 / 10" },
+    { supportingText: undefined, description: null, expected: undefined },
+  ])("resolves a single footer from $supportingText / $description", ({ supportingText, description, expected }) => {
+    const field = {
+      key: "name" as const,
+      input: { label: "Name", maxLength: 10, supportingText },
+      description,
+    };
+    render(<Form pages={[{ key: 0, rows: [[field]] }]} value={{ name: "Ada" }} onChange={() => {}} />);
+    for (const message of ["Field hint", "Explicit hint", "3 / 10"]) {
+      expect(screen.queryByText(message) !== null).toBe(message === expected);
+    }
   });
 
   it("emits all and only declared keys and uses externally controlled values", () => {

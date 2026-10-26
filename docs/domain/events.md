@@ -73,7 +73,8 @@ entry's own facts and never requires a mirror lookup.
 
 ### Settlement Outcomes
 
-Manual execution, automatic spending-limit execution, and scheduled execution
+Manual execution, automatic spending-limit execution, scheduled execution, and
+Self-destruct's final settlement
 record a settlement atomically with the rule's accounting changes. Automatic
 `instant_settlement` does not create an event; explicitly running that rule
 manually does. The cause records how execution started, independently of the
@@ -108,7 +109,8 @@ through financial-operation commands. Tapping a row opens read-only details.
 Rows use a muted secondary surface, a white border, and a compact icon-led layout.
 The cause icon reflects actual execution: a manual gesture or the triggering rule,
 not merely the pipe's configured rule. Read-only details label the cause as
-“Manually settled”, “Settled on spending limit”, or “Scheduled settlement” and
+“Manually settled”, “Settled on spending limit”, “Scheduled settlement”, or
+“Settled before self-destruct” and
 compare pre-settlement capacity/spending with the recorded outcome. Signed
 balances stay visible; pending external refunds are distinct from external payments.
 

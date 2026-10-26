@@ -39,7 +39,7 @@ Implemented. In particular, D017 remains In progress.
 | D017 | [Transaction structural editing](domain/transactions.md#d017-transaction-structural-editing) | In progress |
 | D018 | [Quick creation interaction](domain/transactions.md#d018-quick-transaction-creation); [ranking](domain/history-cache.md#d018-quick-creation-ranking) | Implemented |
 | D019 | [Feed list tree-usage ordering](domain/history-cache.md#d019-feed-list-tree-usage-ordering) | Implemented |
-| D020 | [Childless root settlement default](domain/accounting.md#d020-childless-root-settlement-default) | Implemented |
+| D020 | [Childless root settlement](domain/accounting.md#d020-childless-root-settlement) | Implemented |
 | D021 | [Pipe creation and archived history](domain/history-cache.md#d021-pipe-creation-and-archived-history) | In progress |
 | D022 | [Self-destruct rules](domain/accounting.md#d022-self-destruct-rules) | Implemented |
 | D023 | [Settlement-time contingency coverage](domain/accounting.md#d023-settlement-time-contingency-coverage) | Implemented |

@@ -23,7 +23,8 @@ decisions.
 - `Popover` uses a native modal for menus. Input choices share the virtualized
   `OptionList` and accessible `OptionRow` primitives; input variants own their
   selection policy and content. `OptionRow` owns standard selected-row
-  presentation. Select keeps its modal picker, while
+  presentation. Select keeps its modal picker. Collapsible-select overlays its
+  anchor in the same native window, while
   text-select uses `AnchoredOptionList` to keep the anchor interactive and bound
   scrolling above or below it around the keyboard. Anchored lists require an
   `OptionListHost` outside clipping containers in the same native window; the app
@@ -34,11 +35,14 @@ decisions.
   read on mount, not a controlled selection. Headers use presentation config
   (title, optional icon, accessibility label, and badge); features own domain
   wording and formatting. Actions remain caller-rendered.
-- Every modal requests dismissal on backdrop tap. The plus creation modal and pipe
-  creation/editing confirm discarding unsaved changes before dismissal, including
+- Modal backdrop taps and system Back/Escape first let a hosted overlay consume
+  dismissal; expanded collapsible-select behavior is defined in [Input](input.md).
+  Otherwise, backdrop taps request modal dismissal. All pipe creation/editing entry
+  points and the plus creation modal confirm discarding unsaved changes before dismissal, including
   system Back; plus-modal dismissal checks all drafts, including hidden modes, and is
   blocked while any form is saving. Mode and step navigation preserve drafts
-  without confirmation; successful submission closes directly. Modal content has
+  without confirmation; successful submission closes directly. Displaying a
+  validation error alone does not make a draft dirty. Modal content has
   no control whose sole purpose is dismissing the modal; domain actions and inline
   warning dismissal remain allowed.
 - `ModalShell` bottom-anchors content 20% above the viewport bottom and permits
@@ -51,6 +55,38 @@ decisions.
 - Pipe list minimization is an account-scoped, device-local display preference.
   It survives sign-out and app restarts, is not synchronized through Convex,
   and removes saved IDs only after a complete pipe catalog load.
+
+## Pipe Forms
+
+All creation entry points share one type-driven form. General creation offers
+Transaction and Pipe modes, not a separate root form. Pipe choices are grouped as
+Feeds (Basic feed, Boiler) and Inner pipes (Manual, Instant, Overflow, Timed,
+Self-destruct). These choices combine existing source type and settlement rule;
+they do not introduce another persisted pipe type. An inner pipe can be an
+intermediate parent or a childless drain.
+
+Creation requires an explicit choice. The plus creation modal starts its type
+picker collapsed; Add pipe from the feeds list and Add child pipe start it open,
+including after clearing the form. Contextual Add child shows feeds disabled,
+preselects a changeable owner, and retains that restriction after owner changes.
+Without a feed, inner choices are disabled and their section explains why. Root
+creation has one page; inner creation has type, rule explanation, and owner on the
+first page and the selected behavior's fields on the second. Selection collapses
+the picker without advancing. Existing inner editors start on details; rule
+shortcuts start on the collapsed type overview with a read-only owner and no feed
+choices. Parents and roots have details-only editors. Accounting constraints are
+owned by [Accounting](domain/accounting.md).
+
+Mode, step, and type changes preserve session drafts; only the active type is
+validated and submitted. Explicit local edits, including inactive type options,
+survive live updates; untouched fields follow live data. Submit requires a
+persistable active change when editing, while dismissal protects raw and inactive
+draft edits too. Run now cannot discard those drafts; when the active type has
+nothing to save, guidance directs the user to the edited type or Reset changes.
+Restored contingency must be eligible under the current owner; owner changes clear
+an invalid donor with an explanation. Adding the first child warns about the
+owner's intermediate-pipe transition and accounting resets.
+Type illustrations are separate from persisted user-customizable icons.
 
 ## Organization And Naming
 

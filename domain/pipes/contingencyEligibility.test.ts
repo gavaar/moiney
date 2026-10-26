@@ -42,9 +42,13 @@ describe("contingency target eligibility", () => {
     expect(shared("root-reserve")).toEqual([]);
   });
 
-  it.each(["instant_settlement", "self_destruct"] satisfies PipeRule[])("does not offer coverage for %s sources", rule => {
+  it.each(["instant_settlement"] satisfies PipeRule[])("does not offer coverage for %s sources", rule => {
     const eligible = prepareContingencyEligibility(topology.map(pipe => pipe.id === "groceries" ? { ...pipe, rule } : pipe));
     expect(eligible("groceries")).toEqual([]);
+  });
+  it("offers the same eligible donors to self-destruct sources", () => {
+    expect(prepareContingencyEligibility(topology.map(pipe => pipe.id === "groceries" ? { ...pipe, rule: "self_destruct" as const } : pipe))("groceries"))
+      .toEqual(["coffee", "household-reserve", "root-reserve"]);
   });
 
   it("excludes blocked sources, donors, and ancestry without excluding an instant-settlement donor", () => {

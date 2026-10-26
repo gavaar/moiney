@@ -135,7 +135,7 @@ export function InnerPipesScreen() {
       {compactRulePipeId && (
         <EditPipeModal
           visible
-          initialStep={3}
+          initialStep={0}
           pipeId={compactRulePipeId}
           onClose={() => setCompactRulePipeId(null)}
         />

@@ -111,7 +111,7 @@ vi.mock("@features/transactions/cache/EventHistoryCacheContext", () => ({
 }));
 
 vi.mock("@ui/Input", () => ({
-  Input: ({ label, type, value, onChange, disabled, placeholder, allowNegative, error, maxLength, items, options, renderItem }: any) => {
+  Input: ({ label, type, value, onChange, disabled, placeholder, allowNegative, error, supportingText, maxLength, items, options, renderItem }: any) => {
     if (type === "toggle") {
       return <div data-testid="input-transaction-mode">
         <span>{options[value ? 1 : 0].label}</span>
@@ -205,7 +205,7 @@ vi.mock("@ui/Input", () => ({
         />
         {error ? (
           <span data-testid={`input-${label}-error`}>{error}</span>
-        ) : maxLength !== undefined ? (
+        ) : supportingText !== undefined ? supportingText : maxLength !== undefined ? (
           <span data-testid={`input-${label}-counter`}>
             {String(value ?? "").length} / {maxLength}
           </span>

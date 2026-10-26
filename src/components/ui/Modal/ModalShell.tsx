@@ -1,8 +1,9 @@
-import { type ReactNode } from "react";
+import { useRef, type ReactNode, type RefObject } from "react";
 import {
   Modal as RNModal,
   Pressable,
   View,
+  type ViewInstance,
 } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { cn } from "@/lib/styles";
@@ -17,12 +18,16 @@ type Props = {
   width?: "wide" | "content";
 };
 
-function ModalContent({ onClose, children, bottomAccessory, width }: Omit<Props, "visible">) {
+type OverlayRefs = { boundsRef: RefObject<ViewInstance | null> };
+
+function ModalContent({ onClose, children, bottomAccessory, width, boundsRef }: Omit<Props, "visible"> & OverlayRefs) {
   const { viewportRef, onViewportLayout, top, height, left, right } = useModalFrame();
   return (
     <View ref={viewportRef} onLayout={onViewportLayout} className="flex-1 bg-black/50">
       <Pressable className="absolute inset-0" testID="modal-backdrop" onPress={onClose} />
       <View
+        ref={boundsRef}
+        collapsable={false}
         pointerEvents="box-none"
         testID="modal-content-region"
         style={{
@@ -51,16 +56,21 @@ function ModalContent({ onClose, children, bottomAccessory, width }: Omit<Props,
 }
 
 export function ModalShell({ visible, onClose, children, bottomAccessory, width = "wide" }: Props) {
+  const boundsRef = useRef<ViewInstance>(null);
+  const backHandlerRef = useRef<(() => boolean) | null>(null);
+  function requestClose() {
+    if (!backHandlerRef.current?.()) onClose();
+  }
   return (
     <RNModal
       transparent
       animationType="fade"
       visible={visible}
-      onRequestClose={onClose}
+      onRequestClose={requestClose}
     >
       <SafeAreaProvider>
-        <OptionListHost>
-          <ModalContent onClose={onClose} bottomAccessory={bottomAccessory} width={width}>
+        <OptionListHost boundsRef={boundsRef} backHandlerRef={backHandlerRef}>
+          <ModalContent onClose={requestClose} bottomAccessory={bottomAccessory} width={width} boundsRef={boundsRef}>
             {children}
           </ModalContent>
         </OptionListHost>

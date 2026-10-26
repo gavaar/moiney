@@ -15,47 +15,57 @@ export function FormPageContent<
   Values extends Record<string, FormValue>,
   Keys extends keyof Values & string,
 >({ rows, value, onChange, onError }: Props<Values, Keys>) {
-  return rows.filter(row => row.length > 0).map(row => (
-    <View key={row[0].key} className="flex-row items-start gap-4">
-      {row.map(field => (
-        <FormFieldContent
-          key={field.key}
-          field={field}
-          value={value}
-          onChange={onChange}
-          onError={onError}
-        />
-      ))}
-    </View>
-  ));
+  return rows.filter(row => row.length > 0).map(row => {
+    // CSS and Yoga leave space unused when growths total less than one.
+    // Scaling by the largest weight preserves ratios and fills fractional rows.
+    const growScale = Math.max(...row.map(field => field.grow ?? 1));
+    return (
+      <View key={row[0].key} className="flex-row items-start gap-1">
+        {row.map(field => (
+          <FormFieldContent
+            key={field.key}
+            field={field}
+            growScale={growScale}
+            value={value}
+            onChange={onChange}
+            onError={onError}
+          />
+        ))}
+      </View>
+    );
+  });
 }
 
 type FieldProps<Values extends Record<string, FormValue>, Keys extends keyof Values & string> =
-  Omit<Props<Values, Keys>, "rows"> & { field: FormRow<Values, Keys>[number] };
+  Omit<Props<Values, Keys>, "rows"> & { field: FormRow<Values, Keys>[number]; growScale: number };
 
 function FormFieldContent<
   Values extends Record<string, FormValue>,
   Keys extends keyof Values & string,
->({ field, value, onChange, onError }: FieldProps<Values, Keys>) {
+>({ field, growScale, value, onChange, onError }: FieldProps<Values, Keys>) {
   const { reveal, description, input, key } = field;
+  const grow = field.grow ?? 1;
+  if (!Number.isFinite(grow) || grow <= 0) {
+    throw new Error(`Invalid grow for field "${key}": expected a positive finite number`);
+  }
   // FormField checks value/emission compatibility; the same key binds both here.
   const inputProps = {
     ...input,
+    supportingText: input.supportingText !== undefined
+      ? input.supportingText
+      : typeof description === "string"
+        ? <Text className="text-sm text-muted whitespace-normal">{description}</Text>
+        : description,
     value: value[key],
     onChange: (nextValue: Values[Keys]) => onChange(key, nextValue),
     onError: (error?: string) => onError(key, error),
   } as InputProps<BoundSelectItem>;
 
   return (
-    <View className="gap-1 flex-1">
+    <View style={{ width: 0, flexGrow: grow / growScale, flexBasis: 0, flexShrink: 1, minWidth: 0 }}>
       {reveal && !reveal.expanded
         ? <FormFieldRevealButton reveal={reveal} input={input} />
-        : (<>
-          <Input {...inputProps} />
-          {typeof description === "string"
-            ? <Text className="text-sm text-muted whitespace-normal">{description}</Text>
-            : description}
-        </>)
+        : <Input {...inputProps} />
       }
     </View>
   );

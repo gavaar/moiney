@@ -24,15 +24,36 @@ vi.mock("@ui/Icon", async importOriginal => ({
 }));
 
 describe("CreateTabAction", () => {
-  it("dismisses on the backdrop and reopens with transaction selected and a fresh draft", () => {
+  it("starts pipe creation with the type picker collapsed until tapped", () => {
+    render(<ConfirmModalProvider><CreateTabAction /></ConfirmModalProvider>);
+    fireEvent.click(screen.getByLabelText("Create"));
+    fireEvent.click(screen.getByRole("tab", { name: "pipe" }));
+    expect(screen.getByRole("button", { name: "Pipe type" }).getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByRole("button", { name: "Basic feed" })).toBeNull();
+    expect(screen.queryByRole("alert")).toBeNull();
+    fireEvent.click(screen.getByTestId("modal-backdrop"));
+    expect(screen.queryByRole("heading", { name: "Create pipe" })).toBeNull();
+    expect(screen.queryByText("Discard changes?")).toBeNull();
+    fireEvent.click(screen.getByLabelText("Create"));
+    fireEvent.click(screen.getByRole("tab", { name: "pipe" }));
+    fireEvent.click(screen.getByRole("button", { name: "Pipe type" }));
+    expect(screen.getByRole("button", { name: "Basic feed" })).toBeTruthy();
+  });
+
+  it("closes the pipe picker before backdrop dismissal and reopens with transaction selected and a fresh draft", () => {
     render(<ConfirmModalProvider><CreateTabAction /></ConfirmModalProvider>);
     expect(screen.queryByRole("tab", { name: "transaction" })).toBeNull();
     fireEvent.click(screen.getByLabelText("Create"));
     fireEvent.change(screen.getByRole("textbox", { name: "Draft" }), { target: { value: "Lunch" } });
-    fireEvent.click(screen.getByRole("tab", { name: "root" }));
-    expect(screen.getByRole("heading", { name: "Create Feed" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("tab", { name: "pipe" }));
+    expect(screen.getByRole("heading", { name: "Create pipe" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Pipe type" }));
     fireEvent.click(screen.getByTestId("modal-backdrop"));
-    expect(screen.queryByRole("heading", { name: "Create Feed" })).toBeNull();
+    expect(screen.getByRole("heading", { name: "Create pipe" })).toBeTruthy();
+    expect(screen.getByRole("alert").textContent).toBe("Pipe type is required");
+    expect(screen.queryByText("Discard changes?")).toBeNull();
+    fireEvent.click(screen.getByTestId("modal-backdrop"));
+    expect(screen.queryByRole("heading", { name: "Create pipe" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Create" }));
     expect(screen.getByRole("tab", { name: "transaction" }).getAttribute("aria-selected")).toBe("true");
     expect((screen.getByRole("textbox", { name: "Draft" }) as HTMLInputElement).value).toBe("");

@@ -17,7 +17,7 @@ function storage(): EventHistoryStorage & { values: Map<string, string> } {
 }
 
 describe("event History snapshots", () => {
-  it("hydrates both coverage perspectives and rejects malformed coverage amounts or snapshots", async () => {
+  it.each(["manual", "self_destruct"] as const)("hydrates %s coverage perspectives and rejects malformed coverage", async cause => {
     const disk = storage();
     const store = new EventHistoryStore("alice", disk);
     const balance = { capacity: 4000, fed: 4000, spent: 7000, pendingFedAdjustment: 0 };
@@ -31,7 +31,7 @@ describe("event History snapshots", () => {
       type: "settlement",
       name: "Source",
       icon: "pipe",
-      cause: "manual",
+      cause,
       before: balance,
       after: balance,
       coverage,

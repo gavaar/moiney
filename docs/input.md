@@ -9,7 +9,7 @@ and completed interactions through private callbacks, not presentation registrat
 effects. Variants keep their tests and private helpers colocated; application
 callers and field-behavior tests use the public Input entry point.
 `InputProps` is exported from the public entry point for typed composition.
-For select variants, `InputProps<Item>` preserves the item shape through
+For select and select-multiple, `InputProps<Item>` preserves the item shape through
 `items`, `renderItem`, and `itemStyle`; direct calls infer it from `items`.
 Unparameterized composition permits only the shared `{ id: string }` shape.
 
@@ -32,6 +32,7 @@ props, not subtracted from the public interface. Text inputs do not expose
 | `checkbox` | `CheckboxInput/` |
 | `select` | `SelectInput/` |
 | `select-multiple` | `SelectInput/` |
+| `collapsible-select` | `CollapsibleSelectInput/` |
 | `text-select` | `TextSelectInput/` |
 | `toggle` | `ToggleInput/` |
 
@@ -75,7 +76,7 @@ segment uses the shared primary background.
 `type="select"` controls one ID (`string | null`); `type="select-multiple"`
 controls a readonly ID array and emits mutable ID arrays. The public interface
 has no `multiple` flag; both types share a picker implementation internally.
-Select inputs accept `renderItem(item)` for custom option content. All selects
+Select inputs accept `renderItem(item)` for custom option content. These two variants
 open a bounded, virtualized picker from the shared field; there is no inline
 presentation. Pickers fit their contents up to the available modal height, then
 scroll; short lists remain compact. Multiple selections expose checkbox semantics. Optional `loading`
@@ -84,6 +85,34 @@ Empty lists display an empty state inside the picker.
 Optional `itemStyle(item)` styles option rows; the
 standard selected background remains owned by `OptionRow`. Domain-specific colors belong in
 feature renderers and style callbacks, not in Select.
+
+`type="collapsible-select"` controls one ID (`string | null`) and emits a selected
+ID. It starts collapsed by default; optional `initiallyExpanded` sets its initial
+state on mount, not on later prop changes. Choosing
+an enabled option commits and collapses; tapping the collapsed field expands it.
+Closing completes the interaction, including with no selection, and activates
+validation under the default blur policy. Requiredness comes from the field's
+validator; optional fields can close empty without an error. Opening does not
+activate validation, and closing without choosing does not change the value.
+Items supply `{ id: string; icon?: string; title: string; description?: string }`;
+the input owns their presentation, with no `renderItem` or label callback. Options
+show a title above the optional icon and description; the collapsed selection
+shows only the optional icon and title. Titles also supply accessible item labels.
+It accepts per-item disabled policy and always-visible groups with optional
+informational text.
+Group information opens in a popover anchored to its info icon, not inline in
+the options. Opening help never changes the list's content height or selection;
+dismissing help leaves the picker open.
+
+Its bounded, scrollable overlay visually replaces the anchor without changing
+form layout or opening another native modal. The current `OptionListHost` keeps it
+outside clipping containers, within the modal's available region and keyboard
+bounds. Hidden form pages/modes must scope floating content inactive while keeping
+their drafts mounted. The first outside tap, including the modal backdrop and
+mode accessory, closes only the expanded list without activating covered controls.
+System Back/Escape also closes the list first, regardless of selection. Once it
+is closed, subsequent interactions follow their normal control or modal-dismissal
+flow.
 
 Every type accepts optional `supportingText` (text or JSX). Text receives shared
 muted styling; JSX owns its presentation. When omitted, text and text-select
@@ -108,7 +137,8 @@ select validators receive readonly string arrays. Only `undefined` means valid.
   Number blur emits a clamped value, which is validated after the parent accepts it.
 - In blur mode, text-like controls complete interaction on native blur. Date,
   icon, and single-select choices, text-select suggestions, checkbox, and toggle
-  complete it on commit. Multiple select completes it on picker close and then
+  complete it on commit. Collapsible-select completes it on selection or close.
+  Multiple select completes it on picker close and then
   validates on every selection change. Opening a picker,
   searching icons, or cancelling a date/icon/single-select picker does not validate.
 - Controlled value or validator changes revalidate dirty inputs; pristine inputs
@@ -149,13 +179,18 @@ scroll area. Content-sized modal forms omit it.
   definitions. Page keys are stable numeric identities, not positions; array order
   determines page order. Field keys are unique across the entire form. Empty rows
   and pages with no fields are omitted; a form with no fields renders only its
-  header. Fields contain `input` and optional `description` and `reveal`.
+  header. Fields contain `input` and optional `description`, `reveal`, and `grow`.
   Validators live in `input.validator`. Input configuration
   excludes `value`, `onChange`, and `onError`; Form supplies these
   through the public Input dispatcher for every variant.
 - Descriptions accept text or JSX; text receives the standard muted styling,
-  while JSX owns its presentation. Non-input controls such as a mode toggle can
-  be composed in the JSX header slot without becoming form values.
+  while JSX owns its presentation. They use the Input footer: displayed errors
+  replace all supporting content, including JSX descriptions, until cleared.
+  Otherwise, explicit `input.supportingText` takes precedence over `description`,
+  followed by the automatic counter when neither is supplied. Explicit `null`
+  suppresses fallback content. Messages use natural height with no reserved space.
+  Non-input controls such as a mode toggle can be composed in the JSX header slot
+  without becoming form values.
 - Optional `reveal: { label, icon?, expanded, onReveal }` renders a muted button
   in place of a collapsed field. The caller owns expansion and reset behavior;
   revealing never changes the value. Disabled inputs also disable their reveal
@@ -168,10 +203,15 @@ scroll area. Content-sized modal forms omit it.
 - Inputs follow the validation timing above; Form observes their displayed errors
   for page indicators. Errors never block navigation. Remount Form to reset
   validation and navigation.
-- Each row is an ordered array of fields rendered as equal-width, top-aligned
-  columns. Use a single-field row for full-width content. Labels, descriptions,
-  and errors stay in their field's column. Field definitions have no page or row
-  identifiers; shared configuration can return rows for a caller-owned page.
+- Each row is an ordered array of fields rendered as top-aligned columns.
+  Field `grow` defaults to `1`; positive finite numbers, including fractions,
+  divide the available width after gaps proportionally. Invalid growth values
+  are rejected when rendered. For example, growths `1` and `2` split the available
+  width into thirds. Columns shrink independently of their contents; descriptions
+  wrap within their own column. Use a single-field row for full-width content.
+  Labels, descriptions, and errors stay in their field's column. Field definitions
+  have no page or row identifiers; shared configuration can return rows for a
+  caller-owned page.
   Input-level number `step` still means the increment size.
 - Multiple steps support horizontal paging and full-height side chevrons,
   absent at the first/last step respectively, with no implicit submit action.
@@ -216,11 +256,11 @@ const pages = form(
 
 - `input(key, configuration, metadata?)` preserves field/value compatibility and
   contextual callback types, including the original select item shape. Construct
-  select fields through `input()` even inside manually composed `FormField` or
-  `FormRow` arrays. It binds each item's rendering and styling lazily before
+  select and select-multiple fields through `input()` even inside manually composed
+  `FormField` or `FormRow` arrays. It binds each item's rendering and styling lazily before
   heterogeneous fields share storage; stored items are presentation data, not
   domain models. Raw non-select field definitions remain supported.
-  Optional metadata contains `description` and `reveal`.
+  Optional metadata contains `description`, `reveal`, and `grow`.
   The shared `disabled` default applies when creating inputs; explicit input
   settings override it. Reusable row factories own their inputs' defaults.
 - `row`, `page`, and `form` accept `false`, `null`, and `undefined` children as

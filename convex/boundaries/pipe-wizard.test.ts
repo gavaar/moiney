@@ -20,6 +20,20 @@ async function setup() {
 describe("pipe wizard saves", () => {
   afterEach(() => vi.useRealTimers());
 
+  it.each(["updatePipe", "updatePipeRule"] as const)("enforces instant-only childless feeds through %s", async endpoint => {
+    const { t, auth } = await setup();
+    const root = await auth.mutation(api.pipes.addFeed, { name: "Wallet", icon: "pipe", initialFed: 1000 });
+    const before = await t.run(ctx => ctx.db.get("pipes", root));
+    const configurations = [{}, { rule: "spend_overflow" as const }, { rule: "instant_settlement" as const, capUpdateValue: 100 }];
+    for (const ruleConfig of configurations) {
+      await expect(endpoint === "updatePipe"
+        ? auth.mutation(api.pipes.updatePipe, { pipeId: root, name: "Changed", ruleConfig })
+        : auth.mutation(api.pipes.updatePipeRule, { pipeId: root, ...ruleConfig }))
+        .rejects.toMatchObject({ data: { code: "ROOT_REQUIRES_INSTANT_SETTLEMENT" } });
+      expect(await t.run(ctx => ctx.db.get("pipes", root))).toEqual(before);
+    }
+  });
+
   it("atomically changes details, capacity, rule and contingency against the intended rule", async () => {
     const { t, auth, source, donor } = await setup();
     await auth.mutation(api.pipes.updatePipe, {
@@ -130,6 +144,14 @@ describe("pipe wizard saves", () => {
     await expect(auth.mutation(api.pipes.updatePipe, { pipeId: root, name: "Updated", ruleConfig: { rule: "cron", interval: 1, unit: "days", starting: Date.now() } }))
       .rejects.toMatchObject({ data: { code: "RULE_REQUIRES_LEAF" } });
     expect(await t.run(ctx => ctx.db.get("pipes", root))).toMatchObject({ name: "Root" });
+  });
+
+  it("does not manually settle an intermediate pipe", async () => {
+    const { t, auth, root } = await setup();
+    const before = await t.run(ctx => ctx.db.get("pipes", root));
+    await expect(auth.mutation(api.pipes.executePipeRuleNow, { pipeId: root }))
+      .rejects.toMatchObject({ data: { code: "RULE_REQUIRES_LEAF" } });
+    expect(await t.run(ctx => ctx.db.get("pipes", root))).toEqual(before);
   });
 
   it("rejects root Self-destruct and invalid combined schedules atomically", async () => {

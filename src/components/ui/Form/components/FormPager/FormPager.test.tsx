@@ -2,6 +2,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { FormPager } from "./FormPager";
+import type { ReactNode } from "react";
 
 // Model the native boundary: scrollTo is clamped until content has been laid out.
 const native = vi.hoisted(() => ({
@@ -17,12 +18,16 @@ vi.mock("react-native", async importOriginal => {
   return {
     ...actual,
     View: ({ children, ...props }: any) => {
-      if (typeof children === "string" && props.onLayout) native.pages[children] = props;
+      const content = React.isValidElement<{ children?: ReactNode }>(children) ? children.props.children : children;
+      if (typeof content === "string" && props.onLayout) native.pages[content] = props;
       return <actual.View {...props}>{children}</actual.View>;
     },
     ScrollView: ({ ref, children, ...props }: any) => {
       if (props.horizontal) native.props = props;
-      else if (typeof children === "string") native.pages[children] = props;
+      else {
+        const content = React.isValidElement<{ children?: ReactNode }>(children) ? children.props.children : children;
+        if (typeof content === "string") native.pages[content] = props;
+      }
       React.useImperativeHandle(ref, () => ({
         scrollTo: ({ x }: { x: number }) => {
           if (!props.horizontal) return;

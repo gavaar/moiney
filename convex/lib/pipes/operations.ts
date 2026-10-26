@@ -138,6 +138,17 @@ export type UpdatePipeRuleCommand = RuleConfiguration & {
   pipeId: Id<"pipes">;
 };
 
+async function assertRuleTopology(ctx: MutationCtx, pipe: Doc<"pipes">, config: RuleConfiguration) {
+  const child = await ctx.db.query("pipes").withIndex("by_parentId", q => q.eq("parentId", pipe._id)).first();
+  if (config.rule === "self_destruct" && (!pipe.parentId || child)) {
+    throw new ConvexError({ code: "SELF_DESTRUCT_REQUIRES_CHILD_LEAF" });
+  }
+  if (child) throw new ConvexError({ code: "RULE_REQUIRES_LEAF" });
+  if (!pipe.parentId && (config.rule !== "instant_settlement" || config.capUpdateValue !== undefined)) {
+    throw new ConvexError({ code: "ROOT_REQUIRES_INSTANT_SETTLEMENT" });
+  }
+}
+
 export async function updatePipeRuleOperation(
   ctx: MutationCtx,
   userId: Id<"users">,
@@ -150,15 +161,12 @@ export async function updatePipeRuleOperation(
   }
   assertPipeNotDeleting(pipe);
 
-  if (command.rule === "self_destruct") {
-    const child = await ctx.db.query("pipes").withIndex("by_parentId", (q) => q.eq("parentId", pipe._id)).first();
-    if (!pipe.parentId || child) throw new ConvexError({ code: "SELF_DESTRUCT_REQUIRES_CHILD_LEAF" });
-  }
+  await assertRuleTopology(ctx, pipe, command);
   const patch = rulePatch(pipe, command, now);
   if (!patch) return null;
   await ctx.db.patch("pipes", command.pipeId, {
     ...patch,
-    ...(patch.rule === "instant_settlement" || patch.rule === "self_destruct" ? { contingencyPipeId: undefined } : {}),
+    ...(patch.rule === "instant_settlement" ? { contingencyPipeId: undefined } : {}),
   });
   await reconcileAffectedPipeRoots(ctx, [command.pipeId]);
   return null;
@@ -198,14 +206,10 @@ export async function updatePipeOperation(
     patch.capacity = assertAmountLimit(command.capacity);
   }
   if (command.ruleConfig !== undefined) {
-    const child = await ctx.db.query("pipes").withIndex("by_parentId", q => q.eq("parentId", pipe._id)).first();
-    if (command.ruleConfig.rule === "self_destruct" && (!pipe.parentId || child)) {
-      throw new ConvexError({ code: "SELF_DESTRUCT_REQUIRES_CHILD_LEAF" });
-    }
-    if (child) throw new ConvexError({ code: "RULE_REQUIRES_LEAF" });
+    await assertRuleTopology(ctx, pipe, command.ruleConfig);
     Object.assign(patch, rulePatch({ ...pipe, ...patch }, command.ruleConfig, now));
   }
-  if (patch.rule === "instant_settlement" || patch.rule === "self_destruct") {
+  if (patch.rule === "instant_settlement") {
     patch.contingencyPipeId = undefined;
   }
   if (command.contingencyPipeId !== undefined) {
@@ -236,6 +240,8 @@ export async function executePipeRuleNowOperation(
   assertPipeNotDeleting(pipe);
 
   if (pipe.rule === "self_destruct") throw new ConvexError({ code: "SELF_DESTRUCT_CANNOT_RUN_MANUALLY" });
+  const child = await ctx.db.query("pipes").withIndex("by_parentId", q => q.eq("parentId", pipe._id)).first();
+  if (child) throw new ConvexError({ code: "RULE_REQUIRES_LEAF" });
   await executePipeRule(ctx, pipeId, { pipe, now, cause: "manual" });
   await reconcileAffectedPipeRoots(ctx, [pipeId]);
   return null;

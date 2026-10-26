@@ -3,7 +3,8 @@ import type { ViewInstance } from "react-native";
 
 export type OptionListHostValue = {
   viewportRef: RefObject<ViewInstance | null>;
-  present: (id: symbol, content: ReactNode) => void;
+  boundsRef?: RefObject<ViewInstance | null>;
+  present: (id: symbol, content: ReactNode, onRequestClose?: () => boolean) => void;
   dismiss: (id: symbol) => void;
 };
 

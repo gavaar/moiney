@@ -26,6 +26,7 @@ describe("form configuration composition", () => {
   it("keeps selection styling absent when the caller did not supply it", () => {
     const { input } = formBuilder<{ owner: string | null }>();
     const field = input("owner", { type: "select", items: [{ id: "wallet", name: "Wallet" }], renderItem: item => item.name });
+    if (field.input.type !== "select") throw new Error("Expected selection field");
     expect(field.input.itemStyle).toBeUndefined();
   });
 
@@ -34,7 +35,7 @@ describe("form configuration composition", () => {
     const reveal = { label: "More", expanded: false, onReveal: () => {} };
 
     expect(form(page(
-      row(input("name", { label: "Name" }, { description: "Help", reveal })),
+      row(input("name", { label: "Name" }, { description: "Help", reveal, grow: 2 })),
       row(
         input("priority", { type: "number", disabled: false }),
         input("accepted", { type: "checkbox" }),
@@ -43,7 +44,7 @@ describe("form configuration composition", () => {
       {
         key: 0,
         rows: [
-          [{ key: "name", input: { label: "Name", disabled: true }, description: "Help", reveal }],
+          [{ key: "name", input: { label: "Name", disabled: true }, description: "Help", reveal, grow: 2 }],
           [
             { key: "priority", input: { type: "number", disabled: false } },
             { key: "accepted", input: { type: "checkbox", disabled: true } },

@@ -3,433 +3,203 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { act, fireEvent, render as renderComponent, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { ConfirmModalProvider } from "@ui/ConfirmModal";
-import userEvent from "@testing-library/user-event";
-import { type Id } from "@convex/_generated/dataModel";
+import type { Id } from "@convex/_generated/dataModel";
 import { AddPipeModal } from "./AddPipeModal";
 import type { PipeModel } from "@features/pipes/data/pipes";
 
 vi.mock("expo-router/react-navigation", () => ({ useIsFocused: () => true }));
 vi.mock("@ui/Alert", () => ({ useAlert: () => ({ error: vi.fn(), success: vi.fn() }) }));
 vi.mock("@features/transactions/cache/EventHistoryCacheContext", () => ({ useOptionalEventHistoryCache: () => null }));
-function render(element: ReactNode) {
-  return renderComponent(element, { wrapper: ConfirmModalProvider });
-}
-
-const mockAddPipe = vi.fn().mockResolvedValue(undefined);
-
-vi.mock("convex/react", () => ({
-  useMutation: () => mockAddPipe,
-}));
-
-vi.mock("@convex/_generated/api", () => ({
-  api: {
-    pipes: {
-      addPipe: {},
-    },
-  },
-}));
-
-vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
-  usePipeCatalog: () => catalog,
-}));
-
+const addPipe = vi.fn().mockResolvedValue(undefined);
+vi.mock("convex/react", () => ({ useMutation: () => addPipe }));
+vi.mock("@convex/_generated/api", () => ({ api: { pipes: { addPipe: "add" } } }));
+vi.mock("@features/pipes/context/PipeCatalogContext", () => ({ usePipeCatalog: () => catalog }));
 const parentId = "parent-1" as Id<"pipes">;
 const otherId = "parent-2" as Id<"pipes">;
 const owner: PipeModel = { id: parentId, name: "Wallet", icon: "wallet-outline", priority: 0, capacity: 10000, spent: 2000, fed: 8000 };
 const other: PipeModel = { ...owner, id: otherId, name: "Savings", icon: "pipe", capacity: 0, spent: 0, sourceType: "boiler" };
-let catalog = {
-  allPipes: [owner, other] as PipeModel[] | undefined,
-  pipesById: { [parentId]: owner, [otherId]: other },
-  childrenByParent: new Map<Id<"pipes">, PipeModel[]>([[otherId, [{ ...owner, id: "child" as Id<"pipes"> }]]]),
-  isLoading: false,
-};
+const nested: PipeModel = { ...owner, id: "child" as Id<"pipes">, parentId: otherId, name: "Nested" };
+let catalog: { allPipes: PipeModel[] | undefined; isLoading: boolean };
 const onClose = vi.fn();
-
-function renderModal(visible = true) {
-  return render(<AddPipeModal visible={visible} onClose={onClose} parentId={parentId} />);
+function render(element: ReactNode) { return renderComponent(element, { wrapper: ConfirmModalProvider }); }
+function click(name: string) { fireEvent.click(screen.getByRole("button", { name })); }
+function fill(name: string, value: string) { fireEvent.change(screen.getByRole("textbox", { name }), { target: { value } }); }
+function renderModal(selected?: string) {
+  const rendered = render(<AddPipeModal visible onClose={onClose} parentId={parentId} />);
+  if (selected) click(selected);
+  return rendered;
 }
+function details(kind = "Manual") { const rendered = renderModal(kind); click("Next step"); return rendered; }
 
-describe("AddPipeModal", () => {
-  it("dismisses individual owner warnings until the modal is closed and reopened", async () => {
-    catalog.allPipes = [{ ...owner, rule: "cron" }, other];
-    const { rerender } = renderModal();
-    const warning = screen.getByText(/current rule.*removed/i);
-    await userEvent.click(within(warning.parentElement!).getByRole("button", { name: "Dismiss warning" }));
-    expect(screen.queryByText(/current rule.*removed/i)).toBeNull();
-    expect(screen.getByText(/remove current capacity and spent/i)).toBeTruthy();
-    await userEvent.click(screen.getByRole("button", { name: "Next step" }));
-    expect(screen.queryByText(/current rule.*removed/i)).toBeNull();
-    expect(onClose).not.toHaveBeenCalled();
-    expect(mockAddPipe).not.toHaveBeenCalled();
-    rerender(<AddPipeModal visible={false} onClose={onClose} parentId={parentId} />);
-    rerender(<AddPipeModal visible onClose={onClose} parentId={parentId} />);
-    expect(screen.getByText(/current rule.*removed/i)).toBeTruthy();
-  });
-
-  it("offers contingency for the future child and submits it from any step without Run now", async () => {
-    const reserve = { ...other, id: "reserve" as Id<"pipes">, parentId };
-    catalog.allPipes = [owner, reserve];
-    renderModal();
-    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Food" } });
-    fireEvent.click(screen.getByRole("button", { name: "Next step" }));
-    fireEvent.click(screen.getByRole("button", { name: "Next step" }));
-    fireEvent.click(screen.getByRole("button", { name: "Contingency" }));
-    fireEvent.click(screen.getByRole("button", { name: "Savings" }));
-    expect(screen.queryByRole("button", { name: "Run now" })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Previous step" }));
-    fireEvent.click(screen.getByRole("button", { name: "Previous step" }));
-    fireEvent.click(screen.getByRole("button", { name: "Submit" }));
-    await waitFor(() => expect(mockAddPipe).toHaveBeenCalledWith(expect.objectContaining({ contingencyPipeId: reserve.id })));
-  });
-
-  it("asks before abandoning creation and does not discard on cancel", async () => {
-    renderModal();
-    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Food" } });
-    fireEvent.click(screen.getByTestId("modal-backdrop"));
-    expect(screen.getByText("Discard changes?")).toBeTruthy();
-    fireEvent.click(screen.getByText("Keep editing"));
-    expect(onClose).not.toHaveBeenCalled();
-    expect(screen.getByLabelText("Name").getAttribute("value")).toBe("Food");
-  });
+describe("contextual child creation", () => {
+  beforeEach(() => { vi.clearAllMocks(); addPipe.mockResolvedValue(undefined); catalog = { allPipes: [owner, other, nested], isLoading: false }; });
   afterEach(() => vi.useRealTimers());
-  it("clears an unfinished pipe while retaining its selected owner and keeping creation open", async () => {
+
+  it("starts Add child pipe with the unselected picker open and retains its contextual owner", () => {
     renderModal();
-    fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "Groceries" } });
-    await userEvent.click(screen.getByRole("button", { name: "Next step" }));
-    fireEvent.change(screen.getByRole("textbox", { name: "Initial capacity?" }), { target: { value: "12.34" } });
-    await userEvent.click(screen.getByRole("button", { name: "Clear form" }));
-    expect(screen.getByRole("heading", { name: "Wallet" })).toBeTruthy();
-    expect(screen.getByRole("textbox", { name: "Name" }).getAttribute("value")).toBe("");
-    expect(onClose).not.toHaveBeenCalled();
-    expect(mockAddPipe).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Pipe type" }).getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByRole("button", { name: "Basic feed" }).getAttribute("aria-disabled")).toBe("true");
+    expect(screen.getByRole("button", { name: "Boiler" }).getAttribute("aria-disabled")).toBe("true");
+    click("Manual"); expect(screen.getByRole("button", { name: "Owner pipe" }).textContent).toContain("Wallet");
+    expect(screen.queryByRole("textbox", { name: "Name" })).toBeNull();
   });
 
-  it("keeps owner alerts visible on every step", async () => {
+  it("dismisses individual owner warnings until the modal is reopened", () => {
     catalog.allPipes = [{ ...owner, rule: "cron" }, other];
-    renderModal();
-    const warning = () => screen.getByText(/current rule.*removed/i);
-    expect(warning()).toBeTruthy();
-    await userEvent.click(screen.getByRole("button", { name: "Previous step" }));
-    expect(warning()).toBeTruthy();
-    await userEvent.click(screen.getByRole("button", { name: "Next step" }));
-    await userEvent.click(screen.getByRole("button", { name: "Next step" }));
-    expect(warning()).toBeTruthy();
-    await userEvent.click(screen.getByRole("button", { name: "Next step" }));
-    expect(warning()).toBeTruthy();
-  });
-
-  it("validates the deletion date and submits self-destruct atomically after preserving the fourth-step draft", async () => {
-    vi.useFakeTimers({ toFake: ["Date"] });
-    vi.setSystemTime(Date.UTC(2026, 8, 20, 18));
-    try {
-      renderModal();
-      fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "Madrid" } });
-      fireEvent.click(screen.getByRole("button", { name: "Next step" }));
-      fireEvent.click(screen.getByRole("button", { name: "Next step" }));
-      fireEvent.click(screen.getByRole("button", { name: "Rule" }));
-      fireEvent.click(screen.getByText("Self-destruct"));
-      expect(screen.getByRole("button", { name: "Submit" }).getAttribute("aria-disabled")).toBe("true");
-      fireEvent.click(screen.getByRole("button", { name: "Deletion date" }));
-      fireEvent.click(screen.getByTestId("day-20"));
-      expect(screen.getByText("Choose a future deletion date (05:00 UTC)")).toBeTruthy();
-      fireEvent.click(screen.getByRole("button", { name: "Deletion date" }));
-      fireEvent.click(screen.getByTestId("day-21"));
-      fireEvent.click(screen.getByRole("button", { name: "Previous step" }));
-      fireEvent.click(screen.getByRole("button", { name: "Next step" }));
-      expect(screen.getByRole("button", { name: "Rule" }).textContent).toContain("Self-destruct");
-      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
-      expect(mockAddPipe).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
-        name: "Madrid",
-        parentId,
-        ruleConfig: { rule: "self_destruct", starting: Date.UTC(2026, 8, 21, 5) },
-      }));
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it("revalidates a self-destruct deadline while the rule form remains open", () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(Date.UTC(2026, 8, 21, 4, 59));
-    try {
-      renderModal();
-      fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "Madrid" } });
-      fireEvent.click(screen.getByRole("button", { name: "Next step" }));
-      fireEvent.click(screen.getByRole("button", { name: "Next step" }));
-      fireEvent.click(screen.getByRole("button", { name: "Rule" }));
-      fireEvent.click(screen.getByText("Self-destruct"));
-      fireEvent.click(screen.getByRole("button", { name: "Deletion date" }));
-      fireEvent.click(screen.getByTestId("day-21"));
-      expect(screen.getByRole("button", { name: "Submit" }).getAttribute("aria-disabled")).not.toBe("true");
-
-      act(() => vi.advanceTimersByTime(60000));
-      expect(screen.getByRole("button", { name: "Submit" }).getAttribute("aria-disabled")).toBe("true");
-      expect(mockAddPipe).not.toHaveBeenCalled();
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-  it("adds a fourth rule step defaulting to no rule and warns about removing the owner's rule", async () => {
-    catalog.allPipes = [{ ...owner, rule: "cron" }, other];
-    renderModal();
-    fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "Madrid" } });
-    await userEvent.click(screen.getByRole("button", { name: "Next step" }));
-    const warning = screen.getByText(/current rule.*removed/i);
-    const submit = screen.getByRole("button", { name: "Submit" });
-    expect(submit.compareDocumentPosition(warning) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    await userEvent.click(screen.getByRole("button", { name: "Next step" }));
-    expect(screen.getByLabelText("Step 4 of 4").getAttribute("aria-selected")).toBe("true");
-    expect(screen.getByText("No rule")).toBeTruthy();
-    await userEvent.click(screen.getByRole("button", { name: "Submit" }));
-    expect(mockAddPipe).toHaveBeenCalledOnce();
-  });
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockAddPipe.mockResolvedValue(undefined);
-    catalog.allPipes = [owner, other, { ...owner, id: "child" as Id<"pipes">, parentId: otherId, name: "Nested" }];
-    catalog.isLoading = false;
-  });
-
-  it("selects an owner without auto-advancing and preserves selection on return", async () => {
-    render(<AddPipeModal visible onClose={onClose} />);
-    expect(screen.getByRole("heading", { name: "Select owner pipe" })).toBeTruthy();
-    expect(screen.queryByRole("textbox", { name: "Name" })).toBeNull();
-    await userEvent.click(screen.getByRole("button", { name: "Owner pipe" }));
-    await userEvent.click(screen.getByRole("button", { name: "Wallet" }));
-    expect(screen.getByRole("heading", { name: "Wallet" })).toBeTruthy();
-    expect(screen.queryByRole("textbox", { name: "Name" })).toBeNull();
-    await userEvent.click(screen.getByRole("button", { name: "Next step" }));
-    expect(screen.getByRole("textbox", { name: "Name" })).toBeTruthy();
-    await userEvent.click(screen.getByRole("button", { name: "Previous step" }));
-    expect(screen.getByRole("button", { name: "Owner pipe" }).textContent).toBe("Wallet");
-    expect(screen.queryByRole("textbox", { name: "Name" })).toBeNull();
-    await userEvent.click(screen.getByRole("button", { name: "Owner pipe" }));
-    await userEvent.click(screen.getByRole("button", { name: "Wallet" }));
-    expect(screen.queryByRole("textbox", { name: "Name" })).toBeNull();
-    await userEvent.click(screen.getByRole("button", { name: "Next step" }));
-    expect(screen.getByRole("textbox", { name: "Name" })).toBeTruthy();
-  });
-
-  it("preserves details when changing owner and submits to that owner with signed capacity", async () => {
-    renderModal();
-    expect(screen.getByRole("heading", { name: "Wallet" })).toBeTruthy();
-    fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "Food" } });
-    await userEvent.click(screen.getByRole("button", { name: "Previous step" }));
-    await userEvent.click(screen.getByRole("button", { name: "Owner pipe" }));
-    await userEvent.click(screen.getByRole("button", { name: "Savings" }));
-    await userEvent.click(screen.getByRole("button", { name: "Next step" }));
-    expect(screen.getByDisplayValue("Food")).toBeTruthy();
-    expect(screen.getByRole("heading", { name: "Savings" })).toBeTruthy();
-    await userEvent.click(screen.getByRole("button", { name: "Next step" }));
-    expect(screen.queryByText(/Creating a child will remove/)).toBeNull();
-    expect(screen.queryByText(/Adding a pipe removes/)).toBeNull();
-    fireEvent.change(screen.getByRole("textbox", { name: "Initial capacity?" }), { target: { value: "-12.34" } });
-    await userEvent.click(screen.getByRole("button", { name: "Next step" }));
-    await userEvent.click(screen.getByRole("button", { name: "Submit" }));
-    expect(mockAddPipe).toHaveBeenCalledWith(expect.objectContaining({ name: "Food", parentId: otherId, capacity: -1234 }));
-  });
-
-  it("shows warnings for a childless owner and rejects incomplete capacity", async () => {
-    renderModal();
-    fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "Food" } });
-    await userEvent.click(screen.getByRole("button", { name: "Next step" }));
-    expect(screen.getByText(/Creating a child will remove/)).toBeTruthy();
-    expect(screen.getByText(/Adding a pipe removes/)).toBeTruthy();
-    const input = screen.getByRole("textbox", { name: "Initial capacity?" });
-    fireEvent.change(input, { target: { value: "-" } });
-    fireEvent.blur(input);
-    expect(screen.getByText("Enter a valid capacity")).toBeTruthy();
-    await userEvent.click(screen.getByRole("button", { name: "Next step" }));
-    expect(screen.getByRole("button", { name: "Submit" }).getAttribute("aria-disabled")).toBe("true");
-    expect(mockAddPipe).not.toHaveBeenCalled();
-  });
-
-  it("shows loading and empty owner lists and excludes deleting pipes", () => {
-    catalog.isLoading = true;
-    catalog.allPipes = undefined;
-    const { rerender } = render(<AddPipeModal visible onClose={onClose} />);
-    expect(screen.getByLabelText("Loading Owner pipe")).toBeTruthy();
-    catalog.isLoading = false;
-    catalog.allPipes = [{ ...owner, deletionJobId: "job" as Id<"pipeDeletionJobs"> }];
-    rerender(<AddPipeModal visible onClose={onClose} />);
-    fireEvent.click(screen.getByRole("button", { name: "Owner pipe" }));
-    expect(screen.getByText("No options")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Wallet" })).toBeNull();
-  });
-
-  it("cannot submit without an eligible owner even after completing the other steps", async () => {
-    render(<AddPipeModal visible onClose={onClose} />);
-    await userEvent.click(screen.getByRole("button", { name: "Next step" }));
-    fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "Food" } });
-    await userEvent.click(screen.getByRole("button", { name: "Next step" }));
-    await userEvent.click(screen.getByRole("button", { name: "Next step" }));
-    expect(screen.getByRole("button", { name: "Submit" }).getAttribute("aria-disabled")).toBe("true");
-    expect(mockAddPipe).not.toHaveBeenCalled();
-  });
-
-  it("disables submission if the selected owner becomes unavailable", async () => {
-    const { rerender } = renderModal();
-    fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "Food" } });
-    await userEvent.click(screen.getByRole("button", { name: "Next step" }));
-    catalog.allPipes = [other];
-    rerender(<AddPipeModal visible onClose={onClose} parentId={parentId} />);
-    expect(screen.getByRole("heading", { name: "Select owner pipe" })).toBeTruthy();
-    await userEvent.click(screen.getByRole("button", { name: "Next step" }));
-    expect(screen.getByRole("button", { name: "Submit" }).getAttribute("aria-disabled")).toBe("true");
-  });
-
-  it("resets owner selection, step, draft, and validation when reopened", async () => {
-    const { rerender } = renderModal();
-    fireEvent.blur(screen.getByRole("textbox", { name: "Name" }));
-    await userEvent.click(screen.getByRole("button", { name: "Previous step" }));
-    await userEvent.click(screen.getByRole("button", { name: "Owner pipe" }));
-    await userEvent.click(screen.getByRole("button", { name: "Savings" }));
-    await userEvent.click(screen.getByRole("button", { name: "Next step" }));
+    const { rerender } = renderModal("Manual");
+    const warning = screen.getByText(/current rule and options will be removed/);
+    fireEvent.click(within(warning.parentElement!).getByRole("button", { name: "Dismiss warning" }));
+    click("Next step"); expect(screen.queryByText(/current rule and options will be removed/)).toBeNull();
+    expect(screen.getByText(/turns Wallet into an intermediate pipe/)).toBeTruthy();
     rerender(<AddPipeModal visible={false} onClose={onClose} parentId={parentId} />);
+    rerender(<AddPipeModal visible onClose={onClose} parentId={parentId} />); click("Manual");
+    expect(screen.getByText(/current rule and options will be removed/)).toBeTruthy();
+  });
+
+  it("offers future-child contingency and submits atomically from the owner page without Run now", async () => {
+    const reserve = { ...other, id: "reserve" as Id<"pipes">, parentId };
+    catalog.allPipes = [owner, reserve]; details(); fill("Name", "Food");
+    click("Contingency"); click("Savings"); click("Previous step");
+    expect(screen.queryByRole("button", { name: "Run now" })).toBeNull();
+    click("Submit"); await waitFor(() => expect(addPipe).toHaveBeenCalledWith(expect.objectContaining({ contingencyPipeId: reserve.id })));
+  });
+
+  it("asks before abandoning creation and retains the draft on cancel", () => {
+    details(); fill("Name", "Food"); fireEvent.click(screen.getByTestId("modal-backdrop"));
+    expect(screen.getByText("Discard changes?")).toBeTruthy(); click("Keep editing");
+    expect(onClose).not.toHaveBeenCalled(); expect(screen.getByLabelText("Name").getAttribute("value")).toBe("Food");
+  });
+
+  it("clears an unfinished pipe, retains its owner, and returns to type selection", () => {
+    details(); fill("Name", "Groceries"); fill("Initial capacity?", "12.34"); click("Clear form");
+    expect(screen.getByRole("button", { name: "Manual" })).toBeTruthy();
+    click("Manual"); expect(screen.getByRole("button", { name: "Owner pipe" }).textContent).toContain("Wallet");
+    click("Next step"); expect(screen.getByLabelText("Name").getAttribute("value")).toBe(""); expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("keeps the topology and accounting warnings on both pages", () => {
+    renderModal("Manual"); expect(screen.getByText(/turns Wallet into an intermediate pipe/)).toBeTruthy();
+    click("Next step"); expect(screen.getByText(/local capacity and spending are cleared/)).toBeTruthy();
+    click("Previous step"); expect(screen.getByText(/turns Wallet into an intermediate pipe/)).toBeTruthy();
+  });
+
+  it("validates the destruct date and preserves it while navigating before atomic submission", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(Date.UTC(2026, 8, 20, 18));
+    details("Self-destruct"); fill("Name", "Madrid");
+    click("Destruct date"); fireEvent.click(screen.getByTestId("day-20"));
+    expect(screen.getByText("Choose a future deletion date (05:00 UTC)")).toBeTruthy();
+    click("Destruct date"); fireEvent.click(screen.getByTestId("day-21"));
+    click("Previous step"); click("Next step"); click("Submit");
+    await waitFor(() => expect(addPipe).toHaveBeenCalledWith(expect.objectContaining({
+      name: "Madrid", parentId, ruleConfig: { rule: "self_destruct", starting: Date.UTC(2026, 8, 21, 5) },
+    })));
+  });
+
+  it("revalidates a destruct deadline while its form remains open", () => {
+    vi.useFakeTimers(); vi.setSystemTime(Date.UTC(2026, 8, 21, 4, 59));
+    details("Self-destruct"); fill("Name", "Madrid"); click("Destruct date"); fireEvent.click(screen.getByTestId("day-21"));
+    expect(screen.getByRole("button", { name: "Submit" }).getAttribute("aria-disabled")).not.toBe("true");
+    act(() => vi.advanceTimersByTime(60000));
+    expect(screen.getByRole("button", { name: "Submit" }).getAttribute("aria-disabled")).toBe("true");
+  });
+
+  it("requires an explicit type rather than silently defaulting to Manual", () => {
+    renderModal(); expect(screen.queryByRole("button", { name: "Next step" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Submit" }).getAttribute("aria-disabled")).toBe("true");
+    expect(addPipe).not.toHaveBeenCalled();
+  });
+
+  it("selects an owner without auto-advancing and preserves it on return", () => {
+    render(<AddPipeModal visible onClose={onClose} />); click("Manual"); click("Owner pipe"); click("Wallet");
+    expect(screen.queryByRole("textbox", { name: "Name" })).toBeNull();
+    click("Next step"); click("Previous step");
+    expect(screen.getByRole("button", { name: "Owner pipe" }).textContent).toContain("Wallet");
+  });
+
+  it("preserves details when changing owner and submits signed capacity to the new owner", async () => {
+    details(); fill("Name", "Food"); click("Previous step"); click("Owner pipe"); click("Savings"); click("Next step");
+    expect(screen.getByDisplayValue("Food")).toBeTruthy(); expect(screen.queryByText(/turns Savings/)).toBeNull();
+    fill("Initial capacity?", "-12.34"); click("Submit");
+    await waitFor(() => expect(addPipe).toHaveBeenCalledWith(expect.objectContaining({ name: "Food", parentId: otherId, capacity: -1234 })));
+  });
+
+  it("rejects an incomplete signed capacity", () => {
+    details(); fill("Name", "Food"); fill("Initial capacity?", "-"); fireEvent.blur(screen.getByLabelText("Initial capacity?"));
+    expect(screen.getByText("Enter a valid capacity")).toBeTruthy(); click("Submit"); expect(addPipe).not.toHaveBeenCalled();
+  });
+
+  it("shows loading owner feedback and excludes deleting owners", () => {
+    const { rerender } = renderModal("Manual"); catalog.isLoading = true;
     rerender(<AddPipeModal visible onClose={onClose} parentId={parentId} />);
-    expect(screen.getByRole("heading", { name: "Wallet" })).toBeTruthy();
-    expect(screen.getByRole("textbox", { name: "Name" }).getAttribute("value")).toBe("");
-    expect(screen.getByLabelText("Step 2 of 4").getAttribute("aria-selected")).toBe("true");
-    expect(screen.queryByText("Name is required")).toBeNull();
+    expect(screen.getByLabelText("Loading Owner pipe")).toBeTruthy();
+    catalog.isLoading = false; catalog.allPipes = [{ ...owner, deletionJobId: "job" as Id<"pipeDeletionJobs"> }, other];
+    rerender(<AddPipeModal visible onClose={onClose} parentId={parentId} />); click("Owner pipe");
+    expect(screen.queryByRole("button", { name: "Wallet" })).toBeNull(); expect(screen.getByRole("button", { name: "Savings" })).toBeTruthy();
+  });
+
+  it("cannot submit without an owner even after filling the details", () => {
+    render(<AddPipeModal visible onClose={onClose} />); click("Manual"); click("Next step"); fill("Name", "Food");
+    click("Submit"); expect(addPipe).not.toHaveBeenCalled();
+  });
+
+  it("disables submission if the selected owner becomes unavailable", () => {
+    const { rerender } = details(); fill("Name", "Food"); catalog.allPipes = [other];
+    rerender(<AddPipeModal visible onClose={onClose} parentId={parentId} />);
+    expect(screen.getByRole("button", { name: "Submit" }).getAttribute("aria-disabled")).toBe("true");
+  });
+
+  it("resets owner, navigation, values and validation when reopened", () => {
+    const { rerender } = details(); fill("Name", "a"); fireEvent.blur(screen.getByLabelText("Name"));
+    click("Previous step"); click("Owner pipe"); click("Savings");
+    rerender(<AddPipeModal visible={false} onClose={onClose} parentId={parentId} />);
+    rerender(<AddPipeModal visible onClose={onClose} parentId={parentId} />); click("Manual");
+    expect(screen.getByRole("button", { name: "Owner pipe" }).textContent).toContain("Wallet");
+    click("Next step"); expect(screen.getByLabelText("Name").getAttribute("value")).toBe("");
+    expect(screen.queryByText("Name must be at least 3 characters")).toBeNull();
   });
 
   it.each([["0", 0], ["12.34", 1234]] as const)("submits capacity %s as integer cents", async (capacity, cents) => {
-    renderModal();
-    fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: " Food " } });
-    fireEvent.change(screen.getByRole("textbox", { name: "Description" }), { target: { value: "Lunch budget" } });
-    await userEvent.click(screen.getByRole("button", { name: "Increase Priority" }));
-    await userEvent.click(screen.getByRole("button", { name: "Next step" }));
-    fireEvent.change(screen.getByRole("textbox", { name: "Initial capacity?" }), { target: { value: capacity } });
-    await userEvent.click(screen.getByRole("button", { name: "Next step" }));
-    await userEvent.click(screen.getByRole("button", { name: "Submit" }));
-    expect(mockAddPipe).toHaveBeenCalledExactlyOnceWith({ parentId, name: "Food", description: "Lunch budget", icon: "pipe", priority: 1, capacity: cents });
+    details(); fill("Name", " Food "); fill("Description", "Lunch budget"); click("Increase Priority"); fill("Initial capacity?", capacity); click("Submit");
+    await waitFor(() => expect(addPipe).toHaveBeenCalledExactlyOnceWith({ parentId, name: "Food", description: "Lunch budget", icon: "pipe", priority: 1, capacity: cents }));
   });
 
   it("renders nothing when not visible", () => {
-    renderModal(false);
-    expect(screen.queryByPlaceholderText("Pipe name")).toBeNull();
+    render(<AddPipeModal visible={false} onClose={onClose} parentId={parentId} />);
+    expect(screen.queryByRole("button", { name: "Pipe type" })).toBeNull();
   });
-
-  it("renders form fields when visible", () => {
-    renderModal();
-    expect(screen.getByPlaceholderText("Pipe name")).toBeDefined();
-    expect(screen.getByRole("textbox", { name: "Description" })).toBeTruthy();
-    expect(screen.getByRole("textbox", { name: "Priority" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Icon" })).toBeTruthy();
-    expect(screen.getByLabelText("Step 2 of 4").getAttribute("aria-selected")).toBe("true");
-    expect(screen.getByRole("button", { name: "Submit" })).toBeTruthy();
-    expect(screen.queryByText("Cancel")).toBeNull();
+  it("renders the requested grouped detail inputs on the second page", () => {
+    details(); for (const label of ["Name", "Description", "Priority", "Initial capacity?"]) expect(screen.getByRole("textbox", { name: label })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Icon" })).toBeTruthy(); expect(screen.getByLabelText("Step 2 of 2").getAttribute("aria-selected")).toBe("true");
   });
-
-  it("resets form fields when reopened", async () => {
-    const user = userEvent.setup();
-    const { rerender } = renderModal();
-    await user.type(screen.getByPlaceholderText("Pipe name"), "Food");
-    rerender(<AddPipeModal visible={false} onClose={onClose} parentId={parentId} />);
-    rerender(<AddPipeModal visible={true} onClose={onClose} parentId={parentId} />);
-    const reopenedInput = screen.getByPlaceholderText("Pipe name") as HTMLInputElement;
-    expect(reopenedInput.value).toBe("");
+  it.each([["", "Name is required"], ["ab", "Name must be at least 3 characters"]])("validates the name draft %s on blur", (value, error) => {
+    details(); fill("Name", value); expect(screen.queryByText(error)).toBeNull(); fireEvent.blur(screen.getByLabelText("Name"));
+    expect(screen.getByText(error)).toBeTruthy(); click("Submit"); expect(addPipe).not.toHaveBeenCalled();
   });
-
-  it("shows validation error when name is empty", async () => {
-    const user = userEvent.setup();
-    renderModal();
-    expect(screen.queryByText("Name is required")).toBeNull();
-    await user.click(screen.getByPlaceholderText("Pipe name"));
-    await user.tab();
-    expect(screen.getByText("Name is required")).toBeDefined();
-    await user.click(screen.getByRole("button", { name: "Next step" }));
-    await user.click(screen.getByRole("button", { name: "Next step" }));
-    expect(screen.getByRole("button", { name: "Submit" }).getAttribute("aria-disabled")).toBe("true");
-    expect(mockAddPipe).not.toHaveBeenCalled();
+  it("keeps errors visible through invalid corrections and clears them when valid", () => {
+    details(); fireEvent.blur(screen.getByLabelText("Name")); fill("Name", "a");
+    expect(screen.getByText("Name must be at least 3 characters")).toBeTruthy(); fill("Name", "abc"); expect(screen.queryByText("Name must be at least 3 characters")).toBeNull();
   });
-
-  it("shows validation error when name is less than 3 characters", async () => {
-    const user = userEvent.setup();
-    renderModal();
-    await user.type(screen.getByPlaceholderText("Pipe name"), "ab");
-    expect(screen.queryByText("Name must be at least 3 characters")).toBeNull();
-    await user.tab();
-    expect(screen.getByText("Name must be at least 3 characters")).toBeDefined();
-    await user.click(screen.getByRole("button", { name: "Next step" }));
-    await user.click(screen.getByRole("button", { name: "Next step" }));
-    expect(screen.getByRole("button", { name: "Submit" }).getAttribute("aria-disabled")).toBe("true");
-    expect(mockAddPipe).not.toHaveBeenCalled();
+  it("submits blank capacity as zero with the default pipe icon", async () => {
+    details(); fill("Name", "Food"); click("Submit");
+    await waitFor(() => expect(addPipe).toHaveBeenCalledWith({ name: "Food", icon: "pipe", description: undefined, priority: 0, capacity: 0, parentId }));
   });
-
-  it("keeps an error visible during invalid corrections and clears it as soon as valid", async () => {
-    const user = userEvent.setup();
-    renderModal();
-    const input = screen.getByPlaceholderText("Pipe name");
-    await user.click(input);
-    await user.tab();
-    await user.type(input, "a");
-    expect(screen.getByText("Name must be at least 3 characters")).toBeTruthy();
-    await user.type(input, "bc");
-    expect(screen.queryByText("Name must be at least 3 characters")).toBeNull();
-  });
-
-  it("calls addPipe mutation with form data on valid submit", async () => {
-    const user = userEvent.setup();
-    renderModal();
-    await user.type(screen.getByPlaceholderText("Pipe name"), "Food");
-    await user.click(screen.getByRole("button", { name: "Next step" }));
-    await user.click(screen.getByRole("button", { name: "Next step" }));
-    await user.click(screen.getByText("Submit"));
-    await waitFor(() => {
-      expect(mockAddPipe).toHaveBeenCalledWith({
-        name: "Food",
-        icon: "pipe",
-        description: undefined,
-        priority: 0,
-        capacity: 0,
-        parentId,
-      });
-    });
-  });
-
-  it("shows error and re-enables button on mutation failure", async () => {
-    mockAddPipe.mockRejectedValueOnce(new Error("Server error"));
-    const user = userEvent.setup();
-    renderModal();
-    await user.type(screen.getByPlaceholderText("Pipe name"), "Food");
-    await user.click(screen.getByRole("button", { name: "Next step" }));
-    await user.click(screen.getByRole("button", { name: "Next step" }));
-    await user.click(screen.getByText("Submit"));
-    await waitFor(() => {
-      expect(screen.getByText("Server error")).toBeDefined();
-    });
-    for (const dismiss of screen.getAllByRole("button", { name: "Dismiss warning" })) await user.click(dismiss);
+  it("keeps a failed submission error separate from dismissible warnings", async () => {
+    addPipe.mockRejectedValueOnce(new Error("Server error")); details(); fill("Name", "Food"); click("Submit");
+    await waitFor(() => expect(screen.getByText("Server error")).toBeTruthy());
+    for (const dismiss of screen.getAllByRole("button", { name: "Dismiss warning" })) fireEvent.click(dismiss);
     expect(screen.getByRole("alert").textContent).toBe("Server error");
-    expect(screen.queryByRole("button", { name: "Dismiss warning" })).toBeNull();
-    expect(screen.getByText("Submit")).toBeDefined();
   });
-
-  it("shows loading state while mutation is in flight", async () => {
-    let resolveMutation!: (value: unknown) => void;
-    mockAddPipe.mockReturnValue(
-      new Promise((resolve) => {
-        resolveMutation = resolve;
-      }),
-    );
-    const user = userEvent.setup();
-    renderModal();
-    await user.type(screen.getByPlaceholderText("Pipe name"), "Food");
-    await user.click(screen.getByRole("button", { name: "Next step" }));
-    await user.click(screen.getByRole("button", { name: "Next step" }));
-    await user.click(screen.getByText("Submit"));
-    expect(screen.queryByText("Submit")).toBeNull();
+  it("blocks repeated submissions and clearing while saving", async () => {
+    let finish!: () => void; addPipe.mockReturnValueOnce(new Promise<void>(resolve => { finish = resolve; }));
+    details(); fill("Name", "Food"); click("Submit"); click("Submit"); expect(addPipe).toHaveBeenCalledOnce();
     expect(screen.getByRole("button", { name: "Clear form" }).getAttribute("aria-disabled")).toBe("true");
-    resolveMutation(undefined);
-    await waitFor(() => {
-      expect(onClose).toHaveBeenCalled();
-    });
+    await act(async () => finish()); expect(onClose).toHaveBeenCalledOnce();
   });
-
-  it("calls onClose when the backdrop is pressed", async () => {
-    const user = userEvent.setup();
-    renderModal();
-    await user.click(screen.getByTestId("modal-backdrop"));
-    expect(onClose).toHaveBeenCalled();
+  it("closes and validates the empty picker before allowing backdrop dismissal", () => {
+    renderModal(); fireEvent.click(screen.getByTestId("modal-backdrop"));
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert").textContent).toBe("Pipe type is required");
+    fireEvent.click(screen.getByTestId("modal-backdrop"));
+    expect(onClose).toHaveBeenCalledOnce();
   });
 });

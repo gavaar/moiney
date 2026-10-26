@@ -9,6 +9,7 @@ import type { InputActions } from "./input.types";
 import { getBorderStyle, getDefaultActions, INPUT_CONTENT_PADDING } from "./input.config";
 import { InputHelperText } from './components/InputHelperText';
 import { useInputValidation } from "./useInputValidation";
+import { CollapsibleSelectInput, type CollapsibleSelectInputProps } from "./components/CollapsibleSelectInput/CollapsibleSelectInput";
 
 type FieldProps<Value> = InputActions & {
   label?: string;
@@ -30,6 +31,7 @@ export type InputProps<Item extends { id: string } = { id: string }> =
   | (Field<CheckboxInputProps> & { type: "checkbox" })
   | (Field<ToggleInputProps> & { type: "toggle" })
   | (Field<SelectInputProps<Item>> & { type: "select" })
+  | (Field<CollapsibleSelectInputProps> & { type: "collapsible-select" })
   | (Field<SelectMultipleInputProps<Item>> & { type: "select-multiple" })
   | (Field<TextSelectInputProps> & { type: "text-select" });
 
@@ -47,7 +49,7 @@ export function Input<Item extends { id: string }>(props: InputProps<Item>) {
   const onValueChange = () => { if (!disabled && validateOn === "change") markAsDirty(); };
   const interaction = { error, onFocusChange: setFocused, onInteractionEnd, accessibilityLabel };
   const trigger = { triggerClassName: INPUT_CONTENT_PADDING };
-  const isTrigger = props.type === "date" || props.type === "icon" || props.type === "select" || props.type === "select-multiple" || props.type === "checkbox";
+  const isTrigger = props.type === "date" || props.type === "icon" || props.type === "select" || props.type === "select-multiple" || props.type === "checkbox" || props.type === "collapsible-select";
 
   function change<Value>(onChange?: (value: Value) => void) {
     if (!onChange) return undefined;
@@ -79,6 +81,8 @@ export function Input<Item extends { id: string }>(props: InputProps<Item>) {
         return <ToggleInput {...variant} {...interaction} onChange={change(variant.onChange)} />;
       case "select":
         return <SelectInput {...variant} {...interaction} {...trigger} multiple={false} onChange={change(variant.onChange)} />;
+      case "collapsible-select":
+        return <CollapsibleSelectInput {...variant} {...interaction} {...trigger} onChange={change(variant.onChange)} />;
       case "select-multiple":
         return <SelectInput {...variant} {...interaction} {...trigger} multiple onChange={change(variant.onChange)} />;
       case "text-select":

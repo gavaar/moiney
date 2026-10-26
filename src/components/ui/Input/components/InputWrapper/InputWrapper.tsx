@@ -30,7 +30,7 @@ export function InputWrapper({ borderStyle, appearance = "outlined", className, 
         disabled={actionDisabled}
         onPress={() => { if (!actionDisabled) action.onPress(); }}
         className={cn(
-          "min-w-[32px] self-stretch items-center justify-center px-2",
+          "min-w-4 self-stretch items-center justify-center px-2",
           appearance === "outlined" && (side === "prefix" ? "border-r" : "border-l"),
           borderStyle,
           actionDisabled && "opacity-40",

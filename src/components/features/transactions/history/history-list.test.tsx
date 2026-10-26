@@ -86,12 +86,15 @@ describe("loaded event History interaction", () => {
     { cause: "manual", icon: "gesture-tap-hold", label: "Manually settled" },
     { cause: "spend_overflow", icon: "pipe-leak", label: "Settled on spending limit" },
     { cause: "cron", icon: "timer-outline", label: "Scheduled settlement" },
+    { cause: "self_destruct", icon: "bomb", label: "Settled before self-destruct" },
   ] satisfies { cause: typeof settlement.cause; icon: string; label: string }[])(
-    "shows the execution icon for the actual $cause cause", ({ cause, icon, label }) => {
+    "shows the execution icon and details for the actual $cause cause", async ({ cause, icon, label }) => {
       render(<HistoryList {...props} entries={[{ ...settlement, cause }]} />);
       expect(screen.getByTestId(icon)).toBeTruthy();
       expect(screen.getByTestId("airplane")).toBeTruthy();
       expect(screen.queryByText(label)).toBeNull();
+      await userEvent.click(screen.getByRole("button", { name: "View Madrid settlement" }));
+      expect(screen.getByText(label)).toBeTruthy();
     },
   );
 

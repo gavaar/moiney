@@ -23,7 +23,7 @@ export function formBuilder<Values extends Record<string, FormValue>>(
   function input<K extends Key, Item extends { id: string } = { id: string }>(
     key: K,
     configuration: InputConfiguration<Values[K], Item>,
-    metadata: Pick<FormField<Values[K], K>, "description" | "reveal"> = {},
+    metadata: Pick<FormField<Values[K], K>, "description" | "reveal" | "grow"> = {},
   ): FormField<Values[K], K> {
     return { key, input: prepareInput<Values[K], Item>({ ...options.defaults, ...configuration }), ...metadata };
   }

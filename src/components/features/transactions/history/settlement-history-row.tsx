@@ -10,6 +10,7 @@ const causes: Record<SettlementEntry["cause"], string> = {
   manual: "Manually settled",
   spend_overflow: "Settled on spending limit",
   cron: "Scheduled settlement",
+  self_destruct: "Settled before self-destruct",
 };
 const dateFormatter = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
 const detailDateFormatter = new Intl.DateTimeFormat("en-US", {

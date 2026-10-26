@@ -31,6 +31,7 @@ const CURATED_ICONS = [
   { name: "chevron-down", family: "Ionicons" as const },
   { name: "chevron-forward", family: "Ionicons" as const },
   { name: "chevron-up", family: "Ionicons" as const },
+  { name: "information-circle-outline", family: "Ionicons" as const },
   { name: "close", family: "Ionicons" as const },
   { name: "close-circle", family: "Ionicons" as const },
   { name: "circle-half-full", family: "MaterialCommunityIcons" as const },

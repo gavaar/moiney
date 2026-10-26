@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Platform, ScrollView, View } from "react-native";
+import { OptionListScope } from "@ui/OptionList";
 
 export type FormPageDefinition = {
   key: number;
@@ -37,13 +38,13 @@ export function FormPage({ page, active, width, multiple, onMeasure }: Props) {
   return page.scrollable === false ? (
     <View {...accessibility} style={[style, { gap: 4, padding: 4 }]}
       onLayout={event => onMeasure(page.key, event.nativeEvent.layout.height)}>
-      {page.content}
+      <OptionListScope active={active}>{page.content}</OptionListScope>
     </View>
   ) : (
     <ScrollView {...accessibility} style={style}
       onContentSizeChange={(_width, height) => onMeasure(page.key, height)}
       contentContainerStyle={{ gap: 4, padding: 4 }} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
-      {page.content}
+      <OptionListScope active={active}>{page.content}</OptionListScope>
     </ScrollView>
   );
 }
