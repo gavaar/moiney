@@ -194,8 +194,7 @@ describe("InnerPipesScreen", () => {
     await waitFor(() => expect(screen.getByTestId("collapsible-select-overlay").style.opacity).toBe("1"));
     await user.click(screen.getByRole("button", { name: "Manual" }));
     expect(screen.getByRole("button", { name: "Owner pipe" }).textContent).toContain("Household");
-    await user.click(screen.getByRole("button", { name: "Next step" }));
-    expect(screen.getByPlaceholderText("Pipe name")).toBeDefined();
+    expect(screen.getByRole("textbox", { name: "Name" })).toBeDefined();
   });
 
   it("renders breadcrumb", () => {
@@ -365,7 +364,7 @@ describe("InnerPipesScreen", () => {
     expect(pipesList.getAttribute("data-count")).toBe("2");
   });
 
-  it("renders lock-open-outline icon for each child via leading", () => {
+  it("renders a rule indicator for each child", () => {
     const childrenByParent = new Map();
     childrenByParent.set("pipe-1", [childPipe1]);
 
@@ -398,7 +397,7 @@ describe("InnerPipesScreen", () => {
     render(<InnerPipesScreen />);
     const rows = screen.getAllByTestId("pipe-row");
     expect(within(rows[0]).getByTestId("rules-icon-placeholder")).toBeDefined();
-    expect(within(rows[1]).getByTestId("icon").getAttribute("data-name")).toBe("lock-open-outline");
+    expect(within(rows[1]).getByTestId("icon").getAttribute("data-name")).toBe("valve");
   });
 
   it("calls selectPipe with extended path when a child is tapped", async () => {

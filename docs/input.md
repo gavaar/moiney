@@ -94,10 +94,14 @@ Closing completes the interaction, including with no selection, and activates
 validation under the default blur policy. Requiredness comes from the field's
 validator; optional fields can close empty without an error. Opening does not
 activate validation, and closing without choosing does not change the value.
-Items supply `{ id: string; icon?: string; title: string; description?: string }`;
+Items supply `{ id: string; icon?: string; iconColor?: ColorValue; title: string; description?: string }`;
 the input owns their presentation, with no `renderItem` or label callback. Options
 show a title above the optional icon and description; the collapsed selection
 shows only the optional icon and title. Titles also supply accessible item labels.
+Optional `iconColor` applies in both views and defaults to the muted token; features
+own the choice of color.
+Items may also supply `optionStyle` for expanded option rows only; it never styles
+the collapsed selection, and `OptionRow` retains its standard selected background.
 It accepts per-item disabled policy and always-visible groups with optional
 informational text.
 Group information opens in a popover anchored to its info icon, not inline in
@@ -167,10 +171,14 @@ do not compose warning JSX. Message text is warning identity: duplicate messages
 share one card, and dismissed messages stay hidden through step changes and
 rerenders, even if temporarily removed and reintroduced. Dismissal resets when
 the form remounts, including on modal reopen. New messages remain visible.
+Individual pages can instead supply `warnings: readonly string[]`; these cards
+render before that page's fields, remain visible while interacting with its
+inputs, and cannot be dismissed. Callers own any required acknowledgement field
+and its submission gate.
 Validation and submission errors are not dismissible warnings; caller-owned
 submission errors and action guidance belong with `actions`. On multi-step forms,
-only the fields are flanked by chevrons; actions, warnings, and step indicators
-sit below them at full form width with space between each section.
+only page content is flanked by chevrons; actions, form-level warnings, and step
+indicators sit below it at full form width with space between each section.
 The optional `fill` layout fills a height-constrained parent and gives remaining
 space to the scrollable fields, keeping the header and actions outside that
 scroll area. Content-sized modal forms omit it.
@@ -216,7 +224,9 @@ scroll area. Content-sized modal forms omit it.
 - Multiple steps support horizontal paging and full-height side chevrons,
   absent at the first/last step respectively, with no implicit submit action.
   Dots use `muted`/`text` when unselected/selected, overridden by
-  `errorDark`/`error` if any field on that step displays an error. A single step
+  `errorDark`/`error` if any field on that step displays an error. Pages with
+  warnings use `warningSoft`/`warning` when unselected/selected, including after
+  acknowledgement; displayed field errors still take precedence. A single step
   has no pager, navigation chevrons, or dots.
 - Content-sized multi-step forms size their pager to the active step's measured
   content, including changes from validation and revealed fields. Inactive steps

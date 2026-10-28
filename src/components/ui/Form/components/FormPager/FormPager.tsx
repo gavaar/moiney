@@ -2,7 +2,8 @@ import type { ReactNode } from "react";
 import { Platform, Pressable, ScrollView, View } from "react-native";
 import { Icon } from "@ui/Icon";
 import { colors } from "@/lib/styles";
-import { FormPage, FormWarning, PagerIndicator, type FormPageDefinition } from "./components";
+import { FormPage, PagerIndicator, type FormPageDefinition } from "./components";
+import { FormWarning } from "../FormWarning/FormWarning";
 import { useFormPagerController } from "./useFormPagerController";
 
 type Props = {

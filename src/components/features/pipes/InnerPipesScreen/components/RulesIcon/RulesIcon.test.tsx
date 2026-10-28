@@ -3,6 +3,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { type Id } from "@convex/_generated/dataModel";
+import { colors } from "@/lib/styles";
 import { RulesIcon } from "./RulesIcon";
 
 vi.mock("expo-router/react-navigation", () => ({ useIsFocused: () => true }));
@@ -38,7 +39,7 @@ describe("RulesIcon", () => {
     vi.setSystemTime(end - 6 * 3600000);
     render(<RulesIcon now={Date.now()} pipeId={pId("pipe-1")} rule="self_destruct" fed={100} capacity={100}
       cronNextDate={end} cronInterval={{ interval: 0.5, unit: "days" }} />);
-    expect(screen.getByTestId("icon").getAttribute("data-name")).toBe("bomb");
+    expect(screen.getByTestId("icon").getAttribute("data-name")).toBe("bomb-pipe");
     expect(screen.getByTestId("icon").getAttribute("data-color")).toBe("#C05959");
     expect(lastRingProps).toMatchObject({ progress: 0.5, color: "#C05959" });
   });
@@ -58,58 +59,50 @@ describe("RulesIcon", () => {
     expect(icon.getAttribute("data-name")).toBe("timer-outline");
   });
 
-  it("renders pipe-disconnected when rule is instant_settlement", () => {
+  it("renders instant-pipe when rule is instant_settlement", () => {
     render(<RulesIcon now={Date.now()} pipeId={pId("pipe-1")} rule="instant_settlement" fed={50} capacity={100} />);
     const icon = screen.getByTestId("icon");
-    expect(icon.getAttribute("data-name")).toBe("pipe-disconnected");
+    expect(icon.getAttribute("data-name")).toBe("instant-pipe");
   });
 
-  it("renders pipe-leak when rule is spend_overflow", () => {
+  it("renders overflow-pipe when rule is spend_overflow", () => {
     render(<RulesIcon now={Date.now()} pipeId={pId("pipe-1")} rule="spend_overflow" fed={50} capacity={100} />);
     const icon = screen.getByTestId("icon");
-    expect(icon.getAttribute("data-name")).toBe("pipe-leak");
+    expect(icon.getAttribute("data-name")).toBe("overflow-pipe");
   });
 
-  it("shows the rule icon instead of a lock when the pipe is full", () => {
+  it("keeps the instant-pipe icon when the pipe is full", () => {
     render(<RulesIcon now={Date.now()} pipeId={pId("pipe-1")} rule="instant_settlement" fed={100} capacity={100} />);
     const icon = screen.getByTestId("icon");
-    expect(icon.getAttribute("data-name")).toBe("pipe-disconnected");
+    expect(icon.getAttribute("data-name")).toBe("instant-pipe");
   });
 
-  it("tints the icon secondary when fed >= capacity, even for cron", () => {
-    render(<RulesIcon now={Date.now()} pipeId={pId("pipe-1")} rule="cron" fed={100} capacity={100} />);
+  it.each([
+    { rule: "cron", fed: 50, color: colors.secondary },
+    { rule: "cron", fed: 100, color: colors.secondary },
+    { rule: "spend_overflow", fed: 50, color: colors.primary },
+    { rule: "spend_overflow", fed: 100, color: colors.primary },
+    { rule: "instant_settlement", fed: 50, color: colors.accent },
+    { rule: "instant_settlement", fed: 100, color: colors.accent },
+  ] as const)("uses the rule's color regardless of funding (rule=$rule, fed=$fed)", ({ rule, fed, color }) => {
+    render(<RulesIcon now={Date.now()} pipeId={pId("pipe-1")} rule={rule} fed={fed} capacity={100} />);
     const icon = screen.getByTestId("icon");
-    expect(icon.getAttribute("data-color")).toBe("#4D94CC");
+    expect(icon.getAttribute("data-color")).toBe(color);
   });
 
-  it("uses the text color for rule icons when below capacity", () => {
-    render(<RulesIcon now={Date.now()} pipeId={pId("pipe-1")} rule="spend_overflow" fed={50} capacity={100} />);
+  it.each([
+    { rule: undefined, fed: 0 },
+    { rule: undefined, fed: 50 },
+    { rule: undefined, fed: 100 },
+    { rule: undefined, fed: 200 },
+    { rule: "none", fed: 50 },
+    { rule: "none", fed: 100 },
+  ] as const)("shows the manual valve without a ring (rule=$rule, fed=$fed)", ({ rule, fed }) => {
+    render(<RulesIcon now={Date.now()} pipeId={pId("pipe-1")} rule={rule} fed={fed} capacity={100} />);
     const icon = screen.getByTestId("icon");
-    expect(icon.getAttribute("data-color")).toBe("#F8F8F8");
-  });
-
-  it("renders lock-closed-outline when there is no rule and fed >= capacity", () => {
-    render(<RulesIcon now={Date.now()} pipeId={pId("pipe-1")} fed={100} capacity={100} />);
-    const icon = screen.getByTestId("icon");
-    expect(icon.getAttribute("data-name")).toBe("lock-closed-outline");
-  });
-
-  it("renders lock-open-outline when fed < capacity", () => {
-    render(<RulesIcon now={Date.now()} pipeId={pId("pipe-1")} fed={50} capacity={100} />);
-    const icon = screen.getByTestId("icon");
-    expect(icon.getAttribute("data-name")).toBe("lock-open-outline");
-  });
-
-  it("renders lock-open-outline when rule is undefined and fed < capacity", () => {
-    render(<RulesIcon now={Date.now()} pipeId={pId("pipe-1")} fed={0} capacity={100} />);
-    const icon = screen.getByTestId("icon");
-    expect(icon.getAttribute("data-name")).toBe("lock-open-outline");
-  });
-
-  it("renders lock-closed-outline when fed exceeds capacity", () => {
-    render(<RulesIcon now={Date.now()} pipeId={pId("pipe-1")} fed={200} capacity={100} />);
-    const icon = screen.getByTestId("icon");
-    expect(icon.getAttribute("data-name")).toBe("lock-closed-outline");
+    expect(icon.getAttribute("data-name")).toBe("valve");
+    expect(icon.getAttribute("data-color")).toBe(colors.text);
+    expect(screen.queryByTestId("progress-ring")).toBeNull();
   });
 
   it("opens the rule modal with the pipeId when tapped", async () => {
@@ -159,7 +152,7 @@ describe("RulesIcon", () => {
       />,
     );
 
-    expect(screen.getByTestId("icon").getAttribute("data-name")).toBe("bomb");
+    expect(screen.getByTestId("icon").getAttribute("data-name")).toBe("bomb-pipe");
     expect(lastRingProps).toMatchObject({ progress: 1, color: "#C05959" });
     expect(screen.queryByRole("button")).toBeNull();
   });
@@ -287,7 +280,8 @@ describe("RulesIcon", () => {
         spent={50}
       />,
     );
-    expect(lastRingProps.color).toBe("#4D94CC");
+    expect(lastRingProps.color).toBe(colors.primary);
+    expect(lastRingProps.color).toBe(screen.getByTestId("icon").getAttribute("data-color"));
   });
 
   it("does not open the rule modal when a disabled icon is tapped", async () => {

@@ -103,11 +103,14 @@ ancestor, without a redundant parent ID. Ancestry survives deletion of any
 ancestor. Reparenting is not supported.
 
 Live creation rows show the current parent, current pipe icon and name, and
-creation date. They navigate to the pipe. Surface backgrounds and type-colored
-borders distinguish them: blue boiler, green feed, white child. Opening balances
+creation date. They navigate to the pipe. Surface backgrounds distinguish them;
+borders and pipe icons use muted gray for intermediate pipes (non-root pipes with
+children), otherwise the current pipe kind's configured color, with feed and boiler
+kinds taking precedence over settlement rules. Opening balances
 and capacities are not event fields and are not reconstructed from transactions.
 
-Deletion preserves the last pipe and parent presentation. An archive expands
+Deletion preserves the last pipe and parent presentation; deleted lifecycle rows
+and archive headers use muted borders and pipe icons regardless of expandability. An archive expands
 into its loaded members instead of navigating. When its month contains no loaded
 financial operations or settlements, it remains a non-expandable muted record dated by its
 loaded lifecycle entry. Each operation appears once per involved pipe's archive

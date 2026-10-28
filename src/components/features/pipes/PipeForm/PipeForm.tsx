@@ -4,7 +4,7 @@ import { useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { Button } from "@ui/Button";
-import { Form, FormActionRow } from "@ui/Form";
+import { Form, FormActionRow, type FormPage } from "@ui/Form";
 import type { OnDismissStateChange } from "@ui/Form/use-form-dismissal";
 import { safeIconName } from "@ui/Icon";
 import { useAlert } from "@ui/Alert";
@@ -13,7 +13,7 @@ import type { PipeModel } from "@features/pipes/data/pipes";
 import { useRuleClock } from "@features/pipes/rules/use-rule-clock";
 import { useOptionalEventHistoryCache } from "@features/transactions/cache/EventHistoryCacheContext";
 import { buildPipeForm, type PipeFormValues } from "./pipe-form.config";
-import { parsePipeKind, PIPE_CHOICES } from "./pipe-kinds";
+import { parsePipeKind, PIPE_KINDS } from "@features/pipes/rules/config";
 import { changePipeSession, createPipeSession, readPipeSession, resetPipeSession } from "./pipe-session";
 import { preparePipeSubmission } from "./pipe-form-policy";
 
@@ -21,6 +21,34 @@ export type PipeFormProps = ({ mode: "create"; parentId?: Id<"pipes">; typePicke
   onClose: () => void;
   onDismissStateChange?: OnDismissStateChange;
 };
+
+function buildWarnings(owner: PipeModel | undefined, all: PipeModel[]) {
+  const warnings: string[] = [];
+  if (!owner) return warnings;
+
+  const ownerContingencyPipe = all.find(item => item.id === owner.contingencyPipeId);
+  const ownerContingentPipes = all.filter(item => item.contingencyPipeId === owner.id);
+  const ownerNoCurrentChildren = all.find(item => item.parentId === owner.id) === undefined;
+
+  if (ownerNoCurrentChildren) {
+    warnings.push(`This pipe will become an intermediate pipe.
+It will group and allocate money to it's children, but won't run any rules itself.`);
+    warnings.push(`Adding a child turns '${owner.name}' into an intermediate pipe.
+It will lose its ability to record expenses, send transfers, or run its own settlement rule.`);
+    warnings.push(`After submit '${owner.name}' will be settled and leftover values will cascade to the new child, returning leftovers to parent`);
+
+    if (ownerContingencyPipe) {
+      warnings.push(`The owner will lose it's protection from '${ownerContingencyPipe.name}'. If you require this from the child, add a contingency to it.`);
+    }
+
+    if (ownerContingentPipes.length > 0) {
+      warnings.push(`'${owner.name}' won't protect ${ownerContingentPipes.map(pipe => `'${pipe.name}'`).join(", ")} anymore.
+Check the mentioned pipe${ownerContingentPipes.length === 1 ? "" : "s"} to add a new protection`);
+    }
+  }
+
+  return warnings;
+}
 
 export function PipeForm(props: PipeFormProps) {
   const { onClose, onDismissStateChange } = props;
@@ -44,6 +72,13 @@ export function PipeForm(props: PipeFormProps) {
   const historyCache = useOptionalEventHistoryCache();
   const alert = useAlert();
   const owner = pipes.find(item => item.id === draft.ownerId);
+  const warnings = policy.mode === "create-inner" ? buildWarnings(owner, all) : [];
+  const warningKey = JSON.stringify([draft.ownerId, warnings]);
+  const [acknowledgement, setAcknowledgement] = useState({ key: warningKey, checked: false });
+  // Acknowledgement belongs to these consequences, not to a previously visited owner.
+  if (acknowledgement.key !== warningKey) setAcknowledgement({ key: warningKey, checked: false });
+  const warningsAcknowledged = acknowledgement.key === warningKey && acknowledgement.checked;
+  const needsAcknowledgement = warnings.length > 0 && !warningsAcknowledged;
   const { root, canRun } = policy;
   const submission = preparePipeSubmission(draft, context, validationTime);
   const valid = submission.status !== "invalid";
@@ -51,7 +86,9 @@ export function PipeForm(props: PipeFormProps) {
   useEffect(() => { onDismissStateChange?.(hasUnsavedChanges, busy); }, [hasUnsavedChanges, busy, onDismissStateChange]);
 
   function handleChange(next: Partial<PipeFormValues>) {
-    const normalized = { ...next, kind: next.kind == null ? next.kind : parsePipeKind(next.kind) };
+    const { warningsAcknowledged, ...fields } = next;
+    if (warningsAcknowledged !== undefined) setAcknowledgement({ key: warningKey, checked: warningsAcknowledged });
+    const normalized = { ...fields, kind: fields.kind == null ? fields.kind : parsePipeKind(fields.kind) };
     setSession(previous => changePipeSession(previous, normalized, context));
     setSubmitError(undefined);
   }
@@ -59,12 +96,13 @@ export function PipeForm(props: PipeFormProps) {
   function reset() {
     if (busy) return;
     setSession(previous => resetPipeSession(previous, context));
+    setAcknowledgement({ key: warningKey, checked: false });
     setSubmitError(undefined);
     setFormVersion(version => version + 1);
   }
 
   async function submit(now: number) {
-    if (busy) return;
+    if (busy || needsAcknowledgement) return;
     const prepared = preparePipeSubmission(draft, context, now);
     if (prepared.status === "invalid") {
       setSubmitError(prepared.error);
@@ -102,39 +140,39 @@ export function PipeForm(props: PipeFormProps) {
   }
 
   const headerPipe = editing ? owner ?? pipe : owner;
-  const hasOwnerChildren = owner && all.some(item => item.parentId === owner.id);
-  const warnings = !editing && !root && draft.kind && owner ? [
-    !hasOwnerChildren ? `Adding the first child turns ${owner.name} into an intermediate pipe. It groups and allocates money to its children, but can no longer record expenses, send transfers, or run its own settlement rule.` : undefined,
-    !hasOwnerChildren ? "The owner's balance is settled, then its local capacity and spending are cleared before allocating money to children." : undefined,
-    owner.rule ? "The owner pipe's current rule and options will be removed. Add settlement behavior to its children instead." : undefined,
-    !hasOwnerChildren && (owner.contingencyPipeId || all.some(item => item.contingencyPipeId === owner.id)) ? "The owner's contingency and any coverage it provides to other pipes will be removed." : undefined,
-  ].filter(message => message !== undefined) : [];
+  const pages: FormPage<PipeFormValues>[] = [
+    ...buildPipeForm({
+      pipes,
+      disabled: busy,
+      loading: isLoading,
+      draft,
+      now: validationTime,
+      policy,
+      typePickerInitiallyExpanded: props.mode === "create" && props.typePickerInitiallyExpanded === true,
+    }),
+  ];
+  if (warnings.length) pages.push({
+    key: 2,
+    warnings,
+    rows: [[{ key: "warningsAcknowledged", input: { type: "checkbox", checkboxLabel: "I understand", disabled: busy } }]],
+  });
 
   return <View className="gap-4" style={{ flexShrink: 1 }}>
     <Form key={formVersion}
-      pages={buildPipeForm({
-        pipes,
-        disabled: busy,
-        loading: isLoading,
-        draft,
-        now: validationTime,
-        policy,
-        typePickerInitiallyExpanded: props.mode === "create" && props.typePickerInitiallyExpanded === true,
-      })}
-      value={{ ...draft, contingencyPipeId: draft.contingencyPipeId ?? "none" }} onChange={handleChange}
+      pages={pages}
+      value={{ ...draft, contingencyPipeId: draft.contingencyPipeId ?? "none", warningsAcknowledged }} onChange={handleChange}
       navigationStart={editing ? props.initialStep ?? 1 : 0}
       header={{
-        title: pipe ? pipe.name : root ? `Create ${PIPE_CHOICES.find(item => item.id === draft.kind)?.title}` : headerPipe?.name ?? "Create pipe",
+        title: pipe ? pipe.name : root ? `Create ${draft.kind === null ? undefined : PIPE_KINDS[draft.kind].title}` : headerPipe?.name ?? "Create pipe",
         icon: headerPipe ? safeIconName(headerPipe.icon) : "pipe",
       }}
-      warnings={warnings}
       actions={<View className="gap-1">
         <FormActionRow onClear={reset} clearDisabled={busy} clearLabel={editing ? "Reset changes" : "Clear form"}
           clearIcon={editing ? "restore" : "eraser"}>
           <View className="flex-row flex-wrap justify-end gap-2 flex-1">
             {canRun ? <Button title="Run now" icon="water-outline" variant="secondary" disabled={hasUnsavedChanges || !valid || busy} onPress={() => void runNow()} /> : null}
             <Button title="Submit" icon={editing ? "checkmark" : "add"} variant="outline" onPress={() => void submit(Date.now())} loading={busy}
-              disabled={submission.status !== "ready"} />
+              disabled={submission.status !== "ready" || needsAcknowledgement} />
           </View>
         </FormActionRow>
         {canRun && hasUnsavedChanges ? <Text className="text-sm text-muted">

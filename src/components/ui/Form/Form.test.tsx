@@ -202,6 +202,28 @@ function rgb(color: string) {
 }
 
 describe("Form steps", () => {
+  it("keeps page warnings non-dismissible and uses warning dots before and after acknowledgement", async () => {
+    const warningPages = steps.map(page => page.key === 8 ? { ...page, warnings: ["This change has consequences"] } : page);
+    render(<Controlled pages={warningPages} />);
+    const warningDot = () => screen.getByLabelText("Step 3 of 3, has warnings");
+    expect(background(warningDot())).toBe(rgb(colors.warningSoft));
+    expect(screen.queryByRole("alert")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Next step" }));
+    await userEvent.click(screen.getByRole("button", { name: "Next step" }));
+    expect(background(warningDot())).toBe(rgb(colors.warning));
+    expect(screen.getByRole("alert").textContent).toBe("This change has consequences");
+    expect(screen.queryByRole("button", { name: "Dismiss warning" })).toBeNull();
+    await userEvent.click(screen.getByRole("checkbox"));
+    expect(screen.getAllByRole("alert")).toHaveLength(2);
+    expect(background(dot(3, true))).toBe(rgb(colors.error));
+    await userEvent.click(screen.getByRole("checkbox"));
+    expect(background(warningDot())).toBe(rgb(colors.warning));
+    expect(screen.getByRole("alert").textContent).toBe("This change has consequences");
+    await userEvent.click(screen.getByRole("button", { name: "Previous step" }));
+    expect(background(warningDot())).toBe(rgb(colors.warningSoft));
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
   it("owns warning dismissal by message for the lifetime of the form", async () => {
     const value: Values = { name: "Ada", count: 2, accepted: true };
     const example = (warnings: readonly string[]) => <Form pages={steps} value={value} onChange={() => {}}

@@ -46,7 +46,7 @@ export type FormRow<
 export type FormPage<
   Values extends Record<string, FormValue>,
   Keys extends keyof Values & string = keyof Values & string,
-> = { key: number; rows: readonly FormRow<Values, Keys>[] };
+> = { key: number; rows: readonly FormRow<Values, Keys>[]; warnings?: readonly string[] };
 
 export type FormHeader = {
   title: string;

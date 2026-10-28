@@ -29,18 +29,16 @@ export function buildAmountForm(configuration: AmountFormConfiguration, sourcePi
   const { common, spend, boiler, transaction, pipesById } = configuration;
   const { form, page, row, input } = formBuilder<AmountFormDraft>({ defaults: { disabled: common.loading } });
 
-  const sourcePage = sourcePicker && page(0,
-    row(
-      input("sourcePipeId", {
-        type: "select",
-        accessibilityLabel: "Transaction pipe",
-        items: transactionPipeItems(sourcePicker.pipes, pipesById, true),
-        groups: sourcePicker.groups,
-        renderItem: renderTransactionPipe,
-        itemStyle: transactionPipeStyle,
-        loading: sourcePicker.loading,
-      }),
-    ),
+  const sourcePageInput = sourcePicker && row(
+    input("sourcePipeId", {
+      type: "select",
+      accessibilityLabel: "Transaction pipe",
+      items: transactionPipeItems(sourcePicker.pipes, pipesById, true),
+      groups: sourcePicker.groups,
+      renderItem: renderTransactionPipe,
+      itemStyle: transactionPipeStyle,
+      loading: sourcePicker.loading,
+    }),
   );
 
   const modeRow = spend && row(
@@ -131,8 +129,8 @@ export function buildAmountForm(configuration: AmountFormConfiguration, sourcePi
   );
 
   return form(
-    sourcePage,
-    page(1,
+    page(
+      sourcePageInput,
       modeRow,
       titleRow,
       valueDateRow,

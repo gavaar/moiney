@@ -3,6 +3,7 @@ import { ActivityIndicator, FlatList, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import type { Id } from "@convex/_generated/dataModel";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
+import { PIPE_KINDS } from "@features/pipes/rules/config";
 import { colors } from "@/lib/styles";
 import { StackedTransactionItem } from "../components/StackedTransactionItem";
 import { TransactionCorrectionHistoryModal } from "../components/TransactionCorrectionHistory/TransactionCorrectionHistoryModal";
@@ -29,7 +30,7 @@ export type HistoryListProps = {
 
 export function HistoryList({ entries, deletedPipes: catalog, filters, isLoading, isRefreshing, error, hasMore, loadMore, refresh }: HistoryListProps) {
   const router = useRouter();
-  const { pipesById } = usePipeCatalog();
+  const { pipesById, childrenByParent } = usePipeCatalog();
   const deletedPipes = useMemo(() => [...new Map([...catalog, ...entries.filter((entry): entry is DeletedPipeEntry => entry.type === "pipe_deletion"),].map(entry => [entry.pipeId, entry])).values()], [catalog, entries]);
   const [expanded, setExpanded] = useState(new Set<string>());
   const [selected, setSelected] = useState<{ id: Id<"events">; title: string } | null>(null);
@@ -81,7 +82,11 @@ export function HistoryList({ entries, deletedPipes: catalog, filters, isLoading
           const pipe = pipesById?.[row.event.pipeId];
           const parent = pipe?.parentId ? pipesById?.[pipe.parentId] : undefined;
           const event = pipe ? { ...row.event, name: pipe.name, icon: pipe.icon, parentName: parent?.name, parentIcon: parent?.icon } : row.event;
+          const pipeKind = pipe ? pipe.parentId ? pipe.rule ?? "none" : pipe.sourceType ?? "feed" : undefined;
+          const pipeColor = pipe?.parentId && (childrenByParent.get(pipe.id)?.length ?? 0) > 0
+            ? colors.muted : pipeKind ? PIPE_KINDS[pipeKind].color : undefined;
           return <View style={{ marginLeft: item.depth * 16 }}><PipeHistoryRow event={event} expanded={false}
+            pipeColor={pipeColor}
             archived={deletedPipes.some(deleted => deleted.pipeId === event.pipeId)}
             onPress={() => router.navigate({ pathname: "/(main)/(tabs)/pipes", params: { pipeId: event.pipeId } })} /></View>;
         }

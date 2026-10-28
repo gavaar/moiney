@@ -50,7 +50,7 @@ describe("CreateTabAction", () => {
     fireEvent.click(screen.getByRole("button", { name: "Pipe type" }));
     fireEvent.click(screen.getByTestId("modal-backdrop"));
     expect(screen.getByRole("heading", { name: "Create pipe" })).toBeTruthy();
-    expect(screen.getByRole("alert").textContent).toBe("Pipe type is required");
+    expect(screen.getByRole("alert").textContent).toBe("Pipe type required");
     expect(screen.queryByText("Discard changes?")).toBeNull();
     fireEvent.click(screen.getByTestId("modal-backdrop"));
     expect(screen.queryByRole("heading", { name: "Create pipe" })).toBeNull();

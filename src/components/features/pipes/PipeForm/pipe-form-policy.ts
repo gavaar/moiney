@@ -7,7 +7,7 @@ import { ruleConfigurationFromDraft, ruleDraftValues, validateRuleDraft } from "
 import { hasRuleDiff } from "@features/pipes/rules/helpers";
 import { safeIconName } from "@ui/Icon";
 import { pipeRuleDraft, type PipeDraft } from "./pipe-draft";
-import { isFeedKind } from "./pipe-kinds";
+import { isFeedKind } from "@features/pipes/rules/config";
 
 export type PipeFormContext = { pipe?: PipeModel; pipes: readonly PipeModel[]; parentId?: string };
 type PipeCommand =
@@ -53,15 +53,21 @@ export function pipeFormPolicy(draft: PipeDraft, context: PipeFormContext) {
   const editing = Boolean(pipe);
   const root = pipe ? !pipe.parentId : isFeedKind(draft.kind);
   const leaf = !pipe || !pipes.some(item => item.parentId === pipe.id);
-  const mode = editing ? root || !leaf ? "edit-details" : "edit-inner"
-    : !draft.kind ? "unselected" : root ? "create-root" : "create-inner";
+  const mode = editing
+    ? root || !leaf
+      ? "edit-details"
+      : "edit-inner"
+    : !draft.kind
+      ? "unselected"
+      : root
+        ? "create-root"
+        : "create-inner";
   const accountingEditable = mode === "edit-inner" || mode === "create-inner";
   const contingencyOptions = accountingEditable ? eligibleContingencies(draft, context) : [];
   return {
     mode,
     editing,
     root,
-    leaf,
     accountingEditable,
     priorityEditable: !root && mode !== "unselected",
     nameMinimum: root ? 2 : 3,
@@ -69,7 +75,6 @@ export function pipeFormPolicy(draft: PipeDraft, context: PipeFormContext) {
     hasFeed: pipes.some(item => !item.parentId && !item.deletionJobId),
     contingencyOptions,
     invalidContingency: draft.contingencyPipeId !== null && !contingencyOptions.some(item => item.id === draft.contingencyPipeId),
-    removalPending: Boolean(pipe?.contingencyPipeId && draft.kind === "instant_settlement"),
     canRun: editing && accountingEditable && draft.kind !== "cron" && draft.kind !== "self_destruct",
   };
 }

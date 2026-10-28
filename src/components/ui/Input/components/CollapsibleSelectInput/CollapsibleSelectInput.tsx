@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Keyboard, Pressable, Text, View, type ViewInstance } from "react-native";
+import { Keyboard, Pressable, Text, View, type ColorValue, type StyleProp, type ViewInstance, type ViewStyle } from "react-native";
 import { colors } from "@/lib/styles";
 import { Icon, safeIconName } from "@ui/Icon";
 import { OptionList, OptionRow, OverlaidOptionList, useOptionListActive } from "@ui/OptionList";
@@ -16,6 +16,8 @@ export type CollapsibleSelectGroup = {
 type CollapsibleSelectItem = {
   id: string;
   icon?: string;
+  iconColor?: ColorValue;
+  optionStyle?: StyleProp<ViewStyle>;
   title: string;
   description?: string;
 };
@@ -72,7 +74,7 @@ export function CollapsibleSelectInput({
         <View className="flex-1">
           {selected
             ? <View className="flex-row items-center gap-2">
-                {selected.icon && <Icon name={safeIconName(selected.icon)} size={20} color={colors.muted} />}
+                {selected.icon && <Icon name={safeIconName(selected.icon)} size={20} color={selected.iconColor ?? colors.muted} />}
                 <Text className="text-text text-md font-bold flex-1">{selected.title}</Text>
               </View>
             : <Text className="text-muted">
@@ -118,7 +120,7 @@ export function CollapsibleSelectInput({
                    <View className="gap-1 px-2">
                      <Text className="text-text text-md font-bold">{row.item.title}</Text>
                      {(row.item.icon || row.item.description) && <View className="flex-row gap-2">
-                       {row.item.icon && <Icon name={safeIconName(row.item.icon)} size={20} color={colors.muted} />}
+                       {row.item.icon && <Icon name={safeIconName(row.item.icon)} size={28} color={row.item.iconColor ?? colors.muted} />}
                        {row.item.description && <Text className="text-muted text-sm flex-1">{row.item.description}</Text>}
                      </View>}
                    </View>

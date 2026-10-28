@@ -2,17 +2,18 @@ import { Pressable, Text, View } from "react-native";
 import { Icon, safeIconName } from "@ui/Icon";
 import { colors } from "@/lib/styles";
 import { formatAmount } from "@/lib/format";
+import { PIPE_KINDS } from "@features/pipes/rules/config";
 import type { HistoryEntry } from "./event-groups";
 import type { EventArchiveSummary } from "./event-archives";
 
 type LifecycleEntry = Extract<HistoryEntry, { type: "pipe_creation" | "pipe_deletion" }>;
-type Props = { event: LifecycleEntry; expanded: boolean; onPress: () => void; summary?: EventArchiveSummary; date?: number; archived?: boolean };
+type Props = { event: LifecycleEntry; expanded: boolean; onPress: () => void; summary?: EventArchiveSummary; date?: number; archived?: boolean; pipeColor?: string };
 const dateFormatter = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
 
-export function PipeHistoryRow({ event, expanded, onPress, summary, date = event.occurredAt, archived = false }: Props) {
+export function PipeHistoryRow({ event, expanded, onPress, summary, date = event.occurredAt, archived = false, pipeColor = PIPE_KINDS[event.pipeType === "pipe" ? "none" : event.pipeType].color }: Props) {
   const deleted = archived || event.type === "pipe_deletion" || summary !== undefined;
   const expandable = deleted && summary !== undefined && summary.count > 0;
-  const borderColor = deleted && !expandable ? colors.muted : event.pipeType === "boiler" ? colors.secondary : event.pipeType === "feed" ? colors.primary : colors.text;
+  const borderColor = deleted ? colors.muted : pipeColor;
   const rowClass = "flex-1 rounded-2xl border bg-surface px-2 py-2 gap-1";
   const content = <>
     <View className="flex-row items-center gap-1">

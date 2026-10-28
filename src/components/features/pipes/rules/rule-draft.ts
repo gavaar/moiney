@@ -1,7 +1,7 @@
 import { formatMoneyInput, parseMoney } from "@domain/money";
 import { selfDestructDeadline } from "@domain/pipes/rules";
 import type { PipeModel } from "@features/pipes/data/pipes";
-import { RULE_OPTIONS, UNIT_OPTIONS, type RuleId } from "./config";
+import { isRuleId, UNIT_OPTIONS, type RuleId } from "./config";
 import { buildRuleConfiguration, calculateEffectiveCron, getPacingOptions, parseCapValue, todayMidday } from "./helpers";
 
 export type RuleDraft = {
@@ -34,7 +34,7 @@ export function mergeRuleDraft<T extends Omit<RuleDraft, "selectedRule">>(previo
 }
 
 export function ruleDraftValues(draft: RuleDraft) {
-  const selectedRule = RULE_OPTIONS.find((option) => option.id === draft.selectedRule)?.id ?? "none";
+  const selectedRule = isRuleId(draft.selectedRule) ? draft.selectedRule : "none";
   const unit = UNIT_OPTIONS.find((option) => option.id === draft.unit)?.id ?? "months";
   const pacing = draft.pacing === "months" || draft.pacing === "years" ? draft.pacing : undefined;
   const capNumber = parseCapValue(draft.capValue);

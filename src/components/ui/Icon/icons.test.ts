@@ -6,6 +6,11 @@ describe("safeIconName", () => {
     expect(safeIconName("wallet-outline")).toBe("wallet-outline");
   });
 
+  it.each(["manual-pipe", "timed-pipe", "bomb"])("falls back for removed icon %s", name => {
+    expect(safeIconName(name)).toBe("pipe");
+    expect(safeIconName(name, "wallet-outline")).toBe("wallet-outline");
+  });
+
   it.each([null, undefined, "", "unknown-icon", "constructor", "toString", "__proto__"])(
     "falls back for unsupported name %s",
     name => {

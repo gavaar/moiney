@@ -51,7 +51,7 @@ describe("root-list shared pipe creation", () => {
       : fireEvent.keyUp(document, { key: "Escape" });
     expect(screen.queryByRole("alert")).toBeNull();
     dismiss();
-    expect(screen.getByRole("alert").textContent).toBe("Pipe type is required");
+    expect(screen.getByRole("alert").textContent).toBe("Pipe type required");
     expect(screen.getByRole("button", { name: "Pipe type" }).getAttribute("aria-expanded")).toBe("false");
     expect(screen.queryByText("Discard changes?")).toBeNull();
     dismiss();
@@ -74,9 +74,10 @@ describe("root-list shared pipe creation", () => {
     expect(screen.getByLabelText("Name").getAttribute("value")).toBe("Savings");
   });
 
-  it("keeps feed identity and opening values on the same page with an editable default icon", () => {
+  it("keeps feed identity and opening values on the same page without an icon picker", () => {
     open();
-    expect(screen.getByRole("button", { name: "Icon" })).toBeTruthy();
+    expect(screen.getByRole("textbox", { name: "Name" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Icon" })).toBeNull();
     expect(screen.getByRole("textbox", { name: "Initial amount" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Next step" })).toBeNull();
     expect(screen.queryByRole("textbox", { name: "Contributed amount" })).toBeNull();
@@ -125,7 +126,7 @@ describe("root-list shared pipe creation", () => {
     if (contributed) fill("Contributed amount", contributed);
     click("Submit");
     await waitFor(() => expect(addFeed).toHaveBeenCalledExactlyOnceWith({
-      name: "Savings", icon: "pipe", description: "Opening balance", sourceType: boiler ? "boiler" : "feed", ...money,
+      name: "Savings", icon: boiler ? "boiler" : "feed-pipe", description: "Opening balance", sourceType: boiler ? "boiler" : "feed", ...money,
     }));
   });
 

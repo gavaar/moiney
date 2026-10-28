@@ -1,10 +1,12 @@
 import type { Ionicons, MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import type { ComponentProps } from "react";
+import type { InternalIconName } from "./components/InternalIcon/InternalIcon";
 
 type CuratedIcon =
   | { family: "Ionicons"; name: ComponentProps<typeof Ionicons>["name"] }
   | { family: "MaterialCommunityIcons"; name: ComponentProps<typeof MaterialCommunityIcons>["name"] }
-  | { family: "MaterialIcons"; name: ComponentProps<typeof MaterialIcons>["name"] };
+  | { family: "MaterialIcons"; name: ComponentProps<typeof MaterialIcons>["name"] }
+  | { family: "Internal"; name: InternalIconName };
 
 const CURATED_ICONS = [
   { name: "add", family: "Ionicons" as const },
@@ -92,13 +94,18 @@ const CURATED_ICONS = [
   { name: "trending-up", family: "Ionicons" as const },
   { name: "trending-up-outline", family: "Ionicons" as const },
   { name: "timer-outline", family: "Ionicons" as const },
-  { name: "bomb", family: "MaterialCommunityIcons" as const },
   { name: "tv-outline", family: "Ionicons" as const },
   { name: "upload", family: "MaterialCommunityIcons" as const },
   { name: "wallet-outline", family: "Ionicons" as const },
   { name: "water-outline", family: "Ionicons" as const },
   { name: "water-boiler", family: "MaterialCommunityIcons" as const },
   { name: "warning-outline", family: "Ionicons" as const },
+  { name: "boiler", family: "Internal" as const },
+  { name: "bomb-pipe", family: "Internal" as const },
+  { name: "feed-pipe", family: "Internal" as const },
+  { name: "instant-pipe", family: "Internal" as const },
+  { name: "overflow-pipe", family: "Internal" as const },
+  { name: "valve", family: "Internal" as const },
 ] as const satisfies readonly CuratedIcon[];
 
 type IconDefinition = (typeof CURATED_ICONS)[number];
@@ -120,7 +127,8 @@ export function safeIconName(
   name: string | undefined | null,
   fallback: IconName = "pipe",
 ): IconName {
-  return isIconName(name) ? name : fallback;
+  if (isIconName(name)) return name;
+  return fallback;
 }
 
 export { CURATED_ICONS };

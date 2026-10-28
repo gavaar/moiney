@@ -13,6 +13,8 @@ export function useFormPagerController({ pageKeys, navigationStart }: Props) {
   const [selectedKey, setSelectedKey] = useState<number | null>(navigationStart ?? null);
   const [width, setWidth] = useState(0);
   const [measurements, setMeasurements] = useState<Record<number, PageMeasurement>>({});
+  // Removed conditional pages must not become selected again when reintroduced.
+  if (selectedKey !== null && !pageKeys.includes(selectedKey)) setSelectedKey(pageKeys[0] ?? null);
   const activeIndex = Math.max(0, pageKeys.findIndex(key => key === selectedKey));
   const multiple = pageKeys.length > 1;
   const pageSignature = pageKeys.join(",");

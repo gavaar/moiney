@@ -1,7 +1,7 @@
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { Icon, safeIconName, type IconName } from "@ui/Icon";
 import { ModalShell } from "@ui/Modal";
-import { RULE_OPTIONS } from "@features/pipes/rules/config";
+import { PIPE_KINDS } from "@features/pipes/rules/config";
 import { colors } from "@/lib/styles";
 import { formatAmount } from "@/lib/format";
 import type { SettlementEntry } from "./event-groups";
@@ -24,7 +24,7 @@ type SettlementPresentationProps = { event: SettlementEntry };
 
 function causeIcon(event: SettlementEntry): IconName {
   return event.cause === "manual" ? "gesture-tap-hold"
-    : RULE_OPTIONS.find(rule => rule.id === event.cause)!.icon;
+    : PIPE_KINDS[event.cause].icon;
 }
 
 function coverageDescription(coverage: SettlementCoveragePresentation) {

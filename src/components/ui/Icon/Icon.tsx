@@ -2,6 +2,7 @@ import { Ionicons, MaterialCommunityIcons, MaterialIcons } from "@expo/vector-ic
 import type { ComponentProps } from "react";
 import { type ColorValue, type TextStyle } from "react-native";
 import { colors } from "@/lib/styles";
+import { InternalIcon } from "./components/InternalIcon/InternalIcon";
 import { getIcon, type IconName } from "./icons";
 
 type Props = {
@@ -23,5 +24,7 @@ export function Icon({ name, size = 20, color = colors.text, style, testID }: Pr
       return <MaterialCommunityIcons {...props} name={icon.name} />;
     case "MaterialIcons":
       return <MaterialIcons {...props} name={icon.name} />;
+    case "Internal":
+      return <InternalIcon name={icon.name} size={size} color={color} style={style} testID={testID} />;
   }
 }

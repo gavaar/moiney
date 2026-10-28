@@ -6,6 +6,7 @@ export type FormPageDefinition = {
   key: number;
   content: ReactNode;
   hasError: boolean;
+  hasWarning?: boolean;
   scrollable?: boolean;
 };
 

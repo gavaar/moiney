@@ -76,9 +76,12 @@ describe("pipe behavior editing", () => {
     for (const name of ["Manual", "Instant", "Overflow", "Timed", "Self-destruct"]) expect(screen.getByRole("button", { name })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Basic feed" })).toBeNull(); expect(screen.queryByRole("button", { name: "Boiler" })).toBeNull();
   });
-  it("shows the selected behavior's concrete explanation", () => {
-    open(pipe(), vi.fn(), true); expect(screen.getByText(/Accumulates spending until you settle it manually/)).toBeTruthy();
-    click("Pipe type"); click("Instant"); expect(screen.getByText(/just like a childless feed/)).toBeTruthy();
+  it("updates the behavior summary when the selected type changes", () => {
+    open(pipe(), vi.fn(), true);
+    expect(screen.getByText("Accumulate spending; settle when you choose.")).toBeTruthy();
+    click("Pipe type"); click("Instant");
+    expect(screen.getByText("Settle spending immediately, to show exact holdings.")).toBeTruthy();
+    expect(screen.queryByText("Accumulate spending; settle when you choose.")).toBeNull();
   });
   it("initializes timed fields from the saved rule", () => {
     open(timed({ capUpdateValue: 10000, cronInterval: { interval: 2, unit: "years" } }));
@@ -88,25 +91,26 @@ describe("pipe behavior editing", () => {
   it("shows scheduling fields only for Timed", () => {
     open(); expect(screen.queryByLabelText("Interval")).toBeNull(); kind("Timed");
     for (const name of ["Cap update", "Interval"]) expect(screen.getByLabelText(name)).toBeTruthy();
-    for (const name of ["Unit", "Starting date", "Spread into installments"]) expect(screen.getByRole("button", { name })).toBeTruthy();
+    for (const name of ["Unit", "Starting date", "Spread over"]) expect(screen.getByRole("button", { name })).toBeTruthy();
     kind("Manual"); expect(screen.queryByLabelText("Interval")).toBeNull();
   });
   it("previews and saves a yearly capacity update spread into monthly installments", async () => {
     open(timed({ capacity: 10000, capUpdateValue: 120000, cronInterval: { interval: 1, unit: "years" }, cronNextDate: Date.UTC(2099, 0, 15, 12) }));
-    click("Spread into installments"); click("Monthly");
+    click("Spread over"); click("Monthly");
     expect(screen.getByText("Saves as 100.00 every 1 month.")).toBeTruthy();
-    expect(screen.getByText("After settlement: capacity − spending + 100.00. With no spending, capacity becomes 200.00.")).toBeTruthy();
+    expect(screen.getByText(/After settlement:.*\+ 100\.00\. With no spending, capacity would update to 200\.00\./)).toBeTruthy();
     await submit();
     expect(h.update).toHaveBeenCalledWith(expect.objectContaining({ ruleConfig: expect.objectContaining({ capUpdateValue: 10000, interval: 1, unit: "months" }) }));
   });
   it("uses the normalized installment schedule in backdated-credit warnings", () => {
-    open(timed({ capUpdateValue: 120000, cronInterval: { interval: 1, unit: "years" } })); click("Spread into installments"); click("Monthly");
+    open(timed({ capUpdateValue: 120000, cronInterval: { interval: 1, unit: "years" } })); click("Spread over"); click("Monthly");
     const elapsed = computeElapsedIntervals(Date.UTC(2026, 0, 15, 12), 1, "months", Date.now());
     expect(screen.getByText(`Saving adds ${(elapsed * 100).toFixed(2)} capacity for the ${elapsed} months since the starting date.`)).toBeTruthy();
   });
-  it("disables installments and omits their preview when capacity update is zero", () => {
+  it("allows choosing installments but omits their preview when capacity update is zero", () => {
     open(timed({ capUpdateValue: 0, cronInterval: { interval: 1, unit: "years" } }));
-    expect(screen.getByRole("button", { name: "Spread into installments" }).getAttribute("aria-disabled")).toBe("true");
+    expect(screen.getByRole("button", { name: "Spread over" }).getAttribute("aria-disabled")).not.toBe("true");
+    click("Spread over"); click("Monthly");
     expect(screen.queryByText(/Saves as/)).toBeNull();
   });
   it("hides capacity updates for Manual", () => { open(); expect(screen.queryByLabelText("Cap update")).toBeNull(); });
@@ -114,14 +118,17 @@ describe("pipe behavior editing", () => {
     open(pipe({ rule })); expect(screen.getByLabelText("Cap update")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Change Cap update sign, currently positive" })).toBeTruthy();
   });
-  it("explains that blank retains capacity and differs from explicit zero", () => {
+  it("previews retained capacity for blank and an update for explicit zero", () => {
     open(pipe({ rule: "instant_settlement", capacity: 10000 }));
     expect(screen.getByPlaceholderText("Keep capacity unchanged")).toBeTruthy();
-    expect(screen.getByText("Blank keeps capacity at 100.00 after settlement. Zero is different from blank.")).toBeTruthy();
+    expect(screen.getByText("Capacity resets to 100.00 after settlement.")).toBeTruthy();
+    cap("0");
+    expect(screen.queryByText("Capacity resets to 100.00 after settlement.")).toBeNull();
+    expect(screen.getByText(/After settlement:.*\+ 0\.00\. With no spending, capacity would update to 100\.00\./)).toBeTruthy();
   });
-  it("explains the capacity-minus-spending-plus-update calculation", () => {
+  it("previews the settlement update and the resulting capacity without spending", () => {
     open(pipe({ rule: "instant_settlement", capacity: 10000, capUpdateValue: 2500 }));
-    expect(screen.getByText("After settlement: capacity − spending + 25.00. With no spending, capacity becomes 125.00.")).toBeTruthy();
+    expect(screen.getByText(/After settlement:.*\+ 25\.00\. With no spending, capacity would update to 125\.00\./)).toBeTruthy();
   });
   it("saves an Instant capacity update", async () => {
     open(pipe({ rule: "instant_settlement", capacity: 10000 })); cap("50"); await submit();

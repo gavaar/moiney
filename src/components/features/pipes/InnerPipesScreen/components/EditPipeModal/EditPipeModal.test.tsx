@@ -74,6 +74,7 @@ describe("EditPipeModal", () => {
 
   it("validates the name on blur and clears its error during correction", () => {
     render(<EditPipeModal visible pipeId={"pipe-1" as any} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Previous step" }));
     const name = screen.getByLabelText("Name");
     fireEvent.change(name, { target: { value: "a" } });
     expect(screen.queryByRole("alert")).toBeNull();
@@ -152,19 +153,23 @@ describe("EditPipeModal", () => {
     await waitFor(() => expect(updatePipe).toHaveBeenCalledWith({ pipeId: "pipe-1", name: "Food" }));
   });
 
-  it.each(["instant_settlement", "self_destruct"] as const)("offers contingency only for compatible %s sources", rule => {
+  it.each(["instant_settlement", "self_destruct"] as const)("lists only compatible contingency donors for %s", rule => {
     allPipes[1] = { ...allPipes[1], rule };
     render(<EditPipeModal visible pipeId={id("pipe-1")} onClose={vi.fn()} />);
-    if (rule === "instant_settlement") expect(screen.queryByRole("button", { name: "Contingency" })).toBeNull();
-    else expect(screen.getByRole("button", { name: "Contingency" }).getAttribute("aria-disabled")).not.toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: "Contingency" }));
+    expect(screen.getByRole("button", { name: "No contingency" })).toBeTruthy();
+    if (rule === "instant_settlement") expect(screen.queryByRole("button", { name: "Reserve" })).toBeNull();
+    else expect(screen.getByRole("button", { name: "Reserve" })).toBeTruthy();
   });
 
-  it("starts on the details page with Capacity and keeps ownership read-only on the overview", () => {
+  it("starts on behavior settings and keeps common fields and read-only ownership on the first page", () => {
     render(<EditPipeModal visible pipeId={id("pipe-1")} onClose={vi.fn()} />);
-    expect(screen.getByLabelText("Name").getAttribute("value")).toBe("Groceries");
-    expect(screen.getByLabelText("Capacity").getAttribute("value")).toBe("1.00");
+    expect(screen.getByRole("button", { name: "Contingency" })).toBeTruthy();
+    expect(screen.queryByRole("textbox", { name: "Name" })).toBeNull();
     expect(screen.queryByText("Initial capacity?")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Previous step" }));
+    expect(screen.getByRole("textbox", { name: "Name" }).getAttribute("value")).toBe("Groceries");
+    expect(screen.getByRole("textbox", { name: "Capacity" }).getAttribute("value")).toBe("1.00");
     expect(screen.getByRole("button", { name: "Owner pipe" }).getAttribute("aria-disabled")).toBe("true");
   });
 
@@ -173,7 +178,6 @@ describe("EditPipeModal", () => {
     fireEvent.click(screen.getByRole("button", { name: "Pipe type" }));
     expect(screen.queryByRole("button", { name: "Basic feed" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Overflow" }));
-    fireEvent.click(screen.getByRole("button", { name: "Next step" }));
     fireEvent.change(screen.getByLabelText("Capacity"), { target: { value: "-2" } });
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Food" } });
     fireEvent.click(screen.getByText("Submit"));
@@ -309,8 +313,7 @@ describe("EditPipeModal", () => {
     fireEvent.click(screen.getByRole("button", { name: "Pipe type" }));
     fireEvent.click(screen.getByRole("button", { name: "Instant" }));
     fireEvent.click(screen.getByRole("button", { name: "Next step" }));
-    expect(screen.queryByRole("button", { name: "Contingency" })).toBeNull();
-    expect(screen.getByText(/Saving will remove the current contingency/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Contingency" }).textContent).toContain("No contingency");
     expect(updatePipe).not.toHaveBeenCalled();
     fireEvent.click(screen.getByText("Submit"));
     await waitFor(() => expect(updatePipe).toHaveBeenCalledWith({ pipeId: "pipe-1", contingencyPipeId: null, ruleConfig: { rule: "instant_settlement", capUpdateValue: undefined } }));
@@ -322,7 +325,14 @@ describe("EditPipeModal", () => {
     expect(screen.queryByRole("button", { name: "Pipe type" })).toBeNull();
     expect(screen.queryByLabelText("Capacity")).toBeNull();
     expect(screen.queryByLabelText("Initial amount")).toBeNull();
-    expect(screen.getByText(/Feeds settle spending instantly/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Run now" })).toBeNull();
+    expect(screen.queryByLabelText("Cap update")).toBeNull();
+    expect(screen.getByRole("button", { name: "Icon" })).toBeTruthy();
+    expect(screen.getByRole("textbox", { name: "Name" })).toBeTruthy();
+    expect(screen.getByRole("textbox", { name: "Description" })).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByRole("checkbox", { name: "I understand" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Next step" })).toBeNull();
   });
 
   it("preserves explicit inactive edits when live data adopts that behavior", () => {

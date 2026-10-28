@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { View } from "react-native";
 import { FormHeader, FormPageContent, FormPager } from "./components";
+import { FormWarning } from "./components/FormWarning/FormWarning";
 import type { FormProps, FormValue } from "./form.types";
 
 export function Form<
@@ -24,15 +25,19 @@ export function Form<
     return {
       key: page.key,
       hasError: visibleFields.some(field => errors[field.key] !== undefined),
+      hasWarning: Boolean(page.warnings?.length),
       scrollable: true,
-      content: <FormPageContent
-                  rows={page.rows}
-                  value={value}
-                  onChange={changeField}
-                  onError={(key, error) => setErrors(previous => previous[key] === error
-                    ? previous
-                    : { ...previous, [key]: error })}
-                  />,
+      content: <>
+        <FormWarning messages={page.warnings} dismissible={false} />
+        <FormPageContent
+          rows={page.rows}
+          value={value}
+          onChange={changeField}
+          onError={(key, error) => setErrors(previous => previous[key] === error
+            ? previous
+            : { ...previous, [key]: error })}
+        />
+      </>,
     };
   });
 

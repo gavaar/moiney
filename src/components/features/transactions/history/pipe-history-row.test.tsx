@@ -7,7 +7,7 @@ import { PipeHistoryRow } from "./pipe-history-row";
 import type { HistoryEntry } from "./event-groups";
 import { colors } from "@/lib/styles";
 
-vi.mock("@ui/Icon", () => ({ Icon: ({ name, color }: { name: string; color: string }) => <span data-testid={name} data-color={color} />, safeIconName: (name: string) => name }));
+vi.mock("@ui/Icon", () => ({ Icon: ({ name, color }: { name: string; color: string }) => <span data-testid={name} data-color={color} style={{ color }} />, safeIconName: (name: string) => name }));
 
 const event: Extract<HistoryEntry, { type: "pipe_creation" }> = {
   id: "event" as Id<"events">,
@@ -40,6 +40,9 @@ describe("pipe history rows", () => {
     expect(screen.getByText("x24")).toBeTruthy();
     expect(screen.getByText("Spent: 120.00")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Madrid archived history", expanded: false })).toBeTruthy();
+    const icon = screen.getByTestId("airplane");
+    expect(icon.getAttribute("data-color")).toBe(colors.muted);
+    expect(getComputedStyle(screen.getByRole("button", { name: "Madrid archived history" })).borderTopColor).toBe(icon.style.color);
     await userEvent.click(screen.getByRole("button", { name: "Expand Madrid history", expanded: false }));
     expect(onPress).toHaveBeenCalledOnce();
   });

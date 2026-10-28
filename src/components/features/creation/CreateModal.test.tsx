@@ -45,6 +45,10 @@ vi.mock("@ui/Icon", async importOriginal => ({ ...await importOriginal<typeof im
 function click(name: string) { fireEvent.click(screen.getByRole("button", { name })); }
 function mode(name: "transaction" | "pipe") { fireEvent.click(screen.getByRole("tab", { name })); }
 function fill(name: string, value: string) { fireEvent.change(screen.getByRole("textbox", { name }), { target: { value } }); }
+function acknowledgeWarnings() {
+  click("Next step"); click("Next step");
+  fireEvent.click(screen.getByRole("checkbox", { name: "I understand" }));
+}
 type Scenario = "transaction" | "inner" | "feed";
 function prepare(scenario: Scenario) {
   mode(scenario === "transaction" ? "transaction" : "pipe");
@@ -52,9 +56,12 @@ function prepare(scenario: Scenario) {
   if (scenario === "feed") { click("Basic feed"); fill("Name", "Savings"); return; }
   if (scenario === "inner") click("Manual");
   click(scenario === "inner" ? "Owner pipe" : "Transaction pipe");
-  fireEvent.click(screen.getByRole("button", { name: /Groceries/ })); click("Next step");
+  fireEvent.click(screen.getByRole("button", { name: /Groceries/ }));
   if (scenario === "inner") fill("Name", "Lunch");
-  else fireEvent.change(screen.getByPlaceholderText("What was this for?"), { target: { value: "Lunch" } });
+  else {
+    click("Next step");
+    fireEvent.change(screen.getByPlaceholderText("What was this for?"), { target: { value: "Lunch" } });
+  }
 }
 
 describe("CreateModal", () => {
@@ -82,6 +89,7 @@ describe("CreateModal", () => {
     mutation.mockReturnValueOnce(new Promise<void>(resolve => { finish = resolve; }));
     render(<CreateModal onClose={onClose} />); prepare(scenario);
     if (scenario === "transaction") fill("Value", "5.00");
+    if (scenario === "inner") acknowledgeWarnings();
     click(scenario === "transaction" ? "Add expense" : "Submit"); expect(mutation).toHaveBeenCalledOnce();
     mode(scenario === "transaction" ? "pipe" : "transaction"); click("Backdrop");
     expect(onClose).not.toHaveBeenCalled(); expect(screen.queryByText("Discard changes?")).toBeNull();
@@ -100,18 +108,39 @@ describe("CreateModal", () => {
     mode("transaction"); expect(screen.getByDisplayValue("Lunch")).toBeTruthy(); expect(screen.getByRole("textbox", { name: "Value" })).toBeTruthy();
   });
   it("creates an inner pipe with the selected owner after preserving its draft across modes", async () => {
-    render(<CreateModal onClose={onClose} />); prepare("inner"); mode("transaction"); mode("pipe"); fill("Initial capacity?", "12.34"); click("Submit");
+    render(<CreateModal onClose={onClose} />); prepare("inner"); fill("Starting capacity?", "12.34"); acknowledgeWarnings();
+    mode("transaction"); mode("pipe");
+    expect(screen.getByRole("checkbox", { name: "I understand" }).getAttribute("aria-checked")).toBe("true");
+    click("Submit");
     await waitFor(() => expect(addPipe).toHaveBeenCalledWith(expect.objectContaining({ parentId: pipe1.id, name: "Lunch", capacity: 1234 })));
     expect(onClose).toHaveBeenCalledOnce();
   });
+  it("only requires owner warnings for child creation and resets acknowledgement after switching to a feed", () => {
+    render(<CreateModal onClose={onClose} />); mode("pipe");
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByRole("checkbox", { name: "I understand" })).toBeNull();
+    click("Pipe type"); click("Manual"); click("Owner pipe"); click("Groceries"); fill("Name", "Lunch");
+    expect(screen.getByRole("button", { name: "Submit" }).getAttribute("aria-disabled")).toBe("true");
+    acknowledgeWarnings(); click("Previous step"); click("Previous step");
+    click("Pipe type"); click("Basic feed");
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByRole("checkbox", { name: "I understand" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Next step" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Submit" }).getAttribute("aria-disabled")).not.toBe("true");
+    click("Pipe type"); click("Manual");
+    expect(screen.getByRole("textbox", { name: "Name" }).getAttribute("value")).toBe("Lunch");
+    expect(screen.getByRole("button", { name: "Submit" }).getAttribute("aria-disabled")).toBe("true");
+    click("Next step"); click("Next step");
+    expect(screen.getByRole("checkbox", { name: "I understand" }).getAttribute("aria-checked")).toBe("false");
+  });
   it.each([false, true])("creates a root from Pipe mode (boiler=%s) with independent opening values", async boiler => {
     render(<CreateModal onClose={onClose} />); mode("pipe"); click("Pipe type"); click(boiler ? "Boiler" : "Basic feed"); fill("Name", "Savings");
-    click("Icon"); fireEvent.click(screen.getByText("wallet-outline")); fill("Initial amount", "12.34");
+    expect(screen.queryByRole("button", { name: "Icon" })).toBeNull(); fill("Initial amount", "12.34");
     if (boiler) fill("Contributed amount", "10.00");
     mode("transaction"); mode("pipe"); expect(screen.getByLabelText("Initial amount").getAttribute("value")).toBe("12.34"); click("Submit");
     await waitFor(() => expect(addFeed).toHaveBeenCalledExactlyOnceWith({
       name: "Savings",
-      icon: "wallet-outline",
+      icon: boiler ? "boiler" : "feed-pipe",
       description: undefined,
       sourceType: boiler ? "boiler" : "feed",
       initialFed: 1234,

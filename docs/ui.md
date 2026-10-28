@@ -70,9 +70,10 @@ picker collapsed; Add pipe from the feeds list and Add child pipe start it open,
 including after clearing the form. Contextual Add child shows feeds disabled,
 preselects a changeable owner, and retains that restriction after owner changes.
 Without a feed, inner choices are disabled and their section explains why. Root
-creation has one page; inner creation has type, rule explanation, and owner on the
-first page and the selected behavior's fields on the second. Selection collapses
-the picker without advancing. Existing inner editors start on details; rule
+creation has one page; inner forms have type, rule explanation, owner, icon, name,
+priority, and capacity on the first page, with behavior-specific settings,
+contingency, and description on the second. Selection collapses
+the picker without advancing. Existing inner editors start on the second page; rule
 shortcuts start on the collapsed type overview with a read-only owner and no feed
 choices. Parents and roots have details-only editors. Accounting constraints are
 owned by [Accounting](domain/accounting.md).
@@ -84,9 +85,15 @@ persistable active change when editing, while dismissal protects raw and inactiv
 draft edits too. Run now cannot discard those drafts; when the active type has
 nothing to save, guidance directs the user to the edited type or Reset changes.
 Restored contingency must be eligible under the current owner; owner changes clear
-an invalid donor with an explanation. Adding the first child warns about the
-owner's intermediate-pipe transition and accounting resets.
-Type illustrations are separate from persisted user-customizable icons.
+an invalid donor with an explanation. Creating the first child adds a third page
+for non-dismissible warnings about the owner's intermediate-pipe transition and
+accounting resets. Its “I understand” checkbox must be checked before submitting
+from any page. Acknowledgement survives step/mode navigation and unrelated edits,
+but resets when the owner or warnings change, on Clear, and on reopening. Owners
+with children, root creation, and editing do not show this warning page.
+New pipe drafts default to the selected type's icon until the user chooses a
+custom icon. Type changes preserve custom selections and existing pipes' saved
+icons; clearing the creation form restores automatic defaults.
 
 ## Organization And Naming
 

@@ -1,7 +1,7 @@
 import type { PipeModel } from "@features/pipes/data/pipes";
 import { createRuleDraft, mergeRuleDraft } from "@features/pipes/rules/rule-draft";
 import { createPipeDraft, type PipeDraft } from "./pipe-draft";
-import { isFeedKind, PIPE_CHOICES, type PipeKind } from "./pipe-kinds";
+import { isFeedKind, PIPE_KINDS, type PipeKind } from "@features/pipes/rules/config";
 import { eligibleContingencies, pipeFormPolicy, type PipeFormContext } from "./pipe-form-policy";
 
 const OPTION_KEYS = ["capValue", "interval", "unit", "pacing", "starting", "deletionDate", "contingencyPipeId"] as const;
@@ -53,6 +53,9 @@ function sessionDraft(session: Session, pipe?: PipeModel): PipeDraft {
   const draft: PipeDraft = {
     ...live, ...session.common, ...options, kind,
   };
+  if (!pipe && session.common.icon === undefined) {
+    draft.icon = kind === null ? live.icon : PIPE_KINDS[kind].icon;
+  }
   if (isFeedKind(kind) || kind === "instant_settlement") draft.contingencyPipeId = null;
   return draft;
 }
@@ -66,7 +69,7 @@ export function readPipeSession(session: Session, context: PipeFormContext) {
   const activeDirty = kind !== live.kind || COMMON_KEYS.some(key =>
     (key !== "capacity" || policy.accountingEditable) && !sameValue(draft[key], live[key])) ||
     policy.accountingEditable && optionKeys(draft).some(key => !sameValue(draft[key], live[key]));
-  const inactiveEdits = PIPE_CHOICES.some(({ id: variantKind }) => {
+  const inactiveEdits = Object.values(PIPE_KINDS).some(({ id: variantKind }) => {
     const variant = session.variants[variantKind];
     if (variantKind === kind || !variant) return false;
     const base = variantBase(session, variantKind, live);
@@ -117,7 +120,10 @@ export function changePipeSession(session: Session, change: Partial<PipeDraft>, 
   const current = sessionDraft(next, pipe);
   const candidate = mergeRuleDraft(current, updates);
   for (const key of COMMON_KEYS) {
-    if (!sameValue(candidate[key], previous[key])) recordField(next.common, key, candidate[key], live);
+    if (key === "icon" && !pipe) {
+      // Derived type defaults are not edits; an explicit choice (even "pipe") is.
+      if (updates.icon !== undefined) next.common.icon = updates.icon;
+    } else if (!sameValue(candidate[key], previous[key])) recordField(next.common, key, candidate[key], live);
   }
   if (candidate.kind) {
     const variant = next.variants[candidate.kind] ?? { initial: optionsFromDraft(current), edits: {} };

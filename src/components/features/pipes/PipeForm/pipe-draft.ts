@@ -2,7 +2,7 @@ import { formatMoneyInput } from "@domain/money";
 import type { PipeModel } from "@features/pipes/data/pipes";
 import { safeIconName, type IconName } from "@ui/Icon";
 import { createRuleDraft, type RuleDraft } from "@features/pipes/rules/rule-draft";
-import { isFeedKind, type PipeKind } from "./pipe-kinds";
+import { isFeedKind, type PipeKind } from "@features/pipes/rules/config";
 
 export type PipeDraft = Omit<RuleDraft, "selectedRule"> & {
   kind: PipeKind | null;
