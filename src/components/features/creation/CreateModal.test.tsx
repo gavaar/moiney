@@ -59,7 +59,6 @@ function prepare(scenario: Scenario) {
   fireEvent.click(screen.getByRole("button", { name: /Groceries/ }));
   if (scenario === "inner") fill("Name", "Lunch");
   else {
-    click("Next step");
     fireEvent.change(screen.getByPlaceholderText("What was this for?"), { target: { value: "Lunch" } });
   }
 }
@@ -102,8 +101,11 @@ describe("CreateModal", () => {
     expect(screen.getByDisplayValue(scenario === "feed" ? "Savings" : "Lunch")).toBeTruthy();
     click("Backdrop"); click("Discard changes"); await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
   });
-  it("defaults to transaction and retains its values and page across mode switches", () => {
+  it("defaults to a single-page transaction and retains its values across mode switches", () => {
     render(<CreateModal onClose={onClose} />); expect(screen.getByRole("tab", { name: "transaction" }).getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByRole("button", { name: "Transaction pipe" })).toBeTruthy();
+    expect(screen.getByRole("textbox", { name: "Value" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Next step" })).toBeNull();
     prepare("transaction"); mode("pipe"); expect(screen.getByRole("heading", { name: "Create pipe" })).toBeTruthy();
     mode("transaction"); expect(screen.getByDisplayValue("Lunch")).toBeTruthy(); expect(screen.getByRole("textbox", { name: "Value" })).toBeTruthy();
   });
@@ -135,7 +137,7 @@ describe("CreateModal", () => {
   });
   it.each([false, true])("creates a root from Pipe mode (boiler=%s) with independent opening values", async boiler => {
     render(<CreateModal onClose={onClose} />); mode("pipe"); click("Pipe type"); click(boiler ? "Boiler" : "Basic feed"); fill("Name", "Savings");
-    expect(screen.queryByRole("button", { name: "Icon" })).toBeNull(); fill("Initial amount", "12.34");
+    expect(screen.getByRole("button", { name: "Icon" })).toBeTruthy(); fill("Initial amount", "12.34");
     if (boiler) fill("Contributed amount", "10.00");
     mode("transaction"); mode("pipe"); expect(screen.getByLabelText("Initial amount").getAttribute("value")).toBe("12.34"); click("Submit");
     await waitFor(() => expect(addFeed).toHaveBeenCalledExactlyOnceWith({
@@ -151,9 +153,9 @@ describe("CreateModal", () => {
     render(<CreateModal onClose={onClose} />); click("Transaction pipe");
     const options = screen.getAllByRole("button", { name: /Transport|Groceries/ });
     expect(options.map(button => button.textContent)).toEqual(["Transport (50.00 / 200.00)", "Groceries (123.45 / 500.00)"]);
-    fireEvent.click(options[0]); click("Next step");
+    fireEvent.click(options[0]);
     fireEvent.change(screen.getByPlaceholderText("What was this for?"), { target: { value: "Lunch" } }); fill("Value", "5.00");
-    click("Previous step"); click("Transaction pipe"); fireEvent.click(screen.getByRole("button", { name: /Groceries/ })); click("Next step");
+    click("Transaction pipe"); fireEvent.click(screen.getByRole("button", { name: /Groceries/ }));
     expect(screen.getByDisplayValue("Lunch")).toBeTruthy(); click("Add expense");
     await waitFor(() => expect(createTransaction).toHaveBeenCalledWith(expect.objectContaining({ title: "Lunch", value: -500, from: pipe1.id })));
   });

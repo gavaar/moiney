@@ -55,12 +55,13 @@ describe("transaction forms", () => {
     expect(screen.getByRole("button", { name: "Expand Budget" })).toBeTruthy();
   });
 
-  it("starts repeat on details with its payer visible, and clears an incompatible payer when changing source", async () => {
+  it("starts repeat with its source and payer visible, and clears an incompatible payer when changing source", async () => {
     render(<TransactionForm pipeId={source.id} initState={{ ...initial, intent: "repeat" }} />);
     expect(screen.getByText("repeat")).toBeTruthy();
     expect(screen.getByDisplayValue("Lunch")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Paid from" })).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Previous step" }));
+    expect(screen.queryByRole("button", { name: "Previous step" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Next step" })).toBeNull();
     expect(screen.getByRole("button", { name: "Transaction pipe" }).textContent).toContain("Food");
     fireEvent.click(screen.getByRole("button", { name: "Transaction pipe" }));
     const selected = screen.getByRole("button", { name: /Food/ });
@@ -72,7 +73,6 @@ describe("transaction forms", () => {
     fireEvent.click(screen.getByRole("button", { name: "Expand Wallet" }));
     fireEvent.click(screen.getByRole("button", { name: /^Wallet/ }));
     expect(screen.getByRole("button", { name: "Transaction pipe" }).textContent).toContain("Wallet");
-    fireEvent.click(screen.getByRole("button", { name: "Next step" }));
     expect(screen.getByDisplayValue("Lunch")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Paid from" }).textContent).toBe("None");
     fireEvent.click(screen.getByRole("button", { name: "Add expense" }));
@@ -80,12 +80,11 @@ describe("transaction forms", () => {
     expect(create.mock.calls[0][0]).not.toHaveProperty("paidFrom");
   });
 
-  it("opens edit on details and preserves the draft when changing the primary pipe", async () => {
+  it("opens edit with its source visible and preserves the draft when changing the primary pipe", async () => {
     render(<TransactionForm pipeId={source.id} initState={{ ...initial, intent: "edit", structure: { type: "expense", from: source.id } }} />);
     expect(screen.getByRole("heading", { name: "Edit: Food Lunch" })).toBeTruthy();
     expect(screen.getByText("edit")).toBeTruthy();
     fireEvent.change(screen.getByPlaceholderText("What was this for?"), { target: { value: "Dinner" } });
-    fireEvent.click(screen.getByRole("button", { name: "Previous step" }));
     fireEvent.click(screen.getByRole("button", { name: "Transaction pipe" }));
     fireEvent.click(screen.getByRole("button", { name: "Expand Wallet" }));
     fireEvent.click(screen.getByRole("button", { name: /^Wallet/ }));
@@ -163,7 +162,6 @@ describe("transaction forms", () => {
   it("repeats a feed with root destinations and no spend/transfer toggle", async () => {
     render(<TransactionForm pipeId={other.id} initState={{ ...initial, pipeName: other.name, value: "5.00", structure: { type: "feed", to: other.id }, intent: "repeat" }} />);
     expect(screen.queryByRole("radio", { name: "Transaction" })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Previous step" }));
     fireEvent.click(screen.getByRole("button", { name: "Transaction pipe" }));
     expect(screen.queryByRole("button", { name: "Expand Budget" })).toBeNull();
     expect(screen.queryByRole("button", { name: /Food/ })).toBeNull();

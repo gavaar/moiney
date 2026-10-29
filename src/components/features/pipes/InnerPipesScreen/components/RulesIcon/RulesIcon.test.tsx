@@ -129,11 +129,12 @@ describe("RulesIcon", () => {
     expect(screen.getByTestId("rule-modal")).toBeTruthy();
   });
 
-  it("renders a muted pipe icon when disabled", () => {
+  it("renders a muted pipe-valve icon without a settings button when disabled", () => {
     render(<RulesIcon now={Date.now()} pipeId={pId("pipe-1")} disabled fed={0} capacity={100} />);
     const icon = screen.getByTestId("rules-icon-placeholder");
-    expect(icon.getAttribute("data-name")).toBe("pipe");
-    expect(icon.getAttribute("data-color")).toBe("#9CA3AF");
+    expect(icon.getAttribute("data-name")).toBe("pipe-valve");
+    expect(icon.getAttribute("data-color")).toBe(colors.muted);
+    expect(screen.queryByRole("button", { name: "Pipe rule settings" })).toBeNull();
     expect(screen.queryByTestId("rule-modal")).toBeNull();
   });
 

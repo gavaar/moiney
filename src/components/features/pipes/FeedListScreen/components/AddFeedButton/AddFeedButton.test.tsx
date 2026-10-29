@@ -33,14 +33,16 @@ function open(kind = "Basic feed") {
 describe("root-list shared pipe creation", () => {
   beforeEach(() => { vi.clearAllMocks(); addFeed.mockResolvedValue(undefined); });
 
-  it("starts Add pipe with the type picker open", () => {
+  it("starts Add pipe with the type picker open and editable identity fields", () => {
     render(<ConfirmModalProvider><AddFeedButton /></ConfirmModalProvider>);
     click("Add pipe");
     expect(screen.getByRole("button", { name: "Pipe type" }).getAttribute("aria-expanded")).toBe("true");
     expect(screen.getByRole("button", { name: "Basic feed" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Boiler" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Manual" }).getAttribute("aria-disabled")).toBe("true");
-    expect(screen.queryByRole("textbox", { name: "Name" })).toBeNull();
+    expect(screen.getByRole("textbox", { name: "Name" }).getAttribute("value")).toBe("");
+    expect(screen.getByRole("button", { name: "Icon" })).toBeTruthy();
+    expect(screen.queryByRole("textbox", { name: "Initial amount" })).toBeNull();
   });
 
   it.each(["backdrop", "Back"])("validates an empty picker on first %s and leaves a pristine draft on the next", async method => {
@@ -74,10 +76,10 @@ describe("root-list shared pipe creation", () => {
     expect(screen.getByLabelText("Name").getAttribute("value")).toBe("Savings");
   });
 
-  it("keeps feed identity and opening values on the same page without an icon picker", () => {
+  it("keeps feed identity, icon and opening values on the same page", () => {
     open();
     expect(screen.getByRole("textbox", { name: "Name" })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Icon" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Icon" })).toBeTruthy();
     expect(screen.getByRole("textbox", { name: "Initial amount" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Next step" })).toBeNull();
     expect(screen.queryByRole("textbox", { name: "Contributed amount" })).toBeNull();

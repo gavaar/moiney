@@ -98,7 +98,7 @@ describe("pipe behavior editing", () => {
     open(timed({ capacity: 10000, capUpdateValue: 120000, cronInterval: { interval: 1, unit: "years" }, cronNextDate: Date.UTC(2099, 0, 15, 12) }));
     click("Spread over"); click("Monthly");
     expect(screen.getByText("Saves as 100.00 every 1 month.")).toBeTruthy();
-    expect(screen.getByText(/After settlement:.*\+ 100\.00\. With no spending, capacity would update to 200\.00\./)).toBeTruthy();
+    expect(screen.getByText("After settlement: capacity will become whatever funds are left plus 100.00.")).toBeTruthy();
     await submit();
     expect(h.update).toHaveBeenCalledWith(expect.objectContaining({ ruleConfig: expect.objectContaining({ capUpdateValue: 10000, interval: 1, unit: "months" }) }));
   });
@@ -121,14 +121,17 @@ describe("pipe behavior editing", () => {
   it("previews retained capacity for blank and an update for explicit zero", () => {
     open(pipe({ rule: "instant_settlement", capacity: 10000 }));
     expect(screen.getByPlaceholderText("Keep capacity unchanged")).toBeTruthy();
-    expect(screen.getByText("Capacity resets to 100.00 after settlement.")).toBeTruthy();
+    expect(screen.getByText("After settlement: capacity stays at 100.00.")).toBeTruthy();
     cap("0");
-    expect(screen.queryByText("Capacity resets to 100.00 after settlement.")).toBeNull();
-    expect(screen.getByText(/After settlement:.*\+ 0\.00\. With no spending, capacity would update to 100\.00\./)).toBeTruthy();
+    expect(screen.queryByText("After settlement: capacity stays at 100.00.")).toBeNull();
+    expect(screen.getByText("After settlement: capacity will become whatever funds are left plus 0.00.")).toBeTruthy();
   });
-  it("previews the settlement update and the resulting capacity without spending", () => {
-    open(pipe({ rule: "instant_settlement", capacity: 10000, capUpdateValue: 2500 }));
-    expect(screen.getByText(/After settlement:.*\+ 25\.00\. With no spending, capacity would update to 125\.00\./)).toBeTruthy();
+  it.each([
+    { capUpdateValue: 2500, adjustment: "plus 25.00" },
+    { capUpdateValue: -2500, adjustment: "minus 25.00" },
+  ])("previews the signed settlement update ($adjustment)", ({ capUpdateValue, adjustment }) => {
+    open(pipe({ rule: "instant_settlement", capacity: 10000, capUpdateValue }));
+    expect(screen.getByText(`After settlement: capacity will become whatever funds are left ${adjustment}.`)).toBeTruthy();
   });
   it("saves an Instant capacity update", async () => {
     open(pipe({ rule: "instant_settlement", capacity: 10000 })); cap("50"); await submit();
