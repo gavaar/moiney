@@ -84,9 +84,10 @@ describe("OptionsButton", () => {
       .getAllByTestId("icon")
       .find((i) => i.getAttribute("data-name") === "settings-outline")!;
     await user.click(gear);
-    expect(screen.getByText("Add pipe")).toBeDefined();
-    expect(screen.getByText("Edit")).toBeDefined();
-    expect(screen.getByText("Delete")).toBeDefined();
+    expect(screen.getByRole("button", { name: "Pipe options", expanded: true })).toBeDefined();
+    expect(screen.getByRole("button", { name: "Add pipe" })).toBeDefined();
+    expect(screen.getByRole("button", { name: "Edit" })).toBeDefined();
+    expect(screen.getByRole("button", { name: "Delete" })).toBeDefined();
   });
 
   it("closes popover on backdrop tap", async () => {

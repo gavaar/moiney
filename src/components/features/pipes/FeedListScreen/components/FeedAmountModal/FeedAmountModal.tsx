@@ -5,6 +5,7 @@ import { Icon } from "@ui/Icon";
 import { useAlert } from "@ui/Alert";
 import { ModalShell } from "@ui/Modal";
 import { AmountForm } from "@features/components/AmountForm";
+import { colors } from "@/lib/styles";
 
 type Props = {
   pipeId: Id<"pipes">;
@@ -46,7 +47,7 @@ export function FeedAmountModal({
         onPress={() => setVisible(true)}
         testID="feed-amount-trigger"
       >
-        <Icon name="add-circle-outline" size={24} color="white" />
+        <Icon name="add-circle-outline" size={24} color={colors.text} />
       </Pressable>}
 
       <ModalShell visible={visible} onClose={close}>

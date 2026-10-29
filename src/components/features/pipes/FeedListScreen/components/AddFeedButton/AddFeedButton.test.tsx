@@ -3,114 +3,115 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AddFeedButton } from "./AddFeedButton";
-import { ADD_FEED_DEFAULTS, buildAddFeedForm } from "./addFeedForm.config";
+import { ConfirmModalProvider } from "@ui/ConfirmModal";
+import { validateOpeningMoney } from "@features/pipes/PipeForm/pipe-form-policy";
 
-const mockAddFeed = vi.fn();
-const mockShowAlert = { success: vi.fn(), error: vi.fn() };
-vi.mock("convex/react", () => ({ useMutation: () => mockAddFeed }));
-vi.mock("@ui/Alert", () => ({ useAlert: () => mockShowAlert }));
-vi.mock("@convex/_generated/api", () => ({ api: { pipes: { addFeed: {} } } }));
+const addFeed = vi.fn();
+vi.mock("convex/react", () => ({ useMutation: () => addFeed }));
+vi.mock("@ui/Alert", () => ({ useAlert: () => ({ success: vi.fn(), error: vi.fn() }) }));
+vi.mock("@convex/_generated/api", () => ({ api: { pipes: { addFeed: "feed" } } }));
+vi.mock("expo-router/react-navigation", () => ({ useIsFocused: () => true }));
+vi.mock("@features/transactions/cache/EventHistoryCacheContext", () => ({ useOptionalEventHistoryCache: () => null }));
+vi.mock("@features/pipes/context/PipeCatalogContext", () => ({ usePipeCatalog: () => ({ allPipes: [], isLoading: false }) }));
 
+function click(name: string) { fireEvent.click(screen.getByRole("button", { name })); }
+function fill(name: string, value: string) { fireEvent.change(screen.getByRole("textbox", { name }), { target: { value } }); }
 function finishAnimations() {
-  document.querySelectorAll('[aria-modal="true"]').forEach((modal) => {
-    let animatedElement = modal.parentElement;
-    while (animatedElement && animatedElement !== document.body) {
-      fireEvent.animationEnd(animatedElement);
-      fireEvent(animatedElement, new Event("webkitAnimationEnd", { bubbles: true }));
-      animatedElement = animatedElement.parentElement;
+  document.querySelectorAll('[aria-modal="true"]').forEach(modal => {
+    let node = modal.parentElement;
+    while (node && node !== document.body) {
+      fireEvent.animationEnd(node); fireEvent(node, new Event("webkitAnimationEnd", { bubbles: true })); node = node.parentElement;
     }
   });
 }
-
-async function openModal() {
-  const user = userEvent.setup();
-  render(<AddFeedButton />);
-  await user.click(screen.getByText("Add new Feed"));
-  finishAnimations();
-  return user;
+function open(kind = "Basic feed") {
+  render(<ConfirmModalProvider><AddFeedButton /></ConfirmModalProvider>);
+  click("Add pipe");
+  click(kind);
 }
 
-async function fillIdentity(user: ReturnType<typeof userEvent.setup>) {
-  await user.type(screen.getByPlaceholderText(/Feed name|Boiler name/), "Savings");
-  await user.click(screen.getByTestId("icon-picker-trigger"));
-  finishAnimations();
-  await user.click(screen.getByText("wallet-outline"));
-  finishAnimations();
-}
+describe("root-list shared pipe creation", () => {
+  beforeEach(() => { vi.clearAllMocks(); addFeed.mockResolvedValue(undefined); });
 
-describe("AddFeedButton", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockAddFeed.mockResolvedValue(undefined);
-  });
-
-  it.each(["amount", "contributed"] as const)("rejects negative and unsupported %s values through the configured validator", (key) => {
-    const field = buildAddFeedForm({ ...ADD_FEED_DEFAULTS, isBoiler: true }).flatMap(page => page.rows.flat()).find((field) => field.key === key)!;
-    if (field.key !== "amount" && field.key !== "contributed") throw new Error("Expected an opening amount field");
-    for (const invalid of ["-0.01", "1.234", "abc", "1000000000.01", "9007199254740992"]) {
-      expect(field.input.validator(invalid)).toEqual(expect.any(String));
-    }
-    for (const valid of ["", "0", "0.01", "123.45", "1000000000.00"]) {
-      expect(field.input.validator(valid)).toBeUndefined();
-    }
-  });
-
-  it("places identity and type explanation first and keeps actions on both steps", async () => {
-    const user = await openModal();
-    expect(screen.getByRole("heading", { name: "Create Feed" })).toBeDefined();
-    expect(screen.getByText("A feed is a source for money entering your budget. Accounts, cash, and wallets are all feeds.")).toBeDefined();
-    expect(screen.getByTestId("add-feed-submit").getAttribute("aria-disabled")).toBe("true");
+  it("starts Add pipe with the type picker open and editable identity fields", () => {
+    render(<ConfirmModalProvider><AddFeedButton /></ConfirmModalProvider>);
+    click("Add pipe");
+    expect(screen.getByRole("button", { name: "Pipe type" }).getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByRole("button", { name: "Basic feed" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Boiler" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Manual" }).getAttribute("aria-disabled")).toBe("true");
+    expect(screen.getByRole("textbox", { name: "Name" }).getAttribute("value")).toBe("");
+    expect(screen.getByRole("button", { name: "Icon" })).toBeTruthy();
     expect(screen.queryByRole("textbox", { name: "Initial amount" })).toBeNull();
-    await user.click(screen.getByRole("radio", { name: "Boiler" }));
-    expect(screen.getByRole("heading", { name: "Create Boiler" })).toBeDefined();
-    expect(screen.getByText("A boiler tracks an asset's current value and contributed principal separately. Think of investment accounts.")).toBeDefined();
-    await user.click(screen.getByRole("button", { name: "Next step" }));
+  });
+
+  it.each(["backdrop", "Back"])("validates an empty picker on first %s and leaves a pristine draft on the next", async method => {
+    render(<ConfirmModalProvider><AddFeedButton /></ConfirmModalProvider>);
+    click("Add pipe"); finishAnimations();
+    const dismiss = () => method === "backdrop"
+      ? fireEvent.click(screen.getByTestId("modal-backdrop"))
+      : fireEvent.keyUp(document, { key: "Escape" });
+    expect(screen.queryByRole("alert")).toBeNull();
+    dismiss();
+    expect(screen.getByRole("alert").textContent).toBe("Pipe type required");
+    expect(screen.getByRole("button", { name: "Pipe type" }).getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByText("Discard changes?")).toBeNull();
+    dismiss();
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Pipe type" })).toBeNull());
+    expect(screen.queryByText("Discard changes?")).toBeNull();
+    expect(addFeed).not.toHaveBeenCalled();
+    click("Add pipe");
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByRole("button", { name: "Pipe type" }).getAttribute("aria-expanded")).toBe("true");
+  });
+
+  it("closes a reopened picker before asking to discard an edited draft", () => {
+    open(); fill("Name", "Savings"); click("Pipe type");
+    fireEvent.click(screen.getByTestId("collapsible-select-outside"));
+    expect(screen.queryByText("Discard changes?")).toBeNull();
+    expect(screen.getByLabelText("Name").getAttribute("value")).toBe("Savings");
+    fireEvent.click(screen.getByTestId("modal-backdrop"));
+    expect(screen.getByText("Discard changes?")).toBeTruthy();
+    click("Keep editing"); finishAnimations();
+    expect(screen.getByLabelText("Name").getAttribute("value")).toBe("Savings");
+  });
+
+  it("keeps feed identity, icon and opening values on the same page", () => {
+    open();
+    expect(screen.getByRole("textbox", { name: "Name" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Icon" })).toBeTruthy();
+    expect(screen.getByRole("textbox", { name: "Initial amount" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Next step" })).toBeNull();
-    expect(screen.getByRole("textbox", { name: "Initial amount" })).toBeDefined();
-    expect(screen.getByRole("textbox", { name: "Contributed amount" })).toBeDefined();
-    expect(screen.getByText("The asset's current value, including any gains or losses. Leave blank to start at zero.")).toBeDefined();
-    expect(screen.getByText("The total principal you have put into this asset, excluding gains or losses. Leave blank to start at zero.")).toBeDefined();
-    expect(screen.getByTestId("add-feed-submit").getAttribute("aria-disabled")).toBe("true");
-    await user.click(screen.getByRole("button", { name: "Previous step" }));
-    expect(screen.getByTestId("add-feed-submit").getAttribute("aria-disabled")).toBe("true");
+    expect(screen.queryByRole("textbox", { name: "Contributed amount" })).toBeNull();
   });
 
-  it("clears the draft, resets navigation and validation, and stays open", async () => {
-    const user = await openModal();
-    await user.click(screen.getByRole("radio", { name: "Boiler" }));
-    await user.type(screen.getByPlaceholderText("Boiler name"), "Savings");
-    await user.tab();
-    await user.click(screen.getByRole("button", { name: "Next step" }));
-    await user.type(screen.getByRole("textbox", { name: "Initial amount" }), "12.34");
-    await user.click(screen.getByRole("button", { name: "Clear form" }));
-    expect(screen.getByRole("heading", { name: "Create Feed" })).toBeTruthy();
-    expect(screen.getByPlaceholderText("Feed name").getAttribute("value")).toBe("");
-    expect(screen.getByLabelText("Step 1 of 2").getAttribute("aria-selected")).toBe("true");
-    expect(screen.queryByText("Name is required")).toBeNull();
-    expect(screen.getByTestId("modal-backdrop")).toBeTruthy();
-    expect(mockAddFeed).not.toHaveBeenCalled();
-  });
-
-  it("validates name on blur, corrects errors live, and blocks invalid submission", async () => {
-    const user = await openModal();
-    const name = screen.getByPlaceholderText("Feed name");
-    expect(screen.queryByText("Name is required")).toBeNull();
-    await user.type(name, "a");
+  it("clears values and validation and returns to an unselected picker without closing", () => {
+    open("Boiler"); fill("Name", "a"); fireEvent.blur(screen.getByLabelText("Name"));
+    fill("Initial amount", "12.34"); click("Clear form");
+    expect(screen.getByRole("button", { name: "Pipe type" }).getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByRole("button", { name: "Boiler" })).toBeTruthy();
     expect(screen.queryByText("Name must be at least 2 characters")).toBeNull();
-    await user.tab();
-    expect(screen.getByText("Name must be at least 2 characters")).toBeDefined();
-    await user.clear(name);
-    expect(screen.getByText("Name is required")).toBeDefined();
-    expect(screen.getByLabelText("Step 1 of 2, has errors")).toBeDefined();
-    await user.click(screen.getByRole("button", { name: "Next step" }));
-    expect(screen.getByTestId("add-feed-submit").getAttribute("aria-disabled")).toBe("true");
-    await user.click(screen.getByRole("button", { name: "Previous step" }));
-    await user.type(name, "Food");
-    expect(screen.queryByText("Name is required")).toBeNull();
-    expect(screen.getByLabelText("Step 1 of 2")).toBeDefined();
-    await user.click(screen.getByRole("button", { name: "Next step" }));
-    expect(screen.getByTestId("add-feed-submit").getAttribute("aria-disabled")).toBe("true");
-    expect(mockAddFeed).not.toHaveBeenCalled();
+    click("Boiler");
+    expect(screen.getByLabelText("Name").getAttribute("value")).toBe("");
+    expect(screen.getByLabelText("Initial amount").getAttribute("value")).toBe("");
+  });
+
+  it("validates names on blur and corrects their errors live", () => {
+    open(); fill("Name", "a");
+    expect(screen.queryByRole("alert")).toBeNull();
+    fireEvent.blur(screen.getByLabelText("Name"));
+    expect(screen.getByText("Name must be at least 2 characters")).toBeTruthy();
+    click("Submit"); expect(addFeed).not.toHaveBeenCalled();
+    fill("Name", "Savings");
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByRole("button", { name: "Submit" }).getAttribute("aria-disabled")).not.toBe("true");
+  });
+
+  it.each(["-0.01", "1.234", "abc", "1000000000.01", "9007199254740992"])("rejects invalid opening money %s", value => {
+    expect(validateOpeningMoney(value)).toEqual(expect.any(String));
+  });
+  it.each(["", "0", "0.01", "123.45", "1000000000.00"])("accepts opening money %s", value => {
+    expect(validateOpeningMoney(value)).toBeUndefined();
   });
 
   it.each([
@@ -121,140 +122,70 @@ describe("AddFeedButton", () => {
     [true, "150.23", "100.12", { initialFed: 15023, contributedFed: 10012 }],
     [true, "", "9.99", { contributedFed: 999 }],
     [true, "9.99", "", { initialFed: 999 }],
-  ])("submits exact independent optional amounts (boiler=%s, current=%s, principal=%s)", async (isBoiler, amount, contributed, money) => {
-    const user = await openModal();
-    if (isBoiler) await user.click(screen.getByRole("radio", { name: "Boiler" }));
-    await fillIdentity(user);
-    await user.type(screen.getByPlaceholderText("Optional description"), "Opening balance");
-    await user.click(screen.getByRole("button", { name: "Next step" }));
-    if (!isBoiler) expect(screen.getByText("The money currently available in this feed. Leave blank to start at zero.")).toBeDefined();
-    if (amount) await user.type(screen.getByLabelText("Initial amount"), amount);
-    if (contributed) await user.type(screen.getByLabelText("Contributed amount"), contributed);
-    expect(screen.getByTestId("add-feed-submit").getAttribute("aria-disabled")).toBeNull();
-    await user.click(screen.getByTestId("add-feed-submit"));
-    await waitFor(() => expect(mockAddFeed).toHaveBeenCalledExactlyOnceWith({
-      name: "Savings",
-      icon: "wallet-outline",
-      description: "Opening balance",
-      sourceType: isBoiler ? "boiler" : "feed",
-      ...money,
+  ] as const)("submits independent optional amounts (boiler=%s, current=%s, principal=%s)", async (boiler, amount, contributed, money) => {
+    open(boiler ? "Boiler" : "Basic feed"); fill("Name", "Savings"); fill("Description", "Opening balance");
+    if (amount) fill("Initial amount", amount);
+    if (contributed) fill("Contributed amount", contributed);
+    click("Submit");
+    await waitFor(() => expect(addFeed).toHaveBeenCalledExactlyOnceWith({
+      name: "Savings", icon: boiler ? "boiler" : "feed-pipe", description: "Opening balance", sourceType: boiler ? "boiler" : "feed", ...money,
     }));
-    expect(mockShowAlert.success).toHaveBeenCalledWith(isBoiler ? "Boiler added" : "Feed added");
   });
 
-  it("preserves hidden contributed drafts but ignores their errors and values when submitting a feed", async () => {
-    const user = await openModal();
-    await user.click(screen.getByRole("radio", { name: "Boiler" }));
-    await fillIdentity(user);
-    await user.click(screen.getByRole("button", { name: "Next step" }));
-    await user.type(screen.getByLabelText("Contributed amount"), "1.234");
+  it("retains hidden contribution drafts without submitting or validating them as a basic feed", async () => {
+    open("Boiler"); fill("Name", "Savings"); fill("Contributed amount", "1.234");
     fireEvent.blur(screen.getByLabelText("Contributed amount"));
-    expect(screen.getByText("Enter a valid contribution")).toBeDefined();
-    expect(screen.getByLabelText("Step 2 of 2, has errors")).toBeDefined();
-    expect(screen.getByTestId("add-feed-submit").getAttribute("aria-disabled")).toBe("true");
-    await user.click(screen.getByRole("button", { name: "Previous step" }));
-    await user.click(screen.getByRole("radio", { name: "Feed" }));
-    await user.type(screen.getByPlaceholderText("Optional description"), "Retained");
-    await user.click(screen.getByRole("radio", { name: "Boiler" }));
-    await user.click(screen.getByRole("button", { name: "Next step" }));
-    expect((screen.getByLabelText("Contributed amount") as HTMLInputElement).value).toBe("1.234");
-    await user.click(screen.getByRole("button", { name: "Previous step" }));
-    await user.click(screen.getByRole("radio", { name: "Feed" }));
-    await user.click(screen.getByRole("button", { name: "Next step" }));
+    expect(screen.getByText("Enter a nonnegative amount")).toBeTruthy();
+    click("Pipe type"); click("Basic feed");
     expect(screen.queryByLabelText("Contributed amount")).toBeNull();
-    expect(screen.getByLabelText("Step 2 of 2")).toBeDefined();
-    expect(screen.getByTestId("add-feed-submit").getAttribute("aria-disabled")).toBeNull();
-    await user.click(screen.getByTestId("add-feed-submit"));
-    expect(mockAddFeed).toHaveBeenCalledExactlyOnceWith({ name: "Savings", icon: "wallet-outline", description: "Retained", sourceType: "feed" });
+    click("Pipe type"); click("Boiler");
+    expect(screen.getByLabelText("Contributed amount").getAttribute("value")).toBe("1.234");
+    click("Pipe type"); click("Basic feed"); click("Submit");
+    await waitFor(() => expect(addFeed).toHaveBeenCalledWith(expect.objectContaining({ sourceType: "feed" })));
+    expect(addFeed.mock.calls[0][0]).not.toHaveProperty("contributedFed");
   });
 
-  it("rejects invalid current precision and clears the error on correction", async () => {
-    const user = await openModal();
-    await fillIdentity(user);
-    await user.click(screen.getByRole("button", { name: "Next step" }));
-    await user.type(screen.getByLabelText("Initial amount"), "1.234");
-    fireEvent.blur(screen.getByLabelText("Initial amount"));
-    expect(screen.getByText("Enter a valid amount")).toBeDefined();
-    expect(screen.getByTestId("add-feed-submit").getAttribute("aria-disabled")).toBe("true");
-    await user.clear(screen.getByLabelText("Initial amount"));
-    expect(screen.queryByText("Enter a valid amount")).toBeNull();
-    expect(screen.getByTestId("add-feed-submit").getAttribute("aria-disabled")).toBeNull();
+  it("rejects incomplete precision and clears the error on correction", () => {
+    open(); fill("Name", "Savings"); fill("Initial amount", "1.234"); fireEvent.blur(screen.getByLabelText("Initial amount"));
+    expect(screen.getByText("Enter a nonnegative amount")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Submit" }).getAttribute("aria-disabled")).toBe("true");
+    fill("Initial amount", ""); expect(screen.queryByRole("alert")).toBeNull();
   });
 
-  it("preserves draft on backdrop dismissal but restarts navigation and edit validation", async () => {
-    const user = await openModal();
-    await user.type(screen.getByPlaceholderText("Feed name"), "a");
-    await user.click(screen.getByRole("button", { name: "Next step" }));
-    await user.click(screen.getByTestId("modal-backdrop"));
+  it("guards backdrop dismissal, retains cancelled drafts, and resets after confirmed discard", async () => {
+    open(); fill("Name", "Savings"); fireEvent.click(screen.getByTestId("modal-backdrop"));
+    expect(screen.getByText("Discard changes?")).toBeTruthy(); click("Keep editing");
     finishAnimations();
-    await user.click(screen.getByText("Add new Feed"));
-    finishAnimations();
-    expect((screen.getByPlaceholderText("Feed name") as HTMLInputElement).value).toBe("a");
-    expect(screen.queryByText("Name must be at least 2 characters")).toBeNull();
-    expect(screen.getByTestId("add-feed-submit").getAttribute("aria-disabled")).toBe("true");
-    expect(screen.getByLabelText("Step 1 of 2").getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByLabelText("Name").getAttribute("value")).toBe("Savings");
+    fireEvent.click(screen.getByTestId("modal-backdrop")); click("Discard changes");
+    await waitFor(() => expect(screen.queryByLabelText("Name")).toBeNull());
+    click("Add pipe"); click("Basic feed"); expect(screen.getByLabelText("Name").getAttribute("value")).toBe("");
   });
 
-  it("retains values and navigation on failure and resets everything after success", async () => {
-    mockAddFeed.mockRejectedValueOnce(new Error("Server error"));
-    const user = await openModal();
-    await user.click(screen.getByRole("radio", { name: "Boiler" }));
-    await fillIdentity(user);
-    await user.click(screen.getByRole("button", { name: "Next step" }));
-    await user.type(screen.getByLabelText("Initial amount"), "12.34");
-    await user.click(screen.getByTestId("add-feed-submit"));
-    expect(mockShowAlert.error).toHaveBeenCalledWith("Server error");
-    expect((screen.getByLabelText("Initial amount") as HTMLInputElement).value).toBe("12.34");
-    await user.click(screen.getByTestId("add-feed-submit"));
-    expect(mockAddFeed).toHaveBeenCalledTimes(2);
+  it("retains values on failure and starts fresh after success", async () => {
+    const user = userEvent.setup();
+    addFeed.mockRejectedValueOnce(new Error("Connection lost"));
+    open("Boiler"); fill("Name", "Savings"); fill("Initial amount", "12.34");
     finishAnimations();
-    await user.click(screen.getByText("Add new Feed"));
-    finishAnimations();
-    expect(screen.getByRole("heading", { name: "Create Feed" })).toBeDefined();
-    expect((screen.getByPlaceholderText("Feed name") as HTMLInputElement).value).toBe("");
-    expect(screen.queryByText("wallet-outline")).toBeNull();
-    expect(screen.getByTestId("add-feed-submit").getAttribute("aria-disabled")).toBe("true");
-    await user.click(screen.getByRole("button", { name: "Next step" }));
-    expect((screen.getByLabelText("Initial amount") as HTMLInputElement).value).toBe("");
-    expect(screen.getByTestId("add-feed-submit").getAttribute("aria-disabled")).toBe("true");
+    await user.click(screen.getByRole("button", { name: "Submit" }));
+    await waitFor(() => expect(screen.getByRole("alert").textContent).toBe("Connection lost"));
+    expect(screen.getByLabelText("Initial amount").getAttribute("value")).toBe("12.34");
+    await user.click(screen.getByRole("button", { name: "Submit" }));
+    expect(addFeed).toHaveBeenCalledTimes(2);
+    expect(screen.queryByLabelText("Name")).toBeNull();
+    click("Add pipe"); click("Boiler"); expect(screen.getByLabelText("Name").getAttribute("value")).toBe("");
   });
 
-  it("disables fields and guards repeated submissions while loading", async () => {
-    let resolve!: () => void;
-    mockAddFeed.mockReturnValueOnce(new Promise<void>((done) => { resolve = done; }));
-    const user = await openModal();
-    await fillIdentity(user);
-    await user.click(screen.getByRole("button", { name: "Next step" }));
-    await user.dblClick(screen.getByTestId("add-feed-submit"));
-    expect(mockAddFeed).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole("button", { name: "Clear form" }).getAttribute("aria-disabled")).toBe("true");
-    expect((screen.getByLabelText("Initial amount") as HTMLInputElement).readOnly).toBe(true);
-    await user.click(screen.getByRole("button", { name: "Previous step" }));
-    expect((screen.getByPlaceholderText("Feed name") as HTMLInputElement).readOnly).toBe(true);
-    expect(screen.getByRole("radio", { name: "Boiler" }).getAttribute("aria-disabled")).toBe("true");
-    await act(async () => resolve());
-  });
-
-  it("retains the pending draft when dismissed and reopened, then unlocks it on failure", async () => {
+  it("blocks dismissal, field editing and repeated submissions while saving, then unlocks on failure", async () => {
     let reject!: (error: Error) => void;
-    mockAddFeed.mockReturnValueOnce(new Promise<void>((_resolve, fail) => { reject = fail; }));
-    const user = await openModal();
-    await fillIdentity(user);
-    await user.click(screen.getByRole("button", { name: "Next step" }));
-    await user.click(screen.getByTestId("add-feed-submit"));
-    await user.click(screen.getByTestId("modal-backdrop"));
-    finishAnimations();
-    await user.click(screen.getByText("Add new Feed"));
-    finishAnimations();
-    const name = screen.getByRole("textbox", { name: "Name" }) as HTMLInputElement;
-    expect(name.value).toBe("Savings");
-    expect(name.readOnly).toBe(true);
-    await user.click(screen.getByRole("button", { name: "Next step" }));
-    expect(screen.getByTestId("add-feed-submit").getAttribute("aria-disabled")).toBe("true");
+    addFeed.mockReturnValueOnce(new Promise<void>((_resolve, fail) => { reject = fail; }));
+    open(); fill("Name", "Savings"); click("Submit"); click("Submit");
+    expect(addFeed).toHaveBeenCalledOnce();
+    fireEvent.click(screen.getByTestId("modal-backdrop"));
+    expect(screen.queryByText("Discard changes?")).toBeNull();
+    expect(screen.getByLabelText("Name").getAttribute("readonly")).not.toBeNull();
     await act(async () => reject(new Error("Connection lost")));
-    expect(mockShowAlert.error).toHaveBeenCalledWith("Connection lost");
-    expect(screen.getByTestId("add-feed-submit").getAttribute("aria-disabled")).toBeNull();
-    await user.click(screen.getByTestId("add-feed-submit"));
-    expect(mockAddFeed).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole("alert").textContent).toBe("Connection lost");
+    click("Submit"); await waitFor(() => expect(addFeed).toHaveBeenCalledTimes(2));
   });
 });

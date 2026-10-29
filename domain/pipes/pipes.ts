@@ -24,7 +24,6 @@ export function calculatePipeRulePatch(
   pipe: PipeRuleState,
   opts: { now: number; capUpdateValue?: number },
 ): PipeRulePatch {
-  if (pipe.rule === "self_destruct") throw new Error("Self-destruct must use pipe deletion");
   const patch: PipeRulePatch = {
     fed: pipe.fed + (pipe.pendingFedAdjustment ?? 0) - pipe.spent,
     spent: 0,
@@ -34,7 +33,7 @@ export function calculatePipeRulePatch(
     patch.pendingFedAdjustment = 0;
   }
 
-  const capUpdateValue = opts.capUpdateValue ?? pipe.capUpdateValue;
+  const capUpdateValue = pipe.rule === "self_destruct" ? undefined : opts.capUpdateValue ?? pipe.capUpdateValue;
   if (capUpdateValue != null) {
     patch.capacity = pipe.capacity - pipe.spent + capUpdateValue;
   }

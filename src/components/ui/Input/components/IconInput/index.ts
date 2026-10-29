@@ -1,1 +1,1 @@
-export { IconInput } from "./IconInput";
+export { IconInput, type IconInputProps } from "./IconInput";

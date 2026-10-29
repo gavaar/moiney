@@ -32,7 +32,7 @@ export function prepareContingencyEligibility<PipeId extends string>(
   return sourceId => {
     let current = byId.get(sourceId);
     if (!current || current.blocked || parents.has(sourceId) || donors.has(sourceId) ||
-      current.rule === "instant_settlement" || current.rule === "self_destruct") return [];
+      current.rule === "instant_settlement") return [];
     const ancestorIds = new Set<PipeId>();
     const visited = new Set([sourceId]);
     while (current.parentId !== undefined) {

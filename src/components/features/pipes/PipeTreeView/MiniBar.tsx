@@ -1,4 +1,4 @@
-import { DimensionValue, View } from "react-native";
+import { View } from "react-native";
 import { colors } from "@/lib/styles";
 
 const BAR_WIDTH = 100;
@@ -17,7 +17,7 @@ export function MiniBar({
   const hasNegative = fed < 0 || capacity < 0;
   const hasPositive = fed > 0 || capacity > 0 || spent > 0;
 
-  const pHalf = (v: number) => `${(v / maxVal) * 100}%` as DimensionValue;
+  const pHalf = (v: number): `${number}%` => `${(v / maxVal) * 100}%`;
 
   return (
     <View
@@ -96,7 +96,7 @@ export function MiniBar({
               testID="mini-bar-capacity"
               style={{
                 width: pHalf(Math.max(0, capacity - fed)),
-                backgroundColor: "#413f3f",
+                backgroundColor: colors.muted,
                 height: 8,
               }}
             />

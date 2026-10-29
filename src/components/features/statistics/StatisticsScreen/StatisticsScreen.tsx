@@ -1,6 +1,5 @@
 import { api } from "@convex/_generated/api";
 import { AppScreenHeader } from "@features/app/AppScreenHeader";
-import { type MonthlySpendingStat } from "@features/statistics/data/monthlySpending";
 import { MonthlyStatisticsCard } from "@features/statistics/MonthlyStatisticsCard";
 import { CurrentMonthStatisticsCard } from "@features/statistics/CurrentMonthStatisticsCard";
 import { colors } from "@/lib/styles";
@@ -29,7 +28,7 @@ export function StatisticsScreen({ onSelectPeriod, onOpenCurrentReport }: Props)
     >
       <AppScreenHeader title="Statistics" />
       <FlatList
-        data={(reports ?? []) as MonthlySpendingStat[]}
+        data={reports ?? []}
         keyExtractor={(item) => String(item.periodStart)}
         contentInsetAdjustmentBehavior="automatic"
         contentContainerClassName="gap-3 px-2 pb-4"

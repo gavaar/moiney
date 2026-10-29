@@ -1,10 +1,10 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { parseMoney } from "@domain/money";
-import { planTransactionEdit, type TransactionStructure } from "@domain/transactions";
-import { formatAmount } from "@/lib/format";
+import type { TransactionStructure } from "@domain/transactions";
+import { invalidPreviousTransactionPipeIds } from "@domain/transactions/editEligibility";
 import { useAlert } from "@ui/Alert";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import { useOptionalEventHistoryCache } from "@features/transactions/cache/EventHistoryCacheContext";
@@ -23,6 +23,7 @@ import {
 import type { AmountFormDraft, AmountFormProps } from "./types";
 import type { PipeModel } from "@features/pipes/data/pipes";
 import { groupPipesByRoot } from "./pipeGroups";
+import { transactionEditPreview } from "./transactionEditPreview";
 
 type SpendMode = "spend" | "transfer";
 const EMPTY_PIPES_BY_ID: Readonly<Record<string, PipeModel>> = {};
@@ -63,6 +64,22 @@ export function useAmountFormController(props: AmountFormProps) {
     initialStructure?.type === "transfer" ? "transfer" : "spend",
   );
   const [applyReplacementEffects, setApplyReplacementEffects] = useState(false);
+  const [baseline, setBaseline] = useState(() => ({
+    title,
+    value,
+    date: date.getTime(),
+    currentFed: currentFedValue,
+    sourcePipeId: pipeId,
+    sentTo: sentToPipeId,
+    paidFrom: paidFromPipeId,
+    modeTransfer: spendMode === "transfer",
+  }));
+  const dirty = title !== baseline.title || value !== baseline.value || date.getTime() !== baseline.date ||
+    currentFedValue !== baseline.currentFed || pipeId !== baseline.sourcePipeId ||
+    sentToPipeId !== baseline.sentTo || paidFromPipeId !== baseline.paidFrom ||
+    (spendMode === "transfer") !== baseline.modeTransfer || applyReplacementEffects;
+  const { onDismissStateChange } = props;
+  useEffect(() => { onDismissStateChange?.(dirty, loading); }, [dirty, loading, onDismissStateChange]);
 
   const showAlert = useAlert();
   const historyCache = useOptionalEventHistoryCache();
@@ -120,10 +137,10 @@ export function useAmountFormController(props: AmountFormProps) {
   const buttonIcon = getButtonIcon(intent, isFeed, spendMode);
 
   const handleModeChange = useCallback(
-    (newMode: string) => {
+    (newMode: SpendMode) => {
       const nextState = transitionSpendMode(
         { spendMode, sentToPipeId, paidFromPipeId, showPaidFrom },
-        newMode as SpendMode,
+        newMode,
       );
       setSpendMode(nextState.spendMode);
       setSentToPipeId(nextState.sentToPipeId);
@@ -154,26 +171,12 @@ export function useAmountFormController(props: AmountFormProps) {
 
   const invalidPreviousPipeIds = useMemo(() => {
     if (intent !== "edit" || !initialStructure || !allPipes) return [];
-    const roles = initialStructure as { from?: Id<"pipes">; to?: Id<"pipes">; paidFrom?: Id<"pipes"> };
-    return (["from", "to", "paidFrom"] as const).flatMap(role => {
-      const id = roles[role];
-      if (!id) return [];
-      const pipe = pipesById[id];
-      const hasChildren = (idToCheck: Id<"pipes">) => allPipes.some(item => item.parentId === idToCheck);
-      const invalid = !pipe || !!pipe.deletionJobId ||
-        (role === "from" && hasChildren(id)) ||
-        (role === "to" && initialStructure.type === "transfer" && !!pipe.parentId) ||
-        (role === "paidFrom" && ((initialTransaction?.value ?? "-").startsWith("-") ? hasChildren(id) : !!pipe.parentId));
-      return invalid ? [id] : [];
-    });
-  }, [allPipes, initialStructure, initialTransaction?.value, intent, pipesById]);
+    return invalidPreviousTransactionPipeIds(initialStructure, parseMoney(initialTransaction?.value ?? "0"),
+      allPipes.map(pipe => ({ id: pipe.id, parentId: pipe.parentId, blocked: !!pipe.deletionJobId })));
+  }, [allPipes, initialStructure, initialTransaction?.value, intent]);
 
   const editWarning = useMemo(() => {
     if (intent !== "edit" || !initialStructure || !pipeId || !isValidAmount) return null;
-    const originalPrimary = initialStructure.type === "feed" ? initialStructure.to : initialStructure.from;
-    if (invalidPreviousPipeIds.length === 0 && originalPrimary === pipeId &&
-      (initialStructure.type !== "transfer" || initialStructure.to === sentToPipeId) &&
-      (initialStructure.type !== "payByTransfer" || initialStructure.paidFrom === paidFromPipeId)) return null;
     const next: TransactionStructure<Id<"pipes">> = isFeed
       ? { type: "feed", to: pipeId }
       : spendMode === "transfer" && sentToPipeId
@@ -181,26 +184,16 @@ export function useAmountFormController(props: AmountFormProps) {
         : paidFromPipeId
           ? { type: "payByTransfer", from: pipeId, paidFrom: paidFromPipeId }
           : { type: "expense", from: pipeId };
-    const plan = planTransactionEdit(initialStructure, parseMoney(initialTransaction?.value ?? "0"), next, parseMoney(value), {
-      invalidPreviousPipeIds, applyReplacementEffects,
+    return transactionEditPreview({
+      previous: initialStructure,
+      previousValue: parseMoney(initialTransaction?.value ?? "0"),
+      next,
+      value: parseMoney(value),
+      invalidPreviousPipeIds,
+      applyReplacementEffects,
+      pipesById,
+      previousPipeName: initialTransaction?.pipeName ?? "Previous pipe",
     });
-    const lines = plan.deltas.map(delta => {
-      const pipe = pipesById[delta.pipeId];
-      const fields = [
-        ["fed", delta.fedDelta],
-        ["spent", delta.spentDelta],
-        ["pending", delta.pendingFedAdjustmentDelta],
-        ["contributed", pipe?.sourceType === "boiler" ? delta.contributedFedDelta : 0],
-      ] as const;
-      return `${pipe?.name ?? initialTransaction?.pipeName ?? "Previous pipe"}: ${fields.filter(([, amount]) => amount !== 0).map(([field, amount]) => `${field} ${amount > 0 ? "+" : ""}${formatAmount(amount)}`).join(", ")}`;
-    });
-    if (invalidPreviousPipeIds.length) {
-      lines.push(applyReplacementEffects
-        ? "Replacement pipes receive the transaction effect. Invalid original pipes are not reversed."
-        : "Replacement pipes receive no accounting update. Invalid original pipes are not reversed.");
-    }
-    lines.push("Rules may run; final balances can differ.");
-    return lines;
   }, [applyReplacementEffects, initialStructure, initialTransaction?.pipeName, initialTransaction?.value, invalidPreviousPipeIds, intent, isFeed, isValidAmount, paidFromPipeId, pipeId, pipesById, sentToPipeId, spendMode, value]);
 
   if (allPipes && pipeId && paidFromPipeId &&
@@ -222,15 +215,26 @@ export function useAmountFormController(props: AmountFormProps) {
       );
 
   const resetForm = useCallback(() => {
+    const resetDate = new Date();
     setTitle("");
     setValue(isBoiler ? "0" : isFeed ? "" : "-");
     setCurrentFedValue(initialCurrentFedValue);
-    setDate(new Date());
+    setDate(resetDate);
     setSentToPipeId(null);
     setPaidFromPipeId(null);
     setShowPaidFrom(false);
     setSpendMode("spend");
-  }, [initialCurrentFedValue, isBoiler, isFeed]);
+    setBaseline({
+      title: "",
+      value: isBoiler ? "0" : isFeed ? "" : "-",
+      date: resetDate.getTime(),
+      currentFed: initialCurrentFedValue,
+      sourcePipeId: pipeId,
+      sentTo: null,
+      paidFrom: null,
+      modeTransfer: false,
+    });
+  }, [initialCurrentFedValue, isBoiler, isFeed, pipeId]);
 
   const handleEditSubmit = useCallback(async () => {
     if (!initialTransaction?.operationId) return;

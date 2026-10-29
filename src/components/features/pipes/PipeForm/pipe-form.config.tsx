@@ -2,20 +2,14 @@ import { Text, View } from "react-native";
 import { parseMoney } from "@domain/money";
 import { colors } from "@/lib/styles";
 import { Icon, safeIconName } from "@ui/Icon";
-import type { FormPage, FormRow } from "@ui/Form";
+import { formBuilder, type FormPage } from "@ui/Form";
 import type { PipeModel } from "@features/pipes/data/pipes";
 import { buildRuleRows } from "@features/pipes/rules/rule-form";
-import { ruleDisallowsContingency, type PipeDraft } from "./pipe-draft";
+import { pipeRuleDraft, type PipeDraft } from "./pipe-draft";
+import { isFeedKind, PIPE_KINDS } from "@features/pipes/rules/config";
+import { validateOpeningMoney, validatePipeCapacity, validatePipeName, type PipeFormPolicy } from "./pipe-form-policy";
 
-export function validatePipeName(value: string): string | undefined {
-  if (!value.trim()) return "Name is required";
-  if (value.trim().length < 3) return "Name must be at least 3 characters";
-}
-
-export function validatePipeCapacity(value: string, required = false): string | undefined {
-  if (!value) return required ? "Enter a valid capacity" : undefined;
-  try { parseMoney(value); } catch { return "Enter a valid capacity"; }
-}
+export type PipeFormValues = Omit<PipeDraft, "kind"> & { kind: string | null; warningsAcknowledged: boolean };
 
 function pipeOption(item: { name: string; icon: string }) {
   return <View className="flex-row items-center gap-2">
@@ -24,83 +18,153 @@ function pipeOption(item: { name: string; icon: string }) {
   </View>;
 }
 
-export function buildPipeForm({ pipes, disabled, loading, draft, now, editing, leaf, allowSelfDestruct, contingencyOptions, invalidContingency, removalPending }: {
+export function buildPipeForm({ pipes, disabled, loading, draft, now, policy, typePickerInitiallyExpanded }: {
   pipes: readonly PipeModel[]; disabled: boolean; loading: boolean; draft: PipeDraft; now: number;
-  editing: boolean; leaf: boolean; allowSelfDestruct: boolean; contingencyOptions: readonly PipeModel[];
-  invalidContingency: boolean; removalPending: boolean;
-}): readonly FormPage<PipeDraft>[] {
-  const pages: FormPage<PipeDraft>[] = [];
-  if (!editing) pages.push({
-    key: 0,
-    rows: [
-      [
-        {
-          key: "ownerId",
-          input: {
-            type: "select",
-            presentation: "inline",
-            label: "Owner pipe",
-            hideLabel: true,
-            items: pipes,
-            disabled,
-            loading,
-            validator: (value: string | null) => pipes.some(pipe => pipe.id === value) ? undefined : "Select an owner pipe",
-            renderItem: item => pipeOption({ name: item.name, icon: item.icon }),
-          }
-        }
-      ]
-    ]
-  });
-  pages.push({
-    key: 1,
-    rows: [
-      [{ key: "name", input: { label: "Name", placeholder: "Pipe name", disabled, validator: validatePipeName } }],
-      [{ key: "description", input: { label: "Description", placeholder: "Optional description", multiline: true, numberOfLines: 3, disabled } }],
-      [
-        { key: "icon", input: { type: "icon", label: "Icon", disabled } },
-        { key: "priority", input: { type: "number", label: "Priority", min: 0, step: 1, disabled } }
-      ],
-    ]
-  });
-  if (!leaf) return pages;
-  const capacity = draft.capacity && validatePipeCapacity(draft.capacity) === undefined ? parseMoney(draft.capacity) : 0;
-  pages.push({
-    key: 2,
-    rows: [
-      [
-        {
-          key: "capacity",
-          input: {
-            type: "decimal",
-            label: editing ? "Capacity" : "Initial capacity?",
-            placeholder: "0.00",
-            allowNegative: true,
-            disabled,
-            validator: value => validatePipeCapacity(value, editing)
+  policy: PipeFormPolicy;
+  typePickerInitiallyExpanded: boolean;
+}): readonly FormPage<PipeFormValues>[] {
+  const { form, page, row, input } = formBuilder<PipeFormValues>({ defaults: { disabled } });
+  const { editing, root, contingencyOptions, invalidContingency, nameMinimum } = policy;
+
+  const choice = draft.kind && PIPE_KINDS[draft.kind];
+  const allChoices = Object.values(PIPE_KINDS);
+  const choices = allChoices.filter(item => !editing || !isFeedKind(item.id));
+  const owner = pipes.find(pipe => pipe.id === draft.ownerId);
+
+  const capacity = draft.capacity && !validatePipeCapacity(draft.capacity) ? parseMoney(draft.capacity) : 0;
+  const ruleRows = buildRuleRows(pipeRuleDraft(draft), { capacity, disabled, now });
+  const { kind, icon, name, description, priority, contributed, amount, ownerId, pipeCapacity, contingencyPipeId } = {
+    kind: input("kind",
+      {
+        type: "collapsible-select",
+        label: "Pipe type",
+        initiallyExpanded: typePickerInitiallyExpanded && draft.kind === null,
+        validator: value => allChoices.some(item => item.id === value) ? undefined : "Pipe type required",
+        items: choices.map(item => ({
+          ...item,
+          iconColor: item.color,
+        })),
+        isItemDisabled: item => isFeedKind(item.id) ? !policy.allowRootCreation : !policy.hasFeed || loading,
+        groups: [
+          ...(!editing ? [
+            {
+              id: "feeds",
+              title: "Feeds",
+              itemIds: allChoices.filter(item => item.group === "feeds").map(item => item.id),
+              info: "Where money enters your pipe network. Choose a basic feed or a boiler that also tracks contributions." +
+                (!policy.allowRootCreation ? " To create a feed, use Add pipe outside an existing pipe." : ""),
+            },
+          ] : []),
+          {
+            id: "inner",
+            title: "Inner pipes",
+            itemIds: allChoices.filter(item => item.group === "inner").map(item => item.id),
+            info: "Pipes inside a feed's network. Each has an owner pipe, which may itself be an inner pipe. Create a feed before adding inner pipes.",
           },
-          description: "Capacity is this pipe's spending budget and allocation target. It does not add money; available money is allocated from its owner pipe. " +
-      (editing ? "Enter zero explicitly, or a negative amount to represent debt." : "Leave blank for zero, or enter a negative amount to represent debt."),
-        }
-      ]
-    ]
-  });
-  const ruleRows: FormRow<PipeDraft>[] = [...buildRuleRows(draft, { capacity, disabled, allowSelfDestruct, now })];
-  const incompatible = ruleDisallowsContingency(draft.selectedRule);
-  if (contingencyOptions.length || draft.contingencyPipeId || incompatible || removalPending) ruleRows.push([
-    {
-      key: "contingencyPipeId",
-      input: {
+        ],
+      },
+      { description: choice?.shortDescription },
+    ),
+    icon: input("icon", { type: "icon", label: "Icon" }),
+    name: input("name", { label: "Name", placeholder: root ? "Feed name" : "Pipe name", validator: value => validatePipeName(value, nameMinimum) }, { grow: 4 }),
+    description: input("description", { label: "Description", placeholder: "Optional description", multiline: true, numberOfLines: 3 }),
+    priority: input("priority",
+      { type: "number", label: "Priority", min: 0, step: 1 },
+      {
+         description: `Order in which funds are received.
+Lower receive sooner.`,
+      }
+    ),
+    contributed: input("contributed",
+      { type: "decimal", label: "Contributed amount", placeholder: "0.00", validator: validateOpeningMoney },
+      {
+        description: `Funds contributed, excluding gains or losses.
+Independe of current funds. Leave blank to set to zero.`,
+      },
+    ),
+    amount: input("amount",
+      { type: "decimal", label: "Initial amount", placeholder: "0.00", validator: validateOpeningMoney },
+      { description: "Available funds at creation time. Leave blank to set to zero." },
+    ),
+    ownerId: input("ownerId",
+      {
+        type: "select",
+        label: "Owner pipe",
+        items: pipes,
+        loading,
+        disabled: disabled || editing,
+        validator: value => pipes.some(pipe => pipe.id === value) ? undefined : "Select an owner pipe",
+        renderItem: pipeOption,
+      },
+      { description: editing && `Owner: ${owner?.name ?? "Unavailable"}. Ownership cannot be changed.` },
+    ),
+    pipeCapacity: input("capacity", {
+        type: "decimal",
+        label: editing ? "Capacity" : "Starting capacity?",
+        placeholder: "0.00",
+        allowNegative: true,
+        validator: value => validatePipeCapacity(value, editing),
+      },
+      {
+        grow: 2,
+        description: `Size of the container (budget). Funds will be added up to this amount. Depending on pipe type, capacity can vary`,
+      },
+    ),
+    contingencyPipeId: input("contingencyPipeId", {
         type: "select",
         label: "Contingency",
-        disabled: disabled || incompatible,
-        items: [{ id: "none", name: "No contingency", icon: "shield" }, ...contingencyOptions],
-        renderItem: item => pipeOption({ name: item.name, icon: item.icon }),
+        items: [
+          { id: "none", name: "No contingency", icon: "shield" },
+          ...contingencyOptions,
+        ],
+        renderItem: pipeOption,
       },
-      description: incompatible ? "This rule cannot use contingency." + (removalPending ? " Saving will remove the current contingency." : "")
-        : invalidContingency ? "Selected contingency is no longer eligible. Choose another or clear it."
-          : "At settlement, contingency covers spending above this pipe's capacity using the selected pipe's available money.",
-    }
-  ]);
-  pages.push({ key: 3, rows: ruleRows });
-  return pages;
+      {
+        description: invalidContingency ? 'Selected contingency is no longer eligible. Choose another or clear it.'
+          : 'Select a pipe to cover this pipe\'s overspending. Useful when budgets need flexibility.',
+      },
+    ),
+  };
+
+  switch(policy.mode) {
+    case 'edit-details':
+      return form(
+        page(
+          row(icon, name),
+          policy.priorityEditable && row(priority),
+          row(description),
+        ),
+      );
+    case 'create-root':
+      return form(
+        page(
+          row(kind),
+          row(icon, name),
+          draft.kind === 'boiler' && row(contributed),
+          row(amount),
+          row(description),
+        ),
+      );
+    case 'unselected':
+      return form(
+        page(
+          row(kind),
+          row(icon, name),
+        ),
+      );
+    default:
+      return form(
+        page(
+          row(kind),
+          draft.kind && row(ownerId),
+          draft.kind && row(icon, name),
+          draft.kind && row(priority, pipeCapacity),
+        ),
+        page(
+          ...ruleRows,
+          row(contingencyPipeId),
+          row(description),
+        ),
+      );
+  }
 }

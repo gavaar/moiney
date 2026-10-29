@@ -78,6 +78,48 @@ describe("creation-time rules", () => {
 });
 
 describe("scheduled self-destruct", () => {
+  it.each([
+    { capacity: 100, spent: 400, available: 100, covered: 100 },
+    { capacity: 100, spent: 400, available: 0, covered: 0 },
+    { capacity: -100, spent: 0, available: 100, covered: 100 },
+  ])("covers and settles once before planning deletion: %j", async ({ capacity, spent, available, covered }) => {
+    const { t, client, userId, parentId } = await setup();
+    const donor = await client.mutation(api.pipes.addPipe, {
+      parentId, name: "Reserve", icon: "pipe", priority: 1, capacity: 5000,
+    });
+    const source = await client.mutation(api.pipes.addPipe, {
+      parentId,
+      name: "Trip",
+      icon: "pipe",
+      priority: 0,
+      capacity,
+      ruleConfig: { rule: "self_destruct", starting: deadline },
+      contingencyPipeId: donor,
+    });
+    await t.run(async ctx => {
+      await ctx.db.patch("pipes", parentId, { fed: 0 });
+      await ctx.db.patch("pipes", source, { fed: 200, spent });
+      await ctx.db.patch("pipes", donor, { fed: available + 50, spent: 50 });
+    });
+    vi.setSystemTime(deadline);
+    await t.mutation(internal.pipes.processDueSelfDestructForUser, { userId, now: deadline });
+    const planned = await t.run(ctx => ctx.db.get("pipes", source));
+    expect(planned).toMatchObject({ spent: 0, fed: 200 - spent + covered });
+    const job = await t.run(ctx => ctx.db.get("pipeDeletionJobs", planned!.deletionJobId!));
+    expect(job?.initialBalance).toBe(200 - spent + covered);
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    expect(await t.run(ctx => ctx.db.get("pipes", source))).toBeNull();
+    const remaining = await t.run(ctx => ctx.db.query("pipes").collect());
+    expect(remaining.reduce((sum, pipe) => sum + pipe.fed - pipe.spent, 0)).toBe(200 - spent + available);
+    const settlements = await t.run(ctx => ctx.db.query("events").collect());
+    const settlement = settlements.find(event => event.type === "settlement");
+    expect(settlement).toMatchObject({ cause: "self_destruct", before: { spent }, after: { spent: 0, fed: 200 - spent + covered } });
+    if (covered) expect(settlement).toMatchObject({ coverage: { amountCents: covered, pipeId: donor } });
+    await t.mutation(internal.pipes.processDueSelfDestructForUser, { userId, now: deadline });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    expect(await t.run(ctx => ctx.db.query("events").collect())).toEqual(settlements);
+  });
+
   it("continues to due self-destruct rules when a legacy cron schedule is invalid", async () => {
     const { t, client, parentId } = await setup();
     const child = await client.mutation(api.pipes.addPipe, {

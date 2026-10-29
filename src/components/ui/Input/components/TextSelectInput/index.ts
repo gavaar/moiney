@@ -1,1 +1,1 @@
-export { TextSelectInput } from "./TextSelectInput";
+export { TextSelectInput, type TextSelectInputProps } from "./TextSelectInput";

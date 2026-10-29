@@ -95,8 +95,12 @@ describe("Convex boundaries: deletion and freeze", () => {
           fed: 50,
           spent: 0,
         });
+        const editableRoot = await ctx.db.insert("pipes", {
+          userId, name: "Editable feed", icon: "pipe", priority: 0, capacity: 0, fed: 0, spent: 0,
+        });
         const editableId = await ctx.db.insert("pipes", {
           userId,
+          parentId: editableRoot,
           name: "Coffee",
           icon: "cafe",
           priority: 1,

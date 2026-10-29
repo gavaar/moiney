@@ -1,21 +1,17 @@
 import { expectTypeOf, it } from "vitest";
-import type { FormField, FormNavigation, FormPage, FormProps } from ".";
+import type { FormField, FormPage, FormProps } from ".";
 
 it("only permits inputs whose emitted values fit the field's value type", () => {
   expectTypeOf<FormField<1>["input"]>().toEqualTypeOf<never>();
   expectTypeOf<FormField<"wallet-outline" | "">["input"]>().toEqualTypeOf<never>();
   expectTypeOf<Extract<FormField<Date | null>["input"], { type: "date" }>>().not.toBeNever();
-  expectTypeOf<Extract<FormField<readonly string[]>["input"], { type: "select" }>>().not.toBeNever();
+  expectTypeOf<Extract<FormField<readonly string[]>["input"], { type: "select-multiple" }>>().not.toBeNever();
+  expectTypeOf<Extract<FormField<readonly string[]>["input"], { type: "select" }>>().toBeNever();
+  expectTypeOf<Extract<FormField<string | null>["input"], { type: "select-multiple" }>>().toBeNever();
 });
 
-it("requires a complete controlled navigation configuration", () => {
-  expectTypeOf<FormProps<{ name: string }>["navigation"]>().toEqualTypeOf<FormNavigation | undefined>();
-  // @ts-expect-error A controlled page needs a callback to accept navigation requests.
-  const missingCallback: FormNavigation = { step: 0 };
-  // @ts-expect-error A callback without a selected page is not controlled navigation.
-  const missingStep: FormNavigation = { onChange: () => {} };
-  expectTypeOf(missingCallback).toEqualTypeOf<FormNavigation>();
-  expectTypeOf(missingStep).toEqualTypeOf<FormNavigation>();
+it("accepts only an initial page key for navigation", () => {
+  expectTypeOf<FormProps<{ name: string }>["navigationStart"]>().toEqualTypeOf<number | undefined>();
 });
 
 it("preserves field/value correlation inside explicit rows", () => {

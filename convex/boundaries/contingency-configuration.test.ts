@@ -73,7 +73,7 @@ describe("contingency configuration boundaries", () => {
     await expect(t.mutation(api.pipes.updatePipe, { pipeId: source, contingencyPipeId: null })).rejects.toThrow();
   });
 
-  it.each(["instant_settlement", "self_destruct"] satisfies Doc<"pipes">["rule"][])("rejects a %s source", async rule => {
+  it.each(["instant_settlement"] satisfies Doc<"pipes">["rule"][])("rejects a %s source", async rule => {
     const { t, auth, source, donor } = await setup();
     await t.run(ctx => ctx.db.patch("pipes", source, { rule }));
     await expect(auth.mutation(api.pipes.updatePipe, { pipeId: source, contingencyPipeId: donor }))
@@ -108,7 +108,7 @@ describe("contingency configuration boundaries", () => {
     expect(await t.run(ctx => ctx.db.get("pipes", source))).not.toHaveProperty("contingencyPipeId");
   });
 
-  it.each(["instant_settlement", "self_destruct"] as const)("clears the outgoing contingency when switching to %s", async rule => {
+  it.each(["instant_settlement", "self_destruct"] as const)("updates contingency consistently when switching to %s", async rule => {
     const { t, auth, source, donor } = await setup();
     await auth.mutation(api.pipes.updatePipe, { pipeId: source, contingencyPipeId: donor });
     await auth.mutation(api.pipes.updatePipeRule, {
@@ -116,7 +116,9 @@ describe("contingency configuration boundaries", () => {
       rule,
       ...(rule === "self_destruct" ? { starting: Date.now() + 7 * 86400000 } : {})
     });
-    expect(await t.run(ctx => ctx.db.get("pipes", source))).not.toHaveProperty("contingencyPipeId");
+    const updated = await t.run(ctx => ctx.db.get("pipes", source));
+    if (rule === "instant_settlement") expect(updated).not.toHaveProperty("contingencyPipeId");
+    else expect(updated).toHaveProperty("contingencyPipeId", donor);
   });
 
   it.each(["source", "donor"] as const)("clears invalid selections when a %s gains a child", async role => {

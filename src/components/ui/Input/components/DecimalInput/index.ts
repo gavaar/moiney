@@ -1,1 +1,1 @@
-export { DecimalInput } from "./DecimalInput";
+export { DecimalInput, type DecimalInputProps } from "./DecimalInput";

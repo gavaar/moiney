@@ -4,7 +4,8 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { IconName } from "@ui/Icon";
-import { Form, type FormRow } from ".";
+import { Form, formBuilder, type FormRow } from ".";
+import { OptionListHost } from "@ui/OptionList";
 
 type Values = {
   amount: string;
@@ -27,6 +28,7 @@ const items = [
   { id: "groceries", name: "Groceries" },
   { id: "salary", name: "Salary" },
 ];
+const { input } = formBuilder<Values>();
 const fields: FormRow<Values> = [
   {
     key: "amount",
@@ -53,27 +55,20 @@ const fields: FormRow<Values> = [
       validator: (value) => value === "wallet-outline" ? "Choose another icon" : undefined
     },
   },
-  {
-    key: "source",
-    input: {
-      type: "select",
-      label: "Source",
-      items,
-      renderItem: (item) => <>{item.name}</>,
-      validator: (value) => value === "groceries" ? "Choose an income source" : undefined,
-    },
-  },
-  {
-    key: "categories",
-    input: {
-      type: "select",
-      multiple: true,
-      label: "Categories",
-      items,
-      renderItem: (item) => <>{item.name}</>,
-      validator: (value) => value.length < 2 ? "Choose two categories" : undefined,
-    },
-  },
+  input("source", {
+    type: "select",
+    label: "Source",
+    items,
+    renderItem: (item) => <>{item.name}</>,
+    validator: (value) => value === "groceries" ? "Choose an income source" : undefined,
+  }),
+  input("categories", {
+    type: "select-multiple",
+    label: "Categories",
+    items,
+    renderItem: (item) => <>{item.name}</>,
+    validator: (value) => value.length < 2 ? "Choose two categories" : undefined,
+  }),
   {
     key: "title",
     input: {
@@ -100,7 +95,7 @@ function renderControlledForm() {
       />
     );
   }
-  render(<ControlledForm />);
+  render(<OptionListHost><ControlledForm /></OptionListHost>);
   expect(screen.queryByRole("alert")).toBeNull();
   return onChange;
 }

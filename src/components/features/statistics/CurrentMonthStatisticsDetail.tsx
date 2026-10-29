@@ -3,7 +3,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Icon } from "@ui/Icon";
 import { ScreenHeader } from "@ui/ScreenHeader/ScreenHeader";
 import { colors } from "@/lib/styles";
-import { ReportContent } from "./MonthlyStatisticsDetail/MonthlyStatisticsDetail";
+import { ReportContent } from "./ReportContent";
 import { useCurrentMonthReportContext } from "./CurrentMonthReportContext";
 
 export function CurrentMonthStatisticsDetail({ onBack, backLabel = "Back to Pipes" }: { onBack: () => void; backLabel?: string }) {

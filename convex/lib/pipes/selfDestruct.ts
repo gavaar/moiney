@@ -2,6 +2,7 @@ import type { Id } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
 import { MAX_PIPES_PER_USER } from "../constants";
 import { startPipeDeletionOperation, type ScheduleDeletion } from "./delete/operations";
+import { executePipeRule } from "./pipes";
 
 export async function startNextSelfDestruct(
   ctx: MutationCtx, userId: Id<"users">, now: number, scheduleDeletion: ScheduleDeletion,
@@ -14,8 +15,15 @@ export async function startNextSelfDestruct(
   const next = pipes.filter((pipe) => pipe.rule === "self_destruct" && pipe.parentId &&
     !parents.has(pipe._id) && pipe.cronNextDate !== undefined && pipe.cronNextDate <= now)
     .sort((a, b) => a.cronNextDate! - b.cronNextDate!)[0];
-  if (next) await startPipeDeletionOperation(ctx, userId, {
-    pipeId: next._id, deleteTransactions: false,
-  }, scheduleDeletion, pipes);
+  if (next) {
+    // Settlement and freezing share this transaction, so retries cannot cover or
+    // settle twice. The deletion plan must use the post-coverage snapshot.
+    const { after, coverage } = await executePipeRule(ctx, next._id, { pipe: next, now, cause: "self_destruct" });
+    const settled = pipes.map(pipe => pipe._id === next._id ? after
+      : coverage && pipe._id === coverage.after._id ? coverage.after : pipe);
+    await startPipeDeletionOperation(ctx, userId, {
+      pipeId: next._id, deleteTransactions: false,
+    }, scheduleDeletion, settled);
+  }
   return null;
 }

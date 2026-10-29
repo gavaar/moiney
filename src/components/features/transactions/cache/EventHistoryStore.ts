@@ -119,7 +119,7 @@ function isCachedEntry(value: unknown): value is { entry: HistoryEntry; refreshe
   if (![entry.id, entry.operationId, entry.pipeId].every(id => typeof id === "string" && id.length > 0) || !finite(entry.createdAt) || !finite(entry.occurredAt)) return false;
   if (entry.type === "settlement" || entry.type === "settlement_coverage") {
     return typeof entry.name === "string" && typeof entry.icon === "string" &&
-      ["manual", "spend_overflow", "cron"].includes(String(entry.cause)) &&
+      ["manual", "spend_overflow", "cron", "self_destruct"].includes(String(entry.cause)) &&
        isSettlementBalance(entry.before) && isSettlementBalance(entry.after) &&
        (entry.coverage === undefined ? entry.type === "settlement" : isSettlementCoverage(entry.coverage));
   }

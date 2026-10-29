@@ -61,6 +61,7 @@ export function ProfileView() {
     <View className="items-center gap-4">
       <Pressable
         testID="profile-avatar"
+        accessibilityRole="button"
         onPress={() => setEditing(true)}
         className="w-24 h-24 rounded-full overflow-hidden border-2 border-border items-center justify-center"
         accessibilityLabel="Edit profile picture"

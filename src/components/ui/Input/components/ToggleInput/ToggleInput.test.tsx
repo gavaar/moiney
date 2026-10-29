@@ -12,9 +12,16 @@ const options = [
 ] as const;
 
 describe("Input toggle", () => {
+  it("distinguishes unlabeled options using the field name and boolean action", () => {
+    render(<Input type="toggle" label="Notifications" value={false}
+      options={[{ icon: "align-horizontal-left" }, { icon: "file-tree" }]} />);
+    expect(screen.getByRole("radio", { name: "Notifications: Off" })).toBeTruthy();
+    expect(screen.getByRole("radio", { name: "Notifications: On" })).toBeTruthy();
+  });
+
   it("exposes a boolean value, optional callback, and exactly two labeled icons", () => {
     type Props = Extract<InputProps, { type: "toggle" }>;
-    type Option = { label: string; icon: IconName; selectedBackgroundClassName?: string };
+    type Option = { label?: string; icon: IconName; selectedBackgroundClassName?: string };
     expectTypeOf<Props["value"]>().toEqualTypeOf<boolean>();
     expectTypeOf<Props["onChange"]>().toEqualTypeOf<((value: boolean) => void) | undefined>();
     expectTypeOf<Props["options"]>().toEqualTypeOf<readonly [Option, Option]>();

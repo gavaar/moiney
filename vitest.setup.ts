@@ -31,5 +31,16 @@ vi.mock("react-native-svg", () => {
       "data-testid": "svg-circle",
       "data-props": JSON.stringify(props),
     });
-  return { default: Svg, Svg, Circle };
+  const Shape = ({ children, ...props }: any) => React.createElement("span", { "data-props": JSON.stringify(props) }, children);
+  return {
+    default: Svg,
+    Svg,
+    Circle,
+    Defs: Shape,
+    G: Shape,
+    LinearGradient: Shape,
+    Path: Shape,
+    Rect: Shape,
+    Stop: Shape,
+  };
 });

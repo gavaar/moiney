@@ -51,7 +51,7 @@ supply deleted-role presentation without transaction mirrors.
 The job records completion for safe retries and
 credits the planned balance exactly once. Title-usage cleanup remains owned by
 the existing stale-usage maintenance job. Finalization follows the
-[childless-root default](accounting.md#d020-childless-root-settlement-default).
+[childless-root invariant](accounting.md#d020-childless-root-settlement).
 
 Jobs persist `historySource: "events"`. Active jobs without that marker are
 rejected rather than reinterpreting a retired transaction cursor. Legacy jobs
@@ -65,6 +65,8 @@ invalidate another job's planned balance. Retrying the same job remains
 idempotent, and unrelated accounting trees remain independently deletable.
 Scheduled [self-destruct](accounting.md#d022-self-destruct-rules) uses this same
 deletion boundary and always preserves transaction history.
+It applies contingency and settles before planning the deletion balance, as
+specified in the self-destruct accounting contract.
 
 The freeze blocks writes involving the selected subtree. The following
 operations remain allowed in unrelated trees, with the stated scope:

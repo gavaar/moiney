@@ -210,9 +210,9 @@ export function getButtonIcon(
   isFeed: boolean,
   spendMode: string,
 ) {
-  if (intent === "edit") return "checkmark";
-  if (isFeed) return "add-circle-outline";
-  return spendMode === "spend" ? "upload" : "repeat";
+  if (intent === "edit") return "checkmark" as const;
+  if (isFeed) return "add-circle-outline" as const;
+  return spendMode === "spend" ? "upload" as const : "repeat" as const;
 }
 
 export function getButtonLabel(

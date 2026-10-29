@@ -22,7 +22,7 @@ export const eventHistoryStorage: EventHistoryStorage = {
   async write(accountKey, value) {
     try {
       ensureDirectory();
-      cacheFile(accountKey).write(value);
+      await cacheFile(accountKey).write(value);
     } catch {
       // A full or unavailable device cache should not block server data.
     }

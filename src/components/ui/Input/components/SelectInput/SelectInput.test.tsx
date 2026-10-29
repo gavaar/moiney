@@ -3,7 +3,10 @@ import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { SelectInput } from "./SelectInput";
+import { Input, type InputProps } from "../../Input";
+
+const SelectInput = <Item extends { id: string },>(props: Omit<Extract<InputProps<Item>, { type: "select" }>, "type">) => <Input type="select" {...props} />;
+const SelectMultipleInput = <Item extends { id: string },>(props: Omit<Extract<InputProps<Item>, { type: "select-multiple" }>, "type">) => <Input type="select-multiple" {...props} />;
 
 const items = [
   { id: "1", name: "Groceries" },
@@ -11,24 +14,25 @@ const items = [
 ] as const;
 
 describe("SelectInput", () => {
-  it("groups inline options with independently collapsible accessible headers", async () => {
+  it("groups options with independently collapsible accessible headers", async () => {
     const onChange = vi.fn();
-    render(<SelectInput presentation="inline" label="Source" value={null} onChange={onChange}
+    render(<SelectInput label="Source" value={null} onChange={onChange}
       items={[{ id: "none", name: "None" }, ...items]}
       groups={[
         { id: "bank", name: "Bank", itemIds: ["1"], initiallyExpanded: true },
         { id: "wallet", name: "Wallet", itemIds: ["2"] },
       ]}
       renderItem={item => <>{item.name}</>} />);
-    expect(screen.getByRole("radio", { name: "None" })).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Source" }));
+    expect(screen.getByRole("button", { name: "None" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Collapse Bank" }).getAttribute("aria-expanded")).toBe("true");
-    expect(screen.queryByRole("radio", { name: "Salary" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Salary" })).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Expand Wallet" }));
-    expect(screen.getByRole("radio", { name: "Salary" })).toBeTruthy();
-    expect(screen.getByRole("radio", { name: "Groceries" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Salary" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Groceries" })).toBeTruthy();
     await userEvent.click(screen.getByRole("button", { name: "Collapse Bank" }));
-    expect(screen.queryByRole("radio", { name: "Groceries" })).toBeNull();
-    await userEvent.click(screen.getByRole("radio", { name: "Salary" }));
+    expect(screen.queryByRole("button", { name: "Groceries" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Salary" }));
     expect(onChange).toHaveBeenCalledWith("2");
   });
 
@@ -46,22 +50,23 @@ describe("SelectInput", () => {
     await userEvent.click(screen.getByRole("button", { name: "Groceries" }));
     expect(screen.getByRole("button", { name: "Payer" }).textContent).toBe("Groceries");
   });
-  it("renders inline custom items and exposes the controlled selection without a picker modal", async () => {
+  it("renders custom items in the picker and preserves the controlled selection when disabled", async () => {
     function Controlled({ disabled = false }: { disabled?: boolean }) {
       const [value, setValue] = useState<string | null>("1");
-      return <SelectInput presentation="inline" label="Owner" items={items}
+      return <SelectInput label="Owner" items={items}
         renderItem={item => <>{item.name}</>} value={value} onChange={setValue} disabled={disabled} />;
     }
     const { rerender } = render(<Controlled />);
-    expect(screen.queryByTestId("select-trigger")).toBeNull();
+    expect(screen.getByRole("button", { name: "Owner" }).textContent).toBe("Groceries");
     expect(screen.queryByTestId("modal-backdrop")).toBeNull();
-    expect(screen.getByRole("radio", { name: "Groceries" }).getAttribute("aria-checked")).toBe("true");
-    await userEvent.click(screen.getByRole("radio", { name: "Salary" }));
-    expect(screen.getByRole("radio", { name: "Salary" }).getAttribute("aria-checked")).toBe("true");
-    expect(screen.getByRole("radio", { name: "Groceries" }).getAttribute("aria-checked")).toBe("false");
+    await userEvent.click(screen.getByRole("button", { name: "Owner" }));
+    await userEvent.click(screen.getByRole("button", { name: "Salary" }));
+    expect(screen.getByRole("button", { name: "Owner" }).textContent).toBe("Salary");
+    expect(screen.getByRole("button", { name: "Owner" }).getAttribute("aria-expanded")).toBe("false");
     rerender(<Controlled disabled />);
-    fireEvent.click(screen.getByRole("radio", { name: "Groceries" }));
-    expect(screen.getByRole("radio", { name: "Salary" }).getAttribute("aria-checked")).toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: "Owner" }));
+    expect(screen.getByRole("button", { name: "Owner" }).getAttribute("aria-expanded")).toBe("false");
+    expect(screen.getByRole("button", { name: "Owner" }).textContent).toBe("Salary");
   });
 
   it("selects multiple options without closing the option list", async () => {
@@ -70,8 +75,7 @@ describe("SelectInput", () => {
     function MultiSelectHarness() {
       const [value, setValue] = useState<string[]>([]);
       return (
-        <SelectInput
-          multiple
+        <SelectMultipleInput
           label="Pipes"
           items={items}
           renderItem={(item) => <>{item.name}</>}
@@ -223,7 +227,7 @@ describe("SelectInput", () => {
   it("validates multiple selections on close, then corrects errors while open", async () => {
     function Controlled() {
       const [value, setValue] = useState<string[]>([]);
-      return <SelectInput multiple label="Pipes" items={items} renderItem={item => <>{item.name}</>} value={value} onChange={setValue} validator={value => value.length < 2 ? "Pick two" : undefined} />;
+      return <SelectMultipleInput label="Pipes" items={items} renderItem={item => <>{item.name}</>} value={value} onChange={setValue} validator={value => value.length < 2 ? "Pick two" : undefined} />;
     }
     render(<Controlled />);
     await userEvent.click(screen.getByTestId("select-trigger"));

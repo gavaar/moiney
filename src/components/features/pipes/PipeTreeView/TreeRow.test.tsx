@@ -7,7 +7,8 @@ import type { PipeModel } from "@features/pipes/data/pipes";
 import { TreeRow } from "./TreeRow";
 import type { TreeRowData } from "./treeRows";
 
-vi.mock("@ui/Icon", () => ({
+vi.mock("@ui/Icon", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@ui/Icon")>(),
   Icon: ({ name }: { name: string }) => (
     <span data-testid="tree-row-icon" data-icon-name={name} />
   ),

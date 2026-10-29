@@ -1,6 +1,7 @@
 import { Text, View } from "react-native";
 import { Button } from "@ui/Button";
 import { Input } from "@ui/Input";
+import { Icon } from "@ui/Icon";
 import { useAuth } from "@/lib/auth";
 import { useForm } from "@/lib/forms";
 import { useDebounce } from "@/lib/hooks";
@@ -130,8 +131,11 @@ export function SignUpScreen() {
         value={values.password}
         onChange={(v) => setField("password", v)}
         secureTextEntry={!showPassword}
-        endIcon={showPassword ? "eye-off" : "eye"}
-        onEndIconPress={() => setShowPassword((v) => !v)}
+        suffix={{
+          content: <Icon name={showPassword ? "eye-off" : "eye"} size={20} color={colors.muted} />,
+          accessibilityLabel: showPassword ? "Hide password" : "Show password",
+          onPress: () => setShowPassword((v) => !v),
+        }}
         validator={validatePassword}
       />
       <Input
@@ -140,8 +144,11 @@ export function SignUpScreen() {
         value={values.repeatPassword}
         onChange={(v) => setField("repeatPassword", v)}
         secureTextEntry={!showRepeatPassword}
-        endIcon={showRepeatPassword ? "eye-off" : "eye"}
-        onEndIconPress={() => setShowRepeatPassword((v) => !v)}
+        suffix={{
+          content: <Icon name={showRepeatPassword ? "eye-off" : "eye"} size={20} color={colors.muted} />,
+          accessibilityLabel: showRepeatPassword ? "Hide password" : "Show password",
+          onPress: () => setShowRepeatPassword((v) => !v),
+        }}
         validator={value => validateRepeatPassword(value, values.password)}
       />
 

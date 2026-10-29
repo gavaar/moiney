@@ -3,13 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
-import { TextInput } from "./TextInput";
-
-const getBorderStyle = vi.fn((..._args: unknown[]) => "");
-
-vi.mock("../../input.config", () => ({
-  getBorderStyle: (...args: unknown[]) => getBorderStyle(...args),
-}));
+import { Text } from "react-native";
+import { Input as TextInput } from "../../Input";
 
 describe("TextInput", () => {
   it("renders label and input", () => {
@@ -100,23 +95,27 @@ describe("TextInput", () => {
     expect(screen.queryByText("Required")).toBeNull();
   });
 
-  it("renders end icon button", () => {
+  it("renders a suffix button", () => {
     const onPress = vi.fn();
-    render(<TextInput label="Password" value="" onChange={() => {}} endIcon="eye" onEndIconPress={onPress} />);
-    expect(screen.getByTestId("end-icon-button")).toBeTruthy();
+    render(<TextInput label="Password" value="" onChange={() => {}}
+      suffix={{ content: <Text>Eye</Text>, accessibilityLabel: "Show password", onPress }} />);
+    expect(screen.getByRole("button", { name: "Show password" })).toBeTruthy();
   });
 
   it("labels the input and password visibility control", () => {
-    render(<TextInput label="Password" value="" onChange={() => {}} endIcon="eye" onEndIconPress={() => {}} />);
+    render(<TextInput label="Password" value="" onChange={() => {}}
+      suffix={{ content: <Text>Eye</Text>, accessibilityLabel: "Show password", onPress: () => {} }} />);
 
     expect(screen.getByRole("textbox", { name: "Password" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Show password" })).toBeTruthy();
   });
 
-  it("handles end icon press", async () => {
+  it("handles suffix presses alongside an informational status", async () => {
     const onPress = vi.fn();
-    render(<TextInput label="Password" value="" onChange={() => {}} endIcon="eye" onEndIconPress={onPress} />);
-    await userEvent.click(screen.getByTestId("end-icon-button"));
+    render(<TextInput label="Password" value="" onChange={() => {}} status="available"
+      suffix={{ content: <Text>Eye</Text>, accessibilityLabel: "Show password", onPress }} />);
+    expect(screen.getByRole("img", { name: "Password available" })).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Show password" }));
     expect(onPress).toHaveBeenCalled();
   });
 
@@ -135,7 +134,8 @@ describe("TextInput", () => {
     expect(screen.getByTestId("status-unavailable")).toBeTruthy();
   });
 
-  it("composes consumer focus handlers with internal focus state", () => {
+  it("preserves input focus and consumer handlers while validating on blur", async () => {
+    const user = userEvent.setup();
     const onFocus = vi.fn();
     const onBlur = vi.fn();
     render(
@@ -146,17 +146,20 @@ describe("TextInput", () => {
         placeholder="Enter name"
         onFocus={onFocus}
         onBlur={onBlur}
+        validator={() => "Required"}
       />,
     );
     const input = screen.getByPlaceholderText("Enter name");
 
-    fireEvent.focus(input);
+    await user.click(input);
     expect(onFocus).toHaveBeenCalledOnce();
-    expect(getBorderStyle).toHaveBeenLastCalledWith(undefined, true, undefined);
+    expect(document.activeElement).toBe(input);
+    expect(screen.queryByRole("alert")).toBeNull();
 
-    fireEvent.blur(input);
+    await user.tab();
     expect(onBlur).toHaveBeenCalledOnce();
-    expect(getBorderStyle).toHaveBeenLastCalledWith(undefined, false, undefined);
+    expect(document.activeElement).not.toBe(input);
+    expect(screen.getByRole("alert").textContent).toBe("Required");
   });
 
   it("keeps disabled authoritative over the editable prop", () => {

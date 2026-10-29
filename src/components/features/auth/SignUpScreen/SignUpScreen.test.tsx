@@ -52,6 +52,22 @@ describe("SignUp", () => {
     vi.clearAllMocks();
   });
 
+  it("toggles each password's visibility independently", () => {
+    render(<SignUpScreen />);
+    const password = screen.getByLabelText("Password");
+    const repeat = screen.getByLabelText("Repeat Password");
+    expect(password).toHaveProperty("type", "password");
+    expect(repeat).toHaveProperty("type", "password");
+    fireEvent.click(screen.getAllByRole("button", { name: "Show password" })[0]);
+    expect(password).toHaveProperty("type", "text");
+    expect(repeat).toHaveProperty("type", "password");
+    fireEvent.click(screen.getByRole("button", { name: "Show password" }));
+    expect(repeat).toHaveProperty("type", "text");
+    fireEvent.click(screen.getAllByRole("button", { name: "Hide password" })[0]);
+    expect(password).toHaveProperty("type", "password");
+    expect(repeat).toHaveProperty("type", "text");
+  });
+
   it("disables submission until the current username has been checked", () => {
     const view = render(<SignUpScreen />);
 

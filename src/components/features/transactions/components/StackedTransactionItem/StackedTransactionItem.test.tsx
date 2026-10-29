@@ -6,34 +6,6 @@ import type { StackedTransactionGroup } from "./stackedTransactionItem.model";
 import type { Id } from "@convex/_generated/dataModel";
 import { colors } from "@/lib/styles";
 
-vi.mock("react-native", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("react-native")>();
-  return {
-    ...actual,
-    Pressable: ({
-      accessibilityLabel,
-      accessibilityRole,
-      accessibilityState,
-      hitSlop,
-      children,
-      onPress,
-      testID,
-      ...props
-    }: any) => (
-      <button
-        {...props}
-        aria-label={accessibilityLabel}
-        aria-expanded={accessibilityState?.expanded}
-        data-testid={testID}
-        onClick={onPress}
-        role={accessibilityRole}
-      >
-        {children}
-      </button>
-    ),
-  };
-});
-
 const baseGroup: StackedTransactionGroup = {
   title: "coffee",
   count: 2,
@@ -74,8 +46,9 @@ vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
   usePipeCatalog: () => mockUsePipeCatalog(),
 }));
 
-vi.mock("@ui/Icon", () => ({
-  Icon: ({ name, color }: any) => (
+vi.mock("@ui/Icon", async importOriginal => ({
+  ...await importOriginal<typeof import("@ui/Icon")>(),
+  Icon: ({ name, color }: { name: string; color: string }) => (
     <span data-testid="mock-icon" data-name={name} data-color={color} />
   ),
 }));
@@ -153,6 +126,10 @@ describe("StackedTransactionItem", () => {
     expect(screen.getByText("Coffee")).toBeDefined();
     expect(screen.getByText("x2")).toBeDefined();
     expect(screen.getByText("-8.00")).toBeDefined();
+    expect(screen.getByRole("button", {
+      name: `${expanded ? "Collapse" : "Expand"} coffee transactions, 2 transactions, -8.00, Mar 15 - 20, 2024`,
+      expanded,
+    })).toBeDefined();
   });
 
   it.each([

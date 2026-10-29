@@ -1,15 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import { Dimensions, Keyboard, Platform, useWindowDimensions, type KeyboardEvent, type LayoutChangeEvent, type View } from "react-native";
+import { Dimensions, Keyboard, Platform, useWindowDimensions, type KeyboardEvent, type LayoutChangeEvent, type ViewInstance } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const EDGE_GAP = 24;
-const KEYBOARD_RESERVATION = 0.4;
+const VIEWPORT_TOP_MARGIN = 0.1;
+const VIEWPORT_BOTTOM_MARGIN = 0.2;
 
-/** Anchors to the keyboard-independent viewport, shrinking only for overlap. */
+/** Bounds growth between 10% and 80% of the viewport, shrinking for keyboard overlap. */
 export function useModalFrame() {
   const windowSize = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const viewportRef = useRef<View>(null);
+  const viewportRef = useRef<ViewInstance>(null);
   const [viewport, setViewport] = useState<{ top: number; height: number; windowWidth: number }>();
   const [keyboardTop, setKeyboardTop] = useState(() => Keyboard.metrics?.()?.screenY);
 
@@ -42,9 +43,9 @@ export function useModalFrame() {
   const measured = viewport?.windowWidth === windowSize.width ? viewport : undefined;
   const viewportTop = measured?.top ?? 0;
   const viewportHeight = Math.min(windowSize.height || referenceHeight, measured?.height ?? Infinity);
-  const top = insets.top + EDGE_GAP;
+  const top = Math.max(insets.top + EDGE_GAP, referenceHeight * VIEWPORT_TOP_MARGIN - viewportTop);
   const bottom = Math.min(
-    referenceHeight * (1 - KEYBOARD_RESERVATION) - viewportTop - EDGE_GAP,
+    referenceHeight * (1 - VIEWPORT_BOTTOM_MARGIN) - viewportTop,
     viewportHeight - insets.bottom - EDGE_GAP,
     keyboardTop === undefined ? Infinity : keyboardTop - viewportTop - EDGE_GAP,
   );

@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render as renderComponent, screen, within } from "@testing-library/react";
-import type { ReactNode } from "react";
-import { ConfirmModalProvider } from "@ui/ConfirmModal/ConfirmModalProvider";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { act, render as renderComponent, screen, waitFor, within } from "@testing-library/react";
+import type { ComponentPropsWithRef, ReactNode } from "react";
+import type { LayoutChangeEvent } from "react-native";
+import { ConfirmModalProvider } from "@ui/ConfirmModal";
 import userEvent from "@testing-library/user-event";
 import { InnerPipesScreen } from "./InnerPipesScreen";
 function render(element: ReactNode) {
@@ -10,17 +11,30 @@ function render(element: ReactNode) {
 }
 vi.mock("expo-router/react-navigation", () => ({ useIsFocused: () => true }));
 
-vi.mock("react-native", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("react-native")>()),
-  ScrollView: ({ children, keyboardShouldPersistTaps }: any) => (
-    <div
-      data-testid="amount-form-scroll"
-      data-keyboard-should-persist-taps={keyboardShouldPersistTaps}
-    >
-      {children}
-    </div>
-  ),
-}));
+const overlayLayout = vi.hoisted(() => ({ onLayout: undefined as ((event: LayoutChangeEvent) => void) | undefined }));
+vi.mock("react-native", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react-native")>();
+  return {
+    ...actual,
+    View: (props: ComponentPropsWithRef<typeof actual.View>) => {
+      if (props.testID === "collapsible-select-overlay") {
+        overlayLayout.onLayout = props.onLayout;
+        return <actual.View {...props} onLayout={undefined} />;
+      }
+      return <actual.View {...props} />;
+    },
+    ScrollView: ({ children, keyboardShouldPersistTaps }: any) => (
+      <div
+        data-testid="amount-form-scroll"
+        data-keyboard-should-persist-taps={keyboardShouldPersistTaps}
+      >
+        {children}
+      </div>
+    ),
+  };
+});
+
+afterEach(() => vi.restoreAllMocks());
 
 const mockAddPipe = vi.fn();
 const mockConvexQuery = vi.fn();
@@ -162,6 +176,8 @@ describe("InnerPipesScreen", () => {
   });
 
   it("opens child creation from the list with the current parent selected", async () => {
+    // jsdom has no layout engine; provide the platform measurements before tapping options.
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 80, 400, 560));
     const user = userEvent.setup();
     const parent = { ...childPipe1, id: "parent", name: "Household" };
     mockUsePipeSelection.mockReturnValue({
@@ -174,7 +190,11 @@ describe("InnerPipesScreen", () => {
     render(<InnerPipesScreen />);
     await user.click(within(screen.getByTestId("pipes-list")).getByRole("button", { name: "Add child pipe" }));
     expect(screen.getByRole("heading", { name: "Household" })).toBeDefined();
-    expect(screen.getByPlaceholderText("Pipe name")).toBeDefined();
+    act(() => overlayLayout.onLayout?.({ nativeEvent: { layout: { x: 0, y: 0, width: 368, height: 200 } } } as LayoutChangeEvent));
+    await waitFor(() => expect(screen.getByTestId("collapsible-select-overlay").style.opacity).toBe("1"));
+    await user.click(screen.getByRole("button", { name: "Manual" }));
+    expect(screen.getByRole("button", { name: "Owner pipe" }).textContent).toContain("Household");
+    expect(screen.getByRole("textbox", { name: "Name" })).toBeDefined();
   });
 
   it("renders breadcrumb", () => {
@@ -344,7 +364,7 @@ describe("InnerPipesScreen", () => {
     expect(pipesList.getAttribute("data-count")).toBe("2");
   });
 
-  it("renders lock-open-outline icon for each child via leading", () => {
+  it("renders a rule indicator for each child", () => {
     const childrenByParent = new Map();
     childrenByParent.set("pipe-1", [childPipe1]);
 
@@ -377,7 +397,7 @@ describe("InnerPipesScreen", () => {
     render(<InnerPipesScreen />);
     const rows = screen.getAllByTestId("pipe-row");
     expect(within(rows[0]).getByTestId("rules-icon-placeholder")).toBeDefined();
-    expect(within(rows[1]).getByTestId("icon").getAttribute("data-name")).toBe("lock-open-outline");
+    expect(within(rows[1]).getByTestId("icon").getAttribute("data-name")).toBe("valve");
   });
 
   it("calls selectPipe with extended path when a child is tapped", async () => {

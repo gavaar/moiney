@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 import { fireEvent, render as renderComponent, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { ConfirmModalProvider } from "@ui/ConfirmModal/ConfirmModalProvider";
+import { ConfirmModalProvider } from "@ui/ConfirmModal";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { EditPipeModal } from "./EditPipeModal";
 import type { Id } from "@convex/_generated/dataModel";
 import type { PipeModel } from "@features/pipes/data/pipes";
+import { OptionListHost } from "@ui/OptionList";
 
 const updatePipe = vi.fn().mockResolvedValue(null);
 const runRule = vi.fn().mockResolvedValue(null);
@@ -15,11 +16,7 @@ vi.mock("expo-router/react-navigation", () => ({ useIsFocused: () => true }));
 vi.mock("@features/transactions/cache/EventHistoryCacheContext", () => ({ useOptionalEventHistoryCache: () => null }));
 
 function render(element: ReactNode) {
-  return renderComponent(element, { wrapper: ConfirmModalProvider });
-}
-function ruleStep() {
-  fireEvent.click(screen.getByRole("button", { name: "Next step" }));
-  fireEvent.click(screen.getByRole("button", { name: "Next step" }));
+  return renderComponent(element, { wrapper: ({ children }) => <OptionListHost><ConfirmModalProvider>{children}</ConfirmModalProvider></OptionListHost> });
 }
 
 vi.mock("convex/react", () => ({
@@ -77,6 +74,7 @@ describe("EditPipeModal", () => {
 
   it("validates the name on blur and clears its error during correction", () => {
     render(<EditPipeModal visible pipeId={"pipe-1" as any} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Previous step" }));
     const name = screen.getByLabelText("Name");
     fireEvent.change(name, { target: { value: "a" } });
     expect(screen.queryByRole("alert")).toBeNull();
@@ -111,7 +109,6 @@ describe("EditPipeModal", () => {
 
   it("offers only eligible donors and saves the chosen contingency", async () => {
     render(<EditPipeModal visible pipeId={id("pipe-1")} onClose={vi.fn()} />);
-    ruleStep();
     fireEvent.click(screen.getByRole("button", { name: "Contingency" }));
     expect(screen.queryByText("Chained")).toBeNull();
     expect(screen.queryByText("Branch")).toBeNull();
@@ -124,7 +121,6 @@ describe("EditPipeModal", () => {
   it("displays the configured donor and explicitly clears it with No contingency", async () => {
     allPipes[1] = { ...allPipes[1], contingencyPipeId: id("reserve") };
     render(<EditPipeModal visible pipeId={id("pipe-1")} onClose={vi.fn()} />);
-    ruleStep();
     expect(screen.getByRole("button", { name: "Contingency" }).textContent).toContain("Reserve");
     fireEvent.click(screen.getByRole("button", { name: "Contingency" }));
     fireEvent.click(screen.getByRole("button", { name: "No contingency" }));
@@ -143,7 +139,6 @@ describe("EditPipeModal", () => {
 
   it("blocks a draft donor that becomes ineligible while editing and allows clearing it", async () => {
     const { rerender } = render(<EditPipeModal visible pipeId={id("pipe-1")} onClose={vi.fn()} />);
-    ruleStep();
     fireEvent.click(screen.getByRole("button", { name: "Contingency" }));
     fireEvent.click(screen.getByRole("button", { name: "Reserve" }));
     allPipes = allPipes.map(pipe => pipe.id === id("reserve") ? { ...pipe, contingencyPipeId: id("chained") } : pipe);
@@ -153,38 +148,37 @@ describe("EditPipeModal", () => {
     expect(updatePipe).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Contingency" }));
     fireEvent.click(screen.getByRole("button", { name: "No contingency" }));
-    fireEvent.click(screen.getByRole("button", { name: "Previous step" }));
-    fireEvent.click(screen.getByRole("button", { name: "Previous step" }));
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Food" } });
     fireEvent.click(screen.getByText("Submit"));
     await waitFor(() => expect(updatePipe).toHaveBeenCalledWith({ pipeId: "pipe-1", name: "Food" }));
   });
 
-  it.each(["instant_settlement", "self_destruct"] as const)("disables contingency and explains why for a %s source", rule => {
+  it.each(["instant_settlement", "self_destruct"] as const)("lists only compatible contingency donors for %s", rule => {
     allPipes[1] = { ...allPipes[1], rule };
     render(<EditPipeModal visible pipeId={id("pipe-1")} onClose={vi.fn()} />);
-    ruleStep();
-    expect(screen.getByRole("button", { name: "Contingency" }).getAttribute("aria-disabled")).toBe("true");
-    expect(screen.getByText(/This rule cannot use contingency/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Contingency" }));
+    expect(screen.getByRole("button", { name: "No contingency" })).toBeTruthy();
+    if (rule === "instant_settlement") expect(screen.queryByRole("button", { name: "Reserve" })).toBeNull();
+    else expect(screen.getByRole("button", { name: "Reserve" })).toBeTruthy();
   });
 
-  it("starts on details without an owner step and uses Capacity on the second step", () => {
+  it("starts on behavior settings and keeps common fields and read-only ownership on the first page", () => {
     render(<EditPipeModal visible pipeId={id("pipe-1")} onClose={vi.fn()} />);
-    expect(screen.getByLabelText("Name").getAttribute("value")).toBe("Groceries");
-    expect(screen.queryByRole("button", { name: "Previous step" })).toBeNull();
-    expect(screen.queryByText("Owner pipe")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Next step" }));
-    expect(screen.getByLabelText("Capacity").getAttribute("value")).toBe("1.00");
+    expect(screen.getByRole("button", { name: "Contingency" })).toBeTruthy();
+    expect(screen.queryByRole("textbox", { name: "Name" })).toBeNull();
     expect(screen.queryByText("Initial capacity?")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Previous step" }));
+    expect(screen.getByRole("textbox", { name: "Name" }).getAttribute("value")).toBe("Groceries");
+    expect(screen.getByRole("textbox", { name: "Capacity" }).getAttribute("value")).toBe("1.00");
+    expect(screen.getByRole("button", { name: "Owner pipe" }).getAttribute("aria-disabled")).toBe("true");
   });
 
-  it("starts the rule shortcut on step 3 and preserves edits while going back", async () => {
-    render(<EditPipeModal visible initialStep={3} pipeId={id("pipe-1")} onClose={vi.fn()} />);
-    fireEvent.click(screen.getByRole("button", { name: "Rule" }));
-    fireEvent.click(screen.getByText("Spend overflow"));
-    fireEvent.click(screen.getByRole("button", { name: "Previous step" }));
+  it("starts the rule shortcut on the overview and saves behavior with detail edits", async () => {
+    render(<EditPipeModal visible initialStep={0} pipeId={id("pipe-1")} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Pipe type" }));
+    expect(screen.queryByRole("button", { name: "Basic feed" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Overflow" }));
     fireEvent.change(screen.getByLabelText("Capacity"), { target: { value: "-2" } });
-    fireEvent.click(screen.getByRole("button", { name: "Previous step" }));
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Food" } });
     fireEvent.click(screen.getByText("Submit"));
     await waitFor(() => expect(updatePipe).toHaveBeenCalledWith({
@@ -228,13 +222,61 @@ describe("EditPipeModal", () => {
     await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
   });
 
+  it("retains explicit field edits when live data temporarily agrees with them", () => {
+    const { rerender } = render(<EditPipeModal visible pipeId={id("pipe-1")} onClose={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Food" } });
+    allPipes[1] = { ...allPipes[1], name: "Food" };
+    rerender(<EditPipeModal visible pipeId={id("pipe-1")} onClose={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText("Description"), { target: { value: "Local description" } });
+    allPipes[1] = { ...allPipes[1], name: "Remote name" };
+    rerender(<EditPipeModal visible pipeId={id("pipe-1")} onClose={vi.fn()} />);
+    expect(screen.getByLabelText("Name").getAttribute("value")).toBe("Food");
+    expect(screen.getByDisplayValue("Local description")).toBeTruthy();
+  });
+
+  it.each([
+    { label: "Name", value: " Groceries " },
+    { label: "Capacity", value: "1" },
+  ])("protects raw $label edits without enabling an empty save", ({ label, value }) => {
+    render(<EditPipeModal visible pipeId={id("pipe-1")} onClose={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText(label), { target: { value } });
+    expect(screen.getByRole("button", { name: "Submit" }).hasAttribute("disabled")).toBe(true);
+    fireEvent.click(screen.getByText("Submit"));
+    expect(updatePipe).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByText("Dismiss"));
+    expect(screen.getByText("Discard changes?")).toBeTruthy();
+  });
+
+  it("protects modified inactive behavior drafts even when the active saved behavior is unchanged", () => {
+    const onClose = vi.fn();
+    render(<EditPipeModal visible initialStep={0} pipeId={id("pipe-1")} onClose={onClose} />);
+    fireEvent.click(screen.getByRole("button", { name: "Pipe type" }));
+    fireEvent.click(screen.getByRole("button", { name: "Timed" }));
+    fireEvent.click(screen.getByRole("button", { name: "Next step" }));
+    fireEvent.change(screen.getByLabelText("Cap update"), { target: { value: "12" } });
+    fireEvent.click(screen.getByRole("button", { name: "Previous step" }));
+    fireEvent.click(screen.getByRole("button", { name: "Pipe type" }));
+    fireEvent.click(screen.getByRole("button", { name: "Manual" }));
+    expect(screen.getByRole("button", { name: "Run now" }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("button", { name: "Submit" }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByText("Save the edited type, or reset changes before running.")).toBeTruthy();
+    fireEvent.click(screen.getByText("Dismiss"));
+    expect(screen.getByText("Discard changes?")).toBeTruthy();
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByText("Keep editing"));
+    fireEvent.click(screen.getByRole("button", { name: "Pipe type" }));
+    fireEvent.click(screen.getByRole("button", { name: "Timed" }));
+    fireEvent.click(screen.getByRole("button", { name: "Next step" }));
+    expect(screen.getByLabelText("Cap update").getAttribute("value")).toBe("12");
+  });
+
   it("resets to current saved values without leaving the current step", () => {
-    render(<EditPipeModal visible initialStep={3} pipeId={id("pipe-1")} onClose={vi.fn()} />);
-    fireEvent.click(screen.getByRole("button", { name: "Rule" }));
-    fireEvent.click(screen.getByText("Spend overflow"));
+    render(<EditPipeModal visible initialStep={0} pipeId={id("pipe-1")} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Pipe type" }));
+    fireEvent.click(screen.getByRole("button", { name: "Overflow" }));
     fireEvent.click(screen.getByRole("button", { name: "Reset changes" }));
-    expect(screen.getByRole("button", { name: "Rule" }).textContent).toContain("No rule");
-    expect(screen.getByLabelText("Step 3 of 3").getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByRole("button", { name: "Pipe type" }).textContent).toContain("Manual");
+    expect(screen.getByLabelText("Step 1 of 2").getAttribute("aria-selected")).toBe("true");
   });
 
   it("shows details only for parents and never submits derived capacity", async () => {
@@ -247,7 +289,6 @@ describe("EditPipeModal", () => {
 
   it("requires an explicit edit capacity instead of silently leaving it unchanged", () => {
     render(<EditPipeModal visible pipeId={id("pipe-1")} onClose={vi.fn()} />);
-    fireEvent.click(screen.getByRole("button", { name: "Next step" }));
     fireEvent.change(screen.getByLabelText("Capacity"), { target: { value: "" } });
     fireEvent.click(screen.getByText("Submit"));
     expect(updatePipe).not.toHaveBeenCalled();
@@ -255,9 +296,7 @@ describe("EditPipeModal", () => {
 
   it("disables Run now for changes on any step and enables it again after resetting", async () => {
     const onClose = vi.fn();
-    render(<EditPipeModal visible initialStep={3} pipeId={id("pipe-1")} onClose={onClose} />);
-    fireEvent.click(screen.getByRole("button", { name: "Previous step" }));
-    fireEvent.click(screen.getByRole("button", { name: "Previous step" }));
+    render(<EditPipeModal visible pipeId={id("pipe-1")} onClose={onClose} />);
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Food" } });
     fireEvent.click(screen.getByText("Run now"));
     expect(runRule).not.toHaveBeenCalled();
@@ -268,38 +307,86 @@ describe("EditPipeModal", () => {
     expect(onClose).toHaveBeenCalledOnce();
   });
 
-  it("clears incompatible contingency in the draft without restoring it when switching back", async () => {
+  it("clears incompatible contingency only when saving Instant", async () => {
     allPipes[1] = { ...allPipes[1], contingencyPipeId: id("reserve") };
-    render(<EditPipeModal visible initialStep={3} pipeId={id("pipe-1")} onClose={vi.fn()} />);
-    fireEvent.click(screen.getByRole("button", { name: "Rule" }));
-    fireEvent.click(screen.getByText("Instant settlement"));
+    render(<EditPipeModal visible initialStep={0} pipeId={id("pipe-1")} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Pipe type" }));
+    fireEvent.click(screen.getByRole("button", { name: "Instant" }));
+    fireEvent.click(screen.getByRole("button", { name: "Next step" }));
     expect(screen.getByRole("button", { name: "Contingency" }).textContent).toContain("No contingency");
-    expect(screen.getByText(/Saving will remove the current contingency/)).toBeTruthy();
     expect(updatePipe).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "Rule" }));
-    fireEvent.click(screen.getByText("No rule"));
-    expect(screen.getByRole("button", { name: "Contingency" }).textContent).toContain("No contingency");
     fireEvent.click(screen.getByText("Submit"));
-    await waitFor(() => expect(updatePipe).toHaveBeenCalledWith({ pipeId: "pipe-1", contingencyPipeId: null }));
+    await waitFor(() => expect(updatePipe).toHaveBeenCalledWith({ pipeId: "pipe-1", contingencyPipeId: null, ruleConfig: { rule: "instant_settlement", capUpdateValue: undefined } }));
   });
 
-  it("lets childless roots edit rules but never offers Self-destruct", () => {
+  it("keeps childless roots Instant-only with no opening amounts or editable rule", () => {
     allPipes = [{ ...allPipes[0], rule: "instant_settlement" }];
-    render(<EditPipeModal visible initialStep={3} pipeId={id("root")} onClose={vi.fn()} />);
-    fireEvent.click(screen.getByRole("button", { name: "Rule" }));
-    expect(screen.getByText("Cron")).toBeTruthy();
-    expect(screen.queryByText("Self-destruct")).toBeNull();
+    render(<EditPipeModal visible pipeId={id("root")} onClose={vi.fn()} />);
+    expect(screen.queryByRole("button", { name: "Pipe type" })).toBeNull();
+    expect(screen.queryByLabelText("Capacity")).toBeNull();
+    expect(screen.queryByLabelText("Initial amount")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Run now" })).toBeNull();
+    expect(screen.queryByLabelText("Cap update")).toBeNull();
+    expect(screen.getByRole("button", { name: "Icon" })).toBeTruthy();
+    expect(screen.getByRole("textbox", { name: "Name" })).toBeTruthy();
+    expect(screen.getByRole("textbox", { name: "Description" })).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByRole("checkbox", { name: "I understand" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Next step" })).toBeNull();
+  });
+
+  it("preserves explicit inactive edits when live data adopts that behavior", () => {
+    allPipes[1] = {
+      ...allPipes[1],
+      rule: "cron",
+      capUpdateValue: 100,
+      cronNextDate: Date.UTC(2099, 0, 1, 5),
+      cronInterval: { interval: 1, unit: "months" },
+    };
+    const { rerender } = render(<EditPipeModal visible initialStep={0} pipeId={id("pipe-1")} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Pipe type" }));
+    fireEvent.click(screen.getByRole("button", { name: "Overflow" }));
+    fireEvent.click(screen.getByRole("button", { name: "Next step" }));
+    fireEvent.change(screen.getByLabelText("Cap update"), { target: { value: "1.00" } });
+    fireEvent.click(screen.getByRole("button", { name: "Previous step" }));
+    fireEvent.click(screen.getByRole("button", { name: "Pipe type" }));
+    fireEvent.click(screen.getByRole("button", { name: "Timed" }));
+    allPipes[1] = { ...allPipes[1], rule: "spend_overflow", capUpdateValue: 200 };
+    rerender(<EditPipeModal visible initialStep={0} pipeId={id("pipe-1")} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Pipe type" }));
+    fireEvent.click(screen.getByRole("button", { name: "Overflow" }));
+    fireEvent.click(screen.getByRole("button", { name: "Next step" }));
+    expect(screen.getByLabelText("Cap update").getAttribute("value")).toBe("1.00");
+  });
+
+  it("retains visited type options when live data switches to a different behavior", () => {
+    allPipes[1] = {
+      ...allPipes[1],
+      rule: "cron",
+      capUpdateValue: 100,
+      cronNextDate: Date.UTC(2099, 0, 1, 5),
+      cronInterval: { interval: 1, unit: "months" },
+    };
+    const { rerender } = render(<EditPipeModal visible initialStep={0} pipeId={id("pipe-1")} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Pipe type" }));
+    fireEvent.click(screen.getByRole("button", { name: "Overflow" }));
+    allPipes[1] = { ...allPipes[1], rule: undefined, capUpdateValue: undefined, cronNextDate: undefined, cronInterval: undefined };
+    rerender(<EditPipeModal visible initialStep={0} pipeId={id("pipe-1")} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Pipe type" }));
+    fireEvent.click(screen.getByRole("button", { name: "Timed" }));
+    fireEvent.click(screen.getByRole("button", { name: "Next step" }));
+    expect(screen.getByLabelText("Cap update").getAttribute("value")).toBe("1.00");
   });
 
   it("follows live rule changes after reverting a rule draft", () => {
-    const { rerender } = render(<EditPipeModal visible initialStep={3} pipeId={id("pipe-1")} onClose={vi.fn()} />);
-    fireEvent.click(screen.getByRole("button", { name: "Rule" }));
-    fireEvent.click(screen.getByText("Spend overflow"));
-    fireEvent.click(screen.getByRole("button", { name: "Rule" }));
-    fireEvent.click(screen.getByText("No rule"));
+    const { rerender } = render(<EditPipeModal visible initialStep={0} pipeId={id("pipe-1")} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Pipe type" }));
+    fireEvent.click(screen.getByRole("button", { name: "Overflow" }));
+    fireEvent.click(screen.getByRole("button", { name: "Pipe type" }));
+    fireEvent.click(screen.getByRole("button", { name: "Manual" }));
     allPipes[1] = { ...allPipes[1], rule: "cron", cronNextDate: Date.UTC(2099, 1, 1, 5), cronInterval: { interval: 1, unit: "months" } };
-    rerender(<EditPipeModal visible initialStep={3} pipeId={id("pipe-1")} onClose={vi.fn()} />);
-    expect(screen.getByRole("button", { name: "Rule" }).textContent).toContain("Cron");
+    rerender(<EditPipeModal visible initialStep={0} pipeId={id("pipe-1")} onClose={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "Pipe type" }).textContent).toContain("Timed");
   });
 
   it("preserves an edited cap update while following an untouched live cron date", async () => {
@@ -310,10 +397,10 @@ describe("EditPipeModal", () => {
       cronNextDate: Date.UTC(2099, 0, 1, 5),
       cronInterval: { interval: 1, unit: "months" }
     };
-    const { rerender } = render(<EditPipeModal visible initialStep={3} pipeId={id("pipe-1")} onClose={vi.fn()} />);
+    const { rerender } = render(<EditPipeModal visible pipeId={id("pipe-1")} onClose={vi.fn()} />);
     fireEvent.change(screen.getByLabelText("Cap update"), { target: { value: "2" } });
     allPipes[1] = { ...allPipes[1], capacity: 200, cronNextDate: Date.UTC(2099, 1, 1, 5) };
-    rerender(<EditPipeModal visible initialStep={3} pipeId={id("pipe-1")} onClose={vi.fn()} />);
+    rerender(<EditPipeModal visible pipeId={id("pipe-1")} onClose={vi.fn()} />);
     expect(screen.getByLabelText("Cap update").getAttribute("value")).toBe("2");
     fireEvent.click(screen.getByText("Submit"));
     await waitFor(() => expect(updatePipe).toHaveBeenCalledWith({

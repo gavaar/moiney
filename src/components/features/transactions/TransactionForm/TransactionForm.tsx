@@ -1,27 +1,22 @@
 import { useState } from "react";
 import type { Id } from "@convex/_generated/dataModel";
-import { AmountForm } from "@features/components/AmountForm";
-import type { TransactionInitialState } from "@features/components/AmountForm/types";
+import { AmountForm, groupPipesByRoot, type TransactionInitialState } from "@features/components/AmountForm";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import { useEventHistory } from "@features/transactions/cache/useEventHistory";
 import { getFrequentlyUsedEventSourcePipeIds } from "../history/event-usage";
 import { getQuickTransactionPipes } from "../QuickTransactionModal/helpers";
-import { groupPipesByRoot } from "@features/components/AmountForm/pipeGroups";
+import type { OnDismissStateChange } from "@ui/Form/use-form-dismissal";
 
-type Props = { onSuccess?: () => void } & (
+type Props = { onSuccess?: () => void; onDismissStateChange?: OnDismissStateChange } & (
   | { pipeId?: Id<"pipes">; initState: TransactionInitialState }
   | { pipeId?: never; initState?: never }
 );
 
 export function TransactionForm(props: Props) {
-  return <SelectableTransactionForm {...props} />;
-}
-
-function SelectableTransactionForm({ pipeId, initState, onSuccess }: Props) {
+  const { pipeId, initState, onSuccess, onDismissStateChange } = props;
   const { allPipes, childrenByParent, isLoading } = usePipeCatalog();
   const { entries, isLoading: historyLoading } = useEventHistory();
   const [selectedId, setSelectedId] = useState<Id<"pipes"> | null>(pipeId ?? null);
-  const [activeStep, setActiveStep] = useState(pipeId ? 1 : 0);
   const isFeed = initState?.structure?.type === "feed";
   const pipes = isFeed
     ? (allPipes ?? []).filter(pipe => !pipe.parentId && !pipe.deletionJobId)
@@ -47,13 +42,12 @@ function SelectableTransactionForm({ pipeId, initState, onSuccess }: Props) {
     value: "-",
   };
 
-  return <AmountForm variant="transaction" pipeId={selected?.id ?? null} initState={initial} onSuccess={onSuccess}
+  return <AmountForm variant="transaction" pipeId={selected?.id ?? null} initState={initial} onSuccess={onSuccess} onDismissStateChange={onDismissStateChange}
     sourcePicker={{
       pipes,
       groups,
       loading: isLoading || historyLoading,
-      activeStep,
-      onStepChange: setActiveStep,
-      onSelect: id => { setSelectedId(id); setActiveStep(1); },
+      navigationStart: pipeId ? 1 : 0,
+      onSelect: setSelectedId,
     }} />;
 }

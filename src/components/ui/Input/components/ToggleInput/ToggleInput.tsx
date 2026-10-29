@@ -1,42 +1,34 @@
 import { Text, View } from "react-native";
-import { cn } from "@/lib/styles";
 import type { IconName } from "@ui/Icon";
 import { SlideToggle } from "@ui/SlideToggle";
-import { InputError, useInputValidation } from "../../useInputValidation";
+import type { InputInteraction, InputValueProps } from "../../input.types";
 
-type ToggleOption = { label: string; icon: IconName; selectedBackgroundClassName?: string };
+type ToggleOption = { label?: string; icon: IconName; selectedBackgroundClassName?: string };
 
-type Props = {
-  value: boolean;
+export type ToggleInputProps = InputValueProps<boolean> & {
   options: readonly [ToggleOption, ToggleOption];
-  disabled?: boolean;
-  onChange?: (value: boolean) => void;
-  onError?: (error?: string) => void;
-  validator?: (value: boolean) => string | undefined;
 };
 
-export function ToggleInput({ value, onChange, onError, options, validator, disabled }: Props) {
-  const { error, markAsDirty } = useInputValidation(value, validator, onError);
+type Props = ToggleInputProps & InputInteraction;
+
+export function ToggleInput({ value, onChange, options, disabled, accessibilityLabel, onInteractionEnd }: Props) {
   return (
-    <View className="gap-1">
-      <View className="flex-row items-center justify-between gap-2">
-        <Text className={cn("text-lg font-medium text-text", disabled && "opacity-50")}>{options[value ? 1 : 0].label}</Text>
-        <SlideToggle
-          options={[
-            { ...options[0], value: "false" },
-            { ...options[1], value: "true" },
-          ]}
-          value={value ? "true" : "false"}
-          onChange={(selected) => {
-            if (disabled) return;
-            const next = selected === "true";
-            markAsDirty();
-            onChange?.(next);
-          }}
-          disabled={disabled}
-        />
-      </View>
-      <InputError error={error} />
+    <View accessibilityLabel={accessibilityLabel} className="flex-row items-center justify-between gap-2">
+      {options[value ? 1 : 0].label ? <Text className="min-w-0 flex-1 text-lg font-medium text-text">{options[value ? 1 : 0].label}</Text> : null}
+      <SlideToggle
+        options={[
+          { ...options[0], label: options[0].label ?? (accessibilityLabel ? `${accessibilityLabel}: Off` : "Off"), value: "false" },
+          { ...options[1], label: options[1].label ?? (accessibilityLabel ? `${accessibilityLabel}: On` : "On"), value: "true" },
+        ]}
+        value={value ? "true" : "false"}
+        onChange={(selected) => {
+          if (disabled) return;
+          const next = selected === "true";
+          onInteractionEnd();
+          onChange?.(next);
+        }}
+        disabled={disabled}
+      />
     </View>
   );
 }

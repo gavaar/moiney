@@ -2,7 +2,7 @@ import { resolveTransactionKind, type TransactionKind, transactionStructureFromR
 import type { TransactionModel, TransactionPresentation } from "../../data/transactions";
 import { colors } from "@/lib/styles";
 import { formatMoneyInput } from "@domain/money";
-import { safeIconName } from "@ui/Icon/icons";
+import { safeIconName, type IconName } from "@ui/Icon";
 import type { PipeModel } from "@features/pipes/data/pipes";
 import type { PipeCatalogContextValue } from "@features/pipes/context/PipeCatalogContext";
 
@@ -29,7 +29,7 @@ const getTransactionIcons = (
   fromPipe: PipeModel | undefined,
   toPipe: PipeModel | undefined,
   paidFromPipe: PipeModel | undefined,
-): { name: string; size: number; color: string }[] => {
+): { name: IconName; size: number; color: string }[] => {
   const uiIcons = [];
 
   const fromIcon = {

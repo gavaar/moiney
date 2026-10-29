@@ -1,1 +1,1 @@
-export { ToggleInput } from "./ToggleInput";
+export { ToggleInput, type ToggleInputProps } from "./ToggleInput";

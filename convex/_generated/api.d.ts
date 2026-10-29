@@ -46,6 +46,7 @@ import type * as lib_pipes_selfDestruct from "../lib/pipes/selfDestruct.js";
 import type * as lib_transactions from "../lib/transactions.js";
 import type * as lib_transactions_operations from "../lib/transactions/operations.js";
 import type * as lib_usernames from "../lib/usernames.js";
+import type * as migrations from "../migrations.js";
 import type * as monthlySpendingStats from "../monthlySpendingStats.js";
 import type * as operationCorrections from "../operationCorrections.js";
 import type * as pipes from "../pipes.js";
@@ -98,6 +99,7 @@ declare const fullApi: ApiFromModules<{
   "lib/transactions": typeof lib_transactions;
   "lib/transactions/operations": typeof lib_transactions_operations;
   "lib/usernames": typeof lib_usernames;
+  migrations: typeof migrations;
   monthlySpendingStats: typeof monthlySpendingStats;
   operationCorrections: typeof operationCorrections;
   pipes: typeof pipes;

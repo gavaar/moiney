@@ -1,127 +1,77 @@
-import { useState } from "react";
 import {
   ActivityIndicator,
-  Pressable,
-  Text,
   TextInput as RNTextInput,
   View,
-  type TextInputProps,
+  type TextInputProps as NativeTextInputProps,
 } from "react-native";
 import { cn, colors } from "@/lib/styles";
 import { Icon } from "@ui/Icon";
-import { getBorderStyle } from "../../input.config";
-import { InputError, useInputValidation } from "../../useInputValidation";
+import type { InputInteraction, InputValueProps } from "../../input.types";
 
-type Props = Omit<TextInputProps, "value" | "defaultValue" | "onChange" | "onChangeText"> & {
-  value: string;
-  label: string;
-  hideLabel?: boolean;
-  disabled?: boolean;
-  endIcon?: "eye" | "eye-off";
-  onEndIconPress?: () => void;
+export type TextInputProps = InputValueProps<string> & Omit<NativeTextInputProps, "value" | "defaultValue" | "onChange" | "onChangeText"> & {
   status?: "checking" | "available" | "unavailable";
   maxLength?: number;
-  onChange?: (value: string) => void;
-  onError?: (error?: string) => void;
-  validator?: (value: string) => string | undefined;
 };
 
+type Props = TextInputProps & InputInteraction;
+
 export function TextInput({
-  label,
-  hideLabel,
-  validator,
+  accessibilityLabel,
   className,
   disabled,
-  endIcon,
-  onEndIconPress,
   status,
-  maxLength,
+  maxLength: _maxLength,
   editable,
   onFocus,
   onBlur,
   onChange,
-  onError,
   value,
+  onFocusChange,
+  onInteractionEnd,
+  error: _error,
   ...props
 }: Props) {
-  const [focused, setFocused] = useState(false);
-  const { error, markAsDirty } = useInputValidation(value, validator, onError);
-
-  const borderStyle = getBorderStyle(disabled, focused, error);
-
-  const hasTrailing = !!(status || endIcon);
-  const currentLength = String(value ?? "").length;
+  const inputLabel = accessibilityLabel;
 
   return (
-    <View className="gap-1">
-      {!hideLabel ? <Text className="text-sm font-medium text-text">{label}</Text> : null}
-      <View className="relative">
-        <RNTextInput
-          {...props}
-          value={value}
-          onChangeText={text => {
-            if (disabled || editable === false) return;
-            onChange?.(text);
-          }}
-          accessibilityLabel={label}
-          accessibilityState={{ disabled }}
-          className={cn(
-            "rounded-lg border bg-surface px-3 py-2 text-base text-text",
-            hasTrailing && "pr-10",
-            disabled && "opacity-60",
-            borderStyle,
-            className,
-          )}
-          placeholderTextColor="#9CA3AF"
-          editable={disabled ? false : editable}
-          onFocus={(event) => {
-            if (!disabled) setFocused(true);
-            onFocus?.(event);
-          }}
-          onBlur={(event) => {
-            setFocused(false);
-            if (!disabled && editable !== false) markAsDirty();
-            onBlur?.(event);
-          }}
+    <View className="flex-row items-center gap-2">
+      <RNTextInput
+        {...props}
+        value={value}
+        onChangeText={text => {
+          if (disabled || editable === false) return;
+          onChange?.(text);
+        }}
+        accessibilityLabel={inputLabel}
+        accessibilityState={{ disabled }}
+        className={cn("min-w-0 flex-1 p-0 text-base text-text", className)}
+        placeholderTextColor={colors.muted}
+        editable={disabled ? false : editable}
+        onFocus={(event) => {
+          if (!disabled) onFocusChange(true);
+          onFocus?.(event);
+        }}
+        onBlur={(event) => {
+          onFocusChange(false);
+          if (!disabled && editable !== false) onInteractionEnd();
+          onBlur?.(event);
+        }}
+      />
+      {status === "checking" ? (
+        <ActivityIndicator
+          testID="status-checking"
+          accessibilityLabel={`${inputLabel ?? "Input"} checking`}
+          size="small"
+          color={colors.secondary}
         />
-        {hasTrailing ? (
-          <View className="absolute right-3 top-0 bottom-0 flex-row items-center gap-1">
-            {status === "checking" ? (
-              <ActivityIndicator
-                testID="status-checking"
-                accessibilityLabel={`${label} checking`}
-                size="small"
-                color={colors.secondary}
-              />
-            ) : status === "available" ? (
-              <View accessible accessibilityRole="image" accessibilityLabel={`${label} available`}>
-                <Icon testID="status-available" name="checkmark-circle" size={20} color={colors.success} />
-              </View>
-            ) : status === "unavailable" ? (
-              <View accessible accessibilityRole="image" accessibilityLabel={`${label} unavailable`}>
-                <Icon testID="status-unavailable" name="close-circle" size={20} color={colors.error} />
-              </View>
-            ) : null}
-            {endIcon ? (
-              <Pressable
-                testID="end-icon-button"
-                accessibilityRole="button"
-                accessibilityLabel={endIcon === "eye" ? "Show password" : "Hide password"}
-                onPress={onEndIconPress}
-                hitSlop={8}
-              >
-                <Icon name={endIcon} size={20} color={colors.secondary} />
-              </Pressable>
-            ) : null}
-          </View>
-        ) : null}
-      </View>
-      {error !== undefined ? (
-        <InputError error={error} />
-      ) : maxLength !== undefined ? (
-        <Text className={cn("text-sm", currentLength > maxLength ? "text-error" : "text-muted")}>
-          {currentLength} / {maxLength}
-        </Text>
+      ) : status === "available" ? (
+        <View accessible accessibilityRole="image" accessibilityLabel={`${inputLabel ?? "Input"} available`}>
+          <Icon testID="status-available" name="checkmark-circle" size={20} color={colors.success} />
+        </View>
+      ) : status === "unavailable" ? (
+        <View accessible accessibilityRole="image" accessibilityLabel={`${inputLabel ?? "Input"} unavailable`}>
+          <Icon testID="status-unavailable" name="close-circle" size={20} color={colors.error} />
+        </View>
       ) : null}
     </View>
   );

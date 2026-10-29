@@ -14,16 +14,6 @@ vi.mock("@/lib/auth", () => ({
   useAuth: () => ({ login, biometrics: { ...biometrics } }),
 }));
 
-vi.mock("@ui/Input", () => ({
-  Input: ({ label, value, onChange }: any) => (
-    <input
-      aria-label={label}
-      value={value}
-      onChange={(event) => onChange?.(event.target.value)}
-    />
-  ),
-}));
-
 vi.mock("@ui/Button", () => ({
   Button: ({ title, disabled, onPress }: any) => (
     <button disabled={disabled} onClick={onPress}>
@@ -42,6 +32,17 @@ vi.mock("expo-router", () => ({
 
 describe("LoginScreen", () => {
   beforeEach(() => { vi.clearAllMocks(); biometrics.enabled = false; biometrics.busy = false; biometrics.loading = false; login.mockResolvedValue(undefined); });
+  it("toggles password visibility without changing the entered value", () => {
+    render(<LoginScreen />);
+    const password = screen.getByLabelText("Password");
+    fireEvent.change(password, { target: { value: "password123" } });
+    expect(password).toHaveProperty("type", "password");
+    fireEvent.click(screen.getByRole("button", { name: "Show password" }));
+    expect(password).toHaveProperty("type", "text");
+    expect(screen.getByDisplayValue("password123")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Hide password" }));
+    expect(password).toHaveProperty("type", "password");
+  });
   it("submits the entered credentials through auth", async () => {
     render(<LoginScreen />);
 

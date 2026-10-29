@@ -9,18 +9,13 @@ import {
 import { cn, colors } from "@/lib/styles";
 import { Icon, CURATED_ICONS, type IconName } from "@ui/Icon";
 import { ModalShell } from "@ui/Modal";
-import { InputError, useInputValidation } from "../../useInputValidation";
+import type { InputInteraction, InputTriggerProps, InputValueProps } from "../../input.types";
 
-type Props = {
-  label: string;
-  value: IconName | "";
-  disabled?: boolean;
-  onChange?: (name: IconName) => void;
-  onError?: (error?: string) => void;
-  validator?: (value: IconName | "") => string | undefined;
-};
+export type IconInputProps = InputValueProps<IconName | "", IconName>;
 
-function filterIcons(search: string, icons: { name: string }[]) {
+type Props = IconInputProps & InputInteraction & InputTriggerProps;
+
+function filterIcons(search: string, icons: readonly { name: IconName }[]) {
   return search
     ? icons.filter((icon) =>
         icon.name.toLowerCase().includes(search.toLowerCase()),
@@ -28,44 +23,37 @@ function filterIcons(search: string, icons: { name: string }[]) {
     : icons;
 }
 
-export function IconInput({ label, value, onChange, validator, disabled, onError }: Props) {
+export function IconInput({ accessibilityLabel, value, onChange, disabled, onFocusChange, onInteractionEnd, triggerClassName }: Props) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const { error, markAsDirty } = useInputValidation(value, validator, onError);
 
   const filtered = filterIcons(search, CURATED_ICONS);
 
   return (
-    <View className={cn("gap-1", disabled && "opacity-60")}>
-      <Text className="text-sm font-medium text-text">{label}</Text>
+    <>
       <Pressable
         testID="icon-picker-trigger"
         accessibilityRole="button"
-        accessibilityLabel={label}
+        accessibilityLabel={accessibilityLabel}
         accessibilityState={{ disabled, expanded: open }}
         aria-expanded={open}
-        onPress={() => !disabled && setOpen(true)}
-        className={cn(
-          "rounded-lg border bg-surface px-3 py-2 flex-row items-center gap-2",
-          error !== undefined ? "border-error" : "border-border",
-        )}
+        onPress={() => { if (!disabled) { setOpen(true); onFocusChange(true); } }}
+        disabled={disabled}
+        className={cn(triggerClassName, "flex-row items-center gap-2 justify-center")}
       >
         {value ? (
-          <>
-            <Icon name={value} size={20} color={colors.text} />
-            <Text className="text-base text-text">{value}</Text>
-          </>
+          <Icon name={value} size={16} color={colors.text} />
         ) : (
           <Text className="text-base text-muted">---</Text>
         )}
       </Pressable>
-      <InputError error={error} />
 
       <ModalShell
         visible={open}
-        onClose={() => setOpen(false)}
+        onClose={() => { setOpen(false); onFocusChange(false); }}
       >
         <TextInput
+          accessibilityLabel="Search icons"
           placeholder="Search icons..."
           placeholderTextColor={colors.muted}
           value={search}
@@ -77,21 +65,26 @@ export function IconInput({ label, value, onChange, validator, disabled, onError
             No icons found
           </Text>
         ) : (
-          <ScrollView contentContainerStyle={{ flexDirection: "row", flexWrap: "wrap" }}>
+          <ScrollView accessibilityRole="radiogroup" accessibilityLabel="Icons" contentContainerStyle={{ flexDirection: "row", flexWrap: "wrap" }}>
             {filtered.map((icon) => {
               const selected = value === icon.name;
               return (
                 <View key={icon.name} className="w-1/4 p-1 items-center">
                   <Pressable
+                    accessibilityRole="radio"
+                    accessibilityLabel={icon.name}
+                    accessibilityState={{ checked: selected, disabled: disabled || !onChange }}
+                    aria-checked={selected}
+                    disabled={disabled || !onChange}
                     onPress={() => {
                       if (disabled || !onChange) return;
-                      markAsDirty();
+                      onInteractionEnd();
                       onChange(icon.name);
                       setOpen(false);
+                      onFocusChange(false);
                       setSearch("");
                     }}
-                    className="items-center py-2 px-1 rounded-lg"
-                    style={selected && { backgroundColor: "rgba(70, 174, 130, 0.1)" }}
+                    className={cn("items-center py-2 px-1 rounded-lg", selected && "bg-primary/10")}
                   >
                     <Icon
                       name={icon.name}
@@ -111,6 +104,6 @@ export function IconInput({ label, value, onChange, validator, disabled, onError
           </ScrollView>
         )}
       </ModalShell>
-    </View>
+    </>
   );
 }

@@ -96,7 +96,7 @@ describe("ProfileView", () => {
 
   it("renders an editable avatar button", () => {
     render(<ProfileView />);
-    expect(screen.getByTestId("profile-avatar")).toBeDefined();
+    expect(screen.getByRole("button", { name: "Edit profile picture" })).toBeDefined();
   });
 
   it("opens the edit modal when the avatar is pressed", async () => {

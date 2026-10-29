@@ -1,6 +1,7 @@
 import { Text, View } from "react-native";
 import { Button } from "@ui/Button";
 import { Input } from "@ui/Input";
+import { Icon } from "@ui/Icon";
 import { useAuth } from "@/lib/auth";
 import { useForm } from "@/lib/forms";
 import { Link } from "expo-router";
@@ -66,8 +67,11 @@ export function LoginScreen() {
         value={values.password}
         onChange={(v) => setField("password", v)}
         secureTextEntry={!showPassword}
-        endIcon={showPassword ? "eye-off" : "eye"}
-        onEndIconPress={() => setShowPassword((v) => !v)}
+        suffix={{
+          content: <Icon name={showPassword ? "eye-off" : "eye"} size={20} color={colors.muted} />,
+          accessibilityLabel: showPassword ? "Hide password" : "Show password",
+          onPress: () => setShowPassword((v) => !v),
+        }}
       />
 
       {errors.form ? <Text className="text-sm text-error">{errors.form}</Text> : null}

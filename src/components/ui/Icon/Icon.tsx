@@ -1,14 +1,9 @@
 import { Ionicons, MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
-import { type ComponentType } from "react";
+import type { ComponentProps } from "react";
 import { type ColorValue, type TextStyle } from "react-native";
 import { colors } from "@/lib/styles";
-import { ICON_REGISTRY, type IconFamily, type IconName } from "./icons";
-
-const FAMILY_COMPONENTS: Record<IconFamily, ComponentType<any>> = {
-  Ionicons,
-  MaterialCommunityIcons,
-  MaterialIcons,
-};
+import { InternalIcon } from "./components/InternalIcon/InternalIcon";
+import { getIcon, type IconName } from "./icons";
 
 type Props = {
   name: IconName;
@@ -19,7 +14,17 @@ type Props = {
 };
 
 export function Icon({ name, size = 20, color = colors.text, style, testID }: Props) {
-  const family = ICON_REGISTRY[name];
-  const Component = FAMILY_COMPONENTS[family];
-  return <Component testID={testID} name={name} size={size} color={color} style={style} />;
+  const icon = getIcon(name);
+  // Expo forwards color to native Text, but its types omit RN's numeric/null forms.
+  const props = { testID, size, color: color as ComponentProps<typeof Ionicons>["color"], style };
+  switch (icon.family) {
+    case "Ionicons":
+      return <Ionicons {...props} name={icon.name} />;
+    case "MaterialCommunityIcons":
+      return <MaterialCommunityIcons {...props} name={icon.name} />;
+    case "MaterialIcons":
+      return <MaterialIcons {...props} name={icon.name} />;
+    case "Internal":
+      return <InternalIcon name={icon.name} size={size} color={color} style={style} testID={testID} />;
+  }
 }

@@ -111,7 +111,7 @@ vi.mock("@features/transactions/cache/EventHistoryCacheContext", () => ({
 }));
 
 vi.mock("@ui/Input", () => ({
-  Input: ({ label, type, value, onChange, disabled, placeholder, allowNegative, error, maxLength, items, options }: any) => {
+  Input: ({ label, type, value, onChange, disabled, placeholder, allowNegative, error, supportingText, maxLength, items, options, renderItem }: any) => {
     if (type === "toggle") {
       return <div data-testid="input-transaction-mode">
         <span>{options[value ? 1 : 0].label}</span>
@@ -132,6 +132,7 @@ vi.mock("@ui/Input", () => ({
       );
     }
     if (type === "select") {
+      const selectedItem = items?.find((item: any) => item.id === value);
       return (
         <div
           data-testid={`input-${label}`}
@@ -140,7 +141,7 @@ vi.mock("@ui/Input", () => ({
           <span>{label}</span>
           <span data-testid={`select-value-${label}`}>
             {value
-              ? items?.find((i: any) => i.id === value)?.name ?? "Unknown"
+              ? selectedItem ? renderItem(selectedItem) : "Unknown"
               : placeholder ?? "Select..."}
           </span>
           <div data-testid={`select-items-${label}`}>
@@ -151,7 +152,7 @@ vi.mock("@ui/Input", () => ({
                 onClick={() => onChange?.(item.id)}
                 disabled={disabled}
               >
-                {item.name}
+                {renderItem(item)}
               </button>
             ))}
           </div>
@@ -204,7 +205,7 @@ vi.mock("@ui/Input", () => ({
         />
         {error ? (
           <span data-testid={`input-${label}-error`}>{error}</span>
-        ) : maxLength !== undefined ? (
+        ) : supportingText !== undefined ? supportingText : maxLength !== undefined ? (
           <span data-testid={`input-${label}-counter`}>
             {String(value ?? "").length} / {maxLength}
           </span>
@@ -1525,6 +1526,45 @@ describe("AmountForm", () => {
     });
 
     describe("edit mode", () => {
+      it("previews replacement accounting only when explicitly enabled", () => {
+        render(<AmountForm pipeId={PIPE_ID} variant="transaction" initState={{
+          pipeIcon: "cart-outline",
+          pipeName: "Previous pipe",
+          title: "coffee",
+          value: "-5",
+          structure: { type: "expense", from: "missing-pipe" as Id<"pipes"> },
+          operationId: "transaction-1" as Id<"events">,
+          date: 1,
+          intent: "edit",
+        }} />);
+        expect(screen.getByRole("alert").textContent).toContain("Replacement pipes receive no accounting update.");
+        expect(screen.getByRole("alert").textContent).not.toContain("Main: spent");
+        fireEvent.click(screen.getByRole("switch", { name: "Apply accounting to replacement pipes" }));
+        expect(screen.getByRole("alert").textContent).toContain("Main: spent +5.00");
+        expect(screen.getByRole("alert").textContent).toContain("Rules may run; final balances can differ.");
+        expect(mockEditTransactionFn).not.toHaveBeenCalled();
+      });
+
+      it("lets users dismiss the accounting warning without submitting or changing the draft", () => {
+        render(<AmountForm pipeId={PIPE_ID} variant="transaction" initState={{
+          pipeIcon: "cart",
+          pipeName: "Previous pipe",
+          title: "coffee",
+          value: "-5",
+          structure: { type: "expense", from: "missing-pipe" as Id<"pipes"> },
+          operationId: "transaction-1" as Id<"events">,
+          date: new Date(2026, 6, 20).getTime(),
+          intent: "edit",
+        }} />);
+        const warning = screen.getByRole("alert");
+        const action = screen.getByTestId("submit-button");
+        expect(action.compareDocumentPosition(warning) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        fireEvent.click(screen.getByRole("button", { name: "Dismiss warning" }));
+        expect(screen.queryByRole("alert")).toBeNull();
+        expect(screen.getByDisplayValue("coffee")).toBeTruthy();
+        expect(mockEditTransactionFn).not.toHaveBeenCalled();
+      });
+
       it("keeps structural role controls visible for an ordinary expense", () => {
         render(
           <AmountForm

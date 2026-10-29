@@ -2,6 +2,7 @@ import type { Id } from "@convex/_generated/dataModel";
 import type { TransactionStructure } from "@domain/transactions";
 import type { PipeModel } from "@features/pipes/data/pipes";
 import type { InputProps } from "@ui/Input";
+import type { OnDismissStateChange } from "@ui/Form/use-form-dismissal";
 
 export type AmountFormDraft = {
   modeTransfer: boolean;
@@ -18,16 +19,15 @@ export type SourcePicker = {
   pipes: readonly PipeModel[];
   groups?: NonNullable<Extract<InputProps, { type: "select" }>["groups"]>;
   loading: boolean;
-  activeStep: number;
-  onStepChange: (step: number) => void;
+  navigationStart: number;
   onSelect: (id: Id<"pipes">) => void;
 };
 
 type CommonProps = {
   pipeId: Id<"pipes"> | null;
   onSuccess?: () => void;
+  onDismissStateChange?: OnDismissStateChange;
   sourcePicker?: SourcePicker;
-  fill?: boolean;
 };
 
 export type TransactionInitialState = {

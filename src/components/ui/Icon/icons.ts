@@ -1,9 +1,12 @@
-type IconFamily = "Ionicons" | "MaterialCommunityIcons" | "MaterialIcons";
+import type { Ionicons, MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
+import type { ComponentProps } from "react";
+import type { InternalIconName } from "./components/InternalIcon/InternalIcon";
 
-type CuratedIcon = {
-  name: string;
-  family: IconFamily;
-};
+type CuratedIcon =
+  | { family: "Ionicons"; name: ComponentProps<typeof Ionicons>["name"] }
+  | { family: "MaterialCommunityIcons"; name: ComponentProps<typeof MaterialCommunityIcons>["name"] }
+  | { family: "MaterialIcons"; name: ComponentProps<typeof MaterialIcons>["name"] }
+  | { family: "Internal"; name: InternalIconName };
 
 const CURATED_ICONS = [
   { name: "add", family: "Ionicons" as const },
@@ -30,6 +33,7 @@ const CURATED_ICONS = [
   { name: "chevron-down", family: "Ionicons" as const },
   { name: "chevron-forward", family: "Ionicons" as const },
   { name: "chevron-up", family: "Ionicons" as const },
+  { name: "information-circle-outline", family: "Ionicons" as const },
   { name: "close", family: "Ionicons" as const },
   { name: "close-circle", family: "Ionicons" as const },
   { name: "circle-half-full", family: "MaterialCommunityIcons" as const },
@@ -90,28 +94,42 @@ const CURATED_ICONS = [
   { name: "trending-up", family: "Ionicons" as const },
   { name: "trending-up-outline", family: "Ionicons" as const },
   { name: "timer-outline", family: "Ionicons" as const },
-  { name: "bomb", family: "MaterialCommunityIcons" as const },
   { name: "tv-outline", family: "Ionicons" as const },
   { name: "upload", family: "MaterialCommunityIcons" as const },
   { name: "wallet-outline", family: "Ionicons" as const },
   { name: "water-outline", family: "Ionicons" as const },
   { name: "water-boiler", family: "MaterialCommunityIcons" as const },
   { name: "warning-outline", family: "Ionicons" as const },
-] satisfies CuratedIcon[];
+  { name: "boiler", family: "Internal" as const },
+  { name: "bomb-pipe", family: "Internal" as const },
+  { name: "feed-pipe", family: "Internal" as const },
+  { name: "instant-pipe", family: "Internal" as const },
+  { name: "overflow-pipe", family: "Internal" as const },
+  { name: "valve", family: "Internal" as const },
+] as const satisfies readonly CuratedIcon[];
 
-type IconName = (typeof CURATED_ICONS)[number]["name"];
+type IconDefinition = (typeof CURATED_ICONS)[number];
+type IconName = IconDefinition["name"];
 
-const ICON_REGISTRY: Record<string, IconFamily> = {};
-for (const icon of CURATED_ICONS) {
-  ICON_REGISTRY[icon.name] = icon.family;
+const iconsByName = new Map<string, IconDefinition>(CURATED_ICONS.map(icon => [icon.name, icon]));
+
+export function isIconName(name: string | undefined | null): name is IconName {
+  return typeof name === "string" && iconsByName.has(name);
+}
+
+export function getIcon(name: IconName): IconDefinition {
+  const icon = iconsByName.get(name);
+  if (!icon) throw new Error(`Unsupported icon: ${name}`);
+  return icon;
 }
 
 export function safeIconName(
   name: string | undefined | null,
   fallback: IconName = "pipe",
 ): IconName {
-  return name && name in ICON_REGISTRY ? (name as IconName) : fallback;
+  if (isIconName(name)) return name;
+  return fallback;
 }
 
-export { CURATED_ICONS, ICON_REGISTRY };
-export type { IconFamily, IconName };
+export { CURATED_ICONS };
+export type { IconName };

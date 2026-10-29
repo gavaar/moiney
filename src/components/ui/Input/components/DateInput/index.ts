@@ -1,1 +1,1 @@
-export { DateInput } from "./DateInput";
+export { DateInput, type DateInputProps } from "./DateInput";

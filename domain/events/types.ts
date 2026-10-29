@@ -68,7 +68,7 @@ export type FinancialEvent<PipeId extends string = string, EventId extends strin
   | ThirdPartyTransactionEvent<PipeId, EventId>
   | TransferEvent<PipeId, EventId>;
 
-export type SettlementCause = "manual" | "spend_overflow" | "cron";
+export type SettlementCause = "manual" | "spend_overflow" | "cron" | "self_destruct";
 export type SettlementBalance = {
   capacity: number;
   fed: number;

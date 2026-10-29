@@ -100,9 +100,9 @@ vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
   },
 }));
 
-vi.mock("@ui/Icon", () => ({
-  Icon: ({ name, color }: any) => <span data-testid="mock-icon" data-name={name} data-color={color} />,
-  safeIconName: (name: string | undefined | null): string => name ?? "pipe",
+vi.mock("@ui/Icon", async importOriginal => ({
+  ...await importOriginal<typeof import("@ui/Icon")>(),
+  Icon: ({ name, color }: { name: string; color: string }) => <span data-testid="mock-icon" data-name={name} data-color={color} />,
 }));
 
 vi.mock("@ui/Modal", () => ({
@@ -187,6 +187,7 @@ describe("TransactionItem", () => {
   it("renders the transaction title with first letter capitalized", () => {
     render(<TransactionItem transaction={baseTx} />);
     expect(screen.getByText("Shopping mall")).toBeDefined();
+    expect(screen.getByRole("button", { name: "Repeat shopping mall, -50.00, Mar 15, 2024" })).toBeDefined();
   });
 
   it("renders the formatted date", () => {

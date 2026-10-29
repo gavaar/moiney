@@ -27,7 +27,8 @@ vi.mock("@ui/Popover", () => ({
     ) : null,
 }));
 
-vi.mock("@ui/Icon", () => ({
+vi.mock("@ui/Icon", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@ui/Icon")>(),
   Icon: ({ name, testID, color }: any) => (
     <span data-testid={testID ?? "icon"} data-name={name} data-color={color} />
   ),
@@ -111,7 +112,7 @@ describe("StatisticsRow", () => {
   ])("shows current coverage of $amount and explains settlement-time use", async ({ capacity, spent, donorFed, donorSpent, amount, demand, available, uncovered }) => {
     mockPipesById.test_pipe_id = { ...mockPipesById.test_pipe_id, parentId: "root", capacity, spent, fed: 0, contingencyPipeId: "donor" };
     mockPipesById.root = { id: "root" };
-    mockPipesById.donor = { id: "donor", parentId: "root", name: "Reserve", icon: "wallet", fed: donorFed, spent: donorSpent, capacity: 6000 };
+    mockPipesById.donor = { id: "donor", parentId: "root", name: "Reserve", icon: "wallet-outline", fed: donorFed, spent: donorSpent, capacity: 6000 };
     renderStatistics({ spent });
     const pill = screen.getByRole("button", { name: `Possible coverage, ${amount}, estimated` });
     expect(pill.textContent).toBe(`${amount} ?`);
@@ -119,7 +120,7 @@ describe("StatisticsRow", () => {
     await userEvent.setup().click(pill);
     expect(screen.getByLabelText(`Above capacity, ${demand}`)).toBeDefined();
     expect(screen.getByLabelText(`Reserve funding, ${available}`)).toBeDefined();
-    expect(within(screen.getByLabelText(`Reserve funding, ${available}`)).getByTestId("icon").getAttribute("data-name")).toBe("wallet");
+    expect(within(screen.getByLabelText(`Reserve funding, ${available}`)).getByTestId("icon").getAttribute("data-name")).toBe("wallet-outline");
     expect(screen.getByText("check donor pipe details for current breakdown")).toBeDefined();
     expect(screen.getByLabelText(`Possible coverage, ${amount}`)).toBeDefined();
     expect(screen.getByLabelText(`Carried-forward debt, ${uncovered}`)).toBeDefined();

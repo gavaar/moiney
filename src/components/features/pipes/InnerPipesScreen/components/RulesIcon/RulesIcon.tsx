@@ -9,7 +9,7 @@ import {
   type CronUnit,
 } from "@domain/scheduling";
 import { EditPipeModal } from "@features/pipes/InnerPipesScreen/components/EditPipeModal";
-import { RULE_OPTIONS, type RuleId } from "@features/pipes/rules/config";
+import { PIPE_KINDS, type RuleId } from "@features/pipes/rules/config";
 import { selfDestructProgress } from "@domain/pipes/rules";
 
 type Props = {
@@ -36,25 +36,22 @@ export function RulesIcon({
   now,
 }: Props) {
   const [modalVisible, setModalVisible] = useState(false);
-  const color = rule === "self_destruct" ? colors.error : fed >= capacity ? colors.secondary : colors.text;
-  const ruleIcon =
-    rule != null ? RULE_OPTIONS.find((o) => o.id === rule)?.icon : undefined;
-  const icon =
-    ruleIcon ?? (fed >= capacity ? "lock-closed-outline" : "lock-open-outline");
+  const color = PIPE_KINDS[rule ?? "none"].color ?? 'muted';
+  const icon = PIPE_KINDS[rule ?? "none"].icon;
 
   const ringProgress =
     rule === "self_destruct" && cronNextDate !== undefined && cronInterval?.unit === "days"
       ? selfDestructProgress(cronNextDate, cronInterval.interval, now)
       : rule === "spend_overflow" && capacity > 0
-      ? Math.min(1, Math.max(0, (spent ?? 0) / capacity))
-      : rule === "cron" && cronNextDate != null && cronInterval
-        ? computeCronIntervalProgress(
-            cronNextDate,
-            cronInterval.interval,
-            cronInterval.unit,
-            now,
-          )
-         : undefined;
+        ? Math.min(1, Math.max(0, (spent ?? 0) / capacity))
+        : rule === "cron" && cronNextDate != null && cronInterval
+          ? computeCronIntervalProgress(
+              cronNextDate,
+              cronInterval.interval,
+              cronInterval.unit,
+              now,
+            )
+          : undefined;
 
   const ruleContent = (
     <View className="relative w-6 h-6" testID="rules-icon-box">
@@ -76,12 +73,14 @@ export function RulesIcon({
 
   if (disabled) {
     if (rule === "self_destruct") {
-      return <View className="p-3">{ruleContent}</View>;
+      return <View className="p-3">
+        {ruleContent}
+      </View>;
     }
     return (
       <View className="p-3">
         <View className="w-6 h-6 items-center justify-center" testID="rules-icon-box">
-          <Icon name="pipe" size={20} color={colors.muted} testID="rules-icon-placeholder" />
+          <Icon name="pipe-valve" size={20} color={colors.muted} testID="rules-icon-placeholder" />
         </View>
       </View>
     );
@@ -98,7 +97,7 @@ export function RulesIcon({
         {ruleContent}
       </TouchableOpacity>
       {modalVisible ? (
-        <EditPipeModal visible initialStep={3} onClose={() => setModalVisible(false)} pipeId={pipeId} />
+        <EditPipeModal visible initialStep={0} onClose={() => setModalVisible(false)} pipeId={pipeId} />
       ) : null}
     </>
   );

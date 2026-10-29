@@ -3,14 +3,53 @@ import { describe, expect, expectTypeOf, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Input, type InputProps } from "./Input";
+import { OptionListHost } from "@ui/OptionList";
 import { useState } from "react";
 
 describe("Input", () => {
+  const labeledInputs = [
+    { name: "text", props: { type: "text", value: "" }, role: "textbox" },
+    { name: "number", props: { type: "number", value: 0 }, role: "textbox" },
+    { name: "decimal", props: { type: "decimal", value: "" }, role: "textbox" },
+    { name: "date", props: { type: "date", value: null }, role: "button" },
+    { name: "icon", props: { type: "icon", value: "" }, role: "button" },
+    { name: "select", props: { type: "select", value: null, items: [], renderItem: () => null }, role: "button" },
+    { name: "select-multiple", props: { type: "select-multiple", value: [], items: [], renderItem: () => null }, role: "button" },
+    { name: "text-select", props: { type: "text-select", value: "", options: [] }, role: "textbox" },
+  ] as const;
+
+  describe.each(labeledInputs)("$name labels", ({ props, role }) => {
+    it("uses the visible label as the accessible name by default", () => {
+      render(<Input {...props} label="Visible field" />);
+      expect(screen.getByText("Visible field")).toBeTruthy();
+      expect(screen.getByRole(role, { name: "Visible field" })).toBeTruthy();
+    });
+
+    it("allows a separate accessible name without replacing the visible label", () => {
+      render(<Input {...props} label="Visible field" accessibilityLabel="Accessible field" />);
+      expect(screen.getByText("Visible field")).toBeTruthy();
+      expect(screen.getByRole(role, { name: "Accessible field" })).toBeTruthy();
+    });
+
+    it.each([undefined, ""])("supports an accessible name with visible label %s", label => {
+      render(<Input {...props} label={label} accessibilityLabel="Accessible field" />);
+      expect(screen.queryByText("Accessible field")).toBeNull();
+      expect(screen.getByRole(role, { name: "Accessible field" })).toBeTruthy();
+    });
+  });
+
+  it("uses the accessible name for unlabeled select loading feedback", () => {
+    render(<Input type="select" accessibilityLabel="Owner pipe" value={null}
+      items={[]} renderItem={() => null} loading />);
+    expect(screen.queryByText("Owner pipe")).toBeNull();
+    expect(screen.getByLabelText("Loading Owner pipe")).toBeTruthy();
+  });
+
   it("requires controlled values and preserves variant-specific emissions", () => {
     type TextProps = Extract<InputProps, { type?: "text" }>;
     type DateProps = Extract<InputProps, { type: "date" }>;
-    type SingleSelectProps = Extract<InputProps, { type: "select"; multiple?: false }>;
-    type MultipleSelectProps = Extract<InputProps, { type: "select"; multiple: true }>;
+    type SingleSelectProps = Extract<InputProps, { type: "select" }>;
+    type MultipleSelectProps = Extract<InputProps, { type: "select-multiple" }>;
 
     expectTypeOf<TextProps["value"]>().toEqualTypeOf<string>();
     expectTypeOf<TextProps["onChange"]>().toEqualTypeOf<((value: string) => void) | undefined>();
@@ -18,6 +57,7 @@ describe("Input", () => {
     expectTypeOf<Extract<keyof Extract<InputProps, { type: "checkbox" }>, "checked">>().toEqualTypeOf<never>();
     expectTypeOf<Extract<keyof Extract<InputProps, { type: "icon" }>, "onSelect">>().toEqualTypeOf<never>();
     expectTypeOf<Extract<keyof SingleSelectProps, "onSelect">>().toEqualTypeOf<never>();
+    expectTypeOf<Extract<keyof SingleSelectProps | keyof MultipleSelectProps, "multiple">>().toEqualTypeOf<never>();
     expectTypeOf<Extract<keyof Extract<InputProps, { type: "text-select" }>, "onChangeText" | "onOptionSelect">>().toEqualTypeOf<never>();
     expectTypeOf<DateProps["value"]>().toEqualTypeOf<Date | null>();
     expectTypeOf<Parameters<NonNullable<DateProps["onChange"]>>>().toEqualTypeOf<[Date]>();
@@ -25,7 +65,7 @@ describe("Input", () => {
     expectTypeOf<Parameters<NonNullable<SingleSelectProps["onChange"]>>>().toEqualTypeOf<[string]>();
     expectTypeOf<MultipleSelectProps["value"]>().toEqualTypeOf<readonly string[]>();
     expectTypeOf<Parameters<NonNullable<MultipleSelectProps["onChange"]>>>().toEqualTypeOf<[string[]]>();
-    expectTypeOf<Extract<keyof InputProps, "error">>().toEqualTypeOf<never>();
+    expectTypeOf<Extract<keyof InputProps, "error" | "onFocusChange" | "onInteractionEnd" | "triggerClassName">>().toEqualTypeOf<never>();
     expectTypeOf<NonNullable<TextProps["validator"]>>().toEqualTypeOf<(value: string) => string | undefined>();
     expectTypeOf<Parameters<NonNullable<DateProps["validator"]>>>().toEqualTypeOf<[Date | null]>();
     expectTypeOf<Parameters<NonNullable<SingleSelectProps["validator"]>>>().toEqualTypeOf<[string | null]>();
@@ -53,6 +93,23 @@ describe("Input", () => {
     expect(onChange).toHaveBeenCalledWith(false);
   });
 
+  it("keeps the optional checkbox row label separate from its top label", async () => {
+    const onChange = vi.fn();
+    render(<Input type="checkbox" value={false} label="Consent" checkboxLabel="Accept terms" onChange={onChange} />);
+    expect(screen.getByText("Consent")).toBeTruthy();
+    expect(screen.getByRole("checkbox", { name: "Consent" })).toBeTruthy();
+    await userEvent.click(screen.getByText("Accept terms"));
+    expect(onChange).toHaveBeenCalledExactlyOnceWith(true);
+  });
+
+  it("resets validation when the caller changes the key", () => {
+    const { rerender } = render(<Input key="first" value="" validator={() => "Required"} />);
+    fireEvent.blur(screen.getByRole("textbox"));
+    expect(screen.getByRole("alert")).toBeTruthy();
+    rerender(<Input key="second" value="" validator={() => "Required"} />);
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
   it("renders TextInput for type='text' (default)", () => {
     render(<Input label="Name" value="" onChange={() => {}} placeholder="Enter name" />);
     expect(screen.getByText("Name")).toBeTruthy();
@@ -62,8 +119,8 @@ describe("Input", () => {
   it("renders NumberInput for type='number'", () => {
     render(<Input type="number" label="Priority" value={5} onChange={() => {}} />);
     expect(screen.getByText("Priority")).toBeTruthy();
-    expect(screen.getByTestId("decrement-button")).toBeTruthy();
-    expect(screen.getByTestId("increment-button")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Decrease Priority" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Increase Priority" })).toBeTruthy();
     expect(screen.getByDisplayValue("5")).toBeTruthy();
   });
 
@@ -117,7 +174,7 @@ describe("Input", () => {
 
   it("emits suggestions through text-select onChange", () => {
     const onChange = vi.fn();
-    render(<Input type="text-select" label="Title" value="" onChange={onChange} options={["gas"]} />);
+    render(<OptionListHost><Input type="text-select" label="Title" value="" onChange={onChange} options={["gas"]} /></OptionListHost>);
     fireEvent.focus(screen.getByRole("textbox", { name: "Title" }));
     fireEvent.click(screen.getByText("gas"));
     expect(onChange).toHaveBeenCalledExactlyOnceWith("gas");

@@ -12,8 +12,11 @@ describe("creation contingency preview", () => {
   it("uses post-creation topology after owner and incoming contingency resets", () => {
     expect(previewChildContingencyOptions(pipes, "owner")).toEqual(["former-source", "reserve"]);
   });
-  it.each(["instant_settlement", "self_destruct"] as const)("has no eligible contingency for %s", rule => {
+  it.each(["instant_settlement"] as const)("has no eligible contingency for %s", rule => {
     expect(previewChildContingencyOptions(pipes, "owner", rule)).toEqual([]);
+  });
+  it("previews self-destruct coverage using the post-creation topology", () => {
+    expect(previewChildContingencyOptions(pipes, "owner", "self_destruct")).toEqual(["former-source", "reserve"]);
   });
   it("rejects missing or blocked owners", () => {
     expect(previewChildContingencyOptions(pipes, "missing")).toEqual([]);

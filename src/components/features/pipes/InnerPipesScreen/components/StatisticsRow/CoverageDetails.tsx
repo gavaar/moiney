@@ -1,7 +1,7 @@
 import { Text, useWindowDimensions, View } from "react-native";
 import { formatAmount } from "@/lib/format";
 import { colors } from "@/lib/styles";
-import { Icon, type IconName } from "@ui/Icon";
+import { Icon, safeIconName, type IconName } from "@ui/Icon";
 
 function AmountRow({ label, value, highlighted = false, icon }: { label: string; value: number; highlighted?: boolean; icon?: IconName }) {
   return (
@@ -32,7 +32,7 @@ export function CoverageDetails({ source, donor, amountCents }: CoverageProps) {
       <Text className="text-warning text-sm">Estimate · Funding is not reserved</Text>
       <AmountRow label="Above capacity" value={demand} />
       <View className="gap-1">
-        <AmountRow label={`${donor.name} funding`} value={available} icon={donor.icon as IconName} />
+        <AmountRow label={`${donor.name} funding`} value={available} icon={safeIconName(donor.icon)} />
         <Text className="text-muted text-xs">check donor pipe details for current breakdown</Text>
       </View>
       <AmountRow label="Possible coverage" value={amountCents} highlighted />

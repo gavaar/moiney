@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { DecimalInput } from "./DecimalInput";
+import { Input, type InputProps } from "../../Input";
 import { useState } from "react";
+
+const DecimalInput = (props: Omit<Extract<InputProps, { type: "decimal" }>, "type">) => <Input type="decimal" {...props} />;
 
 function renderControlledDecimalInput() {
   const onChange = vi.fn();

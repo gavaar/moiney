@@ -1,5 +1,5 @@
-import { memo, useRef, useState, type ReactNode, type RefObject } from "react";
-import { Platform, Pressable, ScrollView, Text, View } from "react-native";
+import { memo, useRef, useState, type ReactNode } from "react";
+import { FlatList, Platform, Pressable, Text, useWindowDimensions, View, type KeyDownEvent, type ViewInstance } from "react-native";
 import { PipeBox, type ChildSnapshot } from "@features/pipes/components/PipeBox";
 import { Popover } from "@ui/Popover";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
@@ -38,6 +38,13 @@ type PipesListProps = {
   };
 };
 
+type ListRow =
+  | { kind: "full"; key: string; pipe: Pipe; index: number }
+  | { kind: "compact"; key: string; pipes: Pipe[] };
+
+const TILE_WIDTH = 64;
+const GAP = 8;
+
 export const PipesList = memo(function PipesList({
   pipes,
   onSelectPipe,
@@ -51,10 +58,19 @@ export const PipesList = memo(function PipesList({
   const contingencyPreview = prepareContingencyPreview(allPipes ?? []);
   const { ready, minimized, minimize, maximize } = usePipeViewPreferences(allPipes?.map((pipe) => pipe.id));
   const [menuPipe, setMenuPipe] = useState<Pipe | null>(null);
-  const anchorRef = useRef<View>(null);
-  const rowRefs = useRef(new Map<Pipe["id"], View>());
+  const anchorRef = useRef<ViewInstance>(null);
+  const rowRefs = useRef(new Map<Pipe["id"], ViewInstance>());
   const minimizedPipes = pipes.filter((pipe) => minimized.has(pipe.id));
   const fullPipes = pipes.filter((pipe) => !minimized.has(pipe.id));
+  const { width: windowWidth } = useWindowDimensions();
+  const [listWidth, setListWidth] = useState(0);
+  const columns = Math.max(1, Math.floor(((listWidth || windowWidth) + GAP) / (TILE_WIDTH + GAP)));
+  const rows: ListRow[] = fullPipes.map((pipe, index) => ({ kind: "full", key: pipe.id, pipe, index }));
+  // Compact rows share the same virtualizer; a footer grid would still mount every tile.
+  for (let offset = 0; offset < minimizedPipes.length; offset += columns) {
+    const group = minimizedPipes.slice(offset, offset + columns);
+    rows.push({ kind: "compact", key: `compact:${group[0].id}`, pipes: group });
+  }
   const openMenu = (pipe: Pipe) => {
     const anchor = rowRefs.current.get(pipe.id);
     if (!anchor) return;
@@ -67,72 +83,70 @@ export const PipesList = memo(function PipesList({
       event.preventDefault();
       openMenu(pipe);
     },
-    onKeyDown: (event: { key: string; shiftKey: boolean; preventDefault: () => void }) => {
-      if (event.key !== "ContextMenu" && !(event.key === "F10" && event.shiftKey)) return;
+    onKeyDown: (event: KeyDownEvent | { key: string; shiftKey: boolean; preventDefault: () => void }) => {
+      const { key, shiftKey } = "key" in event ? event : event.nativeEvent;
+      if (key !== "ContextMenu" && !(key === "F10" && shiftKey)) return;
       event.preventDefault();
       openMenu(pipe);
     },
   } : {};
 
   return (
-    <ScrollView className="flex-1" contentContainerStyle={{ flexGrow:1, gap: 8 }}>
-      {ready && fullPipes.map((item, idx) => {
-        const coverage = contingencyPreview.forSource(item.id);
-        const childBoxes: ChildSnapshot[] | undefined = (childrenByParent.get(item.id) ?? []).map((child) => ({
-          icon: child.icon,
-          capacity: child.capacity ?? 0,
-          fed: child.fed ?? 0,
-          spent: child.spent ?? 0,
-        }));
+    <View className="flex-1" onLayout={({ nativeEvent }) => setListWidth(nativeEvent.layout.width)}>
+      <FlatList
+        data={ready ? rows : []}
+        keyExtractor={row => row.key}
+        contentContainerStyle={{ flexGrow: 1, gap: GAP }}
+        renderItem={({ item: row }) => {
+          if (row.kind === "compact") return (
+            <View testID="minimized-pipes" className="flex-row gap-2">
+              {row.pipes.map(item => (
+                <View key={item.id}
+                  ref={view => { if (view) rowRefs.current.set(item.id, view); else rowRefs.current.delete(item.id); }}
+                  {...webMenuEvents(item)}>
+                  <MinimizedPipe pipe={item} onPress={() => onSelectPipe?.(item.id)} onLongPress={() => openMenu(item)} />
+                </View>
+              ))}
+            </View>
+          );
+          const { pipe: item, index: idx } = row;
+          const coverage = contingencyPreview.forSource(item.id);
+          const childBoxes: ChildSnapshot[] = (childrenByParent.get(item.id) ?? []).map((child) => ({
+            icon: child.icon,
+            capacity: child.capacity ?? 0,
+            fed: child.fed ?? 0,
+            spent: child.spent ?? 0,
+          }));
 
-        return (
-          <View
-            key={item.id}
-            className="flex-row items-center"
-            ref={(view) => { if (view) rowRefs.current.set(item.id, view); else rowRefs.current.delete(item.id); }}
-            {...webMenuEvents(item)}
-          >
-            {leading?.(item)}
-            <PipeBox
-              name={item.name}
-              icon={item.icon}
-              priority={item.priority}
-              capacity={
-                item.sourceType === "boiler"
-                  ? (item.contributedFed ?? 0)
-                  : item.capacity
-              }
-              fed={item.fed}
-              spent={item.spent}
-              coverageDonor={coverage?.donor}
-              coverageAmountCents={coverage?.amountCents}
-              coverageProvidedCents={contingencyPreview.forDonor(item.id)?.amountCents}
-              showPriority={priority && item.priority !== fullPipes[idx - 1]?.priority}
-              {...{ children: childBoxes }}
-              onPress={() => onSelectPipe?.(item.id)}
-              onLongPress={() => openMenu(item)}
-            />
-            {trailing?.(item)}
-          </View>
-        );
-      })}
-
-      {ready && minimizedPipes.length > 0 && (
-        <View testID="minimized-pipes" className="flex-row flex-wrap gap-2">
-          {minimizedPipes.map((item) => (
+          return (
             <View
-              key={item.id}
+              className="flex-row items-center"
               ref={(view) => { if (view) rowRefs.current.set(item.id, view); else rowRefs.current.delete(item.id); }}
               {...webMenuEvents(item)}
             >
-              <MinimizedPipe pipe={item} onPress={() => onSelectPipe?.(item.id)} onLongPress={() => openMenu(item)} />
+              {leading?.(item)}
+              <PipeBox
+                name={item.name}
+                icon={item.icon}
+                priority={item.priority}
+                capacity={item.sourceType === "boiler" ? (item.contributedFed ?? 0) : item.capacity}
+                fed={item.fed}
+                spent={item.spent}
+                coverageDonor={coverage?.donor}
+                coverageAmountCents={coverage?.amountCents}
+                coverageProvidedCents={contingencyPreview.forDonor(item.id)?.amountCents}
+                showPriority={priority && item.priority !== fullPipes[idx - 1]?.priority}
+                {...{ children: childBoxes }}
+                onPress={() => onSelectPipe?.(item.id)}
+                onLongPress={() => openMenu(item)}
+              />
+              {trailing?.(item)}
             </View>
-          ))}
-        </View>
-      )}
-
-      {footer}
-      <Popover visible={menuPipe !== null} onClose={closeMenu} anchorRef={anchorRef as RefObject<View>}>
+          );
+        }}
+        ListFooterComponent={footer ? <View>{footer}</View> : undefined}
+      />
+      <Popover visible={menuPipe !== null} onClose={closeMenu} anchorRef={anchorRef}>
         {menuPipe && (
           <View className="gap-2">
             <Pressable accessibilityRole="button" className="px-2 py-1" onPress={() => {
@@ -154,6 +168,6 @@ export const PipesList = memo(function PipesList({
           </View>
         )}
       </Popover>
-    </ScrollView>
+    </View>
   );
 });

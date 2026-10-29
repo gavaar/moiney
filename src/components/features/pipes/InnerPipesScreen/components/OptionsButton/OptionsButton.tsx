@@ -1,5 +1,5 @@
-import { useRef, useState, type RefObject } from "react";
-import { Pressable, Text, View } from "react-native";
+import { useRef, useState } from "react";
+import { Pressable, Text, View, type ViewInstance } from "react-native";
 import { type Id } from "@convex/_generated/dataModel";
 import { Popover } from "@ui/Popover";
 import { Icon } from "@ui/Icon";
@@ -21,7 +21,7 @@ export function OptionsButton({ pipeId, disabled = false }: OptionsButtonProps) 
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletePipeId, setDeletePipeId] = useState(pipeId);
-  const gearRef = useRef<View>(null);
+  const gearRef = useRef<ViewInstance>(null);
 
   return (
     <>
@@ -30,6 +30,8 @@ export function OptionsButton({ pipeId, disabled = false }: OptionsButtonProps) 
         disabled={disabled}
         accessibilityRole="button"
         accessibilityLabel="Pipe options"
+        accessibilityState={{ disabled, expanded: showOptions }}
+        aria-expanded={showOptions}
         className={disabled ? "opacity-50" : undefined}
         onPress={() => setShowOptions(true)}
       >
@@ -39,10 +41,12 @@ export function OptionsButton({ pipeId, disabled = false }: OptionsButtonProps) 
       <Popover
         visible={showOptions}
         onClose={() => setShowOptions(false)}
-        anchorRef={gearRef as RefObject<View>}
+        anchorRef={gearRef}
         anchorPosition="left-start"
       >
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Add pipe"
           className="flex-row items-center gap-2 px-2 py-1"
           onPress={() => {
             setShowOptions(false);
@@ -54,6 +58,8 @@ export function OptionsButton({ pipeId, disabled = false }: OptionsButtonProps) 
         </Pressable>
         <View className="h-2" />
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Edit"
           className="flex-row items-center gap-2 px-2 py-1"
           onPress={() => {
             setShowOptions(false);
@@ -65,6 +71,8 @@ export function OptionsButton({ pipeId, disabled = false }: OptionsButtonProps) 
         </Pressable>
         <View className="h-2" />
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Delete"
           className="flex-row items-center gap-2 px-2 py-1"
           onPress={() => {
             setShowOptions(false);

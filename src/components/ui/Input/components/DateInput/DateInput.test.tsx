@@ -2,8 +2,10 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { DateInput } from "./DateInput";
+import { Input, type InputProps } from "../../Input";
 import { useState } from "react";
+
+const DateInput = (props: Omit<Extract<InputProps, { type: "date" }>, "type">) => <Input type="date" {...props} />;
 
 describe("DateInput", () => {
   const baseDate = new Date(Date.UTC(2026, 6, 21, 12));
@@ -45,9 +47,13 @@ describe("DateInput", () => {
     expect(screen.getByText("1 Jan 2025")).toBeTruthy();
   });
 
-  it("labels the date trigger", () => {
+  it("labels the date trigger and reports whether its picker is expanded", async () => {
     render(<DateInput label="Date" value={baseDate} onChange={() => {}} />);
-    expect(screen.getByRole("button", { name: "Date" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Date", expanded: false })).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Date" }));
+    expect(screen.getByRole("button", { name: "Date", expanded: true })).toBeTruthy();
+    await userEvent.click(screen.getByTestId("modal-backdrop"));
+    expect(screen.getByRole("button", { name: "Date", expanded: false })).toBeTruthy();
   });
 
   it("validates committed dates but not opening or cancelling", async () => {

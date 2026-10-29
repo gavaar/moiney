@@ -3,7 +3,7 @@ import { ScrollView, Text, View } from "react-native";
 import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import type { PipeModel } from "@features/pipes/data/pipes";
-import { expectedMonthlyCapacity } from "@features/pipes/data/expectedCapacity";
+import { expectedMonthlyCapacity } from "@domain/statistics/expectedMonthlyCapacity";
 import { prepareContingencyPreview } from "@features/pipes/data/contingencyPreview";
 import {
   PipesList,
@@ -135,7 +135,7 @@ export function InnerPipesScreen() {
       {compactRulePipeId && (
         <EditPipeModal
           visible
-          initialStep={3}
+          initialStep={0}
           pipeId={compactRulePipeId}
           onClose={() => setCompactRulePipeId(null)}
         />
