@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import type { ColorValue, TextStyle } from "react-native";
 import Svg, { G } from "react-native-svg";
-import { Boiler, BombPipe, FeedPipe, InstantPipe, OverflowPipe, Valve } from "./components";
+import { Boiler, BombPipe, FeedPipe, InstantPipe, OverflowPipe, PipeLifecycle, Settlement, Valve } from "./components";
 
 type Artwork = {
   viewBox: string;
@@ -32,6 +32,18 @@ const ARTWORK = {
   valve: {
     viewBox: "482 532 290 322",
     render: Valve,
+  },
+  "pipe-creation": {
+    viewBox: "0 0 24 24",
+    render: paint => PipeLifecycle(paint, "creation"),
+  },
+  "pipe-deletion": {
+    viewBox: "0 0 24 24",
+    render: paint => PipeLifecycle(paint, "deletion"),
+  },
+  settlement: {
+    viewBox: "0 0 24 24",
+    render: Settlement,
   },
 } satisfies Record<string, Artwork>;
 

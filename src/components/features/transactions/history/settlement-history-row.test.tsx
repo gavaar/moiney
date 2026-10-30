@@ -1,15 +1,17 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { expect, it, vi } from "vitest";
 import type { Id } from "@convex/_generated/dataModel";
 import type { SettlementEntry } from "./event-groups";
 import { SettlementDetailsModal, SettlementHistoryRow } from "./settlement-history-row";
+import { colors } from "@/lib/styles";
 
-vi.mock("@expo/vector-icons", () => ({
-  Ionicons: ({ name }: { name: string }) => <span data-testid={`icon-${name}`} />,
-  MaterialCommunityIcons: ({ name }: { name: string }) => <span data-testid={`icon-${name}`} />,
-  MaterialIcons: ({ name }: { name: string }) => <span data-testid={`icon-${name}`} />,
-}));
+vi.mock("@expo/vector-icons", () => {
+  const FontIcon = ({ name, color }: { name: string; color: string }) => <span data-testid={`icon-${name}`} data-color={color} />;
+  return { Ionicons: FontIcon, MaterialCommunityIcons: FontIcon, MaterialIcons: FontIcon };
+});
+vi.mock("react-native-svg", () => vi.importActual<typeof import("react-native-svg")>("react-native-svg/src/elements.web.ts"));
 const event: SettlementEntry = {
   type: "settlement",
   id: "settled" as Id<"events">,
@@ -31,6 +33,43 @@ const coverage = {
   before: { capacity: 6000, fed: 6000, spent: 4000, pendingFedAdjustment: 0 },
   after: { capacity: 6000, fed: 6000, spent: 6000, pendingFedAdjustment: 0 }
 };
+
+it.each(["settlement", "settlement_coverage"] as const)("explains the %s identifier without opening row details or conflating pipe-owned shields", async type => {
+  const onPress = vi.fn();
+  render(<SettlementHistoryRow event={{ ...event, type, icon: "shield", coverage }} onPress={onPress} />);
+  const mirror = type === "settlement_coverage";
+  const row = screen.getByRole("button", { name: `View Groceries ${mirror ? "coverage" : "settlement"}: 20.00 covered ${mirror ? "for" : "by"} Safety net` });
+  const label = mirror ? "Coverage provided" : "Pipe settled";
+  const marker = screen.getByRole("button", { name: `Event type: ${label}`, expanded: false });
+  expect(row.contains(marker)).toBe(false);
+  expect(screen.getAllByRole("button")).toHaveLength(2);
+  if (mirror) {
+    expect(within(marker).getByTestId("icon-shield").getAttribute("data-color")).toBe(colors.warning);
+    expect(marker.querySelector("svg")).toBeNull();
+  } else {
+    expect(marker.querySelector("svg g")?.getAttribute("fill")).toBe(colors.secondary);
+    expect(within(marker).queryByTestId("icon-shield")).toBeNull();
+  }
+  expect(within(row).getAllByTestId("icon-shield").map(icon => icon.getAttribute("data-color")))
+    .toEqual([colors.muted, colors.warning, colors.muted]);
+  expect(within(row).getByTestId("icon-gesture-tap-hold")).toBeTruthy();
+  await userEvent.click(marker);
+  expect(marker.getAttribute("aria-expanded")).toBe("true");
+  expect(screen.getByText(label)).toBeTruthy();
+  expect(onPress).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByTestId("popover-backdrop"));
+  expect(screen.queryByText(label)).toBeNull();
+  expect(screen.getByRole("button", { name: `Event type: ${label}`, expanded: false })).toBe(marker);
+  fireEvent.click(row);
+  expect(onPress).toHaveBeenCalledOnce();
+});
+
+it.each(["settlement", "settlement_coverage"] as const)("uses warning only for coverage-symbol shields in %s details", type => {
+  render(<SettlementDetailsModal event={{ ...event, type, icon: "shield", coverage }} onClose={() => {}} />);
+  expect(screen.getByLabelText(`20.00 covered ${type === "settlement" ? "by" : "for"} Safety net`)).toBeTruthy();
+  expect(screen.getAllByTestId("icon-shield").map(icon => icon.getAttribute("data-color")))
+    .toEqual([colors.muted, colors.warning, colors.muted]);
+});
 
 it("renders stored coverage directly and opens donor details without implying the donor settled", () => {
   const stored = {

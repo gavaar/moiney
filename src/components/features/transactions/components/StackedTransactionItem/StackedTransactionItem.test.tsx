@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, fireEvent, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { StackedTransactionItem } from "./StackedTransactionItem";
 import type { StackedTransactionGroup } from "./stackedTransactionItem.model";
 import type { Id } from "@convex/_generated/dataModel";
@@ -57,6 +58,14 @@ describe("StackedTransactionItem", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUsePipeCatalog.mockReturnValue({ pipesById: { [pipeInfo.id]: pipeInfo } });
+  });
+
+  it("focuses the group details before the trailing counter", async () => {
+    render(<StackedTransactionItem group={baseGroup} expanded={false} onToggle={vi.fn()} />);
+    await userEvent.tab();
+    expect(document.activeElement).toBe(screen.getByTestId("transaction-group-main"));
+    await userEvent.tab();
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Expand 2 transactions" }));
   });
 
   it("renders the visible pipe icon", () => {

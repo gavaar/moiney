@@ -55,6 +55,9 @@ describe("IconInput", () => {
     "feed-pipe",
     "instant-pipe",
     "overflow-pipe",
+    "pipe-creation",
+    "pipe-deletion",
+    "settlement",
     "valve",
   ])("searches for and selects the internal icon %s", async name => {
     function Controlled() {

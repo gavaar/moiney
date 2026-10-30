@@ -25,27 +25,6 @@ export function StackedTransactionItem({
       className="flex-row gap-1"
     >
       <Pressable
-        testID="transaction-group-disclosure"
-        className={cn(
-          "self-stretch rounded-full border border-border px-2 flex-row items-center justify-center gap-0.5",
-          model.bgClass,
-        )}
-        hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
-        accessibilityRole="button"
-        accessibilityLabel={`${expanded ? "Collapse" : "Expand"} ${group.count} transactions`}
-        accessibilityState={{ expanded }}
-        aria-expanded={expanded}
-        onPress={onToggle}
-      >
-        <View
-          style={{ transform: [{ rotate: expanded ? "180deg" : "0deg" }] }}
-        >
-          <Icon name="chevron-down" size={12} color={colors.muted} />
-        </View>
-        <Text className="text-muted text-xs font-bold">x{group.count}</Text>
-      </Pressable>
-
-      <Pressable
         testID="transaction-group-main"
         accessibilityRole="button"
         accessibilityLabel={`${expanded ? "Collapse" : "Expand"} ${group.title} transactions, ${group.count} transactions, ${formatAmount(group.totalValue)}, ${model.dateRange}`}
@@ -79,6 +58,26 @@ export function StackedTransactionItem({
         <Text className="text-sm font-bold w-16 text-right text-text">
           {formatAmount(group.totalValue)}
         </Text>
+      </Pressable>
+      <Pressable
+        testID="transaction-group-disclosure"
+        className={cn(
+          "self-stretch rounded-full border border-border px-2 flex-row items-center justify-center gap-0.5",
+          model.bgClass,
+        )}
+        hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+        accessibilityRole="button"
+        accessibilityLabel={`${expanded ? "Collapse" : "Expand"} ${group.count} transactions`}
+        accessibilityState={{ expanded }}
+        aria-expanded={expanded}
+        onPress={onToggle}
+      >
+        <View
+          style={{ transform: [{ rotate: expanded ? "180deg" : "0deg" }] }}
+        >
+          <Icon name="chevron-down" size={12} color={colors.muted} />
+        </View>
+        <Text className="text-muted text-xs font-bold">x{group.count}</Text>
       </Pressable>
     </View>
   );

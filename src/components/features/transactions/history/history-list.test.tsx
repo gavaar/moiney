@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -201,10 +201,15 @@ describe("loaded event History interaction", () => {
     expect(mocks.query).not.toHaveBeenCalled();
   });
 
-  it("opens live creation entries without fetching financial history", async () => {
+  it("keeps live creation entries informational without routing or fetching financial history", async () => {
     render(<HistoryList {...props} entries={[{ ...trip, type: "pipe_creation" }]} />);
-    await userEvent.click(screen.getByRole("button", { name: "Open Madrid" }));
-    expect(mocks.navigate).toHaveBeenCalledWith({ pathname: "/(main)/(tabs)/pipes", params: { pipeId: trip.pipeId } });
+    await userEvent.click(screen.getByText("Madrid"));
+    expect(mocks.navigate).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "Open Madrid" })).toBeNull();
+    expect(screen.getByLabelText("Madrid, pipe created, Jun 15, 2026")).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Event type: Created pipe" }));
+    expect(screen.getByText("Created pipe")).toBeTruthy();
+    expect(mocks.navigate).not.toHaveBeenCalled();
     expect(mocks.query).not.toHaveBeenCalled();
   });
 
@@ -224,7 +229,8 @@ describe("loaded event History interaction", () => {
       render(<HistoryList {...props} entries={[{ ...trip, type: "pipe_creation" }]} />);
       const icon = screen.getByTestId("airplane");
       expect(icon.getAttribute("data-color")).toBe(color);
-      expect(getComputedStyle(screen.getByRole("button", { name: "Open Madrid" })).borderTopColor).toBe(icon.style.color);
+      expect(screen.getByTestId("pipe-creation").getAttribute("data-color")).toBe(color);
+      expect(getComputedStyle(screen.getByLabelText(/Madrid, pipe created/)).borderTopColor).toBe(icon.style.color);
     },
   );
 
@@ -234,11 +240,13 @@ describe("loaded event History interaction", () => {
     mocks.catalog.mockReturnValue({ pipesById: { [current.id]: current } });
     const { rerender } = render(<HistoryList {...props} entries={entries} />);
     expect(screen.getByTestId("airplane").getAttribute("data-color")).toBe(colors.secondary);
+    expect(screen.getByTestId("pipe-creation").getAttribute("data-color")).toBe(colors.secondary);
     mocks.catalog.mockReturnValue({ pipesById: { [current.id]: { ...current, rule: "self_destruct" } } });
     rerender(<HistoryList {...props} entries={entries} />);
     const icon = screen.getByTestId("airplane");
     expect(icon.getAttribute("data-color")).toBe(colors.error);
-    expect(getComputedStyle(screen.getByRole("button", { name: "Open Madrid" })).borderTopColor).toBe(icon.style.color);
+    expect(screen.getByTestId("pipe-creation").getAttribute("data-color")).toBe(colors.error);
+    expect(getComputedStyle(screen.getByLabelText(/Madrid, pipe created/)).borderTopColor).toBe(icon.style.color);
   });
 
   it.each([
@@ -246,7 +254,7 @@ describe("loaded event History interaction", () => {
     { kind: "feed with children", sourceType: "feed", color: colors.primaryMuted },
     { kind: "boiler with children", sourceType: "boiler", color: colors.secondarySoft },
   ] satisfies (Pick<PipeModel, "parentId" | "sourceType"> & { kind: string; color: string })[])(
-    "uses $kind creation colors without changing navigation", async ({ color, kind: _kind, ...type }) => {
+    "uses $kind creation colors without routing", async ({ color, kind: _kind, ...type }) => {
       const current: PipeModel = { id: trip.pipeId, name: "Madrid", icon: "airplane", priority: 0, capacity: 0, fed: 0, spent: 0, ...type };
       const child: PipeModel = { ...current, id: pipe("child"), parentId: current.id, name: "Child", icon: "pipe" };
       mocks.catalog.mockReturnValue({ pipesById: { [current.id]: current, [child.id]: child } });
@@ -255,10 +263,11 @@ describe("loaded event History interaction", () => {
       const { rerender } = render(<HistoryList {...props} entries={entries} />);
       const icon = screen.getByTestId("airplane");
       expect(icon.getAttribute("data-color")).toBe(color);
-      expect(getComputedStyle(screen.getByRole("button", { name: "Open Madrid" })).borderTopColor).toBe(icon.style.color);
+      expect(screen.getByTestId("pipe-creation").getAttribute("data-color")).toBe(color);
+      expect(getComputedStyle(screen.getByLabelText(/Madrid, pipe created/)).borderTopColor).toBe(icon.style.color);
       expect(screen.queryByText("Deleted")).toBeNull();
-      await userEvent.click(screen.getByRole("button", { name: "Open Madrid" }));
-      expect(mocks.navigate).toHaveBeenCalledWith({ pathname: "/(main)/(tabs)/pipes", params: { pipeId: current.id } });
+      await userEvent.click(screen.getByText("Madrid"));
+      expect(mocks.navigate).not.toHaveBeenCalled();
       mocks.childrenByParent.delete(current.id);
       mocks.catalog.mockReturnValue({ pipesById: { [current.id]: current } });
       rerender(<HistoryList {...props} entries={entries} />);
@@ -267,8 +276,20 @@ describe("loaded event History interaction", () => {
   );
 
   it("never navigates from a retained creation entry inside a deleted archive", async () => {
-    render(<HistoryList {...props} entries={[expense, trip, { ...trip, id: id("created-trip"), operationId: id("created-trip"), type: "pipe_creation" }]} />);
+    render(<HistoryList {...props} entries={[expense, trip, settlement, { ...trip, id: id("created-trip"), operationId: id("created-trip"), type: "pipe_creation" }]} />);
+    const header = screen.getByRole("button", { name: "Madrid archived history", expanded: false });
+    const archive = header.parentElement!;
+    expect(screen.getAllByTestId("history-event-marker")).toHaveLength(1);
+    expect(within(archive).getByTestId("pipe-deletion").getAttribute("data-color")).toBe(colors.error);
+    expect(screen.queryByTestId("pipe-creation")).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Expand Madrid history" }));
+    expect(screen.getByRole("button", { name: "Madrid archived history", expanded: true })).toBe(header);
+    expect(within(archive).getByTestId("pipe-deletion").getAttribute("data-color")).toBe(colors.error);
+    expect(screen.getByLabelText("Madrid, pipe created, Jun 15, 2026, pipe now deleted")).toBeTruthy();
+    expect(screen.getByLabelText("Madrid, pipe deleted, Jun 15, 2026")).toBeTruthy();
+    expect(screen.getByTestId("pipe-creation").getAttribute("data-color")).toBe(colors.text);
+    expect(screen.getByRole("button", { name: "View Madrid settlement" })).toBeTruthy();
+    expect(screen.getByTestId("settlement").getAttribute("data-color")).toBe(colors.secondary);
     expect(screen.queryByRole("button", { name: "Open Madrid" })).toBeNull();
     for (const icon of screen.getAllByTestId("airplane")) expect(icon.getAttribute("data-color")).toBe(colors.muted);
     expect(mocks.navigate).not.toHaveBeenCalled();

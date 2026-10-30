@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { Id } from "@convex/_generated/dataModel";
@@ -24,11 +24,105 @@ const event: Extract<HistoryEntry, { type: "pipe_creation" }> = {
 };
 
 describe("pipe history rows", () => {
-  it("opens a live pipe and shows its parent and creation date without financial fields", async () => {
+  it("preserves the parent, date, and deleted status in an archived creation's accessible name", () => {
+    render(<PipeHistoryRow event={event} archived expanded={false} onPress={() => {}} />);
+    expect(screen.getByLabelText("Madrid, pipe created, parent Travel, Sep 1, 2026, pipe now deleted")).toBeTruthy();
+  });
+
+  it("identifies a retained creation as creation even after its pipe was deleted", () => {
+    render(<PipeHistoryRow event={event} archived expanded={false} onPress={() => {}} />);
+    expect(screen.getByLabelText(/Madrid, pipe created/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Open Madrid" })).toBeNull();
+    expect(screen.getByText("Deleted")).toBeTruthy();
+  });
+
+  it("explains an archived creation from its marker without opening the deleted pipe", async () => {
+    const onPress = vi.fn();
+    render(<PipeHistoryRow event={event} archived expanded={false} onPress={onPress} />);
+    const marker = screen.getByRole("button", { name: "Event type: Created pipe", expanded: false });
+    const details = screen.getByLabelText(/Madrid, pipe created/);
+    expect(details.contains(marker)).toBe(false);
+    expect(marker.contains(screen.getByTestId("pipe-creation"))).toBe(true);
+    expect(screen.getByTestId("pipe-creation").getAttribute("data-color")).toBe(colors.text);
+    expect(screen.getByTestId("airplane").getAttribute("data-color")).toBe(colors.muted);
+    expect(screen.queryByTestId("pipe-deletion")).toBeNull();
+    await userEvent.click(marker);
+    expect(marker.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByText("Created pipe")).toBeTruthy();
+    expect(onPress).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByText("Created pipe"));
+    expect(screen.getByText("Created pipe")).toBeTruthy();
+    await userEvent.click(screen.getByTestId("popover-backdrop"));
+    expect(screen.queryByText("Created pipe")).toBeNull();
+    expect(screen.getByRole("button", { name: "Event type: Created pipe", expanded: false })).toBe(marker);
+  });
+
+  it.each([
+    { pipeType: "feed", color: colors.primaryMuted },
+    { pipeType: "boiler", color: colors.secondarySoft },
+    { pipeType: "pipe", color: colors.text },
+  ] as const)("uses the retained $pipeType creation color without reviving deleted pipe styling", ({ pipeType, color }) => {
+    render(<PipeHistoryRow event={{ ...event, pipeType }} archived expanded={false} onPress={() => {}} />);
+    expect(screen.getByLabelText(/Madrid, pipe created/)).toBeTruthy();
+    expect(screen.getByTestId("pipe-creation").getAttribute("data-color")).toBe(color);
+    expect(screen.getByTestId("airplane").getAttribute("data-color")).toBe(colors.muted);
+    expect(screen.queryByRole("button", { name: "Open Madrid" })).toBeNull();
+  });
+
+  it("focuses the marker, archive details, and trailing counter in order and toggles with either row control", async () => {
+    const onPress = vi.fn();
+    render(<PipeHistoryRow event={{ ...event, type: "pipe_deletion" }} expanded={false} onPress={onPress}
+      summary={{ count: 2, spent: 100, oldestDate: 1000, latestDate: 2000 }} />);
+    await userEvent.tab();
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Event type: Deleted pipe" }));
+    await userEvent.tab();
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Madrid archived history" }));
+    await userEvent.keyboard("{Enter}");
+    await userEvent.tab();
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Expand Madrid history" }));
+    await userEvent.keyboard("{Enter}");
+    expect(onPress).toHaveBeenCalledTimes(2);
+  });
+
+  it("explains the deletion marker without expanding its archive", async () => {
+    const onPress = vi.fn();
+    render(<PipeHistoryRow event={{ ...event, type: "pipe_deletion" }} expanded={false} onPress={onPress}
+      summary={{ count: 2, spent: 100, oldestDate: 1000, latestDate: 2000 }} />);
+    await userEvent.click(screen.getByRole("button", { name: "Event type: Deleted pipe" }));
+    expect(screen.getByText("Deleted pipe")).toBeTruthy();
+    expect(onPress).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByTestId("popover-backdrop"));
+    expect(screen.getByRole("button", { name: "Madrid archived history", expanded: false })).toBeTruthy();
+  });
+
+  it("opens the live creation marker with the keyboard and dismisses with Escape without navigating", async () => {
+    const onPress = vi.fn();
+    render(<PipeHistoryRow event={event} expanded={false} onPress={onPress} />);
+    await userEvent.tab();
+    await userEvent.keyboard("{Enter}");
+    expect(screen.getByText("Created pipe")).toBeTruthy();
+    expect(onPress).not.toHaveBeenCalled();
+    // RN Web enables Escape after the opening CSS animation, which jsdom does not run.
+    const modal = screen.getByTestId("popover-backdrop").closest('[aria-modal="true"]')!;
+    let node = modal.parentElement;
+    while (node && node !== document.body) {
+      fireEvent.animationEnd(node);
+      fireEvent(node, new Event("webkitAnimationEnd", { bubbles: true }));
+      node = node.parentElement;
+    }
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByText("Created pipe")).toBeNull();
+    expect(screen.getByRole("button", { name: "Event type: Created pipe", expanded: false })).toBeTruthy();
+    expect(onPress).not.toHaveBeenCalled();
+  });
+
+  it("keeps live creation details informational with their parent and creation date", async () => {
     const onPress = vi.fn();
     render(<PipeHistoryRow event={event} onPress={onPress} expanded={false} />);
-    await userEvent.click(screen.getByRole("button", { name: "Open Madrid" }));
-    expect(onPress).toHaveBeenCalledOnce();
+    await userEvent.click(screen.getByText("Madrid"));
+    expect(onPress).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "Open Madrid" })).toBeNull();
+    expect(screen.getByLabelText("Madrid, pipe created, parent Travel, Sep 1, 2026")).toBeTruthy();
     expect(screen.getByText("Travel ›")).toBeTruthy();
     expect(screen.queryByText(/Spent/)).toBeNull();
     expect(screen.queryByText(/Initial/)).toBeNull();
