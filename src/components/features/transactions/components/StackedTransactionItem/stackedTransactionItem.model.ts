@@ -2,7 +2,6 @@ import type { Id } from "@convex/_generated/dataModel";
 import type { PipeCatalogContextValue } from "@features/pipes/context/PipeCatalogContext";
 import { colors } from "@/lib/styles";
 import { safeIconName, type IconName } from "@ui/Icon";
-import type { TransactionPresentation } from "@features/transactions/data/transactions";
 
 export type StackedTransactionGroup = {
   title: string;
@@ -11,7 +10,7 @@ export type StackedTransactionGroup = {
   oldestDate: number;
   latestDate: number;
   visiblePipeIds: readonly Id<"pipes">[];
-  transactions: readonly TransactionPresentation[];
+  snapshotIcon?: string;
 };
 
 const MONTH_DAY: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
@@ -62,18 +61,7 @@ function getGroupIconName(
     return safeIconName(visiblePipe.icon);
   }
 
-  for (const transaction of group.transactions) {
-    if (transaction.from === visiblePipeId && transaction.fromIcon) {
-      return safeIconName(transaction.fromIcon);
-    }
-    if (transaction.to === visiblePipeId && transaction.toIcon) {
-      return safeIconName(transaction.toIcon);
-    }
-    if (transaction.paidFrom === visiblePipeId && transaction.paidFromIcon) {
-      return safeIconName(transaction.paidFromIcon);
-    }
-  }
-  return "pipe-disconnected";
+  return group.snapshotIcon ? safeIconName(group.snapshotIcon) : "pipe-disconnected";
 }
 
 function getBgClass(totalValue: number): string {

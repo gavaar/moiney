@@ -3,9 +3,9 @@ import { Icon, safeIconName } from "@ui/Icon";
 import { colors } from "@/lib/styles";
 import { formatAmount } from "@/lib/format";
 import { PIPE_KINDS } from "@features/pipes/rules/config";
-import { HistoryEventMarker } from "../components/HistoryEventMarker/HistoryEventMarker";
-import type { HistoryEntry } from "./event-groups";
-import type { EventArchiveSummary } from "./event-archives";
+import { HistoryEventMarker } from "@features/transactions/components/HistoryEventMarker/HistoryEventMarker";
+import type { HistoryEntry } from "@features/transactions/history/events/event-groups";
+import type { EventArchiveSummary } from "@features/transactions/history/events/event-archives";
 
 type LifecycleEntry = Extract<HistoryEntry, { type: "pipe_creation" | "pipe_deletion" }>;
 type Props = { event: LifecycleEntry; expanded: boolean; onPress?: () => void; summary?: EventArchiveSummary; date?: number; archived?: boolean; pipeColor?: string };

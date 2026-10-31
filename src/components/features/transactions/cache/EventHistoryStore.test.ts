@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Id } from "@convex/_generated/dataModel";
-import type { HistoryEntry } from "../history/event-groups";
+import type { HistoryEntry } from "../history/events/event-groups";
 import { EventHistoryStore, type EventHistoryStorage } from "./EventHistoryStore";
 
 function entry(id: string, occurredAt = 1): Extract<HistoryEntry, { type: "transaction" }> {

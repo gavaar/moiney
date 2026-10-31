@@ -14,24 +14,6 @@ const baseGroup: StackedTransactionGroup = {
   oldestDate: new Date(2024, 2, 15).getTime(),
   latestDate: new Date(2024, 2, 20).getTime(),
   visiblePipeIds: ["pipe-1" as Id<"pipes">],
-  transactions: [
-    {
-      createdAt: 0,
-      title: "coffee",
-      kind: "expense",
-      value: -300,
-      date: new Date(2024, 2, 20).getTime(),
-      from: "pipe-1" as Id<"pipes">,
-    },
-    {
-      createdAt: 0,
-      title: "coffee",
-      kind: "expense",
-      value: -500,
-      date: new Date(2024, 2, 15).getTime(),
-      from: "pipe-1" as Id<"pipes">,
-    },
-  ],
 };
 
 const pipeInfo = {
@@ -76,6 +58,15 @@ describe("StackedTransactionItem", () => {
     expect(icon.getAttribute("data-color")).toBe(colors.muted);
   });
 
+  it("renders a deleted-pipe summary icon without transaction presentations", () => {
+    mockUsePipeCatalog.mockReturnValue({ pipesById: {} });
+    const group = { ...baseGroup, snapshotIcon: "cash-outline" };
+    render(<StackedTransactionItem group={group} expanded={false} onToggle={vi.fn()} />);
+
+    expect(within(screen.getByTestId("transaction-group-main")).getByTestId("mock-icon")
+      .getAttribute("data-name")).toBe("cash-outline");
+  });
+
   it("uses the multi-pipe icon when multiple visible pipes participate", () => {
     const group = { ...baseGroup, visiblePipeIds: [pipeInfo.id, "pipe-2" as Id<"pipes">] };
     render(<StackedTransactionItem group={group} expanded={false} onToggle={vi.fn()} />);
@@ -85,22 +76,13 @@ describe("StackedTransactionItem", () => {
     expect(icon.getAttribute("data-color")).toBe(colors.text);
   });
 
-  it.each([
-    { role: "from", snapshot: "fromIcon", icon: "cart-outline" },
-    { role: "to", snapshot: "toIcon", icon: "wallet-outline" },
-    { role: "paidFrom", snapshot: "paidFromIcon", icon: "cash-outline" },
-  ] as const)("uses the deleted $role icon belonging to the visible pipe", ({ role, snapshot, icon }) => {
+  it.each(["cart-outline", "wallet-outline", "cash-outline"])("uses the deleted visible pipe's summary icon %s", icon => {
     mockUsePipeCatalog.mockReturnValue({ pipesById: {} });
     const visibleId = "deleted" as Id<"pipes">;
     const group: StackedTransactionGroup = {
       ...baseGroup,
       visiblePipeIds: [visibleId],
-      transactions: baseGroup.transactions.map((transaction) => ({
-        ...transaction,
-        fromIcon: "home-outline",
-        [role]: visibleId,
-        [snapshot]: icon,
-      })),
+      snapshotIcon: icon,
     };
     render(<StackedTransactionItem group={group} expanded={false} onToggle={vi.fn()} />);
 
@@ -109,11 +91,10 @@ describe("StackedTransactionItem", () => {
     expect(renderedIcon.getAttribute("data-color")).toBe(colors.muted);
   });
 
-  it("finds a deleted icon on an older member when the newest has no snapshot", () => {
-    mockUsePipeCatalog.mockReturnValue({ pipesById: {} });
+  it("prefers the current pipe icon over a preserved summary icon", () => {
     const group = {
       ...baseGroup,
-      transactions: [baseGroup.transactions[0], { ...baseGroup.transactions[1], fromIcon: "cart-outline" }],
+      snapshotIcon: "cash-outline",
     };
     render(<StackedTransactionItem group={group} expanded={false} onToggle={vi.fn()} />);
 
@@ -175,14 +156,10 @@ describe("StackedTransactionItem", () => {
     expect(onToggle).toHaveBeenCalledOnce();
   });
 
-  it("allows expansion when only an older member has a deleted role", () => {
+  it("allows expansion when a participating pipe has been deleted", () => {
     const group: StackedTransactionGroup = {
       ...baseGroup,
       visiblePipeIds: [...baseGroup.visiblePipeIds, "deleted-payer" as Id<"pipes">],
-      transactions: [
-        baseGroup.transactions[0],
-        { ...baseGroup.transactions[1], paidFrom: "deleted-payer" as Id<"pipes">, paidFromIcon: "cash-outline" },
-      ],
     };
     const onToggle = vi.fn();
     render(<StackedTransactionItem group={group} expanded={false} onToggle={onToggle} />);
@@ -191,15 +168,12 @@ describe("StackedTransactionItem", () => {
     expect(onToggle).toHaveBeenCalledOnce();
   });
 
-  it.each(["expense", "transfer"] as const)("expands mixed groups with newest kind %s", (newestKind) => {
-    const expense = { ...baseGroup.transactions[0], kind: "expense" as const, value: -800, date: newestKind === "expense" ? 2 : 1 };
-    const transfer = { ...baseGroup.transactions[1], kind: "transfer" as const, to: "destination" as Id<"pipes">, value: 300, date: newestKind === "transfer" ? 2 : 1 };
+  it("expands a multi-pipe summary with its supplied total", () => {
     const group: StackedTransactionGroup = {
       ...baseGroup,
       oldestDate: 1,
       latestDate: 2,
       visiblePipeIds: [...baseGroup.visiblePipeIds, "destination" as Id<"pipes">],
-      transactions: newestKind === "expense" ? [expense, transfer] : [transfer, expense],
     };
     const onToggle = vi.fn();
     render(<StackedTransactionItem group={group} expanded={false} onToggle={onToggle} />);

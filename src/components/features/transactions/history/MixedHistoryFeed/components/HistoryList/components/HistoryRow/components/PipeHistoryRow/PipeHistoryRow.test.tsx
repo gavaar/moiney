@@ -3,8 +3,8 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { Id } from "@convex/_generated/dataModel";
-import { PipeHistoryRow } from "./pipe-history-row";
-import type { HistoryEntry } from "./event-groups";
+import { PipeHistoryRow } from "./PipeHistoryRow";
+import type { HistoryEntry } from "@features/transactions/history/events/event-groups";
 import { colors } from "@/lib/styles";
 
 vi.mock("@ui/Icon", () => ({ Icon: ({ name, color }: { name: string; color: string }) => <span data-testid={name} data-color={color} style={{ color }} />, safeIconName: (name: string) => name }));

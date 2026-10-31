@@ -15,7 +15,7 @@ vi.mock("expo-router/react-navigation", () => ({ useIsFocused: () => true }));
 vi.mock("@features/app/AppScreenHeader", () => ({
   AppScreenHeader: ({ title }: { title: string }) => <h1>{title}</h1>,
 }));
-vi.mock("@features/transactions/history/mixed-history-feed", () => ({
+vi.mock("@features/transactions/history/MixedHistoryFeed/MixedHistoryFeed", () => ({
   MixedHistoryFeed: ({ filters }: any) => {
     mocks.renderHistoryFeed(filters);
     return <div data-testid="history-list" />;

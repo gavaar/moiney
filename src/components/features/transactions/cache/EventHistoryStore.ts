@@ -1,4 +1,4 @@
-import { isKnownHistoryEventType, recognizedHistoryEntries, type HistoryEntry } from "../history/event-types";
+import { isKnownHistoryEventType, recognizedHistoryEntries, type HistoryEntry } from "../history/events/event-types";
 import { validateTransactionAmount } from "@domain/money/money";
 
 export type EventHistorySnapshot = { entries: HistoryEntry[]; complete: boolean; hasMore: boolean; updatedAt: number; generation: number };

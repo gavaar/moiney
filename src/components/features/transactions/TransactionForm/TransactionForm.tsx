@@ -3,7 +3,7 @@ import type { Id } from "@convex/_generated/dataModel";
 import { AmountForm, groupPipesByRoot, type TransactionInitialState } from "@features/components/AmountForm";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import { useEventHistory } from "@features/transactions/cache/useEventHistory";
-import { getFrequentlyUsedEventSourcePipeIds } from "../history/event-usage";
+import { getFrequentlyUsedEventSourcePipeIds } from "../history/events/event-usage";
 import { getQuickTransactionPipes } from "../QuickTransactionModal/helpers";
 import type { OnDismissStateChange } from "@ui/Form/use-form-dismissal";
 

@@ -7,11 +7,11 @@ import { api } from "@convex/_generated/api";
 import schema from "@convex/schema";
 import { modules } from "@convex/test.setup";
 import type { PipeModel } from "@features/pipes/data/pipes";
-import { groupHistoryEvents } from "./event-groups";
-import { EventTransactionItem } from "./event-transaction-item";
-import { EventHistoryCacheProvider } from "../cache/EventHistoryCacheContext";
-import { EventHistoryStore } from "../cache/EventHistoryStore";
-import { useEventHistory } from "../cache/useEventHistory";
+import { groupHistoryEvents } from "@features/transactions/history/events/event-groups";
+import { EventTransactionItem } from "./EventTransactionItem";
+import { EventHistoryCacheProvider } from "@features/transactions/cache/EventHistoryCacheContext";
+import { EventHistoryStore } from "@features/transactions/cache/EventHistoryStore";
+import { useEventHistory } from "@features/transactions/cache/useEventHistory";
 import type { Id } from "@convex/_generated/dataModel";
 
 const mocks = vi.hoisted(() => ({ query: vi.fn(), mutate: vi.fn(), pipes: [] as PipeModel[], success: vi.fn(), error: vi.fn() }));
@@ -55,7 +55,7 @@ it("opens Edited history by operation ID without resolving a legacy action", () 
     }
   ])[0];
   if (row.kind !== "operation") throw new Error("Expected operation");
-  render(<EventTransactionItem operation={row.operation} deletedPipes={[]} onShowEditHistory={history} />);
+  render(<EventTransactionItem operation={row.operation} deletedPipeIcons={new Map()} onShowEditHistory={history} />);
   fireEvent.click(screen.getByLabelText("View edit history for lunch"));
   expect(history).toHaveBeenCalledWith(operationId);
   expect(mocks.query).not.toHaveBeenCalled();
@@ -90,7 +90,7 @@ it("deletes an event-only operation and refreshes event history without transact
   await seed.mergeHead(entries, false, 1);
   render(<EventHistoryCacheProvider storage={storage}>
     <HistoryCount />
-    <EventTransactionItem operation={row.operation} deletedPipes={[]} onShowEditHistory={() => {}} />
+    <EventTransactionItem operation={row.operation} deletedPipeIcons={new Map()} onShowEditHistory={() => {}} />
   </EventHistoryCacheProvider>);
   await waitFor(() => expect(screen.getByTestId("history-count").textContent).toBe("1"));
   expect(screen.getByText("Hotel")).toBeTruthy();
