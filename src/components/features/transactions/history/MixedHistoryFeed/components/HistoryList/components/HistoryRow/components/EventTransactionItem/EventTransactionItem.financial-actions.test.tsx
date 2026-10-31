@@ -58,8 +58,8 @@ it.each(["edit", "repeat"] as const)("submits %s from a payer-only perspective t
   if (row.kind !== "operation") throw new Error("Expected financial operation");
   render(<EventTransactionItem operation={row.operation} deletedPipeIcons={new Map()} onShowEditHistory={() => {}} />);
   expect(mocks.query).not.toHaveBeenCalled();
-  if (intent === "edit") fireEvent.click(screen.getByLabelText("Edit lunch"));
-  else fireEvent.click(screen.getByText("Lunch"));
+  if (intent === "edit") fireEvent.click(screen.getByText("Lunch"));
+  else fireEvent.click(screen.getByLabelText("Repeat lunch"));
   await waitFor(() => expect(screen.getByPlaceholderText("What was this for?")).toBeTruthy());
   expect(screen.getByDisplayValue("1.00")).toBeTruthy();
   expect(screen.getByRole("button", { name: "Change Value sign, currently negative" })).toBeTruthy();
