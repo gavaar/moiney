@@ -1,5 +1,5 @@
 import type { Id } from "../convex/_generated/dataModel";
-import { groupHistoryEvents, type HistoryEntry } from "../src/components/features/transactions/history/event-groups";
+import { groupHistoryEvents, type HistoryEntry } from "../src/components/features/transactions/history/events/event-groups";
 import { buildTreeRows } from "../src/components/features/pipes/PipeTreeView/treeRows";
 import type { PipeModel } from "../src/components/features/pipes/data/pipes";
 

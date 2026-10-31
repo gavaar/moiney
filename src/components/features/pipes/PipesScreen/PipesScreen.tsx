@@ -16,11 +16,11 @@ import { usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
 import { InnerPipesScreen } from "@features/pipes/InnerPipesScreen";
 import { PipeTreeView } from "@features/pipes/PipeTreeView";
 import { FeedListScreen } from "@features/pipes/FeedListScreen";
-import { orderFeedsByEventTreeUsage } from "@features/transactions/history/event-usage";
+import { orderFeedsByEventTreeUsage } from "@features/transactions/history/events/event-usage";
 import { useEventHistoryCache } from "@features/transactions/cache/EventHistoryCacheContext";
 import { useEventHistory } from "@features/transactions/cache/useEventHistory";
 import { getSubtreePipeIds } from "@features/pipes/data/subtree";
-import { MixedHistoryFeed } from "@features/transactions/history/mixed-history-feed";
+import { MixedHistoryFeed } from "@features/transactions/history/MixedHistoryFeed/MixedHistoryFeed";
 
 export function PipesScreen({ openPipeId, onPipeOpened, onOpenCurrentReport }: { openPipeId?: string; onPipeOpened?: () => void; onOpenCurrentReport?: () => void } = {}) {
   const navigation = useNavigation();

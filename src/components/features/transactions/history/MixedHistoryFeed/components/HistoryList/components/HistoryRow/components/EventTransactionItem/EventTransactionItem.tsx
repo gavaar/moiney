@@ -2,13 +2,13 @@ import { useCallback, useMemo } from "react";
 import { useConvex } from "convex/react";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
-import { TransactionItem } from "../components/TransactionItem";
-import type { TransactionPresentation } from "../data/transactions";
-import type { DeletedPipeEntry } from "@features/pipes/data/deletedPipes";
-import type { FinancialOperation } from "./event-groups";
+import { TransactionItem } from "@features/transactions/components/TransactionItem";
+import type { TransactionPresentation } from "@features/transactions/data/transactions";
+import type { FinancialOperation } from "@features/transactions/history/events/event-groups";
 
-export function eventTransactionPresentation(operation: FinancialOperation, deletedPipes: readonly DeletedPipeEntry[]): TransactionPresentation {
-  const icons = new Map(deletedPipes.map(event => [event.pipeId, event.icon]));
+type DeletedPipeIcons = ReadonlyMap<Id<"pipes">, string>;
+
+export function eventTransactionPresentation(operation: FinancialOperation, icons: DeletedPipeIcons): TransactionPresentation {
   const common = { createdAt: operation.createdAt, date: operation.occurredAt, title: operation.title, value: operation.value, editedAt: operation.editedAt };
   if (operation.type === "feed") return { ...common, kind: "feed", to: operation.pipeId, toIcon: icons.get(operation.pipeId) };
   if (operation.type === "transfer") return { ...common, kind: "transfer", from: operation.pipeId, to: operation.targetPipeId, fromIcon: icons.get(operation.pipeId), toIcon: icons.get(operation.targetPipeId) };
@@ -21,12 +21,12 @@ export function eventTransactionPresentation(operation: FinancialOperation, dele
   };
 }
 
-export function EventTransactionItem({ operation, deletedPipes, onShowEditHistory }: {
-  operation: FinancialOperation; deletedPipes: readonly DeletedPipeEntry[];
+export function EventTransactionItem({ operation, deletedPipeIcons, onShowEditHistory }: {
+  operation: FinancialOperation; deletedPipeIcons: DeletedPipeIcons;
   onShowEditHistory: (id: Id<"events">) => void;
 }) {
   const client = useConvex();
-  const transaction = useMemo(() => eventTransactionPresentation(operation, deletedPipes), [operation, deletedPipes]);
+  const transaction = useMemo(() => eventTransactionPresentation(operation, deletedPipeIcons), [operation, deletedPipeIcons]);
   const resolveTransaction = useCallback(async () => {
     const snapshot = await client.query(api.financialOperations.get, { operationId: operation.id });
     if (!snapshot) return null;

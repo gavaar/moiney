@@ -16,6 +16,9 @@ describe("internal SVG icons", () => {
     "feed-pipe",
     "instant-pipe",
     "overflow-pipe",
+    "pipe-creation",
+    "pipe-deletion",
+    "settlement",
     "valve",
   ] as const)("renders %s at the requested size and color", name => {
     render(<Icon name={name} size={32} color="#ff0000" style={{ marginRight: 4, opacity: 0.5 }} testID="artwork" />);

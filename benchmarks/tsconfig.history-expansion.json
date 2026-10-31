@@ -1,0 +1,4 @@
+{
+  "extends": "../tsconfig.json",
+  "include": ["./history-expansion*.ts", "./history-expansion*.tsx", "../nativewind-env.d.ts"]
+}

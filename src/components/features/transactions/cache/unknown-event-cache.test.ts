@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Id } from "@convex/_generated/dataModel";
-import type { HistoryEntry } from "../history/event-groups";
+import type { HistoryEntry } from "../history/events/event-groups";
 import { EventHistoryStore, type EventHistoryStorage } from "./EventHistoryStore";
 
 const expense: HistoryEntry = {

@@ -17,7 +17,7 @@ import {
   type EventHistoryStorage,
 } from "./EventHistoryStore";
 import { eventHistoryStorage } from "./storage";
-import type { HistoryEntry } from "../history/event-groups";
+import type { HistoryEntry } from "../history/events/event-groups";
 
 type EventHistoryCacheContextValue = {
   accountKey: string | null;

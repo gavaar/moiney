@@ -8,8 +8,8 @@ import {
   PipeCatalogProvider,
   usePipeCatalog,
 } from "@features/pipes/context/PipeCatalogContext";
-import { MixedHistoryFeed } from "@features/transactions/history/mixed-history-feed";
-import type { HistoryFilters } from "@features/transactions/history/history-filters";
+import { MixedHistoryFeed } from "@features/transactions/history/MixedHistoryFeed/MixedHistoryFeed";
+import type { HistoryFilters } from "@features/transactions/history/data/history-filters";
 import { Button } from "@ui/Button";
 import { Input } from "@ui/Input";
 import { useUtcMonthStart } from "@/lib/useUtcMonthStart";

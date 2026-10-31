@@ -105,6 +105,9 @@ const CURATED_ICONS = [
   { name: "feed-pipe", family: "Internal" as const },
   { name: "instant-pipe", family: "Internal" as const },
   { name: "overflow-pipe", family: "Internal" as const },
+  { name: "pipe-creation", family: "Internal" as const },
+  { name: "pipe-deletion", family: "Internal" as const },
+  { name: "settlement", family: "Internal" as const },
   { name: "valve", family: "Internal" as const },
 ] as const satisfies readonly CuratedIcon[];
 

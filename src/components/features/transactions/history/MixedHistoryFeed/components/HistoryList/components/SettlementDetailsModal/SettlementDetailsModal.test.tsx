@@ -1,90 +1,21 @@
 // @vitest-environment jsdom
 import { render, screen } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
-import type { Id } from "@convex/_generated/dataModel";
-import type { SettlementEntry } from "./event-groups";
-import { SettlementDetailsModal, SettlementHistoryRow } from "./settlement-history-row";
+import { SettlementDetailsModal } from "./SettlementDetailsModal";
+import { event, coverage } from "../../settlement.test-fixtures";
+import { colors } from "@/lib/styles";
 
-vi.mock("@expo/vector-icons", () => ({
-  Ionicons: ({ name }: { name: string }) => <span data-testid={`icon-${name}`} />,
-  MaterialCommunityIcons: ({ name }: { name: string }) => <span data-testid={`icon-${name}`} />,
-  MaterialIcons: ({ name }: { name: string }) => <span data-testid={`icon-${name}`} />,
-}));
-const event: SettlementEntry = {
-  type: "settlement",
-  id: "settled" as Id<"events">,
-  operationId: "settled" as Id<"events">,
-  pipeId: "groceries" as Id<"pipes">,
-  name: "Groceries",
-  icon: "cart-outline",
-  cause: "manual",
-  createdAt: 1,
-  occurredAt: 1,
-  before: { capacity: 4000, fed: 4000, spent: 7000, pendingFedAdjustment: 500 },
-  after: { capacity: 3000, fed: -500, spent: 0, pendingFedAdjustment: 0 },
-};
-const coverage = {
-  amountCents: 2000,
-  pipeId: "donor" as Id<"pipes">,
-  name: "Safety net",
-  icon: "shield",
-  before: { capacity: 6000, fed: 6000, spent: 4000, pendingFedAdjustment: 0 },
-  after: { capacity: 6000, fed: 6000, spent: 6000, pendingFedAdjustment: 0 }
-};
-
-it("renders stored coverage directly and opens donor details without implying the donor settled", () => {
-  const stored = {
-    amountCents: 2000,
-    pipeId: "donor" as Id<"pipes">,
-    name: "Safety net",
-    icon: "shield",
-    before: { capacity: 6000, fed: 6000, spent: 4000, pendingFedAdjustment: 0 },
-    after: { capacity: 6000, fed: 6000, spent: 6000, pendingFedAdjustment: 0 }
-  };
-  const { unmount } = render(<SettlementHistoryRow event={{ ...event, coverage: stored }} onPress={() => {}} />);
-  expect(screen.getByRole("button", { name: /20.00 covered by Safety net/ })).toBeTruthy();
-  unmount();
-  render(<SettlementDetailsModal event={{
-    ...event,
-    type: "settlement_coverage",
-    name: "Safety net",
-    icon: "shield",
-    before: stored.before,
-    after: stored.after,
-    coverage: { ...stored, pipeId: event.pipeId, name: event.name, icon: event.icon, before: event.before, after: event.after }
-  }} onClose={() => {}} />);
-  expect(screen.getByText("Coverage provided")).toBeTruthy();
-  expect(screen.getByLabelText("20.00 covered for Groceries")).toBeTruthy();
-  expect(screen.getByLabelText("Spent after coverage: 60.00")).toBeTruthy();
-  expect(screen.getByLabelText("Available funding: 0.00")).toBeTruthy();
-  expect(screen.queryByText("Manually settled")).toBeNull();
+vi.mock("@expo/vector-icons", () => {
+  const FontIcon = ({ name, color }: { name: string; color: string }) => <span data-testid={`icon-${name}`} data-color={color} />;
+  return { Ionicons: FontIcon, MaterialCommunityIcons: FontIcon, MaterialIcons: FontIcon };
 });
+vi.mock("react-native-svg", () => vi.importActual<typeof import("react-native-svg")>("react-native-svg/src/elements.web.ts"));
 
-it("announces donor coverage without describing the donor as settled", () => {
-  const donor: SettlementEntry = {
-    ...event,
-    type: "settlement_coverage",
-    name: "Safety net",
-    icon: "shield",
-    before: coverage.before,
-    after: coverage.after,
-    coverage: { ...coverage, pipeId: event.pipeId, name: event.name, icon: event.icon, before: event.before, after: event.after }
-  };
-  const { unmount } = render(<SettlementHistoryRow event={donor} onPress={() => {}} />);
-  expect(screen.getByRole("button", { name: "View Safety net coverage: 20.00 covered for Groceries" })).toBeTruthy();
-  unmount();
-  render(<SettlementDetailsModal event={donor} onClose={() => {}} />);
-  expect(screen.getByLabelText("Capacity before coverage: 60.00")).toBeTruthy();
-  expect(screen.getByLabelText("Spent before coverage: 40.00")).toBeTruthy();
-});
-
-it("renders coverage inline with the real manual, shield, and donor icons", () => {
-  render(<SettlementHistoryRow event={{ ...event, coverage }} onPress={() => {}} />);
-  expect(screen.getByTestId("icon-gesture-tap-hold")).toBeTruthy();
-  expect(screen.getAllByTestId("icon-shield")).toHaveLength(2);
-  expect(screen.getByText("20.00")).toBeTruthy();
-  expect(screen.getByRole("button", { name: /20.00 covered by Safety net/ })).toBeTruthy();
-  expect(screen.queryByText("Manually settled")).toBeNull();
+it.each(["settlement", "settlement_coverage"] as const)("uses warning only for coverage-symbol shields in %s details", type => {
+  render(<SettlementDetailsModal event={{ ...event, type, icon: "shield", coverage }} onClose={() => {}} />);
+  expect(screen.getByLabelText(`20.00 covered ${type === "settlement" ? "by" : "for"} Safety net`)).toBeTruthy();
+  expect(screen.getAllByTestId("icon-shield").map(icon => icon.getAttribute("data-color")))
+    .toEqual([colors.muted, colors.warning, colors.muted]);
 });
 
 it("shows original capacity/spending, coverage, uncovered overspending, and signed outcome amounts", () => {

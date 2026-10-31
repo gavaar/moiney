@@ -4,6 +4,7 @@ import { cn, colors } from "@/lib/styles";
 import { Icon, safeIconName } from "@ui/Icon";
 import { ModalShell } from "@ui/Modal";
 import { OptionList, OptionRow } from "@ui/OptionList";
+import { TreeBranch } from "@ui/TreeBranch";
 import type { InputInteraction, InputTriggerProps, InputValueProps } from "../../input.types";
 import { buildSelectRows, type SelectGroup } from "./selectRows";
 
@@ -72,8 +73,13 @@ export function SelectInput<Item extends { id: string }>({ accessibilityLabel, i
   }
 
   function renderRow(row: (typeof rows)[number]) {
-    if (row.kind === "option") return row.grouped
-      ? <View className="pl-2">{renderOption(row.item)}</View>
+    if (row.kind === "option") return row.branch
+      ? <View className="flex-row items-center">
+          <TreeBranch path={row.branch} />
+          <View className="flex-1">
+            {renderOption(row.item)}
+          </View>
+        </View>
       : renderOption(row.item);
     const { group } = row;
     const expanded = expandedOverrides[group.id] ?? group.initiallyExpanded ?? false;

@@ -1,9 +1,9 @@
 import type { ConvexReactClient } from "convex/react";
 import { api } from "@convex/_generated/api";
 import type { HistoryFilters } from "./history-filters";
-import type { HistoryEntry } from "./event-groups";
+import type { HistoryEntry } from "../events/event-groups";
 import type { DeletedPipeEntry } from "@features/pipes/data/deletedPipes";
-import { recognizedHistoryEntries } from "./event-types";
+import { recognizedHistoryEntries } from "../events/event-types";
 import { preservedPipeScope } from "@domain/pipes/preservedScope";
 
 /** One indexed window per unique pipe; grouping sees only the newest 30 overall. */

@@ -79,7 +79,7 @@ vi.mock("@features/pipes/FeedListScreen", () => ({
     <div data-testid="feed-order">{pipes.map((pipe: any) => pipe.id).join(",")}</div>
   ),
 }));
-vi.mock("@features/transactions/history/mixed-history-feed", () => ({
+vi.mock("@features/transactions/history/MixedHistoryFeed/MixedHistoryFeed", () => ({
   MixedHistoryFeed: ({ filters, recent, enabled }: { filters?: { pipeIds?: string[] }; recent?: boolean; enabled?: boolean }) => {
     useEffect(() => { mocks.historyMounts(); }, []);
     return <div data-testid="latest-list" data-pipe-ids={filters?.pipeIds?.join(",")} data-recent={String(recent)} data-enabled={String(enabled)} />;

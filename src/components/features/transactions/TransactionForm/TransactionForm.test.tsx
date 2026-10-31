@@ -6,7 +6,7 @@ import type { PipeModel } from "@features/pipes/data/pipes";
 import { AmountForm } from "@features/components/AmountForm";
 import { colors } from "@/lib/styles";
 import { TransactionForm } from "./TransactionForm";
-import type { HistoryEntry } from "../history/event-groups";
+import type { HistoryEntry } from "../history/events/event-groups";
 
 const root: PipeModel = { id: "root" as Id<"pipes">, name: "Budget", icon: "pipe", fed: 10000, spent: 0, capacity: 0, priority: 0 };
 const source: PipeModel = { ...root, id: "source" as Id<"pipes">, parentId: root.id, name: "Food", fed: 1000, spent: 1000, capacity: 2000 };

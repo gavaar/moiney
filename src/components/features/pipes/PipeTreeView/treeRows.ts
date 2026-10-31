@@ -1,28 +1,15 @@
 import type { PipeModel } from "@features/pipes/data/pipes";
+import type { TreeBranchPath } from "@ui/TreeBranch";
 
 export type TreeRowData = {
   id: PipeModel["id"];
   depth: number;
-  prefix: string;
+  branch: TreeBranchPath;
   pipe: PipeModel;
   groupMax: number;
   path: PipeModel["id"][];
   isLeaf: boolean;
 };
-
-function buildPrefix(
-  depth: number,
-  hasMoreSiblings: boolean[],
-  isLastChild: boolean,
-): string {
-  if (depth === 0) return "";
-  let s = "";
-  for (let i = 1; i < depth; i++) {
-    s += hasMoreSiblings[i] ? "\u2502   " : "    ";
-  }
-  s += isLastChild ? "\u2514\u2500\u2500 " : "\u251C\u2500\u2500 ";
-  return s;
-}
 
 export function buildTreeRows(
   feeds: PipeModel[],
@@ -55,7 +42,7 @@ export function buildTreeRows(
   function dfs(
     pipes: PipeModel[],
     depth: number,
-    hasMoreSiblings: boolean[],
+    parentBranch: TreeBranchPath,
     gMax: number,
     parentPath: PipeModel["id"][],
   ) {
@@ -63,6 +50,7 @@ export function buildTreeRows(
     for (let i = 0; i < sorted.length; i++) {
       const pipe = sorted[i];
       const isLastChild = i === sorted.length - 1;
+      const branch: TreeBranchPath = depth === 0 ? [] : [...parentBranch, !isLastChild];
       const path = [...parentPath, pipe.id];
 
       const children = childrenByParent.get(pipe.id);
@@ -71,7 +59,7 @@ export function buildTreeRows(
       rows.push({
         id: pipe.id,
         depth,
-        prefix: buildPrefix(depth, hasMoreSiblings, isLastChild),
+        branch,
         pipe,
         groupMax: gMax,
         path,
@@ -79,7 +67,7 @@ export function buildTreeRows(
       });
 
       if (hasChildren) {
-        dfs(children, depth + 1, [...hasMoreSiblings, !isLastChild], groupMax(children), path);
+        dfs(children, depth + 1, branch, groupMax(children), path);
       }
     }
   }

@@ -3,7 +3,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { getFunctionName } from "convex/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Id } from "@convex/_generated/dataModel";
-import type { HistoryEntry } from "./event-groups";
+import type { HistoryEntry } from "../events/event-groups";
 import { useMixedHistory } from "./use-mixed-history";
 
 const mocks = vi.hoisted(() => ({
@@ -20,7 +20,7 @@ const mocks = vi.hoisted(() => ({
 const client = { query: mocks.query };
 vi.mock("convex/react", () => ({ useConvex: () => client }));
 vi.mock("expo-router/react-navigation", () => ({ useIsFocused: () => mocks.focused }));
-vi.mock("../cache/EventHistoryCacheContext", () => ({ useEventHistoryCache: () => mocks }));
+vi.mock("@features/transactions/cache/EventHistoryCacheContext", () => ({ useEventHistoryCache: () => mocks }));
 vi.mock("@features/pipes/context/PipeCatalogContext", () => ({ usePipeCatalog: () => ({ allPipes: mocks.pipes }) }));
 const pipe = (id: string) => id as Id<"pipes">;
 function expense(id = "expense", pipeId = "source", date = 1000): Extract<HistoryEntry, { type: "transaction" }> {

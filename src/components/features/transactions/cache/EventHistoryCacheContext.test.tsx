@@ -2,7 +2,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Id } from "@convex/_generated/dataModel";
-import type { HistoryEntry } from "../history/event-groups";
+import type { HistoryEntry } from "../history/events/event-groups";
 import { EventHistoryCacheProvider, useEventHistoryCache, useOptionalEventHistoryCache } from "./EventHistoryCacheContext";
 import { EventHistoryStore, type EventHistoryStorage } from "./EventHistoryStore";
 

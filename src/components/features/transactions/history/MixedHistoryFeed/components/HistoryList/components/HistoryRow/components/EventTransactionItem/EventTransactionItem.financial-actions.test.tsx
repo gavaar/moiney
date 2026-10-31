@@ -8,8 +8,8 @@ import schema from "@convex/schema";
 import { modules } from "@convex/test.setup";
 import { insertFinancialOperation } from "@convex/lib/events/financial";
 import type { PipeModel } from "@features/pipes/data/pipes";
-import { groupHistoryEvents } from "./event-groups";
-import { EventTransactionItem } from "./event-transaction-item";
+import { groupHistoryEvents } from "@features/transactions/history/events/event-groups";
+import { EventTransactionItem } from "./EventTransactionItem";
 
 const mocks = vi.hoisted(() => ({ query: vi.fn(), mutate: vi.fn(), pipes: [] as PipeModel[], invalidate: vi.fn(), error: vi.fn() }));
 const client = { query: mocks.query };
@@ -56,7 +56,7 @@ it.each(["edit", "repeat"] as const)("submits %s from a payer-only perspective t
   mocks.mutate.mockImplementation((reference, args) => auth.mutation(reference, args));
   const row = groupHistoryEvents(await auth.query(api.events.latest, { pipeId: ids.payer }))[0];
   if (row.kind !== "operation") throw new Error("Expected financial operation");
-  render(<EventTransactionItem operation={row.operation} deletedPipes={[]} onShowEditHistory={() => {}} />);
+  render(<EventTransactionItem operation={row.operation} deletedPipeIcons={new Map()} onShowEditHistory={() => {}} />);
   expect(mocks.query).not.toHaveBeenCalled();
   if (intent === "edit") fireEvent.click(screen.getByLabelText("Edit lunch"));
   else fireEvent.click(screen.getByText("Lunch"));

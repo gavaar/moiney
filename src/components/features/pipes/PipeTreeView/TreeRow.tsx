@@ -1,6 +1,7 @@
 import { Pressable, Text, View } from "react-native";
 import { formatMoneyInput } from "@domain/money";
 import { Icon, safeIconName } from "@ui/Icon";
+import { TreeBranch } from "@ui/TreeBranch";
 import type { TreeRowData } from "./treeRows";
 import { MiniBar } from "./MiniBar";
 
@@ -11,7 +12,7 @@ export function TreeRow({
   row: TreeRowData;
   onPress: () => void;
 }) {
-  const { prefix, pipe, groupMax, isLeaf } = row;
+  const { branch, pipe, groupMax, isLeaf } = row;
 
   return (
     <Pressable
@@ -21,7 +22,7 @@ export function TreeRow({
       className="flex-row items-center py-1"
     >
       <View className="flex-1 flex-row items-center">
-        <Text className="text-muted font-mono text-sm shrink-0">{prefix}</Text>
+        <TreeBranch path={branch} />
         <Icon name={safeIconName(pipe.icon)} size={18} />
         <Text className="text-text text-base ml-1 shrink" numberOfLines={1}>
           {pipe.name}

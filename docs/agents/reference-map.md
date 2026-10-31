@@ -7,6 +7,7 @@ test before introducing another pattern; follow linked contracts for behavior.
 | --- | --- | --- |
 | Thin Expo route | `src/app/(main)/(tabs)/history.tsx` | `AGENTS.md` architecture rules |
 | Feature screen composition | `src/components/features/statistics/StatisticsScreen/StatisticsScreen.tsx` | Adjacent `StatisticsScreen.test.tsx` |
+| History loading and row rendering | `src/components/features/transactions/history/MixedHistoryFeed/MixedHistoryFeed.tsx` | [History ownership](../../src/components/features/transactions/history/README.md) and colocated tests |
 | Backend-to-feature model normalization | `src/components/features/pipes/data/pipes.ts` | Adjacent `pipes.test.ts` |
 | Narrow feature context | `src/components/features/pipes/context/PipeCatalogContext.tsx` | Adjacent `PipeCatalogContext.test.tsx` |
 | Pure domain policy plus feature adapter | `domain/transactions/paidFromEligibility.ts` and `src/components/features/pipes/data/paidFromEligibility.ts` | `domain/transactions/paidFromEligibility.test.ts` |

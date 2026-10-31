@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useConvex } from "convex/react";
 import { useEventHistoryCache } from "./EventHistoryCacheContext";
-import { createEventHistoryReader } from "../history/event-history-data";
+import { createEventHistoryReader } from "../history/data/event-history-data";
 
 /** Unfiltered raw-entry snapshot for usage ranking; never a mutation model. */
 export function useEventHistory(options: { enabled?: boolean; minimumCachedRows?: number } = {}) {

@@ -2,10 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useConvex } from "convex/react";
 import { useIsFocused } from "expo-router/react-navigation";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
-import { useEventHistoryCache } from "../cache/EventHistoryCacheContext";
-import type { HistoryFilters } from "./history-filters";
-import type { HistoryEntry } from "./event-groups";
-import { createEventHistoryReader, mergeHistoryEntries, readLatestEvents } from "./event-history-data";
+import { useEventHistoryCache } from "@features/transactions/cache/EventHistoryCacheContext";
+import type { HistoryFilters } from "../data/history-filters";
+import type { HistoryEntry } from "../events/event-groups";
+import { createEventHistoryReader, mergeHistoryEntries, readLatestEvents } from "../data/event-history-data";
 import { readDeletedPipes, type DeletedPipeEntry } from "@features/pipes/data/deletedPipes";
 
 export function useMixedHistory(filters: HistoryFilters = {}, options: { enabled?: boolean; recent?: boolean } = {}) {
