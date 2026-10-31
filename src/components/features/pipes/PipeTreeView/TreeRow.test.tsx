@@ -29,7 +29,7 @@ const pipe: PipeModel = {
 const row: TreeRowData = {
   id: pipe.id,
   depth: 1,
-  prefix: "branch",
+  branch: [false],
   pipe,
   groupMax: 100,
   path: [pipeId("salary"), pipe.id],
@@ -43,6 +43,7 @@ describe("TreeRow", () => {
     render(<TreeRow row={row} onPress={onPress} />);
 
     expect(screen.getByText("Rent")).toBeDefined();
+    expect(screen.getByText("└──").getAttribute("aria-hidden")).toBe("true");
     expect(screen.getByTestId("mini-bar-capacity")).toBeDefined();
 
     await user.click(screen.getByText("Rent"));

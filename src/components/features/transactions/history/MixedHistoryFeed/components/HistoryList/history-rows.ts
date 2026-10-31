@@ -1,7 +1,8 @@
+import type { TreeBranchPath } from "@ui/TreeBranch";
 import type { MonthlyEventArchive } from "@features/transactions/history/events/event-archives";
 import type { EventHistoryRow } from "@features/transactions/history/events/event-groups";
 
-export type HistoryRowItem = { key: string; depth: number } & (
+export type HistoryRowItem = { key: string; depth: number; branch: TreeBranchPath } & (
   { kind: "month"; month: string } |
   { kind: "archive"; archive: MonthlyEventArchive } |
   { kind: "event"; row: EventHistoryRow }
@@ -11,12 +12,12 @@ const rowDate = (row: EventHistoryRow | MonthlyEventArchive) => row.kind === "gr
 
 /** Prepare row identities once per data change; expansion only selects existing rows. */
 export function prepareHistoryRows(history: readonly (EventHistoryRow | MonthlyEventArchive)[]) {
-  const eventNode = (row: EventHistoryRow, prefix: string, depth: number): RowNode => {
+  const eventNode = (row: EventHistoryRow, prefix: string, branch: TreeBranchPath): RowNode => {
     const key = `${prefix}${row.id}`;
     return {
-      item: { kind: "event", key, depth, row },
-      children: row.kind === "group" ? row.operations.map(operation => ({
-        item: { kind: "event", key: `${key}:${operation.id}`, depth: depth + 1, row: { kind: "operation", id: operation.id, operation } },
+      item: { kind: "event", key, depth: branch.length, branch, row },
+      children: row.kind === "group" ? row.operations.map((operation, index) => ({
+        item: { kind: "event", key: `${key}:${operation.id}`, depth: branch.length + 1, branch: [...branch, index < row.operations.length - 1], row: { kind: "operation", id: operation.id, operation } },
       })) : undefined,
     };
   };
@@ -25,14 +26,14 @@ export function prepareHistoryRows(history: readonly (EventHistoryRow | MonthlyE
   for (const row of history) {
     const month = new Date(rowDate(row)).toISOString().slice(0, 7);
     if (month !== currentMonth) {
-      roots.push({ item: { key: `month:${month}`, kind: "month", month, depth: 0 } });
+      roots.push({ item: { key: `month:${month}`, kind: "month", month, depth: 0, branch: [] } });
       currentMonth = month;
     }
     if (row.kind === "archive") roots.push({
-      item: { kind: "archive", key: row.id, depth: 0, archive: row },
-      children: row.loadedSummary.count > 0 ? row.rows.map(child => eventNode(child, `${row.id}:`, 1)) : undefined,
+      item: { kind: "archive", key: row.id, depth: 0, branch: [], archive: row },
+      children: row.loadedSummary.count > 0 ? row.rows.map((child, index) => eventNode(child, `${row.id}:`, [index < row.rows.length - 1])) : undefined,
     });
-    else roots.push(eventNode(row, "", 0));
+    else roots.push(eventNode(row, "", []));
   }
 
   return {

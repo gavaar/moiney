@@ -14,6 +14,20 @@ const items = [
 ] as const;
 
 describe("SelectInput", () => {
+  it("branches available group choices in their ranked order without changing their accessible names", async () => {
+    const onChange = vi.fn();
+    render(<SelectInput label="Source" value={null} onChange={onChange} items={items}
+      groups={[{ id: "bank", name: "Bank", itemIds: ["2", "1", "missing"], initiallyExpanded: true }]}
+      renderItem={item => <>{item.name}</>} />);
+    await userEvent.click(screen.getByRole("button", { name: "Source" }));
+    expect(screen.getByText("├──").getAttribute("aria-hidden")).toBe("true");
+    expect(screen.getByText("└──").getAttribute("aria-hidden")).toBe("true");
+    expect(screen.getAllByRole("button", { name: /^(Salary|Groceries)$/ }).map(row => row.textContent)).toEqual(["Salary", "Groceries"]);
+    expect(onChange).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "Salary" }));
+    expect(onChange).toHaveBeenCalledWith("2");
+  });
+
   it("groups options with independently collapsible accessible headers", async () => {
     const onChange = vi.fn();
     render(<SelectInput label="Source" value={null} onChange={onChange}

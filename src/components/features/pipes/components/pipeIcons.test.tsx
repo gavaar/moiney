@@ -19,7 +19,7 @@ const pipe: PipeModel = {
 };
 
 it.each([
-  { name: "tree row", content: <TreeRow row={{ id: pipe.id, depth: 0, prefix: "", pipe, groupMax: 100, path: [pipe.id], isLeaf: true }} onPress={() => {}} /> },
+  { name: "tree row", content: <TreeRow row={{ id: pipe.id, depth: 0, branch: [], pipe, groupMax: 100, path: [pipe.id], isLeaf: true }} onPress={() => {}} /> },
   { name: "pipe card", content: <PipeBox {...pipe} showPriority={false} /> },
   { name: "child snapshot", content: <MiniChildBox {...pipe} /> },
   { name: "minimized tile", content: <MinimizedPipe pipe={pipe} onPress={() => {}} onLongPress={() => {}} /> },

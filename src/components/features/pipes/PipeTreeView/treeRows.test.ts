@@ -61,5 +61,6 @@ describe("buildTreeRows", () => {
       isLeaf: false,
       groupMax: 500,
     });
+    expect(rows.map(row => row.branch)).toEqual([[], [], [true], [false], [false, true], [false, false]]);
   });
 });

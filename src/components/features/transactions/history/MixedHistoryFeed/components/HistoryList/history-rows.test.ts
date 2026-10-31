@@ -29,6 +29,7 @@ it("preserves row identities and nesting when archives and their groups close an
     occurredAt: Date.UTC(2026, 5, 15 - index),
     createdAt: index,
   }));
+  entries.push({ ...deleted, id: "creation" as Id<"events">, operationId: "creation" as Id<"events">, type: "pipe_creation", occurredAt: Date.UTC(2026, 5, 1) });
   const prepared = prepareHistoryRows(groupMonthlyEventHistory(entries, [deleted]));
   const collapsed = prepared.visible(new Set());
   const archive = collapsed.find(row => row.kind === "archive");
@@ -40,6 +41,9 @@ it("preserves row identities and nesting when archives and their groups close an
   const members = fullyOpen.filter(row => row.kind === "event" && row.row.kind === "operation");
   expect(members).toHaveLength(2);
   expect(members.every(row => row.depth === 2 && row.key.startsWith(`${group.key}:`))).toBe(true);
+  expect(group.branch).toEqual([true]);
+  expect(members.map(row => row.branch)).toEqual([[true, true], [true, false]]);
+  expect(archiveOpen.at(-1)?.branch).toEqual([false]);
   expect(new Set(fullyOpen.map(row => row.key)).size).toBe(fullyOpen.length);
   for (const row of archiveOpen) expect(fullyOpen.find(candidate => candidate.key === row.key)).toBe(row);
 

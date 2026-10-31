@@ -1,3 +1,5 @@
+import type { TreeBranchPath } from "@ui/TreeBranch";
+
 export type SelectGroup = {
   id: string;
   name: string;
@@ -7,7 +9,7 @@ export type SelectGroup = {
 };
 
 export type SelectRow<Item> =
-  | { key: string; kind: "option"; item: Item; grouped?: boolean }
+  | { key: string; kind: "option"; item: Item; branch?: TreeBranchPath }
   | { key: string; kind: "group"; group: SelectGroup };
 
 /** Keeps ungrouped options first and omits groups with no available members. */
@@ -30,7 +32,7 @@ export function buildSelectRows<Item extends { id: string }>(
       return [
         { key: `group:${group.id}`, kind: "group" as const, group },
         ...((expandedOverrides[group.id] ?? group.initiallyExpanded ?? false)
-          ? members.map(item => ({ key: `item:${item.id}`, kind: "option" as const, item, grouped: true })) : []),
+          ? members.map((item, index) => ({ key: `item:${item.id}`, kind: "option" as const, item, branch: [index < members.length - 1] })) : []),
       ];
     }),
   ];

@@ -3,6 +3,7 @@ import { ActivityIndicator, FlatList, Text, View } from "react-native";
 import type { Id } from "@convex/_generated/dataModel";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import { colors } from "@/lib/styles";
+import { TreeBranch } from "@ui/TreeBranch";
 import { TransactionCorrectionHistoryModal } from "@features/transactions/components/TransactionCorrectionHistory/TransactionCorrectionHistoryModal";
 import type { HistoryFilters } from "@features/transactions/history/data/history-filters";
 import { groupMonthlyEventHistory } from "@features/transactions/history/events/event-archives";
@@ -46,8 +47,13 @@ export function HistoryList({ entries, deletedPipes: catalog, filters, isLoading
       const row = <HistoryRow item={item} expanded={expanded.has(item.key)} pipesById={pipesById}
         childrenByParent={childrenByParent} deletedPipeIcons={deletedPipeIcons} onToggle={toggle}
         onShowEditHistory={showEditHistory} onShowSettlement={setSelectedSettlement} />;
-      return item.kind === "event"
-        ? <View style={{ marginLeft: item.depth * 16 }}>{row}</View>
+      return item.branch.length > 0
+        ? <View className="flex-row items-center">
+            <TreeBranch path={item.branch} />
+            <View className="flex-1">
+              {row}
+            </View>
+          </View>
         : row;
     }} />;
   return <View className="flex-1">

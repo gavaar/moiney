@@ -176,8 +176,12 @@ describe("loaded event History interaction", () => {
     expect(screen.getByText("-80.00")).toBeTruthy();
     fireEvent.click(screen.getByTestId(control));
     expect(screen.getAllByText("hotel")).toHaveLength(2);
+    expect(screen.getByText("├──").getAttribute("aria-hidden")).toBe("true");
+    expect(screen.getByText("└──").getAttribute("aria-hidden")).toBe("true");
     fireEvent.click(screen.getByTestId(control));
     expect(screen.queryByText("hotel")).toBeNull();
+    expect(screen.queryByText("├──")).toBeNull();
+    expect(screen.queryByText("└──")).toBeNull();
     expect(mocks.query).not.toHaveBeenCalled();
   });
 
