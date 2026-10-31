@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { PanResponder } from "react-native";
 import { TransactionItem } from "./TransactionItem";
 import type { Id } from "@convex/_generated/dataModel";
 import { colors } from "@/lib/styles";
@@ -127,6 +128,8 @@ vi.mock("@features/transactions/TransactionForm/TransactionForm", () => ({
 }));
 
 describe("TransactionItem", () => {
+  afterEach(() => vi.restoreAllMocks());
+
   beforeEach(() => {
     vi.clearAllMocks();
     deleteMocks.confirm.mockResolvedValue(false);
@@ -149,7 +152,7 @@ describe("TransactionItem", () => {
     const resolveTransaction = vi.fn().mockResolvedValue(baseTx);
     render(<TransactionItem transaction={presentation} resolveTransaction={resolveTransaction} />);
     expect(resolveTransaction).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByLabelText("Edit shopping mall"));
+    fireEvent.click(screen.getByText("Shopping mall"));
     await waitFor(() => expect(screen.getByTestId("amount-form").getAttribute("data-operation-id")).toBe(baseTx.id));
     expect(screen.getByTestId("amount-form").getAttribute("data-intent")).toBe("edit");
   });
@@ -187,7 +190,7 @@ describe("TransactionItem", () => {
   it("renders the transaction title with first letter capitalized", () => {
     render(<TransactionItem transaction={baseTx} />);
     expect(screen.getByText("Shopping mall")).toBeDefined();
-    expect(screen.getByRole("button", { name: "Repeat shopping mall, -50.00, Mar 15, 2024" })).toBeDefined();
+    expect(screen.getByRole("button", { name: "Edit shopping mall, -50.00, Mar 15, 2024" })).toBeDefined();
   });
 
   it("renders the formatted date", () => {
@@ -218,7 +221,7 @@ describe("TransactionItem", () => {
       />,
     );
 
-    fireEvent.click(screen.getByText("Shopping mall"));
+    fireEvent.click(screen.getByLabelText("Repeat shopping mall"));
 
     expect(screen.getByTestId("amount-form").getAttribute("data-spent")).toBe(
       "12345",
@@ -228,17 +231,29 @@ describe("TransactionItem", () => {
     ).toBe("50000");
   });
 
-  it("opens the transaction directly for editing from the swipe action", () => {
+  it("opens edit on tap", () => {
     render(
       <TransactionItem
         transaction={{ ...baseTx, from: pipeInfo.id }}
       />,
     );
 
-    fireEvent.click(screen.getByLabelText("Edit shopping mall"));
+    fireEvent.click(screen.getByText("Shopping mall"));
 
     expect(screen.getByTestId("amount-form").getAttribute("data-intent"))
       .toBe("edit");
+  });
+
+  it("opens repeat from a left swipe", () => {
+    const original = PanResponder.create;
+    const gestures = vi.spyOn(PanResponder, "create").mockImplementation(config => original(config));
+    render(<TransactionItem transaction={baseTx} />);
+    const config = gestures.mock.calls.at(-1)![0];
+    const gesture = { dx: -45, dy: 0 } as Parameters<NonNullable<typeof config.onPanResponderRelease>>[1];
+
+    act(() => config.onPanResponderRelease?.({} as never, gesture));
+
+    expect(screen.getByTestId("amount-form").getAttribute("data-intent")).toBe("repeat");
   });
 
   it("opens a destructive confirmation from the accessible delete action", async () => {
@@ -268,6 +283,42 @@ describe("TransactionItem", () => {
     expect(action.getAttribute("aria-disabled")).toBe("true");
     fireEvent.click(action);
     expect(deleteMocks.confirm).not.toHaveBeenCalled();
+  });
+
+  it("disables edit and repeat while the pipe catalog is loading", () => {
+    mockUsePipeSelection.mockReturnValue({
+      pipesById: {},
+      childrenByParent: new Map(),
+      isLoading: true,
+    });
+    render(<TransactionItem transaction={baseTx} />);
+
+    const edit = screen.getByRole("button", { name: /^Edit shopping mall,/ });
+    const repeat = screen.getByRole("button", { name: "Why shopping mall cannot be repeated" });
+    for (const action of [edit, repeat]) {
+      expect(action.getAttribute("aria-disabled")).toBe("true");
+      fireEvent.click(action);
+    }
+    expect(screen.queryByTestId("amount-form")).toBeNull();
+    expect(screen.queryByTestId("modal-shell")).toBeNull();
+  });
+
+  it("disables both form actions while resolving an operation", async () => {
+    const { id: _id, ...presentation } = baseTx;
+    let finish!: (value: typeof baseTx) => void;
+    const resolveTransaction = vi.fn(() => new Promise<typeof baseTx>(resolve => { finish = resolve; }));
+    render(<TransactionItem transaction={presentation} resolveTransaction={resolveTransaction} />);
+
+    fireEvent.click(screen.getByText("Shopping mall"));
+    const edit = screen.getByRole("button", { name: /^Edit shopping mall,/ });
+    const repeat = screen.getByRole("button", { name: "Repeat shopping mall" });
+    for (const action of [edit, repeat]) {
+      expect(action.getAttribute("aria-disabled")).toBe("true");
+      fireEvent.click(action);
+    }
+    expect(resolveTransaction).toHaveBeenCalledOnce();
+    await act(async () => finish(baseTx));
+    expect(screen.getByTestId("amount-form").getAttribute("data-intent")).toBe("edit");
   });
 
   it("deletes and removes a confirmed transaction from the cache", async () => {
@@ -360,7 +411,7 @@ describe("TransactionItem", () => {
       dataset: { name: "pipe-disconnected", color: colors.surface },
     });
     expect(screen.queryByText("Cannot repeat transaction")).toBeNull();
-    fireEvent.click(screen.getByText("Shopping mall"));
+    fireEvent.click(screen.getByLabelText("Why shopping mall cannot be repeated"));
     expect(screen.getByText("Cannot repeat transaction")).toBeDefined();
     expect(screen.queryByTestId("amount-form")).toBeNull();
   });
@@ -380,11 +431,13 @@ describe("TransactionItem", () => {
     expect(screen.getAllByTestId("mock-icon").map((icon) => icon.getAttribute("data-name")))
       .toContain("cart-outline");
     expect(screen.queryByText(/Preserved history is view-only/)).toBeNull();
-    fireEvent.click(screen.getByText("Shopping mall"));
+    const repeat = screen.getByRole("button", { name: "Why shopping mall cannot be repeated" });
+    expect(repeat.getAttribute("aria-disabled")).not.toBe("true");
+    fireEvent.click(repeat);
     expect(screen.getByText(/Select valid pipes to edit it/)).toBeDefined();
     expect(screen.queryByTestId("amount-form")).toBeNull();
     expect(screen.getByLabelText("Delete shopping mall")).toBeDefined();
-    fireEvent.click(screen.getByLabelText("Edit shopping mall"));
+    fireEvent.click(screen.getByRole("button", { name: /^Edit shopping mall,/ }));
     expect(screen.getByTestId("amount-form").getAttribute("data-intent")).toBe("edit");
   });
 
@@ -394,9 +447,9 @@ describe("TransactionItem", () => {
       childrenByParent: new Map(),
     });
     render(<TransactionItem transaction={{ ...transferTx, toIcon: "home-outline" }} />);
-    fireEvent.click(screen.getByLabelText("Edit send to rent"));
+    fireEvent.click(screen.getByRole("button", { name: /^Edit send to rent,/ }));
     expect(screen.getByTestId("amount-form").getAttribute("data-intent")).toBe("edit");
-    fireEvent.click(screen.getByText("Send to rent"));
+    fireEvent.click(screen.getByLabelText("Why send to rent cannot be repeated"));
     expect(screen.getByText("Cannot repeat transaction")).toBeDefined();
   });
 
@@ -412,14 +465,14 @@ describe("TransactionItem", () => {
     render(<TransactionItem transaction={baseTx} />);
     expect(screen.queryByText("Cannot repeat transaction")).toBeNull();
     expect(screen.queryByTestId("amount-form")).toBeNull();
-    fireEvent.click(screen.getByText("Shopping mall"));
+    fireEvent.click(screen.getByLabelText("Why shopping mall cannot be repeated"));
     expect(screen.getByText("Cannot repeat transaction")).toBeDefined();
     expect(screen.getByText(/cannot accept transactions anymore/)).toBeDefined();
     expect(screen.queryByTestId("amount-form")).toBeNull();
-    expect(screen.getByLabelText("Edit shopping mall")).toBeDefined();
+    expect(screen.getByRole("button", { name: /^Edit shopping mall,/ })).toBeDefined();
   });
 
-  it("shows disabled info when the source pipe is being deleted", () => {
+  it("explains the deletion freeze when edit is attempted", () => {
     mockUsePipeSelection.mockReturnValue({
       pipesById: {
         "pipe-1": {
@@ -433,9 +486,27 @@ describe("TransactionItem", () => {
     });
 
     render(<TransactionItem transaction={baseTx} />);
-    fireEvent.click(screen.getByText("Shopping mall"));
+    fireEvent.click(screen.getByRole("button", { name: /^Why shopping mall cannot be edited,/ }));
 
-    expect(screen.getByText(/cannot accept transactions anymore/)).toBeDefined();
+    expect(screen.getByText("Cannot edit transaction")).toBeDefined();
+    expect(screen.getByText(/being deleted/)).toBeDefined();
+    expect(screen.queryByText("Cannot repeat transaction")).toBeNull();
+    expect(screen.queryByTestId("amount-form")).toBeNull();
+  });
+
+  it("explains the deletion freeze when repeat is attempted", () => {
+    mockUsePipeSelection.mockReturnValue({
+      pipesById: { [pipeInfo.id]: { ...pipeInfo, deletionJobId: "job-1" } },
+      childrenByParent: new Map(),
+    });
+    render(<TransactionItem transaction={baseTx} />);
+
+    const repeat = screen.getByRole("button", { name: "Why shopping mall cannot be repeated" });
+    expect(repeat.getAttribute("aria-disabled")).not.toBe("true");
+    fireEvent.click(repeat);
+
+    expect(screen.getByText("Cannot repeat transaction")).toBeDefined();
+    expect(screen.getByText(/being deleted/)).toBeDefined();
     expect(screen.queryByTestId("amount-form")).toBeNull();
   });
 });
@@ -524,7 +595,7 @@ describe("TransactionItem feed variant", () => {
     });
 
     render(<TransactionItem transaction={feedTx} />);
-    fireEvent.click(screen.getByText("Weekly salary"));
+    fireEvent.click(screen.getByLabelText("Why weekly salary cannot be repeated"));
     expect(screen.getByText("Cannot repeat transaction")).toBeDefined();
   });
 });
@@ -546,8 +617,8 @@ describe("TransactionItem pay-by-transfer variant", () => {
 
     render(<TransactionItem transaction={tx} />);
 
-    expect(screen.getAllByTestId("mock-icon").map((icon) => icon.getAttribute("data-name")))
-      .toEqual(["trash-outline", "pencil-outline", "cash-outline", "ray-start-arrow", "home-outline"]);
+    expect(screen.getAllByTestId("mock-icon").map((icon) => icon.getAttribute("data-name")).slice(-3))
+      .toEqual(["cash-outline", "ray-start-arrow", "home-outline"]);
   });
 
   it("opens repeat with the individual paidFrom provenance", () => {
@@ -565,7 +636,7 @@ describe("TransactionItem pay-by-transfer variant", () => {
     };
 
     render(<TransactionItem transaction={tx} />);
-    fireEvent.click(screen.getByText("Shopping mall"));
+    fireEvent.click(screen.getByLabelText("Repeat shopping mall"));
 
     expect(screen.getByTestId("amount-form").getAttribute("data-paid-from"))
       .toBe("salary-pipe");
@@ -589,7 +660,7 @@ describe("TransactionItem pay-by-transfer variant", () => {
     };
 
     render(<TransactionItem transaction={tx} />);
-    fireEvent.click(screen.getByText("Shopping mall"));
+    fireEvent.click(screen.getByLabelText(value > 0 ? "Repeat shopping mall" : "Why shopping mall cannot be repeated"));
 
     if (value > 0) {
       expect(screen.getByTestId("amount-form").getAttribute("data-paid-from"))

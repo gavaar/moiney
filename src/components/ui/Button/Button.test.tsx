@@ -1,29 +1,22 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { Button } from "./Button";
 
-vi.mock("@ui/Icon", () => ({
-  Icon: ({ name, size, testID }: any) => (
-    <span data-testid={testID ?? "icon"} data-name={name} data-size={size} />
-  ),
-}));
-
 describe("Button", () => {
-  it("renders title", () => {
-    render(<Button title="Run now" onPress={() => {}} />);
-    expect(screen.getByText("Run now")).toBeTruthy();
-  });
+  it("runs the action when enabled and blocks presses while disabled or loading", () => {
+    const onPress = vi.fn();
+    const { rerender } = render(<Button title="Run now" onPress={onPress} />);
+    fireEvent.click(screen.getByRole("button", { name: "Run now" }));
+    expect(onPress).toHaveBeenCalledOnce();
 
-  it("renders icon when icon prop is provided", () => {
-    render(<Button title="Run now" icon="water-outline" onPress={() => {}} />);
-    const icon = screen.getByTestId("icon");
-    expect(icon.getAttribute("data-name")).toBe("water-outline");
-  });
+    rerender(<Button title="Run now" disabled onPress={onPress} />);
+    fireEvent.click(screen.getByRole("button", { name: "Run now" }));
+    expect(onPress).toHaveBeenCalledOnce();
 
-  it("does not render icon when icon prop is absent", () => {
-    render(<Button title="Run now" onPress={() => {}} />);
-    expect(screen.queryByTestId("icon")).toBeNull();
+    rerender(<Button title="Run now" loading onPress={onPress} />);
+    fireEvent.click(screen.getByRole("button", { name: "Run now" }));
+    expect(onPress).toHaveBeenCalledOnce();
   });
 
   it("keeps an accessible action name and busy state while loading", () => {

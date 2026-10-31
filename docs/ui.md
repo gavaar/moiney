@@ -109,11 +109,20 @@ checked, expanded, and disabled states. Use native accessibility properties and
 the web aliases required by the supported React Native Web version; names and
 state must describe the actual interaction, including loading-disabled controls.
 
-Test behavior and accessibility rather than exact utility classes. The current
-Vitest component suite uses React Native Web; it verifies exposed web semantics,
-not VoiceOver/TalkBack announcements or native focus traversal. Navigation,
-keyboard, modal, and platform-sensitive behavior should also use native-oriented
-tools where practical; report when that verification is unavailable.
+Test interactions, workflows, accessibility states, and meaningful displayed
+results. Appearance-only assertions fixing decorative colors, padding, dimensions,
+icon artwork, utility classes, or incidental copy are outside automated test scope.
+Text assertions remain appropriate for accessible names, validation, warnings,
+entered values, and domain outputs; require exact wording only when it is a contract.
+Geometry assertions need a usability or quantitative domain contract, such as
+keyboard avoidance, reachable content, or proportional financial amounts—not an
+arbitrary pixel value. Keep detailed coverage at its owning seam and only necessary
+wiring coverage above it.
+
+The current Vitest component suite uses React Native Web; it verifies exposed web
+semantics, not VoiceOver/TalkBack announcements or native focus traversal.
+Navigation, keyboard, modal, and platform-sensitive behavior should also use
+native-oriented tools where practical; report when that verification is unavailable.
 
 ## Theme
 

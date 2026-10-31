@@ -34,7 +34,7 @@ export function TransactionItem({ transaction, resolveTransaction, onShowEditHis
   const showAlert = useAlert();
 
   const [formIntent, setFormIntent] = useState<"repeat" | "edit" | null>(null);
-  const [showDisabledInfo, setShowDisabledInfo] = useState(false);
+  const [disabledInfo, setDisabledInfo] = useState<{ intent: "repeat" | "edit"; message: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [actionTransaction, setActionTransaction] = useState<TransactionModel | null>(null);
   const [isResolving, setIsResolving] = useState(false);
@@ -66,8 +66,15 @@ export function TransactionItem({ transaction, resolveTransaction, onShowEditHis
 
   function openForm(intent: "repeat" | "edit", row: TransactionModel) {
     const current = getTransactionItemModel(row, catalog);
-    if (isPipeCatalogLoading || (intent === "edit" ? !current.canEdit : current.disabled)) {
-      setShowDisabledInfo(true);
+    if (intent === "edit" ? !current.canEdit : !current.canRepeat) {
+      setDisabledInfo({
+        intent,
+        message: !current.canEdit
+          ? "A pipe involved in this transaction is being deleted. Try again when deletion completes."
+          : current.viewOnly
+            ? "This is preserved history from a deleted pipe. Select valid pipes to edit it."
+            : "One or more pipes involved in this transaction no longer exist or cannot accept transactions anymore because their structure or eligibility changed.",
+      });
     } else {
       setActionTransaction(row);
       setFormIntent(intent);
@@ -120,43 +127,43 @@ export function TransactionItem({ transaction, resolveTransaction, onShowEditHis
           disabled: isDeleting || isResolving || isPipeCatalogLoading,
           onActivate: () => withTransaction(confirmDelete),
         }}
-        rightAction={model.canEdit && !isPipeCatalogLoading ? {
-          accessibilityLabel: `Edit ${transaction.title}`,
-          content: <Icon name="pencil-outline" size={20} color={colors.text} />,
+        rightAction={{
+          accessibilityLabel: model.canRepeat ? `Repeat ${transaction.title}` : `Why ${transaction.title} cannot be repeated`,
+          content: <Icon name="repeat-once" size={20} color={model.canRepeat ? colors.text : colors.muted} />,
           backgroundClassName: "bg-secondary",
-          disabled: isResolving,
-          onActivate: () => withTransaction(row => openForm("edit", row)),
-        } : undefined}
+          disabled: isResolving || isPipeCatalogLoading,
+          onActivate: () => withTransaction(row => openForm("repeat", row)),
+        }}
       >
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`${model.disabled ? `Why ${transaction.title} cannot be repeated` : `Repeat ${transaction.title}`}, ${formatAmount(transaction.value)}, ${dateLabel}`}
-          accessibilityState={{ disabled: isResolving }}
+          accessibilityLabel={`${model.canEdit ? `Edit ${transaction.title}` : `Why ${transaction.title} cannot be edited`}, ${formatAmount(transaction.value)}, ${dateLabel}`}
+          accessibilityState={{ disabled: isResolving || isPipeCatalogLoading }}
           className={cn(
             "w-full flex-row gap-1 items-center rounded-2xl border border-border px-2 py-2",
             model.bgClass,
           )}
-          disabled={isResolving}
-          onPress={() => withTransaction(row => openForm("repeat", row))}
+          disabled={isResolving || isPipeCatalogLoading}
+          onPress={() => withTransaction(row => openForm("edit", row))}
         >
           {model.uiIcons.map((icon, index) => (<Icon key={index} name={icon.name} size={icon.size} color={icon.color} />))}
 
           <Text
             className={cn(
               "font-bold text-sm flex-1 ml-0.5",
-              model.disabled ? "text-muted" : "text-text",
+              model.canEdit ? "text-text" : "text-muted",
             )}
             numberOfLines={1}
           >
             {transaction.title.charAt(0).toUpperCase() + transaction.title.slice(1)}
           </Text>
-          <Text className={cn("text-xs mr-4", model.disabled ? "text-muted" : "text-text")}>
+          <Text className={cn("text-xs mr-4", model.canEdit ? "text-text" : "text-muted")}>
             {dateLabel}
           </Text>
           <Text
             className={cn(
               "text-sm font-bold w-16 mr-2 text-right",
-              model.disabled ? "text-muted" : "text-text",
+              model.canEdit ? "text-text" : "text-muted",
             )}
           >
             {formatAmount(transaction.value)}
@@ -188,13 +195,11 @@ export function TransactionItem({ transaction, resolveTransaction, onShowEditHis
         ) : null}
       </ModalShell>
 
-      <ModalShell visible={showDisabledInfo} onClose={() => setShowDisabledInfo(false)}>
+      <ModalShell visible={disabledInfo !== null} onClose={() => setDisabledInfo(null)}>
         <ScrollView contentContainerClassName="p-4" style={{ flexGrow: 0, flexShrink: 1 }}>
-          <Text className="text-text font-bold text-lg mb-2">Cannot repeat transaction</Text>
+          <Text className="text-text font-bold text-lg mb-2">Cannot {disabledInfo?.intent} transaction</Text>
           <Text className="text-muted text-sm leading-5">
-            {model.viewOnly
-              ? "This is preserved history from a deleted pipe. Select valid pipes to edit it."
-              : "This transaction was from a pipe that does not exist or cannot accept transactions anymore (probably due to now having children pipes)."}
+            {disabledInfo?.message}
           </Text>
         </ScrollView>
       </ModalShell>

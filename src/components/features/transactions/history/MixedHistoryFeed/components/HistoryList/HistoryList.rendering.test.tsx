@@ -68,19 +68,19 @@ it("does not reformat a mounted transaction when an unrelated group toggles, but
   });
   try {
     const { rerender } = render(<HistoryList {...props} entries={entries} />);
-    const outsideButton = screen.getByRole("button", { name: /^Repeat unrelated/ });
+    const outsideButton = screen.getByRole("button", { name: /^Edit unrelated/ });
     const initialFormats = outsideFormats;
     expect(initialFormats).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByTestId("transaction-group-main"));
-    expect(screen.getAllByRole("button", { name: /^Repeat group/ })).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: /^Edit group/ })).toHaveLength(2);
     fireEvent.click(screen.getByTestId("transaction-group-main"));
-    expect(screen.queryByRole("button", { name: /^Repeat group/ })).toBeNull();
-    expect(screen.getByRole("button", { name: /^Repeat unrelated/ })).toBe(outsideButton);
+    expect(screen.queryByRole("button", { name: /^Edit group/ })).toBeNull();
+    expect(screen.getByRole("button", { name: /^Edit unrelated/ })).toBe(outsideButton);
     expect(outsideFormats).toBe(initialFormats);
 
     rerender(<HistoryList {...props} entries={[{ ...outside, value: -500 }, ...entries.slice(1)]} />);
-    expect(screen.getByRole("button", { name: /^Repeat unrelated, -5.00/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /^Edit unrelated, -5.00/ })).toBeTruthy();
     expect(outsideFormats).toBeGreaterThan(initialFormats);
   } finally {
     format.mockRestore();

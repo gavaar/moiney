@@ -109,7 +109,7 @@ export const getTransactionItemPresentation = (
   return {
     viewOnly,
     uiIcons,
-    disabled: !canRepeat,
+    canRepeat,
     canEdit: ![fromPipe, toPipe, paidFromPipe].some(pipe => pipe?.deletionJobId),
     bgClass: getBackgroundClass(kind, transaction),
     primaryPipeId: kind === "feed" ? (toValid ? primaryPipe?.id : undefined) : (fromValid ? primaryPipe?.id : undefined),

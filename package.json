@@ -1,6 +1,6 @@
 {
   "name": "moiney",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
@@ -15,7 +15,9 @@
     "lint": "expo lint",
     "test": "BUN_JSC_useFTLJIT=false vitest run",
     "typecheck": "tsc --noEmit --incremental false",
-    "verify": "bun run lint && bun run test && bun run typecheck"
+    "typecheck:slim": "tsc -p tsconfig.json --noEmit --incremental --tsBuildInfoFile .expo/cache/typecheck.tsbuildinfo",
+    "verify": "bun run lint && bun run test && bun run typecheck",
+    "verify-slim": "bun run scripts/verify-slim-cli.ts"
   },
   "dependencies": {
     "@convex-dev/migrations": "^0.3.7",

@@ -133,10 +133,13 @@ pay-by-transfer payer choices use the same grouping, opening the current payer's
 root or the first eligible root. Root-only feed, transfer destination, and
 refund choices remain flat.
 
-Tapping an individual transaction opens repeat. Swiping left reveals a blue
-pencil and opens edit after the swipe threshold; the action is also an
-accessible button. Repeat identifies the pipe by icon and name. Edit uses a
-centered `Edit:` title with pipe icon, pipe name, and transaction title. See
+Tapping an individual transaction opens edit. Swiping left reveals a blue
+repeat action and opens the repeat form after the swipe threshold; the action is
+also an accessible button. Row dimming follows edit availability. When repeat is
+unavailable, its icon is dimmed but the action remains available to explain why.
+Blocked edit taps likewise explain the restriction. Repeat identifies the pipe
+by icon and name. Edit uses a centered `Edit:` title with pipe icon, pipe name,
+and transaction title. See
 [D018](#d018-quick-transaction-creation) for create/repeat heading values.
 
 Feeds remain structurally fixed but may change their root destination. A
