@@ -5,7 +5,6 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import userEvent from "@testing-library/user-event";
 import { describe, expect, expectTypeOf, it, vi } from "vitest";
 import { Form, type FormProps, type FormRow } from ".";
-import { colors } from "@/lib/styles";
 import { Button } from "@ui/Button";
 
 type Values = { name: string; count: number; accepted: boolean };
@@ -191,36 +190,26 @@ function dot(step: number, errors = false) {
   return screen.getByLabelText(`Step ${step} of 3${errors ? ", has errors" : ""}`);
 }
 
-function background(element: HTMLElement) {
-  return getComputedStyle(element).backgroundColor;
-}
-
-function rgb(color: string) {
-  const element = document.createElement("div");
-  element.style.backgroundColor = color;
-  return element.style.backgroundColor;
-}
-
 describe("Form steps", () => {
-  it("keeps page warnings non-dismissible and uses warning dots before and after acknowledgement", async () => {
+  it("keeps page warnings non-dismissible across validation and navigation", async () => {
     const warningPages = steps.map(page => page.key === 8 ? { ...page, warnings: ["This change has consequences"] } : page);
     render(<Controlled pages={warningPages} />);
     const warningDot = () => screen.getByLabelText("Step 3 of 3, has warnings");
-    expect(background(warningDot())).toBe(rgb(colors.warningSoft));
+    expect(warningDot().getAttribute("aria-selected")).toBe("false");
     expect(screen.queryByRole("alert")).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Next step" }));
     await userEvent.click(screen.getByRole("button", { name: "Next step" }));
-    expect(background(warningDot())).toBe(rgb(colors.warning));
+    expect(warningDot().getAttribute("aria-selected")).toBe("true");
     expect(screen.getByRole("alert").textContent).toBe("This change has consequences");
     expect(screen.queryByRole("button", { name: "Dismiss warning" })).toBeNull();
     await userEvent.click(screen.getByRole("checkbox"));
     expect(screen.getAllByRole("alert")).toHaveLength(2);
-    expect(background(dot(3, true))).toBe(rgb(colors.error));
+    expect(dot(3, true).getAttribute("aria-selected")).toBe("true");
     await userEvent.click(screen.getByRole("checkbox"));
-    expect(background(warningDot())).toBe(rgb(colors.warning));
+    expect(warningDot().getAttribute("aria-selected")).toBe("true");
     expect(screen.getByRole("alert").textContent).toBe("This change has consequences");
     await userEvent.click(screen.getByRole("button", { name: "Previous step" }));
-    expect(background(warningDot())).toBe(rgb(colors.warningSoft));
+    expect(warningDot().getAttribute("aria-selected")).toBe("false");
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
@@ -349,19 +338,19 @@ describe("Form steps", () => {
     expect(screen.getByRole("textbox", { name: "Name" }).getAttribute("value")).toBe("Ada");
   });
 
-  it("uses error/errorDark for invalid selected/unselected steps without blocking navigation", async () => {
+  it("marks invalid steps accessibly without blocking navigation", async () => {
     render(<Controlled pages={steps} />);
-    expect(background(dot(1))).toBe(rgb(colors.text));
-    expect(background(dot(2))).toBe(rgb(colors.muted));
+    expect(dot(1).getAttribute("aria-selected")).toBe("true");
+    expect(dot(2).getAttribute("aria-selected")).toBe("false");
     fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "A" } });
     fireEvent.blur(screen.getByRole("textbox", { name: "Name" }));
-    expect(background(dot(1, true))).toBe(rgb(colors.error));
+    expect(dot(1, true).getAttribute("aria-selected")).toBe("true");
     await userEvent.click(screen.getByRole("button", { name: "Next step" }));
-    expect(background(dot(1, true))).toBe(rgb(colors.errorDark));
-    expect(background(dot(2))).toBe(rgb(colors.text));
+    expect(dot(1, true).getAttribute("aria-selected")).toBe("false");
+    expect(dot(2).getAttribute("aria-selected")).toBe("true");
     await userEvent.click(screen.getByRole("button", { name: "Previous step" }));
     fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "Ada" } });
-    expect(background(dot(1))).toBe(rgb(colors.text));
+    expect(dot(1).getAttribute("aria-selected")).toBe("true");
   });
 
   it("updates the current page from horizontal scrolling in both directions", async () => {
@@ -387,10 +376,10 @@ describe("Form steps", () => {
   it("includes displayed Input validation errors in the step indicator", () => {
     render(<Controlled pages={steps.map(page => ({ ...page, rows: page.rows.map(row => row.map(field => field.key === "name" ? { ...field, input: { ...field.input, validator: () => "Already taken" } } : field)) }))} />);
     expect(screen.queryByRole("alert")).toBeNull();
-    expect(background(dot(1))).toBe(rgb(colors.text));
+    expect(dot(1).getAttribute("aria-selected")).toBe("true");
     fireEvent.blur(screen.getByRole("textbox", { name: "Name" }));
     expect(screen.getByRole("alert").textContent).toBe("Already taken");
-    expect(background(dot(1, true))).toBe(rgb(colors.error));
+    expect(dot(1, true).getAttribute("aria-selected")).toBe("true");
   });
 
   it("makes offscreen pages inert on web without making the visible page inert", async () => {

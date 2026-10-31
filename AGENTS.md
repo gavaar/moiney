@@ -24,7 +24,7 @@ the scripts in `package.json`.
 | Pipe statistics or monthly summaries | `docs/domain/reporting.md` |
 | Feature UI, forms, inputs, modals, or naming | `docs/ui.md` |
 | Input dispatcher or variant changes | `docs/input.md` |
-| Finding a canonical implementation or test seam | `docs/agents/reference-map.md` and `docs/agents/testing.md` |
+| Test design, seam selection, or local verification | `docs/agents/reference-map.md` and `docs/agents/testing.md` |
 | Decision status or finding a domain contract | `docs/domain-decisions.md` |
 
 Load the relevant project skill for Convex, Expo, routing, migrations, auth, or
@@ -36,13 +36,14 @@ performance work. Skills live under `.agents/skills/`.
 - `bun run convex:dev`: backend development; `bun run convex:deploy`: verify then deploy.
 - `bun run test`: Vitest suite; do not use `bun test`.
 - `bun run lint`: ESLint; `bun run typecheck`: TypeScript; `bun run verify`: lint, tests, and type checking.
+- `bun run verify-slim`: change-aware local/AI checks; full `verify` remains the PR and deployment gate.
 
 ## Change Safety
 
 - Keep changes scoped; do not install packages without explicit user approval.
 - For behavior changes, use a failing test before implementation; follow the TDD skill for scope and procedure.
-- Documentation, comments, formatting, and visual-only changes need no Red-Green cycle or source-structure tests; still run relevant existing tests and type checking.
-- Run focused tests first, then the full suite and type check before completion.
+- Documentation, comments, formatting, and visual-only changes need no Red-Green cycle or source-structure tests; use the same change-aware completion checks below.
+- Record the task-start commit before editing. Run focused tests, then `bun run verify-slim --base <task-start-sha>` before local/AI completion; follow `docs/agents/testing.md` for selection, fallbacks, and full verification.
 - Add compatibility paths only for persisted data, shipped behavior, or external consumers, not hypothetical needs.
 - Pending and in-progress decisions are not shipped guarantees; check the relevant guide's status.
 

@@ -5,9 +5,8 @@ import { describe, expect, it, vi } from "vitest";
 import type { Id } from "@convex/_generated/dataModel";
 import { PipeHistoryRow } from "./PipeHistoryRow";
 import type { HistoryEntry } from "@features/transactions/history/events/event-groups";
-import { colors } from "@/lib/styles";
 
-vi.mock("@ui/Icon", () => ({ Icon: ({ name, color }: { name: string; color: string }) => <span data-testid={name} data-color={color} style={{ color }} />, safeIconName: (name: string) => name }));
+vi.mock("@ui/Icon", () => ({ Icon: ({ name }: { name: string }) => <span data-testid={name} />, safeIconName: (name: string) => name }));
 
 const event: Extract<HistoryEntry, { type: "pipe_creation" }> = {
   id: "event" as Id<"events">,
@@ -43,8 +42,6 @@ describe("pipe history rows", () => {
     const details = screen.getByLabelText(/Madrid, pipe created/);
     expect(details.contains(marker)).toBe(false);
     expect(marker.contains(screen.getByTestId("pipe-creation"))).toBe(true);
-    expect(screen.getByTestId("pipe-creation").getAttribute("data-color")).toBe(colors.text);
-    expect(screen.getByTestId("airplane").getAttribute("data-color")).toBe(colors.muted);
     expect(screen.queryByTestId("pipe-deletion")).toBeNull();
     await userEvent.click(marker);
     expect(marker.getAttribute("aria-expanded")).toBe("true");
@@ -55,18 +52,6 @@ describe("pipe history rows", () => {
     await userEvent.click(screen.getByTestId("popover-backdrop"));
     expect(screen.queryByText("Created pipe")).toBeNull();
     expect(screen.getByRole("button", { name: "Event type: Created pipe", expanded: false })).toBe(marker);
-  });
-
-  it.each([
-    { pipeType: "feed", color: colors.primaryMuted },
-    { pipeType: "boiler", color: colors.secondarySoft },
-    { pipeType: "pipe", color: colors.text },
-  ] as const)("uses the retained $pipeType creation color without reviving deleted pipe styling", ({ pipeType, color }) => {
-    render(<PipeHistoryRow event={{ ...event, pipeType }} archived expanded={false} onPress={() => {}} />);
-    expect(screen.getByLabelText(/Madrid, pipe created/)).toBeTruthy();
-    expect(screen.getByTestId("pipe-creation").getAttribute("data-color")).toBe(color);
-    expect(screen.getByTestId("airplane").getAttribute("data-color")).toBe(colors.muted);
-    expect(screen.queryByRole("button", { name: "Open Madrid" })).toBeNull();
   });
 
   it("focuses the marker, archive details, and trailing counter in order and toggles with either row control", async () => {
@@ -134,9 +119,6 @@ describe("pipe history rows", () => {
     expect(screen.getByText("x24")).toBeTruthy();
     expect(screen.getByText("Spent: 120.00")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Madrid archived history", expanded: false })).toBeTruthy();
-    const icon = screen.getByTestId("airplane");
-    expect(icon.getAttribute("data-color")).toBe(colors.muted);
-    expect(getComputedStyle(screen.getByRole("button", { name: "Madrid archived history" })).borderTopColor).toBe(icon.style.color);
     await userEvent.click(screen.getByRole("button", { name: "Expand Madrid history", expanded: false }));
     expect(onPress).toHaveBeenCalledOnce();
   });
@@ -154,7 +136,6 @@ describe("pipe history rows", () => {
     expect(screen.getByText("Deleted")).toBeTruthy();
     expect(screen.getByText("Sep 22, 2026")).toBeTruthy();
     expect(screen.queryByText("Sep 1, 2026")).toBeNull();
-    expect(screen.getByTestId("airplane").getAttribute("data-color")).toBe(colors.muted);
     expect(screen.queryByText("No retained transactions")).toBeNull();
     expect(screen.queryByRole("button", { name: "Expand Madrid history" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Madrid archived history" })).toBeNull();

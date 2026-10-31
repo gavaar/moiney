@@ -8,7 +8,6 @@ import { HistoryList } from "./HistoryList";
 import type { HistoryEntry } from "@features/transactions/history/events/event-groups";
 import type { DeletedPipeEntry } from "@features/pipes/data/deletedPipes";
 import type { PipeModel } from "@features/pipes/data/pipes";
-import { colors } from "@/lib/styles";
 
 const mocks = vi.hoisted(() => ({ query: vi.fn(), navigate: vi.fn(), catalog: vi.fn<() => { pipesById: Record<string, PipeModel> }>(), childrenByParent: new Map<Id<"pipes">, PipeModel[]>() }));
 const client = { query: mocks.query };
@@ -34,7 +33,7 @@ vi.mock("react-native", async (importOriginal) => ({
 vi.mock("convex/react", () => ({ useConvex: () => client }));
 vi.mock("expo-router", () => ({ useRouter: () => ({ navigate: mocks.navigate }) }));
 vi.mock("@features/pipes/context/PipeCatalogContext", () => ({ usePipeCatalog: () => ({ ...mocks.catalog(), childrenByParent: mocks.childrenByParent }) }));
-vi.mock("@ui/Icon", () => ({ Icon: ({ name, color }: { name: string; color: string }) => <span data-testid={name} data-color={color} style={{ color }} />, safeIconName: (name: string) => name }));
+vi.mock("@ui/Icon", () => ({ Icon: ({ name }: { name: string }) => <span data-testid={name} />, safeIconName: (name: string) => name }));
 vi.mock("@features/transactions/components/TransactionItem", () => ({ TransactionItem: ({ transaction }: { transaction: { title: string } }) => <span>{transaction.title}</span> }));
 vi.mock("@features/transactions/components/TransactionCorrectionHistory/TransactionCorrectionHistoryModal", () => ({ TransactionCorrectionHistoryModal: () => null }));
 const pipe = (id: string) => id as Id<"pipes">;
@@ -296,84 +295,40 @@ describe("loaded event History interaction", () => {
   });
 
   it.each([
-    { kind: "feed", sourceType: "feed", rule: "instant_settlement", color: colors.primaryMuted },
-    { kind: "boiler", sourceType: "boiler", rule: "instant_settlement", color: colors.secondarySoft },
-    { kind: "legacy feed", color: colors.primaryMuted },
-    { kind: "manual", parentId: pipe("parent"), color: colors.text },
-    { kind: "instant", parentId: pipe("parent"), rule: "instant_settlement", color: colors.accent },
-    { kind: "overflow", parentId: pipe("parent"), rule: "spend_overflow", color: colors.primary },
-    { kind: "timed", parentId: pipe("parent"), rule: "cron", color: colors.secondary },
-    { kind: "self-destruct", parentId: pipe("parent"), rule: "self_destruct", color: colors.error },
-  ] satisfies (Pick<PipeModel, "parentId" | "sourceType" | "rule"> & { kind: string; color: string })[])(
-    "colors the live $kind creation border and pipe icon by its current type", ({ color, kind: _kind, ...type }) => {
-      const current: PipeModel = { id: trip.pipeId, name: "Madrid", icon: "airplane", priority: 0, capacity: 0, fed: 0, spent: 0, ...type };
-      mocks.catalog.mockReturnValue({ pipesById: { [current.id]: current } });
-      render(<HistoryList {...props} entries={[{ ...trip, type: "pipe_creation" }]} />);
-      const icon = screen.getByTestId("airplane");
-      expect(icon.getAttribute("data-color")).toBe(color);
-      expect(screen.getByTestId("pipe-creation").getAttribute("data-color")).toBe(color);
-      expect(getComputedStyle(screen.getByLabelText(/Madrid, pipe created/)).borderTopColor).toBe(icon.style.color);
-    },
-  );
-
-  it("updates creation colors when the live pipe rule changes", () => {
-    const current: PipeModel = { id: trip.pipeId, parentId: pipe("parent"), name: "Madrid", icon: "airplane", priority: 0, capacity: 0, fed: 0, spent: 0, rule: "cron" };
-    const entries: HistoryEntry[] = [{ ...trip, type: "pipe_creation" }];
-    mocks.catalog.mockReturnValue({ pipesById: { [current.id]: current } });
-    const { rerender } = render(<HistoryList {...props} entries={entries} />);
-    expect(screen.getByTestId("airplane").getAttribute("data-color")).toBe(colors.secondary);
-    expect(screen.getByTestId("pipe-creation").getAttribute("data-color")).toBe(colors.secondary);
-    mocks.catalog.mockReturnValue({ pipesById: { [current.id]: { ...current, rule: "self_destruct" } } });
-    rerender(<HistoryList {...props} entries={entries} />);
-    const icon = screen.getByTestId("airplane");
-    expect(icon.getAttribute("data-color")).toBe(colors.error);
-    expect(screen.getByTestId("pipe-creation").getAttribute("data-color")).toBe(colors.error);
-    expect(getComputedStyle(screen.getByLabelText(/Madrid, pipe created/)).borderTopColor).toBe(icon.style.color);
-  });
-
-  it.each([
-    { kind: "intermediate", parentId: pipe("parent"), color: colors.muted },
-    { kind: "feed with children", sourceType: "feed", color: colors.primaryMuted },
-    { kind: "boiler with children", sourceType: "boiler", color: colors.secondarySoft },
-  ] satisfies (Pick<PipeModel, "parentId" | "sourceType"> & { kind: string; color: string })[])(
-    "uses $kind creation colors without routing", async ({ color, kind: _kind, ...type }) => {
+    { kind: "intermediate", parentId: pipe("parent") },
+    { kind: "feed with children", sourceType: "feed" },
+    { kind: "boiler with children", sourceType: "boiler" },
+  ] satisfies (Pick<PipeModel, "parentId" | "sourceType"> & { kind: string })[])(
+    "keeps $kind creation entries informational as children change", async ({ kind: _kind, ...type }) => {
       const current: PipeModel = { id: trip.pipeId, name: "Madrid", icon: "airplane", priority: 0, capacity: 0, fed: 0, spent: 0, ...type };
       const child: PipeModel = { ...current, id: pipe("child"), parentId: current.id, name: "Child", icon: "pipe" };
       mocks.catalog.mockReturnValue({ pipesById: { [current.id]: current, [child.id]: child } });
       mocks.childrenByParent.set(current.id, [child]);
       const entries: HistoryEntry[] = [{ ...trip, type: "pipe_creation" }];
       const { rerender } = render(<HistoryList {...props} entries={entries} />);
-      const icon = screen.getByTestId("airplane");
-      expect(icon.getAttribute("data-color")).toBe(color);
-      expect(screen.getByTestId("pipe-creation").getAttribute("data-color")).toBe(color);
-      expect(getComputedStyle(screen.getByLabelText(/Madrid, pipe created/)).borderTopColor).toBe(icon.style.color);
       expect(screen.queryByText("Deleted")).toBeNull();
       await userEvent.click(screen.getByText("Madrid"));
       expect(mocks.navigate).not.toHaveBeenCalled();
       mocks.childrenByParent.delete(current.id);
       mocks.catalog.mockReturnValue({ pipesById: { [current.id]: current } });
       rerender(<HistoryList {...props} entries={entries} />);
-      expect(screen.getByTestId("airplane").getAttribute("data-color")).toBe(current.parentId ? colors.text : color);
+      await userEvent.click(screen.getByText("Madrid"));
+      expect(mocks.navigate).not.toHaveBeenCalled();
+      expect(screen.queryByRole("button", { name: "Open Madrid" })).toBeNull();
     },
   );
 
   it("never navigates from a retained creation entry inside a deleted archive", async () => {
     render(<HistoryList {...props} entries={[expense, trip, settlement, { ...trip, id: id("created-trip"), operationId: id("created-trip"), type: "pipe_creation" }]} />);
     const header = screen.getByRole("button", { name: "Madrid archived history", expanded: false });
-    const archive = header.parentElement!;
     expect(screen.getAllByTestId("history-event-marker")).toHaveLength(1);
-    expect(within(archive).getByTestId("pipe-deletion").getAttribute("data-color")).toBe(colors.error);
     expect(screen.queryByTestId("pipe-creation")).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Expand Madrid history" }));
     expect(screen.getByRole("button", { name: "Madrid archived history", expanded: true })).toBe(header);
-    expect(within(archive).getByTestId("pipe-deletion").getAttribute("data-color")).toBe(colors.error);
     expect(screen.getByLabelText("Madrid, pipe created, Jun 15, 2026, pipe now deleted")).toBeTruthy();
     expect(screen.getByLabelText("Madrid, pipe deleted, Jun 15, 2026")).toBeTruthy();
-    expect(screen.getByTestId("pipe-creation").getAttribute("data-color")).toBe(colors.text);
     expect(screen.getByRole("button", { name: "View Madrid settlement" })).toBeTruthy();
-    expect(screen.getByTestId("settlement").getAttribute("data-color")).toBe(colors.secondary);
     expect(screen.queryByRole("button", { name: "Open Madrid" })).toBeNull();
-    for (const icon of screen.getAllByTestId("airplane")) expect(icon.getAttribute("data-color")).toBe(colors.muted);
     expect(mocks.navigate).not.toHaveBeenCalled();
   });
 

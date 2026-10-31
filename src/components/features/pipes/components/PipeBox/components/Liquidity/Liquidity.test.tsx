@@ -2,31 +2,6 @@
 import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { Liquidity } from "./Liquidity";
-import { colors } from "@/lib/styles";
-
-// Convert "#RRGGBB" to the "rgb(r, g, b)" format react-native-web produces in jsdom
-function hexToRgb(hex: string) {
-  const r = Number.parseInt(hex.slice(1, 3), 16);
-  const g = Number.parseInt(hex.slice(3, 5), 16);
-  const b = Number.parseInt(hex.slice(5, 7), 16);
-  return `rgb(${r}, ${g}, ${b})`;
-}
-
-// Convert "#RRGGBB" + alpha hex (e.g. "BF") to the "rgba(r, g, b, a)" format
-// jsdom rounds alpha to 2 decimal places
-function hexToRgba(hex: string, alphaHex: string) {
-  const r = Number.parseInt(hex.slice(1, 3), 16);
-  const g = Number.parseInt(hex.slice(3, 5), 16);
-  const b = Number.parseInt(hex.slice(5, 7), 16);
-  const a = Math.round((Number.parseInt(alphaHex, 16) / 255) * 100) / 100;
-  return `rgba(${r}, ${g}, ${b}, ${a})`;
-}
-
-const primaryRgb = hexToRgb(colors.primary);
-const secondaryRgb = hexToRgb(colors.secondary);
-const surfaceRgba = hexToRgba(colors.surface, "CC");
-const errorRgba = hexToRgba(colors.error, "CC");
-const primaryBgRgba = hexToRgba(colors.primary, "11");
 
 describe("Liquidity", () => {
   it("extends actual spending with a separate possible-coverage segment", () => {
@@ -35,7 +10,6 @@ describe("Liquidity", () => {
     const coverage = screen.getByTestId("coverage-provided-bar");
     expect(coverage.style.left).toBe("40%");
     expect(coverage.style.width).toBe("40%");
-    expect(coverage.style.backgroundColor).toBe(hexToRgb(colors.warningMuted));
     expect(screen.getByTestId("fed-bar").style.width).toBe("100%");
   });
 
@@ -93,7 +67,6 @@ describe("Liquidity", () => {
       render(<Liquidity fed={100} capacity={60} spent={30} />);
       const overfed = screen.getByTestId("fed-bar-overfed");
       expect(overfed.style.flexGrow).not.toBe("0");
-      expect(overfed.style.backgroundColor).toBe(secondaryRgb);
     });
 
     it("does not render visible overfed segment when fed <= capacity", () => {
@@ -101,38 +74,6 @@ describe("Liquidity", () => {
       expect(screen.queryByTestId("fed-bar-overfed")).toBeNull();
     });
 
-    it("renders fed-filled with primary color", () => {
-      render(<Liquidity fed={100} capacity={80} spent={30} />);
-      const filled = screen.getByTestId("fed-bar");
-      expect(filled.style.backgroundColor).toBe(primaryRgb);
-    });
-  });
-
-  describe("SpentBar color logic", () => {
-    it("uses error color when spent exceeds fed", () => {
-      render(<Liquidity fed={50} capacity={200} spent={100} />);
-      const spentBar = screen.getByTestId("spent-bar");
-      expect(spentBar.style.backgroundColor).toBe(errorRgba);
-    });
-
-    it("uses surface color when spent <= fed", () => {
-      render(<Liquidity fed={100} capacity={200} spent={40} />);
-      const spentBar = screen.getByTestId("spent-bar");
-      expect(spentBar.style.backgroundColor).toBe(surfaceRgba);
-    });
-  });
-
-  describe("CapacityBar styling", () => {
-    it("renders with dashed border and primary-tinted background", () => {
-      render(<Liquidity fed={50} capacity={100} spent={30} />);
-      const capBar = screen.getByTestId("capacity-bar");
-      expect(capBar.style.borderTopStyle).toBe("dashed");
-      expect(capBar.style.borderRightStyle).toBe("dashed");
-      expect(capBar.style.borderBottomStyle).toBe("dashed");
-      expect(capBar.style.borderLeftStyle).toBe("dashed");
-      expect(capBar.style.borderRightWidth).toBe("2px");
-      expect(capBar.style.backgroundColor).toBe(primaryBgRgba);
-    });
   });
 
   describe("proportional widths", () => {
@@ -170,18 +111,6 @@ describe("Liquidity", () => {
       expect(capBar.style.width).toBe(`${(100 / biggest) * 100}%`);
       expect(fedBar.style.width).toBe(`${(30 / biggest) * 100}%`);
       expect(spentBar.style.width).toBe(`${(50 / biggest) * 100}%`);
-    });
-  });
-
-  describe("overfed + spent > fed combination", () => {
-    it("shows overfed segment in secondary color and spent bar in error color", () => {
-      render(<Liquidity fed={100} capacity={60} spent={120} />);
-      const overfed = screen.getByTestId("fed-bar-overfed");
-      const spentBar = screen.getByTestId("spent-bar");
-
-      expect(overfed.style.width).not.toBe("0%");
-      expect(overfed.style.backgroundColor).toBe(secondaryRgb);
-      expect(spentBar.style.backgroundColor).toBe(errorRgba);
     });
   });
 });

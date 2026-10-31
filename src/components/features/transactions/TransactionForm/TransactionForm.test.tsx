@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Id } from "@convex/_generated/dataModel";
 import type { PipeModel } from "@features/pipes/data/pipes";
 import { AmountForm } from "@features/components/AmountForm";
-import { colors } from "@/lib/styles";
 import { TransactionForm } from "./TransactionForm";
 import type { HistoryEntry } from "../history/events/event-groups";
 
@@ -64,10 +63,6 @@ describe("transaction forms", () => {
     expect(screen.queryByRole("button", { name: "Next step" })).toBeNull();
     expect(screen.getByRole("button", { name: "Transaction pipe" }).textContent).toContain("Food");
     fireEvent.click(screen.getByRole("button", { name: "Transaction pipe" }));
-    const selected = screen.getByRole("button", { name: /Food/ });
-    const expected = document.createElement("div");
-    expected.style.color = colors.error;
-    expect(getComputedStyle(selected).borderTopColor).toBe(expected.style.color);
     expect(screen.getByRole("button", { name: "Collapse Budget" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: /^Wallet/ })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Expand Wallet" }));

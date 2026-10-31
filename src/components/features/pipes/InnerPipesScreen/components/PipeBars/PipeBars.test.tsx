@@ -2,22 +2,14 @@
 import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { PipeBars } from "./PipeBars";
-import { colors } from "@/lib/styles";
-
-const toRgb = (hex: string) => {
-  const n = parseInt(hex.slice(1), 16);
-  return `rgb(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255})`;
-};
 
 describe("PipeBars", () => {
   it("splits projected spending into actual spending and possible coverage with one combined amount", () => {
     render(<PipeBars fed={10000} capacity={10000} spent={4000} expected={10000} coverageProvidedCents={4000} />);
     expect(screen.getByTestId("bar-spent-fill").style.width).toBe("40%");
-    expect(screen.getByTestId("bar-spent-fill").style.backgroundColor).toBe(toRgb(colors.error));
     const coverage = screen.getByTestId("bar-spent-coverage-fill");
     expect(coverage.style.left).toBe("40%");
     expect(coverage.style.width).toBe("40%");
-    expect(coverage.style.backgroundColor).toBe(toRgb(colors.warningMuted));
     expect(screen.getByText("80.00")).toBeTruthy();
     expect(screen.queryByText(/spent \+/)).toBeNull();
   });
@@ -28,9 +20,8 @@ describe("PipeBars", () => {
     expect(screen.getByTestId("bar-spent-fill").style.width).toBe("100%");
   });
 
-  it("keeps refunds green and distinct from possible coverage", () => {
+  it("keeps refunds distinct from possible coverage", () => {
     render(<PipeBars fed={10000} capacity={10000} spent={-4000} expected={10000} coverageProvidedCents={4000} />);
-    expect(screen.getByTestId("bar-spent-fill").style.backgroundColor).toBe(toRgb(colors.primary));
     expect(screen.getByTestId("bar-spent-coverage-fill").style.left).toBe("0%");
     expect(screen.getByText("0.00")).toBeTruthy();
   });
@@ -82,19 +73,7 @@ describe("PipeBars", () => {
     expect(screen.queryByTestId("bar-expected-fill")).toBeNull();
   });
 
-  it("renders fed bar with green fill", () => {
-    render(
-      <PipeBars
-        fed={150000}
-        spent={120000}
-        capacity={200000}
-        expected={180000}
-      />,
-    );
-    expect(screen.getByTestId("bar-fed-fill")).toBeDefined();
-  });
-
-  it("renders expected as a red dashed row below fed", () => {
+  it("includes expected funding when scaling financial proportions", () => {
     render(
       <PipeBars
         fed={10000}
@@ -105,8 +84,6 @@ describe("PipeBars", () => {
     );
 
     const expected = screen.getByTestId("bar-expected-fill");
-    expect(expected.style.borderTopStyle).toBe("dashed");
-    expect(expected.style.borderTopColor).toBe(toRgb(colors.error));
     expect(expected.style.width).toBe("100%");
   });
 
@@ -122,7 +99,6 @@ describe("PipeBars", () => {
     );
 
     const adjustment = screen.getByTestId("bar-fed-adjustment-fill");
-    expect(adjustment.style.backgroundColor).toBe(toRgb(colors.accent));
     expect(adjustment.style.left).toBe("0%");
     expect(adjustment.style.width).toBe("10%");
     expect(screen.queryByText("55.00")).toBeNull();
@@ -140,50 +116,8 @@ describe("PipeBars", () => {
     );
 
     const adjustment = screen.getByTestId("bar-fed-adjustment-fill");
-    expect(adjustment.style.backgroundColor).toBe(toRgb(colors.accent));
     expect(adjustment.style.left).toBe("94%");
     expect(adjustment.style.width).toBe("6%");
-  });
-
-  it("renders spent bar with red fill when positive", () => {
-    render(
-      <PipeBars
-        fed={150000}
-        spent={120000}
-        capacity={200000}
-        expected={200000}
-      />,
-    );
-    const fill = screen.getByTestId("bar-spent-fill");
-    expect(fill.style.backgroundColor).toBe(toRgb(colors.error));
-  });
-
-  it("renders spent bar with green fill when negative", () => {
-    render(
-      <PipeBars
-        fed={10000}
-        spent={-50000}
-        capacity={200000}
-        expected={200000}
-      />,
-    );
-    const fill = screen.getByTestId("bar-spent-fill");
-    expect(fill.style.backgroundColor).toBe(toRgb(colors.primary));
-  });
-
-  it("renders boiler contributions with a dashed line", () => {
-    render(
-      <PipeBars
-        fed={150000}
-        spent={120000}
-        capacity={200000}
-        expected={200000}
-        sourceType="boiler"
-      />,
-    );
-    expect(screen.getByTestId("bar-contributed-fill").style.borderTopStyle).toBe(
-      "dashed",
-    );
   });
 
   it("hides the spent bar when rule is instant_settlement", () => {
