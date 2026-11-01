@@ -6,6 +6,7 @@ import {
 } from "react-native";
 import { cn, colors } from "@/lib/styles";
 import { Icon } from "@ui/Icon";
+import { INPUT_CONTENT_TEXT } from "../../input.config";
 import type { InputInteraction, InputValueProps } from "../../input.types";
 
 export type TextInputProps = InputValueProps<string> & Omit<NativeTextInputProps, "value" | "defaultValue" | "onChange" | "onChangeText"> & {
@@ -44,7 +45,7 @@ export function TextInput({
         }}
         accessibilityLabel={inputLabel}
         accessibilityState={{ disabled }}
-        className={cn("min-w-0 flex-1 p-0 text-base text-text", className)}
+        className={cn("min-w-0 flex-1 p-0 text-text", INPUT_CONTENT_TEXT, className)}
         placeholderTextColor={colors.muted}
         editable={disabled ? false : editable}
         onFocus={(event) => {

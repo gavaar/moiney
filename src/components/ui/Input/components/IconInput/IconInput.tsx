@@ -9,6 +9,7 @@ import {
 import { cn, colors } from "@/lib/styles";
 import { Icon, CURATED_ICONS, type IconName } from "@ui/Icon";
 import { ModalShell } from "@ui/Modal";
+import { INPUT_CONTENT_ICON_SIZE, INPUT_CONTENT_LINE_BOX, INPUT_CONTENT_TEXT } from "../../input.config";
 import type { InputInteraction, InputTriggerProps, InputValueProps } from "../../input.types";
 
 export type IconInputProps = InputValueProps<IconName | "", IconName>;
@@ -41,11 +42,13 @@ export function IconInput({ accessibilityLabel, value, onChange, disabled, onFoc
         disabled={disabled}
         className={cn(triggerClassName, "flex-row items-center gap-2 justify-center")}
       >
-        {value ? (
-          <Icon name={value} size={16} color={colors.text} />
-        ) : (
-          <Text className="text-base text-muted">---</Text>
-        )}
+        <View className={cn(INPUT_CONTENT_LINE_BOX, "items-center justify-center")}>
+          {value ? (
+            <Icon name={value} size={INPUT_CONTENT_ICON_SIZE} color={colors.text} />
+          ) : (
+            <Text className={cn(INPUT_CONTENT_TEXT, "text-muted")}>---</Text>
+          )}
+        </View>
       </Pressable>
 
       <ModalShell

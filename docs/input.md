@@ -68,6 +68,12 @@ Inner controls retain their own selection styling. Checkbox's optional
 independently of the top label. Toggle selection stays on its two segments.
 Accessory buttons remain independent.
 
+Icon-picker triggers and text-like interiors share padding, typography, line-box,
+and icon sizing from `input.config.ts`. Empty and selected icon triggers retain
+the text control's line box for both font and SVG icons; callers do not set
+control heights. This aligns control surfaces, not field widths: Form growth
+ratios and the natural height of labels, supporting text, and errors stay independent.
+
 Toggle inputs take two icon options with optional labels: the first represents
 `false`, the second `true`. The selected label, when supplied, appears beside the toggle.
 Each option may supply `selectedBackgroundClassName`; otherwise the selected

@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { Text, TextInput as RNTextInput, View, type TextInputInstance, type ViewInstance } from "react-native";
-import { colors } from "@/lib/styles";
+import { cn, colors } from "@/lib/styles";
+import { INPUT_CONTENT_TEXT } from "../../input.config";
 import { AnchoredOptionList, OptionRow } from "@ui/OptionList";
 import type { InputInteraction, InputValueProps } from "../../input.types";
 
@@ -41,7 +42,7 @@ export function TextSelectInput({
     <View ref={anchorRef} collapsable={false}>
       <RNTextInput
         ref={inputRef}
-        className="w-full p-0 text-base text-text"
+        className={cn("w-full p-0 text-text", INPUT_CONTENT_TEXT)}
         placeholderTextColor={colors.muted}
         accessibilityLabel={accessibilityLabel}
         accessibilityState={{ disabled }}
