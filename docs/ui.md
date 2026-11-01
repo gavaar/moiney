@@ -45,6 +45,10 @@ decisions.
   validation error alone does not make a draft dirty. Modal content has
   no control whose sole purpose is dismissing the modal; domain actions and inline
   warning dismissal remain allowed.
+- Stacked modals must agree on paint, pointer-input, and focus/Escape order. A
+  confirmation above an editor blocks interaction with the editor; cancelling
+  returns focus without resetting its active or hidden drafts. On web, hidden
+  shells do not retain portals that could later paint below a newer modal.
 - `ModalShell` bottom-anchors content 20% above the viewport bottom and permits
   upward growth no farther than 10% from the top. Safe-area bounds and a 24px
   keyboard gap can further constrain this region. Content hugs its height;

@@ -1,6 +1,7 @@
 import { useRef, type ReactNode, type RefObject } from "react";
 import {
   Modal as RNModal,
+  Platform,
   Pressable,
   View,
   type ViewInstance,
@@ -61,6 +62,10 @@ export function ModalShell({ visible, onClose, children, bottomAccessory, width 
   function requestClose() {
     if (!backHandlerRef.current?.()) onClose();
   }
+
+  // Web mounts RNModal portals automatically so creating them in order is important.
+  // Mobile gets animations and stuff from having the RNModal pre-mounted
+  if (Platform.OS === "web" && !visible) return null;
   return (
     <RNModal
       transparent
