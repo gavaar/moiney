@@ -15,6 +15,23 @@ decisions.
   Add a feature-owned hook or adapter only when it hides normalization,
   orchestration, or reusable policy.
 
+## Adaptive Content Sizing
+
+- `tailwind.config.js` owns the shared layout tokens. Compact is the default;
+  `expanded` starts at 1024 logical pixels of available window width on web and
+  native, independently of device type or pixel density.
+- `max-w-screen-content` caps authenticated content at 64rem on web and 1024
+  logical units on native. The authenticated layout centers and constrains the
+  navigator, so tab screens, Settings, and report details share the same bound.
+  This cap covers content, excluding sidebar and reserved action space.
+- Login and signup share `AuthScreenLayout` and `max-w-auth-content`: 28rem on
+  web, 448 logical units on native. Native equivalents deliberately use 16
+  logical units per web rem rather than NativeWind's native rem default.
+- Width constraints shrink with the available window declaratively; do not key
+  or replace navigators, providers, or feature trees on resize. Screens retain
+  safe-area and scroll ownership, including virtualized feeds. Modal width is
+  independently owned by `ModalShell`.
+
 ## Shared Primitives
 
 - Application code uses `src/components/ui/Input/Input.tsx`, not its variant

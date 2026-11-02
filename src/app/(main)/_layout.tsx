@@ -20,10 +20,12 @@ export default function MainLayout() {
 
   return (
     <MonthlyCardPreferenceProvider>
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#111111" } }}>
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="settings" />
-      </Stack>
+      <View className="flex-1 min-w-0 w-full max-w-screen-content self-center bg-background">
+        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#111111" } }}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="settings" />
+        </Stack>
+      </View>
     </MonthlyCardPreferenceProvider>
   );
 }
