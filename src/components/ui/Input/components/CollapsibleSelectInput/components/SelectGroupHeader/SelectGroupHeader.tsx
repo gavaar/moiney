@@ -10,7 +10,7 @@ export function SelectGroupHeader({ title, info }: { title: string; info?: strin
 
   return <View className="gap-2 p-1">
     <View className="flex-row items-center justify-between gap-2">
-      <Text className="text-muted font-semibold">{title}</Text>
+      <Text className="min-w-0 flex-1 text-muted font-semibold">{title}</Text>
       {info ? <>
         <View ref={anchorRef} collapsable={false}>
           <Pressable accessibilityRole="button" accessibilityLabel={`About ${title}`}

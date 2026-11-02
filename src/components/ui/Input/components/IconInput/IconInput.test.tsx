@@ -4,10 +4,21 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Input, type InputProps } from "../../Input";
 import { useState, type ComponentProps } from "react";
+import { CURATED_ICONS } from "@ui/Icon";
 
 const IconInput = (props: Omit<Extract<InputProps, { type: "icon" }>, "type">) => <Input type="icon" {...props} />;
 
 describe("IconInput", () => {
+  it("virtualizes the unfiltered grid and can select its final icon through search", async () => {
+    const onChange = vi.fn();
+    render(<IconInput label="Icon" value="" onChange={onChange} />);
+    await userEvent.click(screen.getByRole("button", { name: "Icon" }));
+    expect(screen.getAllByRole("radio").length).toBeLessThan(CURATED_ICONS.length);
+    const last = CURATED_ICONS.at(-1)!;
+    await userEvent.type(screen.getByRole("textbox", { name: "Search icons" }), last.name);
+    await userEvent.click(screen.getByRole("radio", { name: last.name }));
+    expect(onChange).toHaveBeenCalledExactlyOnceWith(last.name);
+  });
   it("shows placeholder when no icon selected", () => {
     render(<IconInput label="Icon" value="" onChange={() => {}} />);
     expect(screen.getByText("---")).toBeTruthy();
@@ -17,6 +28,7 @@ describe("IconInput", () => {
     render(<IconInput label="Icon" value="wallet-outline" onChange={() => {}} />);
     expect(screen.queryByText("wallet-outline")).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Icon" }));
+    await userEvent.type(screen.getByRole("textbox", { name: "Search icons" }), "wallet-outline");
     expect(screen.getByText("wallet-outline")).toBeTruthy();
   });
 
@@ -36,14 +48,16 @@ describe("IconInput", () => {
     await userEvent.click(screen.getByRole("button", { name: "Icon" }));
     expect(screen.getByRole("textbox", { name: "Search icons" })).toBeTruthy();
     expect(screen.getByRole("radiogroup", { name: "Icons" })).toBeTruthy();
-    expect(screen.getByRole("radio", { name: "wallet-outline", checked: true })).toBeTruthy();
     expect(screen.getByRole("radio", { name: "cash-outline", checked: false })).toBeTruthy();
+    await userEvent.type(screen.getByRole("textbox", { name: "Search icons" }), "wallet-outline");
+    expect(screen.getByRole("radio", { name: "wallet-outline", checked: true })).toBeTruthy();
   });
 
   it("selects icon and calls onChange", async () => {
     const onChange = vi.fn();
     render(<IconInput label="Icon" value="" onChange={onChange} />);
     await userEvent.click(screen.getByTestId("icon-picker-trigger"));
+    await userEvent.type(screen.getByRole("textbox", { name: "Search icons" }), "wallet-outline");
     const iconOption = screen.getByText("wallet-outline");
     await userEvent.click(iconOption);
     expect(onChange).toHaveBeenCalledWith("wallet-outline");
@@ -72,6 +86,7 @@ describe("IconInput", () => {
     expect(screen.getByRole("button", { name: "Icon" }).getAttribute("aria-expanded")).toBe("false");
 
     await userEvent.click(screen.getByRole("button", { name: "Icon" }));
+    await userEvent.type(screen.getByRole("textbox", { name: "Search icons" }), name);
     expect(screen.getByRole("radio", { name, checked: true })).toBeTruthy();
   });
 
@@ -84,6 +99,7 @@ describe("IconInput", () => {
     expect(screen.queryByRole("alert")).toBeNull();
     await userEvent.click(screen.getByTestId("icon-picker-trigger"));
     expect(screen.queryByRole("alert")).toBeNull();
+    await userEvent.type(screen.getByRole("textbox", { name: "Search icons" }), "wallet-outline");
     await userEvent.click(screen.getByText("wallet-outline"));
     expect(screen.getByText("Pick one")).toBeTruthy();
   });

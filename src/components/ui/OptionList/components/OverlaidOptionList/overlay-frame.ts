@@ -8,9 +8,11 @@ export function overlayFrame({ anchor, viewport, bounds, keyboardTop, contentHei
     keyboardTop === undefined ? Infinity : keyboardTop - 24);
   const maxHeight = Math.max(0, bottom - topEdge);
   const desiredHeight = Math.min(contentHeight || maxHeight, maxHeight);
-  const width = Math.min(anchor.width, Math.max(0, bounds.width - 32), Math.max(0, viewport.width - 32));
+  const leftEdge = Math.max(viewport.x, bounds.x) + 16;
+  const rightEdge = Math.min(viewport.x + viewport.width, bounds.x + bounds.width) - 16;
+  const width = Math.min(anchor.width, Math.max(0, rightEdge - leftEdge));
   return {
-    left: Math.max(16, Math.min(anchor.x - viewport.x, viewport.width - width - 16)),
+    left: Math.max(leftEdge, Math.min(anchor.x, rightEdge - width)) - viewport.x,
     top: Math.max(0, Math.max(topEdge, Math.min(anchor.y, bottom - desiredHeight)) - viewport.y),
     width,
     maxHeight,

@@ -1,7 +1,6 @@
 import { useState } from "react";
 import {
   Pressable,
-  ScrollView,
   Text,
   TextInput,
   View,
@@ -9,6 +8,7 @@ import {
 import { cn, colors } from "@/lib/styles";
 import { Icon, CURATED_ICONS, type IconName } from "@ui/Icon";
 import { ModalShell } from "@ui/Modal";
+import { OptionList } from "@ui/OptionList";
 import { choiceKeyboardProps, editorKeyboardProps } from "@ui/keyboard/choiceKeyboard";
 import { INPUT_CONTENT_ICON_SIZE, INPUT_CONTENT_LINE_BOX, INPUT_CONTENT_TEXT, INPUT_EDITOR_FOCUS } from "../../input.config";
 import type { InputInteraction, InputTriggerProps, InputValueProps } from "../../input.types";
@@ -66,50 +66,53 @@ export function IconInput({ accessibilityLabel, value, onChange, disabled, onFoc
             className={cn("px-3 py-2 text-text", INPUT_CONTENT_TEXT, INPUT_EDITOR_FOCUS)}
           />
         </View>
-        {filtered.length === 0 ? (
-          <Text className="text-center text-sm text-muted mt-4">
+        <OptionList
+          accessibilityRole="radiogroup"
+          accessibilityLabel="Icons"
+          numColumns={4}
+          data={filtered}
+          keyExtractor={icon => icon.name}
+          extraData={{ value, disabled, onChange }}
+          ListEmptyComponent={<Text className="text-center text-sm text-muted mt-4">
             No icons found
-          </Text>
-        ) : (
-          <ScrollView accessibilityRole="radiogroup" accessibilityLabel="Icons" contentContainerStyle={{ flexDirection: "row", flexWrap: "wrap" }}>
-            {filtered.map((icon) => {
-              const selected = value === icon.name;
-              return (
-                <View key={icon.name} className="w-1/4 p-1 items-center">
-                  <Pressable
-                    {...choiceKeyboardProps}
-                    accessibilityRole="radio"
-                    accessibilityLabel={icon.name}
-                    accessibilityState={{ checked: selected, disabled: disabled || !onChange }}
-                    aria-checked={selected}
-                    disabled={disabled || !onChange}
-                    onPress={() => {
-                      if (disabled || !onChange) return;
-                      onInteractionEnd();
-                      onChange(icon.name);
-                      setOpen(false);
-                      onFocusChange(false);
-                      setSearch("");
-                    }}
-                    className={cn("items-center py-2 px-1 rounded-lg", selected && "bg-primary/10")}
+          </Text>}
+          renderItem={({ item: icon }) => {
+            const selected = value === icon.name;
+            return (
+              <View className="w-1/4 p-1 items-center">
+                <Pressable
+                  {...choiceKeyboardProps}
+                  accessibilityRole="radio"
+                  accessibilityLabel={icon.name}
+                  accessibilityState={{ checked: selected, disabled: disabled || !onChange }}
+                  aria-checked={selected}
+                  disabled={disabled || !onChange}
+                  onPress={() => {
+                    if (disabled || !onChange) return;
+                    onInteractionEnd();
+                    onChange(icon.name);
+                    setOpen(false);
+                    onFocusChange(false);
+                    setSearch("");
+                  }}
+                  className={cn("w-full items-center py-2 px-1 rounded-lg", selected && "bg-primary/10")}
+                >
+                  <Icon
+                    name={icon.name}
+                    size={24}
+                    color={selected ? colors.primary : colors.text}
+                  />
+                  <Text
+                    className="text-[10px] text-muted text-center mt-1"
+                    numberOfLines={1}
                   >
-                    <Icon
-                      name={icon.name}
-                      size={24}
-                      color={selected ? colors.primary : colors.text}
-                    />
-                    <Text
-                      className="text-[10px] text-muted text-center mt-1"
-                      numberOfLines={1}
-                    >
-                      {icon.name}
-                    </Text>
-                  </Pressable>
-                </View>
-              );
-            })}
-          </ScrollView>
-        )}
+                    {icon.name}
+                  </Text>
+                </Pressable>
+              </View>
+            );
+          }}
+        />
       </ModalShell>
     </>
   );

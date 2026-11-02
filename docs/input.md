@@ -37,9 +37,11 @@ props, not subtracted from the public interface. Text inputs do not expose
 | `toggle` | `ToggleInput/` |
 
 Text-select suggestions use the shared [anchored option list](ui.md#shared-primitives),
-outside the form's scrolling area. Typing
-keeps input focus, and a suggestion commits with one tap without first dismissing
-the keyboard.
+outside the form's scrolling area but within the host's available modal/viewport
+region. Floating choices track their anchor through ancestor scrolling and reflow;
+browser visual-viewport changes also constrain them around an on-screen keyboard.
+Typing keeps input focus, and a suggestion commits with one tap without first
+dismissing the keyboard.
 
 Every type accepts an optional top `label` and optional `accessibilityLabel`.
 Omitted or empty labels render no visible label; the control's accessible name
@@ -73,6 +75,8 @@ and icon sizing from `input.config.ts`. Empty and selected icon triggers retain
 the text control's line box for both font and SVG icons; callers do not set
 control heights. This aligns control surfaces, not field widths: Form growth
 ratios and the natural height of labels, supporting text, and errors stay independent.
+The icon picker uses a bounded, virtualized grid with independently reachable
+search; icon names truncate within their cells rather than widening the grid.
 
 On web, shared text editors (including icon search) replace only their inner
 browser outline with one visible treatment on the containing control surface,

@@ -17,4 +17,14 @@ describe("overlaid option list placement", () => {
     expect(frame.maxHeight).toBe(0);
     expect(frame.top).toBeGreaterThanOrEqual(0);
   });
+  it("clamps horizontal placement to inset host bounds, not just the viewport", () => {
+    const frame = overlayFrame({
+      anchor: { x: 10, y: 300, width: 320, height: 50 },
+      viewport,
+      bounds: { x: 100, y: 200, width: 200, height: 400 },
+      contentHeight: 100,
+    });
+    expect(frame.left).toBeGreaterThanOrEqual(116);
+    expect(frame.left + frame.width).toBeLessThanOrEqual(284);
+  });
 });
