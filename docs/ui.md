@@ -17,13 +17,15 @@ decisions.
 
 ## Adaptive Content Sizing
 
-- `tailwind.config.js` owns the shared layout tokens. Compact is the default;
+- `tailwind.config.js` owns the shared sizing tokens; its breakpoint and
+  `useLayoutMode` share `src/lib/styles/layout.js`. Compact is the default;
   `expanded` starts at 1024 logical pixels of available window width on web and
   native, independently of device type or pixel density.
 - `max-w-screen-content` caps authenticated content at 64rem on web and 1024
-  logical units on native. The authenticated layout centers and constrains the
-  navigator, so tab screens, Settings, and report details share the same bound.
-  This cap covers content, excluding sidebar and reserved action space.
+  logical units on native. `AuthenticatedShell` centers the composition and
+  constrains its content navigator, so tab screens, Settings, and report details
+  share the same bound.
+  This cap covers content, excluding the sidebar.
 - Login and signup share `AuthScreenLayout` and `max-w-auth-content`: 28rem on
   web, 448 logical units on native. Native equivalents deliberately use 16
   logical units per web rem rather than NativeWind's native rem default.
@@ -31,6 +33,20 @@ decisions.
   or replace navigators, providers, or feature trees on resize. Screens retain
   safe-area and scroll ownership, including virtualized feeds. Modal width is
   independently owned by `ModalShell`.
+
+## Adaptive Navigation
+
+- `AuthenticatedShell` surrounds the authenticated stack, including Settings and
+  report details. Expanded layout has an icon-and-label sidebar with navigation
+  at the top and the Add action at the bottom; compact layout keeps the bottom tabs.
+  `src/components/features/app/navigation.ts` owns the shared destinations. Add
+  opens creation rather than navigating to a destination.
+- Keep the stack, tabs, screen providers, and `CreationFlowProvider` mounted
+  across layout changes. Only chrome changes presentation; creation mode, form
+  pages, active and hidden drafts, and subscriptions retain their existing owner.
+  Settings and report routes continue to own their Back actions.
+- Navigation exposes the current destination and visible keyboard focus. The
+  sidebar scrolls independently in short windows without wrapping screen feeds.
 
 ## Shared Primitives
 

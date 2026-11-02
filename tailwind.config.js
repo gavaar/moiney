@@ -1,4 +1,5 @@
 const colors = require("./src/lib/styles/colors");
+const { expandedWidth } = require("./src/lib/styles/layout");
 
 // Resolve at build time so browser CSS gets plain units, not native runtime functions.
 const isWeb = process.env.NATIVEWIND_OS === undefined || process.env.NATIVEWIND_OS === "web";
@@ -16,11 +17,12 @@ module.exports = {
     extend: {
       colors,
       screens: {
-        expanded: "1024px",
+        expanded: `${expandedWidth}px`,
       },
       maxWidth: {
         // Match web's default 16px rem deliberately, not NativeWind's native rem.
         "screen-content": isWeb ? "64rem" : "1024px",
+        "app-shell": isWeb ? "76rem" : "1216px",
         "auth-content": isWeb ? "28rem" : "448px",
       },
     },

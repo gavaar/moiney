@@ -4,6 +4,7 @@ import { useAuth } from "@/lib/auth";
 import { useEffect } from "react";
 import { View } from "react-native";
 import { MonthlyCardPreferenceProvider } from "@features/statistics/preferences/MonthlyCardPreference";
+import { AuthenticatedShell } from "@features/app/AuthenticatedShell/AuthenticatedShell";
 
 export default function MainLayout() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -20,12 +21,12 @@ export default function MainLayout() {
 
   return (
     <MonthlyCardPreferenceProvider>
-      <View className="flex-1 min-w-0 w-full max-w-screen-content self-center bg-background">
+      <AuthenticatedShell>
         <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#111111" } }}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="settings" />
         </Stack>
-      </View>
+      </AuthenticatedShell>
     </MonthlyCardPreferenceProvider>
   );
 }
