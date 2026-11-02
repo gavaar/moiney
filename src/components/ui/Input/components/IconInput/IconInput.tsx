@@ -9,7 +9,8 @@ import {
 import { cn, colors } from "@/lib/styles";
 import { Icon, CURATED_ICONS, type IconName } from "@ui/Icon";
 import { ModalShell } from "@ui/Modal";
-import { INPUT_CONTENT_ICON_SIZE, INPUT_CONTENT_LINE_BOX, INPUT_CONTENT_TEXT } from "../../input.config";
+import { choiceKeyboardProps, editorKeyboardProps } from "@ui/keyboard/choiceKeyboard";
+import { INPUT_CONTENT_ICON_SIZE, INPUT_CONTENT_LINE_BOX, INPUT_CONTENT_TEXT, INPUT_EDITOR_FOCUS } from "../../input.config";
 import type { InputInteraction, InputTriggerProps, InputValueProps } from "../../input.types";
 
 export type IconInputProps = InputValueProps<IconName | "", IconName>;
@@ -55,14 +56,16 @@ export function IconInput({ accessibilityLabel, value, onChange, disabled, onFoc
         visible={open}
         onClose={() => { setOpen(false); onFocusChange(false); }}
       >
-        <TextInput
-          accessibilityLabel="Search icons"
-          placeholder="Search icons..."
-          placeholderTextColor={colors.muted}
-          value={search}
-          onChangeText={setSearch}
-          className="rounded-lg border border-border bg-surface px-3 py-2 text-base text-text mb-3"
-        />
+        <View {...editorKeyboardProps} className="input-surface rounded-lg border border-border bg-surface mb-3">
+          <TextInput
+            accessibilityLabel="Search icons"
+            placeholder="Search icons..."
+            placeholderTextColor={colors.muted}
+            value={search}
+            onChangeText={setSearch}
+            className={cn("px-3 py-2 text-text", INPUT_CONTENT_TEXT, INPUT_EDITOR_FOCUS)}
+          />
+        </View>
         {filtered.length === 0 ? (
           <Text className="text-center text-sm text-muted mt-4">
             No icons found
@@ -74,6 +77,7 @@ export function IconInput({ accessibilityLabel, value, onChange, disabled, onFoc
               return (
                 <View key={icon.name} className="w-1/4 p-1 items-center">
                   <Pressable
+                    {...choiceKeyboardProps}
                     accessibilityRole="radio"
                     accessibilityLabel={icon.name}
                     accessibilityState={{ checked: selected, disabled: disabled || !onChange }}

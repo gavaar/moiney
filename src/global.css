@@ -1,3 +1,19 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer components {
+  /* Only shared editors replace the browser's inner outline with an outer cue.
+     Buttons, picker choices, and accessories keep their own keyboard focus. */
+  .input-surface:has(.input-editor:focus) {
+    @apply outline outline-2 outline-primary outline-offset-2;
+  }
+
+  .input-surface .input-editor:focus {
+    outline: none;
+  }
+
+  .input-surface :focus-visible:not(.input-editor) {
+    @apply outline outline-2 outline-primary outline-offset-2;
+  }
+}

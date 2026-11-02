@@ -74,6 +74,21 @@ the text control's line box for both font and SVG icons; callers do not set
 control heights. This aligns control surfaces, not field widths: Form growth
 ratios and the natural height of labels, supporting text, and errors stay independent.
 
+On web, shared text editors (including icon search) replace only their inner
+browser outline with one visible treatment on the containing control surface,
+including borderless fields. Picker triggers and accessories retain independent
+keyboard focus cues and Tab stops; do not reset outlines globally. Choices support
+Enter and Space without changing their checkbox/radio semantics. Modal pickers
+focus a real control on opening and return focus to their trigger on close.
+Same-window collapsible choices contain Tab traversal while open and return focus
+after selection or Escape, without stealing focus from a newly active layer.
+
+Text-select keeps native text editing semantics. On web, Down enters visible
+suggestions (Alt+Down for multiline fields); Tab moves among choices and Enter or
+Space commits. Selection and Escape return focus to the editor. Escape dismisses
+suggestions before their containing modal, and the next Escape follows normal
+modal dismissal. Typing after dismissal can show suggestions again.
+
 Toggle inputs take two icon options with optional labels: the first represents
 `false`, the second `true`. The selected label, when supplied, appears beside the toggle.
 Each option may supply `selectedBackgroundClassName`; otherwise the selected

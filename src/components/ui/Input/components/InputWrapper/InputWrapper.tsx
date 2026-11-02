@@ -3,6 +3,7 @@ import { Pressable, View, type PressableProps, type ViewProps } from "react-nati
 import { cn } from "@/lib/styles";
 import { INPUT_CONTENT_PADDING } from "../../input.config";
 import type { InputAction, InputActions } from "../../input.types";
+import { editorKeyboardProps } from "@ui/keyboard/choiceKeyboard";
 
 type Props = InputActions & {
   borderStyle: string;
@@ -42,8 +43,8 @@ export function InputWrapper({ borderStyle, appearance = "outlined", className, 
   }
 
   return (
-    <View className={cn(
-      "flex-row",
+    <View {...editorKeyboardProps} className={cn(
+      "input-surface flex-row",
       appearance === "borderless" ? "bg-transparent" : "rounded-lg border bg-surface",
       borderStyle,
       className,

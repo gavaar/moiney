@@ -30,6 +30,88 @@ function ControlledWrapper({ options, initialValue }: { options?: string[]; init
 }
 
 describe("TextSelectInput", () => {
+  it("validates when keyboard focus leaves suggestions without a selection", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    renderComponent(<><OptionListHost><TextSelectInput label="Title" value="" onChange={onChange}
+      options={["gas"]} validator={value => value ? undefined : "Title is required"} /></OptionListHost><button>Next field</button></>);
+    await user.tab();
+    await user.keyboard("{ArrowDown}");
+    expect(screen.queryByRole("alert")).toBeNull();
+    await user.tab();
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Next field" }));
+    expect(screen.getByRole("alert").textContent).toBe("Title is required");
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it.each([{ isComposing: true }, { keyCode: 229 }])("preserves IME candidate navigation (%j)", async composing => {
+    const user = userEvent.setup();
+    render(<ControlledWrapper />);
+    const input = screen.getByRole("textbox", { name: "Title" });
+    await user.click(input);
+    fireEvent.keyDown(input, { key: "ArrowDown", ...composing });
+    expect(document.activeElement).toBe(input);
+    expect(screen.getByRole("button", { name: "gas" })).toBeTruthy();
+  });
+
+  it("preserves multiline cursor, spaces, and newline editing and uses Alt+Down for suggestions", async () => {
+    const user = userEvent.setup();
+    function Multiline() {
+      const [value, setValue] = useState("");
+      return <TextSelectInput label="Title" value={value} onChange={setValue} multiline options={["groceries"]} />;
+    }
+    render(<Multiline />);
+    const input = screen.getByRole("textbox", { name: "Title" });
+    await user.type(input, "g ");
+    await user.keyboard("{Enter}");
+    expect(input.textContent).toBe("g \n");
+    await user.clear(input);
+    await user.keyboard("g{ArrowDown}");
+    expect(document.activeElement).toBe(input);
+    await user.keyboard("{Alt>}{ArrowDown}{/Alt}");
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "groceries" }));
+  });
+
+  it("lets keyboard users enter suggestions, commit, and return to editing", async () => {
+    const user = userEvent.setup();
+    render(<ControlledWrapper />);
+    const input = screen.getByRole("textbox", { name: "Title" });
+    await user.tab();
+    await user.keyboard("{ArrowDown}");
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "groceries" }));
+    await user.tab();
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "gas" }));
+    await user.keyboard("{Enter}");
+    expect(input.getAttribute("value")).toBe("gas");
+    expect(document.activeElement).toBe(input);
+    expect(screen.queryByTestId("anchored-option-list")).toBeNull();
+    await user.keyboard("x");
+    expect(input.getAttribute("value")).toBe("gasx");
+  });
+
+  it("uses Escape for suggestions before the containing modal and retains the draft and input focus", async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    render(<ModalShell visible onClose={onClose}><ControlledWrapper initialValue="g" /></ModalShell>);
+    document.querySelectorAll('[aria-modal="true"]').forEach(modal => {
+      let node = modal.parentElement;
+      while (node && node !== document.body) {
+        fireEvent.animationEnd(node);
+        fireEvent(node, new Event("webkitAnimationEnd", { bubbles: true }));
+        node = node.parentElement;
+      }
+    });
+    const input = screen.getByRole("textbox", { name: "Title" });
+    await user.click(input);
+    await user.keyboard("{Escape}");
+    expect(screen.queryByTestId("anchored-option-list")).toBeNull();
+    expect(input.getAttribute("value")).toBe("g");
+    expect(document.activeElement).toBe(input);
+    expect(onClose).not.toHaveBeenCalled();
+    await user.keyboard("{Escape}");
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
   it("exposes suggestions as accessible choices and commits the chosen value", async () => {
     const user = userEvent.setup();
     render(<ControlledWrapper />);

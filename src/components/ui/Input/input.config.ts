@@ -8,6 +8,7 @@ import { clampNumber, sanitizeDecimal } from "./input.utils";
 
 export const INPUT_CONTENT_PADDING = "px-3 py-2";
 export const INPUT_CONTENT_TEXT = "text-base leading-6";
+export const INPUT_EDITOR_FOCUS = "input-editor";
 // Icon-only content keeps the text line box, not the font glyph or SVG's height.
 export const INPUT_CONTENT_LINE_BOX = "min-h-6";
 export const INPUT_CONTENT_ICON_SIZE = 16;

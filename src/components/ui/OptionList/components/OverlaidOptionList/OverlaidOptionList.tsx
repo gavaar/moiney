@@ -1,9 +1,11 @@
 import { useEffect, useState, type ReactNode, type RefObject } from "react";
-import { Keyboard, Platform, Pressable, useWindowDimensions, View, type ViewInstance } from "react-native";
+import { Keyboard, Platform, useWindowDimensions, View, type ViewInstance } from "react-native";
+import { PointerBackdrop } from "@ui/PointerBackdrop/PointerBackdrop";
 import { useOptionListHost } from "../../optionListHost.context";
 import { OptionListLayer } from "../OptionListLayer/OptionListLayer";
 import type { WindowRect } from "../AnchoredOptionList/anchored-frame";
 import { overlayFrame } from "./overlay-frame";
+import { useOverlayFocus } from "./useOverlayFocus";
 
 type Props = {
   anchorRef: RefObject<ViewInstance | null>;
@@ -52,10 +54,11 @@ export function OverlaidOptionList({ anchorRef, onOutsidePress, onRequestClose, 
   const frame = overlayFrame({ anchor: anchor ?? viewportRect, viewport: viewportRect, bounds: bounds ?? viewportRect, keyboardTop, contentHeight: contentSize?.height });
   // Lay out invisibly until both placement and content at the final width are known.
   const ready = Boolean(anchor && viewport && (!host?.boundsRef || bounds) && contentSize?.height && Math.abs(contentSize.width - frame.width) < 1);
+  const surfaceRef = useOverlayFocus(ready, anchorRef, onRequestClose);
   return <OptionListLayer onRequestClose={onRequestClose}><View pointerEvents="box-none" style={{ position: "absolute", inset: 0, zIndex: 1000 }}>
-    <Pressable testID="collapsible-select-outside" onPress={onOutsidePress}
+    <PointerBackdrop testID="collapsible-select-outside" onPress={onOutsidePress}
       style={{ position: "absolute", inset: 0 }} />
-    <View testID="collapsible-select-overlay" className="bg-surface border border-border rounded-xl p-2 gap-2"
+    <View ref={surfaceRef} tabIndex={-1} testID="collapsible-select-overlay" className="bg-surface border border-border rounded-xl p-2 gap-2"
       pointerEvents={ready ? "auto" : "none"}
       onLayout={event => {
         const { width, height } = event.nativeEvent.layout;

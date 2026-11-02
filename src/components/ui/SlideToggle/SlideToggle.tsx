@@ -1,6 +1,7 @@
 import { Pressable, View } from "react-native";
 import { cn, colors } from "@/lib/styles";
 import { Icon, type IconName } from "@ui/Icon";
+import { choiceKeyboardProps } from "@ui/keyboard/choiceKeyboard";
 
 type ToggleOption<Value extends string> = {
   value: Value;
@@ -23,6 +24,7 @@ export function SlideToggle<const Value extends string>({ options, value, onChan
         const isActive = option.value === value;
         return (
           <Pressable
+            {...choiceKeyboardProps}
             key={option.value}
             testID={"slide-toggle-" + option.value}
             accessibilityRole="radio"
