@@ -80,6 +80,19 @@ describe("biometric login", () => {
     expect(vault.unlock).not.toHaveBeenCalled();
   });
 
+  it("removes a saved slot after biometric capability is lost without unlocking it", async () => {
+    const { module, vault } = fixture();
+    await module.enable(alice);
+    vi.mocked(vault.isAvailable).mockResolvedValue(false);
+    expect(await module.status(alice.accountKey)).toEqual({ available: false, enabled: true });
+    await module.disable(alice.accountKey);
+    expect(vault.remove).toHaveBeenCalledOnce();
+    expect(vault.unlock).not.toHaveBeenCalled();
+    expect(await module.status(alice.accountKey)).toEqual({ available: false, enabled: false });
+    vi.mocked(vault.isAvailable).mockResolvedValue(true);
+    expect(await module.shouldOffer(alice.accountKey)).toBe(false);
+  });
+
   it("keeps saved credentials on cancellation and network failures", async () => {
     const { module, vault } = fixture();
     await module.enable(alice);

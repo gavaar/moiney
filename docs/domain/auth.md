@@ -50,7 +50,10 @@ resumption. One account's username and password may be saved on a native device,
 in biometric-protected, enrollment-bound, device-only secure storage. Device
 passcodes are not a fallback. Credentials must never be unlocked or submitted
 to a different deployment. Web and devices without supported strong biometrics
-do not offer setup.
+do not offer setup. Settings waits for resolved capability before offering setup
+and omits the biometric setting when neither setup nor saved-credential removal
+is available. Losing biometric capability must not prevent confirmed removal of
+the current account's saved credentials.
 
 Successful password sign-in or signup offers setup unless that account already
 occupies the device slot or offers are suppressed. Consent explains the
