@@ -38,3 +38,9 @@ for a published release reuse the existing APK, skip backend deployment, and
 safely retry metadata publication. Metadata publication failure fails the workflow and
 leaves the previous metadata intact. An older workflow retry cannot downgrade
 the latest release metadata.
+
+The same workflow builds the web export before backend deployment and publishes
+it to Cloudflare Pages after the backend succeeds, without waiting for the APK
+build. Only a workflow still targeting the current `main` commit may publish the
+website; historical published-release retries skip web publication while retaining
+metadata retry behavior. Web publication retains the shared APK version policy.

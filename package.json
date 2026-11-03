@@ -7,6 +7,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
+    "build:web": "bun run scripts/web-export/cli.ts",
     "dev": "expo start",
     "convex:dev": "bunx convex dev",
     "convex:deploy": "bun run verify && bunx convex deploy",
