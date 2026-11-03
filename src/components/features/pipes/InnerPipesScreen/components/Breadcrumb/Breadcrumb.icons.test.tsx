@@ -5,6 +5,7 @@ import { expect, it, vi } from "vitest";
 import type { Id } from "@convex/_generated/dataModel";
 import { PipeCatalogProvider } from "@features/pipes/context/PipeCatalogContext";
 import { PipeSelectionProvider, usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
+import { PipeSelectionStateProvider } from "@features/pipes/PipeSelectionStateProvider/PipeSelectionStateProvider";
 import { Breadcrumb } from "./Breadcrumb";
 
 vi.mock("convex/react", () => ({
@@ -22,7 +23,7 @@ it("normalizes an unknown pipe icon before rendering the breadcrumb", async () =
       <SelectRoot />
       <Breadcrumb />
     </PipeSelectionProvider>
-  </PipeCatalogProvider>);
+  </PipeCatalogProvider>, { wrapper: PipeSelectionStateProvider });
 
   await userEvent.click(screen.getByRole("button", { name: "Select budget" }));
   const home = screen.getByRole("button", { name: "Go to pipe root" });

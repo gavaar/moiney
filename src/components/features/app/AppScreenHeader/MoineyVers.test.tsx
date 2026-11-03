@@ -1,9 +1,12 @@
 // @vitest-environment jsdom
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { expo } from "@/../app.json";
-import { MoineyVers } from "./MoineyVers";
+import { AppScreenHeader } from "./AppScreenHeader";
 import { AppUpdateProvider } from "../updates/AppUpdateProvider";
+import { PipesNavigationProvider } from "../PipesNavigationProvider/PipesNavigationProvider";
+import { PipeSelectionStateProvider } from "@features/pipes/PipeSelectionStateProvider/PipeSelectionStateProvider";
 
 const mocks = vi.hoisted(() => ({
   release: undefined as { latestAppVersion: string; downloadUrl: string } | null | undefined,
@@ -12,7 +15,11 @@ const mocks = vi.hoisted(() => ({
   unsubscribe: vi.fn(),
   backHandler: undefined as (() => boolean) | undefined,
   openURL: vi.fn().mockResolvedValue(undefined),
+  navigate: vi.fn(),
+  rightAction: vi.fn(),
 }));
+
+vi.mock("expo-router", () => ({ usePathname: () => "/history", useSegments: () => ["(main)", "(tabs)", "history"], useRouter: () => ({ navigate: mocks.navigate }) }));
 
 vi.mock("convex/react", () => ({
   useConvex: () => client,
@@ -48,7 +55,10 @@ vi.mock("@ui/Modal", () => ({
 }));
 
 function renderApp() {
-  return render(<AppUpdateProvider><MoineyVers /><div>App content</div></AppUpdateProvider>);
+  return render(<AppUpdateProvider><PipeSelectionStateProvider><PipesNavigationProvider>
+    <AppScreenHeader title="History" right={<button onClick={mocks.rightAction}>Right action</button>} />
+    <div>App content</div>
+  </PipesNavigationProvider></PipeSelectionStateProvider></AppUpdateProvider>);
 }
 
 function publish(version: string) {
@@ -69,6 +79,22 @@ describe("app updates", () => {
     mocks.backHandler = undefined;
     mocks.unsubscribe.mockClear();
     mocks.openURL.mockClear();
+    mocks.navigate.mockClear();
+    mocks.rightAction.mockClear();
+  });
+
+  it("opens an optional update by keyboard without activating the title or right action", async () => {
+    const user = userEvent.setup();
+    renderApp();
+    const [major, minor, patch] = expo.version.split(".").map(Number);
+    publish(`${major}.${minor}.${patch + 1}`);
+    await user.click(screen.getByRole("button", { name: "Right action" }));
+    expect(mocks.rightAction).toHaveBeenCalledOnce();
+    screen.getByRole("button", { name: `Moiney version ${expo.version}` }).focus();
+    await user.keyboard("{Enter}");
+    expect(screen.getByText("Update available")).toBeTruthy();
+    expect(mocks.navigate).not.toHaveBeenCalled();
+    expect(mocks.rightAction).toHaveBeenCalledOnce();
   });
 
   it("allows access while metadata is unknown and when versions match", () => {

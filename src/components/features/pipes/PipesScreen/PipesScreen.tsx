@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BackHandler, Pressable, Text, View } from "react-native";
-import { useFocusEffect } from "expo-router/react-navigation";
+import { StackActions, useFocusEffect } from "expo-router/react-navigation";
 import { useNavigation } from "expo-router";
-import type { ParamListBase } from "expo-router/react-navigation";
-import type { BottomTabNavigationProp } from "expo-router/tabs";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AppScreenHeader } from "@features/app/AppScreenHeader";
 import { SlideToggle } from "@ui/SlideToggle";
@@ -21,12 +19,15 @@ import { useEventHistoryCache } from "@features/transactions/cache/EventHistoryC
 import { useEventHistory } from "@features/transactions/cache/useEventHistory";
 import { getSubtreePipeIds } from "@features/pipes/data/subtree";
 import { MixedHistoryFeed } from "@features/transactions/history/MixedHistoryFeed/MixedHistoryFeed";
+import { usePipesStackReturn } from "@features/app/PipesNavigationProvider/PipesNavigationProvider";
 
 export function PipesScreen({ openPipeId, onPipeOpened, onOpenCurrentReport }: { openPipeId?: string; onPipeOpened?: () => void; onOpenCurrentReport?: () => void } = {}) {
   const navigation = useNavigation();
   const [treeMode, setTreeMode] = useState(false);
   const [latestExpanded, setLatestExpanded] = useState(true);
   const { selectedName, selectedPipePath, selectPipe, deselectPipe } = usePipeSelection();
+  const returnToIndex = useCallback(() => navigation.dispatch(StackActions.popTo("index")), [navigation]);
+  usePipesStackReturn(returnToIndex);
   const { allPipes, childrenByParent, feeds, isLoading } = usePipeCatalog();
   const resolvedOpenPipeId = openPipeId && allPipes?.some((pipe) => pipe.id === openPipeId) ? openPipeId : undefined;
   const [lastOpenPipeId, setLastOpenPipeId] = useState(resolvedOpenPipeId);
@@ -81,16 +82,10 @@ export function PipesScreen({ openPipeId, onPipeOpened, onOpenCurrentReport }: {
         "hardwareBackPress",
         onBackPress,
       );
-      const tabs = navigation.getParent<BottomTabNavigationProp<ParamListBase>>();
-      const pipesTabKey = tabs?.getState().routes.find((route) => route.name === "pipes")?.key;
-      const removeTabListener = tabs?.addListener("tabPress", (event) => {
-        if (event.target === pipesTabKey) deselectPipe();
-      });
       return () => {
         subscription.remove();
-        removeTabListener?.();
       };
-    }, [deselectPipe, navigation, selectedPipePath, selectPipe]),
+    }, [selectedPipePath, selectPipe]),
   );
 
   return (

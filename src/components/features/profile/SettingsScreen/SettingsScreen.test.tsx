@@ -4,8 +4,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SettingsScreen } from "./SettingsScreen";
 import { MonthlyCardPreferenceProvider } from "@features/statistics/preferences/MonthlyCardPreference";
 import { expo } from "@/../app.json";
+import { PipesNavigationProvider } from "@features/app/PipesNavigationProvider/PipesNavigationProvider";
+import { PipeSelectionStateProvider } from "@features/pipes/PipeSelectionStateProvider/PipeSelectionStateProvider";
 
-const render = (ui: React.ReactNode) => renderComponent(ui, { wrapper: MonthlyCardPreferenceProvider });
+const render = (ui: React.ReactNode) => renderComponent(ui, {
+  wrapper: ({ children }) =>
+    <PipeSelectionStateProvider><PipesNavigationProvider><MonthlyCardPreferenceProvider>{children}</MonthlyCardPreferenceProvider></PipesNavigationProvider></PipeSelectionStateProvider>,
+});
+
+vi.mock("expo-router", () => ({ usePathname: () => "/settings", useSegments: () => ["(main)", "settings"], useRouter: () => ({ dismissTo: vi.fn() }) }));
 
 const biometrics = vi.hoisted(() => ({
   available: true,

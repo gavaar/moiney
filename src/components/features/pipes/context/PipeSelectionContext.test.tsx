@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { type Id } from "@convex/_generated/dataModel";
 import { PipeCatalogProvider, usePipeCatalog } from "./PipeCatalogContext";
 import { PipeSelectionProvider, usePipeSelection } from "./PipeSelectionContext";
+import { PipeSelectionStateProvider, usePipeSelectionState } from "../PipeSelectionStateProvider/PipeSelectionStateProvider";
 
 const mockUseQuery = vi.fn();
 
@@ -46,13 +47,24 @@ function TestConsumer() {
   );
 }
 
-function SelectionTree() {
+function SharedSelectionControls() {
+  const { selectedPipePath, deselectPipe } = usePipeSelectionState();
+  return <>
+    <output data-testid="shared-path">{selectedPipePath.join(",") || "None"}</output>
+    <button onClick={deselectPipe}>Clear shared selection</button>
+  </>;
+}
+
+function SelectionTree({ showCatalog = true }: { showCatalog?: boolean } = {}) {
   return (
-    <PipeCatalogProvider>
-      <PipeSelectionProvider>
-        <TestConsumer />
-      </PipeSelectionProvider>
-    </PipeCatalogProvider>
+    <PipeSelectionStateProvider>
+      <SharedSelectionControls />
+      {showCatalog ? <PipeCatalogProvider>
+        <PipeSelectionProvider>
+          <TestConsumer />
+        </PipeSelectionProvider>
+      </PipeCatalogProvider> : null}
+    </PipeSelectionStateProvider>
   );
 }
 
@@ -73,6 +85,29 @@ const mockPipe = (id: string, name: string) => ({
 describe("PipeSelectionContext", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("shares selection with controls outside the catalog and clears its resolved name from there", async () => {
+    const user = userEvent.setup();
+    mockUseQuery.mockReturnValue([mockPipe("pipe-1", "Groceries")]);
+    render(<SelectionTree />);
+    await user.click(screen.getByTestId("select"));
+    expect(screen.getByTestId("shared-path").textContent).toBe("pipe-1");
+    await user.click(screen.getByRole("button", { name: "Clear shared selection" }));
+    expect(screen.getByTestId("selected-name").textContent).toBe("(none)");
+    expect(screen.getByTestId("selected-path").textContent).toBe("");
+  });
+
+  it("retains selection across catalog resolver remounts and resolves the latest name", async () => {
+    const user = userEvent.setup();
+    mockUseQuery.mockReturnValue([mockPipe("pipe-1", "Groceries")]);
+    const { rerender } = render(<SelectionTree />);
+    await user.click(screen.getByTestId("select"));
+    rerender(<SelectionTree showCatalog={false} />);
+    expect(screen.getByTestId("shared-path").textContent).toBe("pipe-1");
+    mockUseQuery.mockReturnValue([mockPipe("pipe-1", "Food")]);
+    rerender(<SelectionTree />);
+    expect(screen.getByTestId("selected-name").textContent).toBe("Food");
   });
 
   it("shows loading state when allPipes is undefined", () => {
@@ -149,5 +184,6 @@ describe("PipeSelectionContext", () => {
 
     expect(screen.getByTestId("selected-path").textContent).toBe("root,child");
     expect(screen.getByTestId("selected-name").textContent).toBe("Child");
+    expect(screen.getByTestId("shared-path").textContent).toBe("root,child");
   });
 });

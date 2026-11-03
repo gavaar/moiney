@@ -50,6 +50,7 @@ vi.mock("expo-router", async () => {
   Stack.Screen = function Screen(_: { name: string }) { return null; };
   return {
     useRouter: () => ({ replace: navigation.replace }),
+    usePathname: () => useRoutes().at(-1) === "settings" ? "/settings" : "/profile",
     useSegments: () => navigation.routes.at(-1) === "settings" ? ["(main)", "settings"] : ["(main)", "(tabs)", "profile"],
     Link: ({ href, children }: { href: string; children: ReactElement<{ href?: string }> }) => cloneElement(children, { href }),
     Slot: () => renderRoute(useRoutes().at(-1)!),

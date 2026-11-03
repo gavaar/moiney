@@ -1,18 +1,15 @@
 import {
   createContext,
-  useCallback,
   useContext,
+  useEffect,
   useMemo,
-  useState,
   type ReactNode,
 } from "react";
 import type { PipeModel } from "@features/pipes/data/pipes";
 import { usePipeCatalog } from "./PipeCatalogContext";
+import { usePipeSelectionState } from "../PipeSelectionStateProvider/PipeSelectionStateProvider";
 
-type PipeSelectionContextValue = {
-  selectedPipePath: PipeModel["id"][];
-  selectPipe: (path: PipeModel["id"][]) => void;
-  deselectPipe: () => void;
+type PipeSelectionContextValue = ReturnType<typeof usePipeSelectionState> & {
   selectedPipe: PipeModel | null;
   selectedName: string | null;
 };
@@ -29,15 +26,20 @@ export function usePipeSelection(): PipeSelectionContextValue {
 
 export function PipeSelectionProvider({ children }: { children: ReactNode }) {
   const { allPipes } = usePipeCatalog();
-  const [selectedPipePath, setSelectedPipePath] = useState<PipeModel["id"][]>([]);
-
-  if (allPipes) {
+  const { selectedPipePath: storedPath, selectPipe, deselectPipe } = usePipeSelectionState();
+  const selectedPipePath = useMemo(() => {
+    if (!allPipes) return storedPath;
     const existingIds = new Set(allPipes.map((pipe) => pipe.id));
-    const firstMissingIndex = selectedPipePath.findIndex((id) => !existingIds.has(id));
-    if (firstMissingIndex >= 0) {
-      setSelectedPipePath((current) => current.slice(0, firstMissingIndex));
+    const firstMissingIndex = storedPath.findIndex((id) => !existingIds.has(id));
+    return firstMissingIndex >= 0 ? storedPath.slice(0, firstMissingIndex) : storedPath;
+  }, [allPipes, storedPath]);
+  // Expose the surviving path immediately; synchronize the shared owner after
+  // commit without overwriting a newer selection (for example, a deep link).
+  useEffect(() => {
+    if (selectedPipePath !== storedPath) {
+      selectPipe(current => current === storedPath ? selectedPipePath : current);
     }
-  }
+  }, [selectedPipePath, storedPath, selectPipe]);
 
   const selectedId =
     selectedPipePath.length > 0
@@ -48,12 +50,6 @@ export function PipeSelectionProvider({ children }: { children: ReactNode }) {
     [allPipes, selectedId],
   );
   const selectedName = selectedPipe?.name ?? null;
-
-  const selectPipe = useCallback(
-    (path: PipeModel["id"][]) => setSelectedPipePath(path),
-    [],
-  );
-  const deselectPipe = useCallback(() => setSelectedPipePath([]), []);
 
   const value = useMemo(
     () => ({

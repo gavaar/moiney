@@ -2,7 +2,7 @@ import { useState } from "react";
 import { ScrollView, Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/lib/auth";
-import { ScreenHeader } from "@ui/ScreenHeader/ScreenHeader";
+import { AppScreenHeader } from "@features/app/AppScreenHeader";
 import { Button } from "@ui/Button";
 import { Input } from "@ui/Input";
 import { ModalShell } from "@ui/Modal";
@@ -17,9 +17,9 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
   const close = () => setAction(null);
 
   return (
-    <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-background px-4">
-      <ScreenHeader title="Settings" left={<Button title="Back" icon="arrow-back" variant="muted" onPress={onBack} />} />
-      <ScrollView contentContainerClassName="gap-3 pb-8">
+    <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-background">
+      <AppScreenHeader title="Settings" left={<Button className="max-w-20" title="Back" icon="arrow-back" variant="muted" onPress={onBack} />} />
+      <ScrollView contentContainerClassName="gap-3 px-4 pb-8">
         <Input
           type="checkbox"
           checkboxLabel="Show monthly statistics card in main view"

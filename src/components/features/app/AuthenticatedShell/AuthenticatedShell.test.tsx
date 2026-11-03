@@ -19,6 +19,8 @@ vi.mock("react-native", async importOriginal => {
   };
 });
 vi.mock("expo-router", () => ({
+  usePathname: () => "/" + viewport.segments.slice(2).join("/"),
+  useRouter: () => ({ navigate: vi.fn() }),
   useSegments: () => viewport.segments,
   Link: ({ href, children }: { href: string; children: ReactElement<{ href?: string }> }) => cloneElement(children, { href }),
 }));

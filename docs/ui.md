@@ -47,6 +47,19 @@ decisions.
   Settings and report routes continue to own their Back actions.
 - Navigation exposes the current destination and visible keyboard focus. The
   sidebar scrolls independently in short windows without wrapping screen feeds.
+- Authenticated header titles, the Pipes tab, and the sidebar Pipes link share
+  one action: switch to `/pipes` from another screen without clearing selection;
+  on `/pipes`, clear the selected hierarchy without changing Bar/Tree mode.
+  Report details count as another screen, including `/pipes/current`. Explicit
+  pipe deep links retain their separate ancestor-selection and Bar-view behavior.
+- `PipeSelectionStateProvider` owns the selected path and selection actions in the
+  authenticated shell without catalog queries. Resolving the selected pipe/name
+  and reconciling removed IDs remain inside Pipes. Navigation clears shared
+  selection directly; only returning the inactive Pipes stack to its index uses
+  a screen-owned callback.
+- `AppScreenHeader` owns the shortcut while `ScreenHeader` accepts presentation
+  and a title action. Expanded titles are larger; version/update, Back, and
+  right-side controls remain separate targets.
 
 ## Shared Primitives
 
@@ -162,6 +175,10 @@ Navigation, keyboard, modal, and platform-sensitive behavior should also use
 native-oriented tools where practical; report when that verification is unavailable.
 
 ## Theme
+
+- The root layout supplies one semantic dark navigation theme. Nested navigators
+  and their transition surfaces inherit it; dark screen content alone does not
+  theme the navigator background exposed during native transitions.
 
 Prefer semantic theme tokens from `src/lib/styles/colors.js`, directly for native
 color props or through NativeWind utilities. Preserve semantic distinctions even
