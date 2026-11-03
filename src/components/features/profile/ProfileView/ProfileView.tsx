@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Image, Pressable, ScrollView, Text, View } from "react-native";
+import { Image, Pressable, Text, View } from "react-native";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { useAlert } from "@ui/Alert";
@@ -78,19 +78,25 @@ export function ProfileView() {
       </Text>
 
       <ModalShell visible={editing} onClose={() => setEditing(false)}>
-        <ScrollView contentContainerClassName="items-center gap-3" style={{ flexGrow: 0, flexShrink: 1 }}>
+        <View className="items-center gap-3" style={{ flexShrink: 1, minHeight: 0 }}>
           <View
-            className="w-full overflow-hidden rounded-full border-2 border-border"
-            style={{ aspectRatio: 1 }}
+            className="w-full items-center"
+            style={{ aspectRatio: 1, flexShrink: 1, minHeight: 0 }}
           >
-            <Image
-              testID="profile-picture-preview"
-              source={profile?.pictureUrl ? { uri: profile.pictureUrl } : APP_ICON}
-              style={{ width: "100%", height: "100%" }}
-              accessibilityLabel="Profile picture preview"
-            />
+            {/* The slot shrinks around the actions; the preview stays square. */}
+            <View
+              className="overflow-hidden rounded-full border-2 border-border"
+              style={{ height: "100%", aspectRatio: 1, maxWidth: "100%" }}
+            >
+              <Image
+                testID="profile-picture-preview"
+                source={profile?.pictureUrl ? { uri: profile.pictureUrl } : APP_ICON}
+                style={{ width: "100%", height: "100%" }}
+                accessibilityLabel="Profile picture preview"
+              />
+            </View>
           </View>
-          <View className="w-full flex-row gap-3">
+          <View className="w-full flex-row gap-3" style={{ flexShrink: 0 }}>
             {profile?.pictureUrl ? (
               <Button
                 title="Remove photo"
@@ -110,7 +116,7 @@ export function ProfileView() {
               className="ml-auto"
             />
           </View>
-        </ScrollView>
+        </View>
       </ModalShell>
     </View>
   );
