@@ -125,6 +125,8 @@ it("covers overflow before computing the capacity update, without changing the b
   const { t, auth, source, donor } = await setup();
   await t.run(ctx => ctx.db.patch("pipes", source, { rule: "spend_overflow", capUpdateValue: 4000, spent: 0 }));
   const date = Date.now() - 86400000;
+  // Move beyond fixture commits so the mutation uses this exact wall-clock time.
+  vi.setSystemTime(Date.now() + 1000);
   await auth.mutation(api.financialOperations.create, { from: source, title: "Groceries", value: -7000, date });
   const events = await auth.query(api.events.latest, { pipeId: source });
   expect(events.find(event => event.type === "settlement")).toMatchObject({

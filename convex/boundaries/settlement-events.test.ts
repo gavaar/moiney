@@ -109,12 +109,14 @@ describe("Convex boundaries: settlement history", () => {
   it("records automatic overflow at execution time, not the backdated expense date", async () => {
     const { t, auth, pipeId, now } = await setup();
     await t.run(ctx => ctx.db.patch("pipes", pipeId, { rule: "spend_overflow", spent: 0, pendingFedAdjustment: 0 }));
+    const executedAt = now + 1000;
+    vi.setSystemTime(executedAt);
     await auth.mutation(api.financialOperations.create, { from: pipeId, title: "coffee", value: -5000, date: now - 86400000 });
     const history = await auth.query(api.events.latest, { pipeId });
     expect(history).toHaveLength(2);
     expect(history.find(event => event.type === "settlement")).toMatchObject({
       cause: "spend_overflow",
-      occurredAt: now,
+      occurredAt: executedAt,
       before: { fed: 4000, spent: 5000, capacity: 4000, pendingFedAdjustment: 0 },
       after: { fed: -1000, spent: 0, capacity: 3000, pendingFedAdjustment: 0 },
     });
