@@ -23,7 +23,7 @@ export function AuthScreenLayout({ title, subtitle, children, footer }: Props) {
         }}
         keyboardShouldPersistTaps="handled"
       >
-        <View className="gap-6">
+        <View className="min-w-0 w-full max-w-auth-content self-center gap-6">
           <View className="gap-2">
             <Text className="text-3xl font-bold text-text">{title}</Text>
             <Text className="text-base text-secondary">{subtitle}</Text>

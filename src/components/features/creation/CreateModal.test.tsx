@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { act, fireEvent, render as renderComponent, screen, waitFor } from "@testing-library/react";
-import type { ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
+import userEvent from "@testing-library/user-event";
 import { ConfirmModalProvider } from "@ui/ConfirmModal";
 import { OptionListHost } from "@ui/OptionList";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -36,13 +37,14 @@ vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
     allPipes: [pipe1, pipe2], pipesById: { [pipe1.id]: pipe1, [pipe2.id]: pipe2 }, childrenByParent: new Map(), isLoading: false,
   }),
 }));
-vi.mock("@ui/Modal", () => ({
-  ModalShell: ({ children, bottomAccessory, onClose: close, visible }: any) => visible ?
-    <div><button onClick={close}>Backdrop</button>{children}{bottomAccessory}</div> : null,
-}));
+// jsdom does not run CSS animations. Keep real portals and focus/Escape handling.
+vi.mock("react-native", async importOriginal => {
+  const native = await importOriginal<typeof import("react-native")>();
+  return { ...native, Modal: (props: ComponentProps<typeof native.Modal>) => <native.Modal {...props} animationType="none" /> };
+});
 vi.mock("@ui/Icon", async importOriginal => ({ ...await importOriginal<typeof import("@ui/Icon")>(), Icon: () => null }));
 
-function click(name: string) { fireEvent.click(screen.getByRole("button", { name })); }
+function click(name: string) { fireEvent.click(name === "Backdrop" ? screen.getByTestId("modal-backdrop") : screen.getByRole("button", { name })); }
 function mode(name: "transaction" | "pipe") { fireEvent.click(screen.getByRole("tab", { name })); }
 function fill(name: string, value: string) { fireEvent.change(screen.getByRole("textbox", { name }), { target: { value } }); }
 function acknowledgeWarnings() {
@@ -73,6 +75,34 @@ describe("CreateModal", () => {
   });
   it("closes untouched drafts without confirmation", () => {
     render(<CreateModal onClose={onClose} />); click("Backdrop"); expect(onClose).toHaveBeenCalledOnce(); expect(screen.queryByText("Discard changes?")).toBeNull();
+  });
+  it("keeps Escape and keyboard focus in repeated discard confirmations without losing drafts", async () => {
+    const user = userEvent.setup();
+    render(<CreateModal onClose={onClose} />);
+    prepare("transaction");
+    mode("pipe");
+    const pipeMode = screen.getByRole("tab", { name: "pipe" });
+    pipeMode.focus();
+
+    for (let attempt = 0; attempt < 2; attempt++) {
+      await user.keyboard("{Escape}");
+      const keepEditing = screen.getByRole("button", { name: "Keep editing" });
+      const confirmation = screen.getByRole("dialog");
+      expect(confirmation.contains(keepEditing)).toBe(true);
+      expect(confirmation.contains(document.activeElement)).toBe(true);
+      await user.tab();
+      expect(confirmation.contains(document.activeElement)).toBe(true);
+      await user.keyboard("{Escape}");
+      expect(screen.queryByText("Discard changes?")).toBeNull();
+      expect(document.activeElement).toBe(pipeMode);
+      expect(onClose).not.toHaveBeenCalled();
+    }
+
+    mode("transaction");
+    expect(screen.getByDisplayValue("Lunch")).toBeTruthy();
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByRole("button", { name: "Discard changes" }));
+    await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
   });
   it.each(["transaction", "feed"] as const)("clearing the %s draft removes its discard warning", scenario => {
     render(<CreateModal onClose={onClose} />); prepare(scenario); click("Clear form"); click("Backdrop");

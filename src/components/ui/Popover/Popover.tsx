@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { type GestureResponderEvent, Modal as RNModal, Pressable, ScrollView, useWindowDimensions, View, type ViewInstance } from "react-native";
+import { useModalBack } from "@ui/Modal";
 
 type AnchorPosition =
   | "bottom-start" | "bottom-end" | "bottom"
@@ -58,6 +59,7 @@ export function Popover({
   const [triggerRect, setTriggerRect] = useState({ x: 0, y: 0, width: 0, height: 0 });
   const [contentSize, setContentSize] = useState({ width: 0, height: 0 });
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const onBackShow = useModalBack(visible, onClose);
 
   useEffect(() => {
     if (!visible || !anchorRef.current) return;
@@ -79,7 +81,7 @@ export function Popover({
   );
 
   return (
-    <RNModal transparent visible={visible} onRequestClose={onClose} animationType="fade">
+    <RNModal transparent visible={visible} onRequestClose={onClose} onShow={onBackShow} animationType="fade">
       <Pressable testID="popover-backdrop" className="flex-1" onPress={onClose}>
         <View
           testID="popover-content"

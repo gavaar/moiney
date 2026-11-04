@@ -30,4 +30,27 @@ describe("anchored option list placement", () => {
     });
     expect(frame).toEqual({ left: 16, top: 16, width: 268, maxHeight: 60 });
   });
+
+  it("keeps suggestions inside a modal's available region", () => {
+    const frame = anchoredFrame({
+      anchor: { x: 40, y: 300, width: 320, height: 40 },
+      viewport: { x: 0, y: 0, width: 400, height: 800 },
+      bounds: { x: 20, y: 200, width: 360, height: 200 },
+      contentHeight: 600,
+      maxHeight: 160,
+    });
+    expect(frame.top).toBeGreaterThanOrEqual(216);
+    expect(frame.top + frame.maxHeight).toBeLessThanOrEqual(384);
+  });
+
+  it("cannot overflow a short viewport when its anchor has scrolled above it", () => {
+    const frame = anchoredFrame({
+      anchor: { x: 20, y: -300, width: 200, height: 40 },
+      viewport: { x: 0, y: 0, width: 300, height: 100 },
+      contentHeight: 1000,
+      maxHeight: 160,
+    });
+    expect(frame.top).toBeGreaterThanOrEqual(16);
+    expect(frame.top + frame.maxHeight).toBeLessThanOrEqual(84);
+  });
 });

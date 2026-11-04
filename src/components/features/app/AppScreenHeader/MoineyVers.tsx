@@ -27,7 +27,7 @@ export function MoineyVers() {
         accessibilityLabel={`Moiney version ${expo.version}`}
         disabled={!isOutdated}
         onPress={() => setShowOutdatedModal(true)}
-        className="flex-row items-center gap-1"
+        className="flex-row items-center gap-1 rounded-sm web:focus-visible:outline web:focus-visible:outline-2 web:focus-visible:outline-primary"
       >
         <Text className="text-sm text-muted">moiney v{expo.version}</Text>
         {isOutdated ? (

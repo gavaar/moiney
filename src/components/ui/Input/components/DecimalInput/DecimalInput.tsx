@@ -1,5 +1,6 @@
 import { TextInput as RNTextInput } from "react-native";
-import { colors } from "@/lib/styles";
+import { cn, colors } from "@/lib/styles";
+import { INPUT_CONTENT_TEXT, INPUT_EDITOR_FOCUS } from "../../input.config";
 import type { InputInteraction, InputValueProps } from "../../input.types";
 import { sanitizeDecimal } from "../../input.utils";
 
@@ -25,7 +26,7 @@ export function DecimalInput({ accessibilityLabel, disabled, value, onChange, pl
 
   return (
     <RNTextInput
-      className="w-full p-0 text-base text-text"
+      className={cn("w-full p-0 text-text", INPUT_CONTENT_TEXT, INPUT_EDITOR_FOCUS)}
       keyboardType="decimal-pad"
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ disabled }}

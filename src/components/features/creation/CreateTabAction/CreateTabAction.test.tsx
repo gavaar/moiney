@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { CreateTabAction } from "./CreateTabAction";
 import { ConfirmModalProvider } from "@ui/ConfirmModal";
+import { CreationFlowProvider } from "../CreationFlowProvider/CreationFlowProvider";
 
 vi.mock("expo-router/react-navigation", () => ({ useIsFocused: () => true }));
 
@@ -25,7 +26,7 @@ vi.mock("@ui/Icon", async importOriginal => ({
 
 describe("CreateTabAction", () => {
   it("starts pipe creation with the type picker collapsed until tapped", () => {
-    render(<ConfirmModalProvider><CreateTabAction /></ConfirmModalProvider>);
+    render(<ConfirmModalProvider><CreationFlowProvider><CreateTabAction /></CreationFlowProvider></ConfirmModalProvider>);
     fireEvent.click(screen.getByLabelText("Create"));
     fireEvent.click(screen.getByRole("tab", { name: "pipe" }));
     expect(screen.getByRole("button", { name: "Pipe type" }).getAttribute("aria-expanded")).toBe("false");
@@ -41,7 +42,7 @@ describe("CreateTabAction", () => {
   });
 
   it("closes the pipe picker before backdrop dismissal and reopens with transaction selected and a fresh draft", () => {
-    render(<ConfirmModalProvider><CreateTabAction /></ConfirmModalProvider>);
+    render(<ConfirmModalProvider><CreationFlowProvider><CreateTabAction /></CreationFlowProvider></ConfirmModalProvider>);
     expect(screen.queryByRole("tab", { name: "transaction" })).toBeNull();
     fireEvent.click(screen.getByLabelText("Create"));
     fireEvent.change(screen.getByRole("textbox", { name: "Draft" }), { target: { value: "Lunch" } });

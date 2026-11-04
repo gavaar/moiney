@@ -15,6 +15,59 @@ decisions.
   Add a feature-owned hook or adapter only when it hides normalization,
   orchestration, or reusable policy.
 
+## Adaptive Content Sizing
+
+- `tailwind.config.js` owns the shared sizing tokens; its breakpoint and
+  `useLayoutMode` share `src/lib/styles/layout.js`. Compact is the default;
+  `expanded` starts at 1024 logical pixels of available window width on web and
+  native, independently of device type or pixel density.
+- `max-w-screen-content` caps authenticated content at 64rem on web and 1024
+  logical units on native. `AuthenticatedShell` centers the composition and
+  constrains its content navigator, so tab screens, Settings, and report details
+  share the same bound.
+  This cap covers content, excluding the sidebar.
+- Login and signup share `AuthScreenLayout` and `max-w-auth-content`: 28rem on
+  web, 448 logical units on native. Native equivalents deliberately use 16
+  logical units per web rem rather than NativeWind's native rem default.
+- Width constraints shrink with the available window declaratively; do not key
+  or replace navigators, providers, or feature trees on resize. Screens retain
+  safe-area and scroll ownership, including virtualized feeds. Modal width is
+  independently owned by `ModalShell`.
+
+## Adaptive Navigation
+
+- `AuthenticatedShell` surrounds the authenticated stack, including Settings and
+  report details. Expanded layout has an icon-and-label sidebar with navigation
+  at the top and the Add action at the bottom; compact layout keeps the bottom tabs.
+  `src/components/features/app/navigation.ts` owns the shared destinations. Add
+  opens creation rather than navigating to a destination.
+- Keep the stack, tabs, screen providers, and `CreationFlowProvider` mounted
+  across layout changes. Only chrome changes presentation; creation mode, form
+  pages, active and hidden drafts, and subscriptions retain their existing owner.
+  Settings and report routes continue to own their Back actions.
+- Navigation exposes the current destination and visible keyboard focus. The
+  sidebar scrolls independently in short windows without wrapping screen feeds.
+- Authenticated header titles, the Pipes tab, and the sidebar Pipes link share
+  one action: switch to `/pipes` from another screen without clearing selection;
+  on `/pipes`, clear the selected hierarchy without changing Bar/Tree mode.
+  Report details count as another screen, including `/pipes/current`. Explicit
+  pipe deep links retain their separate ancestor-selection and Bar-view behavior.
+- Web pipe selections have router-owned history entries and retain `pipeId` in
+  the URL. Back traverses structural ancestors, including after a direct deep
+  link, tree jump, or breadcrumb selection; a selected feed returns to the feed
+  list, where ordinary browser Back resumes. Entries retain the Pipes screen's
+  identity so drafts and view state do not remount. Native selection and hardware
+  Back retain their state-based behavior. Platform differences live in paired
+  `.ts` / `.web.ts` adapters, not feature controls.
+- `PipeSelectionStateProvider` owns the selected path and selection actions in the
+  authenticated shell without catalog queries. Resolving the selected pipe/name
+  and reconciling removed IDs remain inside Pipes. Navigation clears shared
+  selection directly; only returning the inactive Pipes stack to its index uses
+  a screen-owned callback.
+- `AppScreenHeader` owns the shortcut while `ScreenHeader` accepts presentation
+  and a title action. Expanded titles are larger; version/update, Back, and
+  right-side controls remain separate targets.
+
 ## Shared Primitives
 
 - Application code uses `src/components/ui/Input/Input.tsx`, not its variant
@@ -37,6 +90,9 @@ decisions.
   wording and formatting. Actions remain caller-rendered.
 - Modal backdrop taps and system Back/Escape first let a hosted overlay consume
   dismissal; expanded collapsible-select behavior is defined in [Input](input.md).
+  Browser Back on web requests dismissal of the top modal or popover before
+  traversing pipe or route history. A blocked save or discard confirmation still
+  consumes that Back action without changing the selected pipe.
   Otherwise, backdrop taps request modal dismissal. All pipe creation/editing entry
   points and the plus creation modal confirm discarding unsaved changes before dismissal, including
   system Back; plus-modal dismissal checks all drafts, including hidden modes, and is
@@ -45,6 +101,10 @@ decisions.
   validation error alone does not make a draft dirty. Modal content has
   no control whose sole purpose is dismissing the modal; domain actions and inline
   warning dismissal remain allowed.
+- Stacked modals must agree on paint, pointer-input, and focus/Escape order. A
+  confirmation above an editor blocks interaction with the editor; cancelling
+  returns focus without resetting its active or hidden drafts. On web, hidden
+  shells do not retain portals that could later paint below a newer modal.
 - `ModalShell` bottom-anchors content 20% above the viewport bottom and permits
   upward growth no farther than 10% from the top. Safe-area bounds and a 24px
   keyboard gap can further constrain this region. Content hugs its height;
@@ -125,6 +185,10 @@ Navigation, keyboard, modal, and platform-sensitive behavior should also use
 native-oriented tools where practical; report when that verification is unavailable.
 
 ## Theme
+
+- The root layout supplies one semantic dark navigation theme. Nested navigators
+  and their transition surfaces inherit it; dark screen content alone does not
+  theme the navigator background exposed during native transitions.
 
 Prefer semantic theme tokens from `src/lib/styles/colors.js`, directly for native
 color props or through NativeWind utilities. Preserve semantic distinctions even

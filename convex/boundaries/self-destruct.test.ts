@@ -30,8 +30,10 @@ describe("creation-time rules", () => {
       capacity: 10000,
       ruleConfig: { rule: "self_destruct", starting: deadline },
     });
-    expect(await t.run((ctx) => ctx.db.get("pipes", child))).toMatchObject({
-      rule: "self_destruct", cronNextDate: deadline, cronInterval: { interval: 0.5, unit: "days" }, fed: 10000,
+    const created = await t.run((ctx) => ctx.db.get("pipes", child));
+    expect(created).toMatchObject({
+      rule: "self_destruct", cronNextDate: deadline,
+      cronInterval: { interval: (deadline - created!._creationTime) / 86400000, unit: "days" }, fed: 10000,
     });
     expect(await t.run((ctx) => ctx.db.query("events").withIndex("by_userId_pipeId_type", (q) =>
       q.eq("userId", userId).eq("pipeId", child).eq("type", "pipe_creation")).unique())).not.toBeNull();

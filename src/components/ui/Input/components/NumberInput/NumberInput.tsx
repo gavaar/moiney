@@ -1,5 +1,6 @@
 import { TextInput } from "react-native";
-import { colors } from "@/lib/styles";
+import { cn, colors } from "@/lib/styles";
+import { INPUT_CONTENT_TEXT, INPUT_EDITOR_FOCUS } from "../../input.config";
 import type { InputInteraction, InputValueProps } from "../../input.types";
 import { clampNumber } from "../../input.utils";
 
@@ -38,7 +39,7 @@ export function NumberInput({ accessibilityLabel, disabled, value, onChange, min
 
   return (
     <TextInput
-      className="w-full p-0 text-center text-base text-text"
+      className={cn("w-full p-0 text-center text-text", INPUT_CONTENT_TEXT, INPUT_EDITOR_FOCUS)}
       keyboardType="numeric"
       accessibilityLabel={accessibilityLabel}
       value={String(value)}

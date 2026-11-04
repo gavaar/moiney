@@ -127,6 +127,7 @@ describe("Form Input variants", () => {
     const onChange = renderControlledForm();
     const trigger = screen.getByRole("button", { name: "Icon" });
     await user.click(trigger);
+    await user.type(screen.getByRole("textbox", { name: "Search icons" }), "wallet-outline");
     await user.click(screen.getByText("wallet-outline"));
     expect(onChange).toHaveBeenCalledExactlyOnceWith({ ...initialValue, icon: "wallet-outline" });
     expect(screen.getByRole("alert").textContent).toBe("Choose another icon");

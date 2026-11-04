@@ -7,6 +7,8 @@ export type OptionListProps<Item> = Pick<FlatListProps<Item>,
   | "keyExtractor"
   | "extraData"
   | "accessibilityLabel"
+  | "accessibilityRole"
+  | "numColumns"
   | "ListEmptyComponent"
   | "onContentSizeChange"
   | "onLayout"

@@ -82,10 +82,24 @@ bun run web
 | --- | --- |
 | `bun run convex:dev` | Start the Convex development deployment |
 | `bun run convex:deploy` | Verify and deploy Convex functions |
+| `bun run build:web` | Export `dist/` with Cloudflare-compatible asset paths; requires `EXPO_PUBLIC_CONVEX_URL` |
 | `bun run test` | Run the Vitest suite |
 | `bun run typecheck` | Run the TypeScript check |
 | `bun run verify` | Run tests and type checking |
 | `bun run benchmark:performance` | Run the Update 15 performance benchmark |
+
+## Web Deployment
+
+The `main` release workflow publishes `dist/` to the Cloudflare Pages project
+`moiney`, serving `https://moiney.gavaar.me`. GitHub Actions requires the
+`CLOUDFLARE_API_TOKEN` (Pages Write) and `CLOUDFLARE_ACCOUNT_ID` secrets, plus the
+`EXPO_PUBLIC_CONVEX_URL` repository variable pointing to the production backend.
+Convex credentials and JWT keys must not be placed in public Expo variables.
+
+Use `bun run build:web` rather than a bare Expo export before uploading to Pages:
+it normalizes the backend URL and relocates dependency assets out of Wrangler's
+excluded `node_modules` paths. Pull requests check this build without deploying.
+The shared workflow retains the [APK release version policy](docs/app-updates.md#publication-safety).
 
 ## Authentication
 

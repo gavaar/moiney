@@ -16,6 +16,28 @@ const listProps = {
 
 afterEach(() => vi.restoreAllMocks());
 
+it.each([
+  { y: -300, top: 0, bottom: 0 },
+  { y: -20, top: 0, bottom: 20 },
+  { y: 780, top: 780, bottom: 800 },
+  { y: 900, top: 800, bottom: 800 },
+])("leaves only the visible part of an anchor at y=$y interactive", async ({ y, top, bottom }) => {
+  vi.spyOn(Dimensions, "get").mockReturnValue({ width: 400, height: 800, scale: 1, fontScale: 1 });
+  const anchorRef = createRef<ViewInstance>();
+  function Fixture({ visible }: { visible: boolean }) {
+    return <OptionListHost>
+      <View ref={anchorRef} />
+      <AnchoredOptionList {...listProps} visible={visible} anchorRef={anchorRef} onClose={() => {}} />
+    </OptionListHost>;
+  }
+  const { rerender } = render(<Fixture visible={false} />);
+  vi.spyOn(anchorRef.current!, "measureInWindow").mockImplementation(callback => callback(20, y, 240, 40));
+  rerender(<Fixture visible />);
+  await waitFor(() => expect(screen.getByTestId("option-list-backdrop").style.height).toBe(`${top}px`));
+  // Above/below backdrops must partition the viewport without a phantom anchor hole.
+  expect(screen.getByTestId("option-list-backdrop").nextElementSibling).toHaveProperty("style.top", `${bottom}px`);
+});
+
 it("renders non-modal content outside a clipping ancestor in the current window", async () => {
   const anchorRef = createRef<ViewInstance>();
   render(

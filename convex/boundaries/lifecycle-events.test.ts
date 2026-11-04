@@ -51,7 +51,10 @@ describe("Convex boundaries: unified pipe lifecycle events", () => {
     const creation = events.find(event => event.pipeId === child && event.type === "pipe_creation")!;
     const deletion = events.find(event => event.pipeId === child && event.type === "pipe_deletion")!;
     expect(creation).toMatchObject({ _id: originals.find(event => event.pipeId === child)!._id, name: "Madrid trip", icon: "cafe", ancestorIds: [root], parentName: "Trips", parentIcon: "airplane" });
-    expect(deletion).toMatchObject({ name: "Madrid trip", icon: "cafe", ancestorIds: [root], parentName: "Trips", parentIcon: "airplane", occurredAt: Date.UTC(2026, 9, 7), operationId: deletion._id });
+    // Document creation times distinguish inserts within a transaction by fractional milliseconds.
+    expect(deletion).toMatchObject({ name: "Madrid trip", icon: "cafe", ancestorIds: [root], parentName: "Trips", parentIcon: "airplane", occurredAt: Math.floor(deletion._creationTime), operationId: deletion._id });
+    expect(deletion.occurredAt).toBeGreaterThanOrEqual(Date.UTC(2026, 9, 7));
+    expect(deletion.occurredAt).toBeLessThan(Date.UTC(2026, 9, 8));
     expect(creation.occurredAt).toBe(originals.find(event => event.pipeId === child)!.occurredAt);
     expect(deletion.operationId).not.toBe(creation.operationId);
     await t.mutation(internal.pipes.processPipeDeletion, { jobId: job.jobId });

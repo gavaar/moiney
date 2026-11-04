@@ -1,6 +1,7 @@
 import { Pressable, Text, View } from "react-native";
 import { cn, colors } from "@/lib/styles";
 import { Icon } from "@ui/Icon";
+import { choiceKeyboardProps } from "@ui/keyboard/choiceKeyboard";
 import type { InputInteraction, InputTriggerProps, InputValueProps } from "../../input.types";
 
 export type CheckboxInputProps = InputValueProps<boolean> & {
@@ -12,6 +13,7 @@ type Props = CheckboxInputProps & InputInteraction & InputTriggerProps;
 export function CheckboxInput({ checkboxLabel, accessibilityLabel, value, onChange, disabled, error, onInteractionEnd, triggerClassName }: Props) {
   return (
     <Pressable
+      {...choiceKeyboardProps}
       testID="checkbox-touchable"
       onPress={() => {
         if (disabled) return;

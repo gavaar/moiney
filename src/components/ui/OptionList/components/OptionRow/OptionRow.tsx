@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Pressable, type StyleProp, type ViewStyle } from "react-native";
 import { cn, colors } from "@/lib/styles";
+import { choiceKeyboardProps } from "@ui/keyboard/choiceKeyboard";
 
 type Props = {
   children: ReactNode;
@@ -16,6 +17,7 @@ type Props = {
 
 export function OptionRow({ children, onPress, disabled, selected = false, multiple = false, variant = "separator", className = "px-2 py-2", style, accessibilityLabel }: Props) {
   return <Pressable
+    {...(multiple ? choiceKeyboardProps : {})}
     accessibilityRole={multiple ? "checkbox" : "button"}
     accessibilityLabel={accessibilityLabel}
     accessibilityState={{ disabled, ...(multiple ? { checked: selected } : { selected }) }}

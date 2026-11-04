@@ -161,6 +161,7 @@ describe("Input", () => {
     const onChange = vi.fn();
     render(<Input type="icon" label="Icon" value="" onChange={onChange} />);
     await userEvent.click(screen.getByTestId("icon-picker-trigger"));
+    await userEvent.type(screen.getByRole("textbox", { name: "Search icons" }), "wallet-outline");
     await userEvent.click(screen.getByText("wallet-outline"));
     expect(onChange).toHaveBeenCalledExactlyOnceWith("wallet-outline");
   });

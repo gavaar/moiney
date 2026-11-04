@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 import type { PipeModel } from "@features/pipes/data/pipes";
 import { PipeSelectionProvider, usePipeSelection } from "@features/pipes/context/PipeSelectionContext";
+import { PipeSelectionStateProvider } from "@features/pipes/PipeSelectionStateProvider/PipeSelectionStateProvider";
 import { OptionsButton } from "./OptionsButton";
 
 const state = vi.hoisted(() => ({ complete: false }));
@@ -47,7 +48,7 @@ function Screen() {
 }
 
 it("stays at the surviving parent when catalog removal and deletion completion arrive together", async () => {
-  const { rerender } = render(<PipeSelectionProvider><Screen /></PipeSelectionProvider>);
+  const { rerender } = render(<PipeSelectionProvider><Screen /></PipeSelectionProvider>, { wrapper: PipeSelectionStateProvider });
   fireEvent.click(screen.getByText("Select child"));
   fireEvent.click(screen.getByRole("button", { name: "Pipe options" }));
   fireEvent.click(screen.getByText("Delete"));

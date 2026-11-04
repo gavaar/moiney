@@ -17,6 +17,28 @@ const variants = [
 ] as const;
 
 describe.each(variants)("$type accessories", props => {
+  it("keeps accessories independently reachable and activatable from the keyboard", async () => {
+    const user = userEvent.setup();
+    const before = vi.fn();
+    const after = vi.fn();
+    const onChange = vi.fn();
+    render(<Input {...props} label="Field" onChange={onChange}
+      prefix={{ content: <Text>Before</Text>, accessibilityLabel: "Before action", onPress: before }}
+      suffix={{ content: <Text>After</Text>, accessibilityLabel: "After action", onPress: after }} />);
+    await user.tab();
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Before action" }));
+    await user.keyboard("{Enter}");
+    await user.tab();
+    expect(document.activeElement).toBe(screen.getByLabelText("Field"));
+    await user.tab();
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "After action" }));
+    await user.keyboard(" ");
+    expect(before).toHaveBeenCalledOnce();
+    expect(after).toHaveBeenCalledOnce();
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("modal-backdrop")).toBeNull();
+  });
+
   it("renders and runs both custom actions without changing the value or opening a picker", async () => {
     const onChange = vi.fn();
     const before = vi.fn();

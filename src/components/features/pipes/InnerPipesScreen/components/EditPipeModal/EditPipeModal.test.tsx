@@ -31,7 +31,8 @@ vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
   usePipeCatalog: () => ({ allPipes, pipesById: Object.fromEntries(allPipes.map(pipe => [pipe.id, pipe])) }),
 }));
 
-vi.mock("@ui/Modal", () => ({
+vi.mock("@ui/Modal", async importOriginal => ({
+  ...await importOriginal<typeof import("@ui/Modal")>(),
   ModalShell: ({ visible, children, onClose }: any) => (visible ? <div><button onClick={onClose}>Dismiss</button>{children}</div> : null),
 }));
 

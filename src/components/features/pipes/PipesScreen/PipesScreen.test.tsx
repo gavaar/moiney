@@ -1,9 +1,15 @@
 // @vitest-environment jsdom
 import { useEffect } from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render as renderComponent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PipesScreen } from "./PipesScreen";
+import { PipesNavigationProvider } from "@features/app/PipesNavigationProvider/PipesNavigationProvider";
+import { PipeSelectionStateProvider } from "@features/pipes/PipeSelectionStateProvider/PipeSelectionStateProvider";
+
+const render = (ui: React.ReactNode) => renderComponent(ui, {
+  wrapper: ({ children }) => <PipeSelectionStateProvider><PipesNavigationProvider>{children}</PipesNavigationProvider></PipeSelectionStateProvider>,
+});
 
 const mocks = vi.hoisted(() => ({
   monthlyCardReady: true,
@@ -12,8 +18,6 @@ const mocks = vi.hoisted(() => ({
   remove: vi.fn(),
   selectPipe: vi.fn(),
   deselectPipe: vi.fn(),
-  addTabListener: vi.fn(),
-  removeTabListener: vi.fn(),
   selectedPipePath: [] as string[],
   selectedName: null as string | null,
   useFocusEffect: vi.fn(),
@@ -47,16 +51,15 @@ vi.mock("react-native-safe-area-context", () => ({
 }));
 
 vi.mock("expo-router/react-navigation", () => ({
+  StackActions: { popTo: (name: string) => ({ type: "POP_TO", payload: { name } }) },
   useFocusEffect: mocks.useFocusEffect,
   useIsFocused: () => true,
 }));
 vi.mock("expo-router", () => ({
-  useNavigation: () => ({
-    getParent: () => ({
-      addListener: mocks.addTabListener,
-      getState: () => ({ routes: [{ name: "pipes", key: "pipes-key" }, { name: "history", key: "history-key" }] }),
-    })
-  }),
+  usePathname: () => "/pipes",
+  useSegments: () => ["(main)", "(tabs)", "pipes"],
+  useNavigation: () => ({ dispatch: vi.fn() }),
+  useRouter: () => ({ navigate: vi.fn() }),
 }));
 
 vi.mock("@features/app/AppScreenHeader", () => ({
@@ -186,7 +189,6 @@ describe("Pipes Android back handling", () => {
     };
     mocks.historyOptions = undefined;
     mocks.addEventListener.mockReturnValue({ remove: mocks.remove });
-    mocks.addTabListener.mockReturnValue(mocks.removeTabListener);
     mocks.useFocusEffect.mockImplementation((effect) => {
       mocks.focusEffect = effect;
     });
@@ -276,25 +278,6 @@ describe("Pipes Android back handling", () => {
 
     removeRootListener?.();
     expect(mocks.remove).toHaveBeenCalledTimes(2);
-  });
-
-  it("clears selection when reselecting the focused Pipes tab without blocking tab navigation", () => {
-    mocks.selectedPipePath = ["root"];
-    mocks.selectedName = "Travel";
-    render(<PipesScreen />);
-    const cleanup = mocks.focusEffect?.();
-    const tabPress = mocks.addTabListener.mock.calls.find(([event]) => event === "tabPress")?.[1];
-    expect(tabPress).toBeDefined();
-
-    const preventDefault = vi.fn();
-    tabPress({ target: "history-key", preventDefault });
-    expect(mocks.deselectPipe).not.toHaveBeenCalled();
-    tabPress({ target: "pipes-key", preventDefault });
-    expect(mocks.deselectPipe).toHaveBeenCalledOnce();
-    expect(preventDefault).not.toHaveBeenCalled();
-
-    cleanup?.();
-    expect(mocks.removeTabListener).toHaveBeenCalledOnce();
   });
 
   it("shows the live report above feeds and opens detail without Latest transactions", async () => {

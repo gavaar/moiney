@@ -27,8 +27,8 @@ vi.mock("react-native-safe-area-context", () => ({
   ),
 }));
 
-vi.mock("@ui/ScreenHeader/ScreenHeader", () => ({
-  ScreenHeader: ({ title, left }: { title: string; left: React.ReactNode }) => (
+vi.mock("@features/app/AppScreenHeader", () => ({
+  AppScreenHeader: ({ title, left }: { title: string; left: React.ReactNode }) => (
     <header>
       {left}
       <h1>{title}</h1>
