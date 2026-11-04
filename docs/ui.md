@@ -52,6 +52,13 @@ decisions.
   on `/pipes`, clear the selected hierarchy without changing Bar/Tree mode.
   Report details count as another screen, including `/pipes/current`. Explicit
   pipe deep links retain their separate ancestor-selection and Bar-view behavior.
+- Web pipe selections have router-owned history entries and retain `pipeId` in
+  the URL. Back traverses structural ancestors, including after a direct deep
+  link, tree jump, or breadcrumb selection; a selected feed returns to the feed
+  list, where ordinary browser Back resumes. Entries retain the Pipes screen's
+  identity so drafts and view state do not remount. Native selection and hardware
+  Back retain their state-based behavior. Platform differences live in paired
+  `.ts` / `.web.ts` adapters, not feature controls.
 - `PipeSelectionStateProvider` owns the selected path and selection actions in the
   authenticated shell without catalog queries. Resolving the selected pipe/name
   and reconciling removed IDs remain inside Pipes. Navigation clears shared
@@ -83,6 +90,9 @@ decisions.
   wording and formatting. Actions remain caller-rendered.
 - Modal backdrop taps and system Back/Escape first let a hosted overlay consume
   dismissal; expanded collapsible-select behavior is defined in [Input](input.md).
+  Browser Back on web requests dismissal of the top modal or popover before
+  traversing pipe or route history. A blocked save or discard confirmation still
+  consumes that Back action without changing the selected pipe.
   Otherwise, backdrop taps request modal dismissal. All pipe creation/editing entry
   points and the plus creation modal confirm discarding unsaved changes before dismissal, including
   system Back; plus-modal dismissal checks all drafts, including hidden modes, and is

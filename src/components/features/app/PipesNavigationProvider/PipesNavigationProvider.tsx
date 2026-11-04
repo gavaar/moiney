@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, type ReactNode } from "react";
 import { usePathname, useRouter, useSegments } from "expo-router";
 import { usePipeSelectionState } from "@features/pipes/PipeSelectionStateProvider/PipeSelectionStateProvider";
+import { getPipesHref } from "@features/pipes/navigation/pipe-navigation";
 
 type PipesNavigation = {
   openPipes: () => void;
@@ -18,7 +19,7 @@ function usePipesNavigationContext() {
 export function PipesNavigationProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { deselectPipe } = usePipeSelectionState();
+  const { selectedPipePath, deselectPipe } = usePipeSelectionState();
   const segments: readonly string[] = useSegments();
   const switchingTabs = segments[1] === "(tabs)" && segments[2] !== "pipes";
   const returnToIndex = useRef<(() => void) | null>(null);
@@ -33,12 +34,12 @@ export function PipesNavigationProvider({ children }: { children: ReactNode }) {
       // POP_TO is a stack action, not a tab action. Return an inactive Pipes
       // stack to its existing index before switching tabs with NAVIGATE.
       returnToIndex.current?.();
-      router.navigate("/pipes");
+      router.navigate(getPipesHref(selectedPipePath));
     }
     // NAVIGATE would append a new stack entry from Settings or a Pipes report.
     // dismissTo reuses the existing tree, or replaces on a cold entry.
-    else router.dismissTo("/pipes");
-  }, [deselectPipe, pathname, router, switchingTabs]);
+    else router.dismissTo(getPipesHref(selectedPipePath));
+  }, [deselectPipe, pathname, router, selectedPipePath, switchingTabs]);
   const value = useMemo(() => ({ openPipes, registerReturnToIndex }), [openPipes, registerReturnToIndex]);
   return <PipesNavigationContext value={value}>{children}</PipesNavigationContext>;
 }

@@ -26,7 +26,7 @@ export function usePipeSelection(): PipeSelectionContextValue {
 
 export function PipeSelectionProvider({ children }: { children: ReactNode }) {
   const { allPipes } = usePipeCatalog();
-  const { selectedPipePath: storedPath, selectPipe, deselectPipe } = usePipeSelectionState();
+  const { selectedPipePath: storedPath, selectPipe, deselectPipe, reconcilePipe } = usePipeSelectionState();
   const selectedPipePath = useMemo(() => {
     if (!allPipes) return storedPath;
     const existingIds = new Set(allPipes.map((pipe) => pipe.id));
@@ -37,9 +37,9 @@ export function PipeSelectionProvider({ children }: { children: ReactNode }) {
   // commit without overwriting a newer selection (for example, a deep link).
   useEffect(() => {
     if (selectedPipePath !== storedPath) {
-      selectPipe(current => current === storedPath ? selectedPipePath : current);
+      reconcilePipe(current => current === storedPath ? selectedPipePath : current);
     }
-  }, [selectedPipePath, storedPath, selectPipe]);
+  }, [selectedPipePath, storedPath, reconcilePipe]);
 
   const selectedId =
     selectedPipePath.length > 0
@@ -56,10 +56,11 @@ export function PipeSelectionProvider({ children }: { children: ReactNode }) {
       selectedPipePath,
       selectPipe,
       deselectPipe,
+      reconcilePipe,
       selectedPipe,
       selectedName,
     }),
-    [selectedPipePath, selectPipe, deselectPipe, selectedPipe, selectedName],
+    [selectedPipePath, selectPipe, deselectPipe, reconcilePipe, selectedPipe, selectedName],
   );
 
   return (

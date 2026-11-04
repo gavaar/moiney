@@ -13,6 +13,7 @@ import { AppUpdateProvider } from "@features/app/updates/AppUpdateProvider";
 import { BiometricLoginOffer } from "@features/auth/BiometricLoginOffer/BiometricLoginOffer";
 import { OptionListHost } from "@ui/OptionList";
 import { colors } from "@/lib/styles";
+import { localHistoryRouter } from "@/lib/navigation/local-history";
 
 export default function RootLayout() {
   const convexClient = getConvexClient();
@@ -40,7 +41,7 @@ export default function RootLayout() {
                           notification: colors.error,
                         },
                       }}>
-                        <Stack screenOptions={{
+                        <Stack UNSTABLE_router={localHistoryRouter} screenOptions={{
                           headerShown: false,
                           contentStyle: { backgroundColor: colors.background },
                         }} />

@@ -1,11 +1,7 @@
-import { createContext, useCallback, useContext, useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
-import type { PipeModel } from "../data/pipes";
+import { createContext, useContext, useMemo, type ReactNode } from "react";
+import { usePipeNavigation } from "../navigation/pipe-navigation";
 
-type PipeSelectionState = {
-  selectedPipePath: PipeModel["id"][];
-  selectPipe: Dispatch<SetStateAction<PipeModel["id"][]>>;
-  deselectPipe: () => void;
-};
+type PipeSelectionState = ReturnType<typeof usePipeNavigation>;
 
 const PipeSelectionStateContext = createContext<PipeSelectionState | null>(null);
 
@@ -16,8 +12,10 @@ export function usePipeSelectionState() {
 }
 
 export function PipeSelectionStateProvider({ children }: { children: ReactNode }) {
-  const [selectedPipePath, selectPipe] = useState<PipeModel["id"][]>([]);
-  const deselectPipe = useCallback(() => selectPipe([]), []);
-  const value = useMemo(() => ({ selectedPipePath, selectPipe, deselectPipe }), [selectedPipePath, selectPipe, deselectPipe]);
+  const { selectedPipePath, selectPipe, deselectPipe, reconcilePipe } = usePipeNavigation();
+  const value = useMemo(
+    () => ({ selectedPipePath, selectPipe, deselectPipe, reconcilePipe }),
+    [selectedPipePath, selectPipe, deselectPipe, reconcilePipe],
+  );
   return <PipeSelectionStateContext value={value}>{children}</PipeSelectionStateContext>;
 }

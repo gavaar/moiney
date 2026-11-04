@@ -11,6 +11,7 @@ import { useModalFrame } from "./useModalFrame";
 import { OptionListHost } from "@ui/OptionList";
 import { focusFirstControl, hasFocusWithin } from "@ui/keyboard/focus";
 import { PointerBackdrop } from "@ui/PointerBackdrop/PointerBackdrop";
+import { useModalBack } from "./use-modal-back";
 
 type Props = {
   visible: boolean;
@@ -64,6 +65,7 @@ export function ModalShell({ visible, onClose, children, bottomAccessory, width 
   function requestClose() {
     if (!backHandlerRef.current?.()) onClose();
   }
+  const onBackShow = useModalBack(visible, requestClose);
 
   // Web mounts RNModal portals automatically so creating them in order is important.
   // Mobile gets animations and stuff from having the RNModal pre-mounted
@@ -75,7 +77,10 @@ export function ModalShell({ visible, onClose, children, bottomAccessory, width 
       animationType="fade"
       visible={visible}
       onRequestClose={requestClose}
-      onShow={() => { if (!hasFocusWithin(modalRef.current)) focusFirstControl(boundsRef.current); }}
+      onShow={() => {
+        onBackShow();
+        if (!hasFocusWithin(modalRef.current)) focusFirstControl(boundsRef.current);
+      }}
     >
       <SafeAreaProvider>
         <OptionListHost boundsRef={boundsRef} backHandlerRef={backHandlerRef}>
