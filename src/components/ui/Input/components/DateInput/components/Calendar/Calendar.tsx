@@ -101,8 +101,8 @@ export function Calendar({ visible, value, onChange, onClose }: Props) {
 
   return (
     <ModalShell visible={visible} onClose={onClose} width="content">
-      <ScrollView style={{ width: 280, maxWidth: "100%", flexGrow: 0, flexShrink: 1 }} keyboardShouldPersistTaps="handled">
-        <View className="flex-row items-center justify-between mb-2">
+      <ScrollView contentContainerClassName="gap-2" style={{ width: 280, maxWidth: "100%", flexGrow: 0, flexShrink: 1 }} keyboardShouldPersistTaps="handled">
+        <View className="flex-row items-center justify-between">
           <Pressable
             testID="calendar-prev"
             accessibilityRole="button"

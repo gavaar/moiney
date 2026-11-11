@@ -3,13 +3,12 @@ import { formatAmount } from "@/lib/format";
 import { formBuilder } from "@ui/Form";
 import type { AmountFormDraft, SourcePicker } from "./types";
 import type { PipeModel } from "@features/pipes/data/pipes";
-import type { InputProps } from "@ui/Input";
-import { renderTransactionPipe, transactionPipeItems, transactionPipeStyle } from "./pipeOptions";
+import { transactionPipePicker } from "./pipeOptions";
 
 type PipeOption = { id: string; name: string; icon: string };
-type PipeGroups = NonNullable<Extract<InputProps, { type: "select" }>["groups"]>;
 type AmountFormConfiguration = {
   isFeed: boolean;
+  draft: Pick<AmountFormDraft, "paidFrom" | "value">;
   pipesById: Readonly<Record<string, PipeModel>>;
   common: { loading: boolean; recentTitles: readonly string[] };
   spend: {
@@ -17,26 +16,23 @@ type AmountFormConfiguration = {
     isNegative: boolean;
     pipeItems: readonly PipeOption[];
     paidFromPipeItems: readonly PipeOption[];
-    paidFromGroups: PipeGroups;
     showPaidFrom: boolean;
     setShowPaidFrom: (show: boolean) => void;
   } | null;
-   transaction: { paidFrom: { label: string; items: readonly PipeOption[]; groups: PipeGroups } | null } | null;
+   transaction: { paidFrom: { label: string; items: readonly PipeOption[] } | null } | null;
   boiler: { name: string; contributionAmount: number; currentFedChanged: boolean } | null;
 };
 
 export function buildAmountForm(configuration: AmountFormConfiguration, sourcePicker?: SourcePicker) {
   const { common, spend, boiler, transaction, pipesById } = configuration;
+  const preferredPayerId = configuration.draft.value.startsWith("-") ? configuration.draft.paidFrom ?? undefined : undefined;
   const { form, page, row, input } = formBuilder<AmountFormDraft>({ defaults: { disabled: common.loading } });
 
   const sourcePageInput = sourcePicker && row(
     input("sourcePipeId", {
       type: "select",
       accessibilityLabel: "Transaction pipe",
-      items: transactionPipeItems(sourcePicker.pipes, pipesById, true),
-      groups: sourcePicker.groups,
-      renderItem: renderTransactionPipe,
-      itemStyle: transactionPipeStyle,
+      ...transactionPipePicker(sourcePicker.pipes, pipesById, { showSummary: true, preferredPipeId: sourcePicker.preferredPipeId }),
       loading: sourcePicker.loading,
     }),
   );
@@ -55,10 +51,7 @@ export function buildAmountForm(configuration: AmountFormConfiguration, sourcePi
     input("paidFrom", {
       type: "select",
       label: transaction.paidFrom.label,
-      items: transactionPipeItems(transaction.paidFrom.items, pipesById),
-      groups: transaction.paidFrom.groups,
-      renderItem: renderTransactionPipe,
-      itemStyle: transactionPipeStyle,
+      ...transactionPipePicker(transaction.paidFrom.items, pipesById, { preferredPipeId: preferredPayerId }),
       placeholder: "None",
     })
   );
@@ -66,10 +59,7 @@ export function buildAmountForm(configuration: AmountFormConfiguration, sourcePi
     input("paidFrom", {
       type: "select",
       label: spend.isNegative ? "Paid from" : "Refunded to",
-      items: transactionPipeItems(spend.paidFromPipeItems, pipesById),
-      groups: spend.paidFromGroups,
-      renderItem: renderTransactionPipe,
-      itemStyle: transactionPipeStyle,
+      ...transactionPipePicker(spend.paidFromPipeItems, pipesById, { preferredPipeId: preferredPayerId }),
       placeholder: "None",
     }, {
       reveal: {
@@ -85,9 +75,7 @@ export function buildAmountForm(configuration: AmountFormConfiguration, sourcePi
       type: "select",
       label: "Transfer to",
       placeholder: "None",
-      items: transactionPipeItems(spend.pipeItems, pipesById),
-      renderItem: renderTransactionPipe,
-      itemStyle: transactionPipeStyle,
+      ...transactionPipePicker(spend.pipeItems, pipesById),
     }),
   );
   const externalPipeRow = paidFromRow || spendRow || transferRow;

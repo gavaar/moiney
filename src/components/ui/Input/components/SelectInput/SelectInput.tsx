@@ -1,20 +1,16 @@
 import { useState, type ReactNode } from "react";
 import { ActivityIndicator, Pressable, Text, View, type StyleProp, type ViewStyle } from "react-native";
-import { cn, colors } from "@/lib/styles";
-import { Icon, safeIconName } from "@ui/Icon";
+import { cn } from "@/lib/styles";
 import { ModalShell } from "@ui/Modal";
 import { OptionList, OptionRow } from "@ui/OptionList";
-import { TreeBranch } from "@ui/TreeBranch";
+import { TreeList, useTreeCollapse, type TreeItemState, type TreeNode } from "@ui/TreeList";
 import type { InputInteraction, InputTriggerProps, InputValueProps } from "../../input.types";
-import { buildSelectRows, type SelectGroup } from "./selectRows";
-
-export type { SelectGroup } from "./selectRows";
 
 type CommonSelectInputProps<Item extends { id: string }> = {
   accessibilityLabel?: string;
   items: readonly Item[];
-  groups?: readonly SelectGroup[];
-  renderItem: (item: Item) => ReactNode;
+  tree?: readonly TreeNode[];
+  renderItem: (item: Item, state?: TreeItemState) => ReactNode;
   itemStyle?: (item: Item) => StyleProp<ViewStyle>;
   disabled?: boolean;
   placeholder?: string;
@@ -29,16 +25,15 @@ type Props<Item extends { id: string }> = InputInteraction & InputTriggerProps &
   | (SelectMultipleInputProps<Item> & { multiple: true })
 );
 
-export function SelectInput<Item extends { id: string }>({ accessibilityLabel, items, groups, renderItem, itemStyle, value, disabled, placeholder, multiple, onChange, loading = false, onFocusChange, onInteractionEnd, triggerClassName }: Props<Item>) {
+export function SelectInput<Item extends { id: string }>({ accessibilityLabel, items, tree, renderItem, itemStyle, value, disabled, placeholder, multiple, onChange, loading = false, onFocusChange, onInteractionEnd, triggerClassName }: Props<Item>) {
   const [open, setOpen] = useState(false);
-  const [expandedOverrides, setExpandedOverrides] = useState<Record<string, boolean>>({});
+  const collapse = useTreeCollapse();
   const inputLabel = accessibilityLabel;
   const interactionDisabled = disabled || loading;
 
   const selectedItem = !multiple && value
     ? items.find((item) => item.id === value) ?? null
     : null;
-  const rows = buildSelectRows(items, groups, expandedOverrides);
 
   const handleTriggerPress = () => {
     if (interactionDisabled) return;
@@ -72,28 +67,6 @@ export function SelectInput<Item extends { id: string }>({ accessibilityLabel, i
     >{renderItem(item)}</OptionRow>;
   }
 
-  function renderRow(row: (typeof rows)[number]) {
-    if (row.kind === "option") return row.branch
-      ? <View className="flex-row items-center">
-          <TreeBranch path={row.branch} />
-          <View className="flex-1">
-            {renderOption(row.item)}
-          </View>
-        </View>
-      : renderOption(row.item);
-    const { group } = row;
-    const expanded = expandedOverrides[group.id] ?? group.initiallyExpanded ?? false;
-    return <Pressable accessibilityRole="button" accessibilityLabel={`${expanded ? "Collapse" : "Expand"} ${group.name}`}
-      accessibilityState={{ expanded, disabled: interactionDisabled }} aria-expanded={expanded} disabled={interactionDisabled}
-      onPress={() => setExpandedOverrides(previous => ({ ...previous, [group.id]: !expanded }))}
-      className="flex-row items-center gap-1.5 rounded-lg border border-border bg-surface px-2 py-2">
-      {group.icon ? <Icon name={safeIconName(group.icon)} size={16} color={colors.muted} /> : null}
-      <Text className="text-text font-semibold flex-1" numberOfLines={1}>{group.name}</Text>
-      <Text className="text-muted text-xs">{group.itemIds.length}</Text>
-      <Icon name={expanded ? "chevron-up" : "chevron-down"} size={16} color={colors.muted} />
-    </Pressable>;
-  }
-
   return (
     <>
       <Pressable
@@ -120,13 +93,27 @@ export function SelectInput<Item extends { id: string }>({ accessibilityLabel, i
         setOpen(false);
         onFocusChange(false);
       }}>
-        <OptionList
-          accessibilityLabel={inputLabel}
-          data={rows}
-          extraData={{ value, disabled, loading }}
-          keyExtractor={row => row.key}
-          ListEmptyComponent={<Text className="text-center text-sm text-muted py-4">No options</Text>}
-          renderItem={({ item }) => renderRow(item)} />
+        {tree
+          ? <TreeList
+            items={items}
+            tree={tree}
+            renderItem={renderItem}
+            itemStyle={itemStyle}
+            mode={multiple ? "multiple" : "single"}
+            selectedIds={multiple ? value : value ? [value] : []}
+            disabled={interactionDisabled}
+            accessibilityLabel={inputLabel}
+            onPress={item => handleItemPress(item.id)}
+            collapse={collapse}
+          />
+          : <OptionList
+              accessibilityLabel={inputLabel}
+              data={items}
+              extraData={{ value, disabled, loading }}
+              keyExtractor={item => item.id}
+              ListEmptyComponent={<Text className="text-center text-sm text-muted py-4">No options</Text>}
+              renderItem={({ item }) => renderOption(item)}
+            />}
       </ModalShell>
     </>
   );

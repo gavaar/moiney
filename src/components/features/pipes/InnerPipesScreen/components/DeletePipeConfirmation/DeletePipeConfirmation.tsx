@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FlatList, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import type {
@@ -13,6 +13,9 @@ import { colors } from "@/lib/styles";
 import { useAlert } from "@ui/Alert";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import { useOptionalEventHistoryCache } from "@features/transactions/cache/EventHistoryCacheContext";
+import { buildPipeTree, PipeTreeItem } from "@features/pipes/PipeTree";
+import { getSubtreePipeIds } from "@features/pipes/data/subtree";
+import { TreeList, useTreeCollapse } from "@ui/TreeList";
 
 type Props = {
   visible: boolean;
@@ -21,29 +24,9 @@ type Props = {
   onDeleted: () => void;
 };
 
-type DescendantNode = {
-  id: PipeModel["id"];
-  name: string;
-  icon: string;
-  depth: number;
-};
-
-function collectDescendants(
-  pipeId: PipeModel["id"],
-  childrenByParent: Map<PipeModel["id"], PipeModel[]>,
-  depth = 1,
-): DescendantNode[] {
-  const result: DescendantNode[] = [];
-  const children = childrenByParent.get(pipeId) ?? [];
-  for (const child of children) {
-    result.push({ id: child.id, name: child.name, icon: child.icon, depth });
-    result.push(...collectDescendants(child.id, childrenByParent, depth + 1));
-  }
-  return result;
-}
-
 export function DeletePipeConfirmation({ visible, onClose, pipeId, onDeleted }: Props) {
   const { pipesById, childrenByParent } = usePipeCatalog();
+  const collapse = useTreeCollapse();
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteTransactions, setDeleteTransactions] = useState(false);
   const [jobId, setJobId] = useState<NonNullable<PipeModel["deletionJobId"]> | null>(null);
@@ -61,10 +44,11 @@ export function DeletePipeConfirmation({ visible, onClose, pipeId, onDeleted }: 
   );
   const pipe = pipeId ? pipesById?.[pipeId] ?? null : null;
 
-  const descendants = useMemo(
-    () => collectDescendants(pipeId, childrenByParent),
+  const subtreeIds = useMemo(
+    () => getSubtreePipeIds(childrenByParent, pipeId) ?? [],
     [pipeId, childrenByParent],
   );
+  const subtree = buildPipeTree(Object.values(pipesById ?? {}), subtreeIds, { rootId: pipeId });
 
   if (!visible && !jobId && (isDeleting || deleteTransactions)) {
     setIsDeleting(false);
@@ -80,7 +64,7 @@ export function DeletePipeConfirmation({ visible, onClose, pipeId, onDeleted }: 
     if (completedDeletion && notifiedJobId.current !== completedDeletion.jobId) {
       notifiedJobId.current = completedDeletion.jobId;
       showAlert.success(
-        `Deleted ${descendants.length ? "pipe subtree." : "pipe."}${
+        `Deleted ${subtreeIds.length > 1 ? "pipe subtree." : "pipe."}${
           completedDeletion.deleteTransactions ? " Orphaned history was deleted" : ""
         }`,
       );
@@ -90,7 +74,7 @@ export function DeletePipeConfirmation({ visible, onClose, pipeId, onDeleted }: 
     }
   }, [
     completedDeletion,
-    descendants.length,
+    subtreeIds.length,
     onClose,
     onDeleted,
     showAlert,
@@ -116,33 +100,19 @@ export function DeletePipeConfirmation({ visible, onClose, pipeId, onDeleted }: 
           <Text className="text-text font-bold text-lg">{pipe?.name ?? "Unknown"}</Text>
         </View>
 
-        <FlatList
-          data={descendants}
-          keyExtractor={descendant => descendant.id}
-          style={{ flexGrow: 0, flexShrink: 1 }}
-          keyboardShouldPersistTaps="handled"
+        <TreeList
+          {...subtree}
+          collapse={collapse}
           ListHeaderComponent={
             <View className="gap-4">
               <Text className="text-text text-sm">This will delete the following pipes:</Text>
-              {pipe && (
-                <View className="flex-row items-center gap-2 py-1">
-                  <View style={{ width: 0 }} />
-                  <Icon name={safeIconName(pipe.icon)} size={16} color={colors.text} />
-                  <Text className="text-text text-sm font-medium">{pipe.name}</Text>
-                  <Text className="text-muted text-xs">(selected)</Text>
-                </View>
-              )}
             </View>
           }
-          renderItem={({ item: d }) => (
-            <View className="flex-row items-center gap-2 py-1">
-              <View style={{ width: d.depth * 16 }} />
-              <Icon name={safeIconName(d.icon)} size={14} color={colors.muted} />
-              <Text className="text-text text-sm">{d.name}</Text>
-            </View>
-          )}
+          renderItem={(item, state) => <PipeTreeItem pipe={item} state={state}>
+            {item.id === pipeId ? <Text className="text-muted text-xs">(selected)</Text> : null}
+          </PipeTreeItem>}
           ListFooterComponent={
-            <View className="gap-4 mt-4">
+            <View className="gap-4">
               <View className="bg-error/10 border border-error rounded-lg p-3">
                 <Text className="text-error text-sm">
                   Warning: You are about to delete this pipe and all its child pipes. This action cannot be undone.
@@ -169,7 +139,7 @@ export function DeletePipeConfirmation({ visible, onClose, pipeId, onDeleted }: 
 
         <Button
           variant="error"
-          title={`Delete ${descendants.length + 1} pipes`}
+          title={`Delete ${subtreeIds.length} pipes`}
           disabled={isDeleting}
           loading={isDeleting}
           onPress={handleConfirm}

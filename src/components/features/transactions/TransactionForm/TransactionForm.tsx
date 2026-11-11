@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { Id } from "@convex/_generated/dataModel";
-import { AmountForm, groupPipesByRoot, type TransactionInitialState } from "@features/components/AmountForm";
+import { AmountForm, type TransactionInitialState } from "@features/components/AmountForm";
 import { usePipeCatalog } from "@features/pipes/context/PipeCatalogContext";
 import { useEventHistory } from "@features/transactions/cache/useEventHistory";
 import { getFrequentlyUsedEventSourcePipeIds } from "../history/events/event-usage";
@@ -21,10 +21,6 @@ export function TransactionForm(props: Props) {
   const pipes = isFeed
     ? (allPipes ?? []).filter(pipe => !pipe.parentId && !pipe.deletionJobId)
     : getQuickTransactionPipes(allPipes ?? [], childrenByParent, getFrequentlyUsedEventSourcePipeIds(entries.slice(0, 100)));
-  const groups = isFeed ? [] : groupPipesByRoot(pipes, allPipes ?? [], {
-    ...(pipeId ? { preferredPipeId: pipeId } : {}),
-    expandFirst: !initState || initState.intent === "create",
-  });
   const selected = pipes.find(pipe => pipe.id === selectedId);
   const initial: TransactionInitialState = initState ? {
     ...initState,
@@ -42,10 +38,15 @@ export function TransactionForm(props: Props) {
     value: "-",
   };
 
-  return <AmountForm variant="transaction" pipeId={selected?.id ?? null} initState={initial} onSuccess={onSuccess} onDismissStateChange={onDismissStateChange}
+  return <AmountForm
+    variant="transaction"
+    pipeId={selected?.id ?? null}
+    initState={initial}
+    onSuccess={onSuccess}
+    onDismissStateChange={onDismissStateChange}
     sourcePicker={{
       pipes,
-      groups,
+      preferredPipeId: pipeId,
       loading: isLoading || historyLoading,
       navigationStart: pipeId ? 1 : 0,
       onSelect: setSelectedId,

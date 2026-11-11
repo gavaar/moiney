@@ -5,6 +5,7 @@ import { useNavigation } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AppScreenHeader } from "@features/app/AppScreenHeader";
 import { SlideToggle } from "@ui/SlideToggle";
+import { useTreeCollapse } from "@ui/TreeList";
 import { Icon } from "@ui/Icon";
 import { CurrentMonthStatisticsCard } from "@features/statistics/CurrentMonthStatisticsCard";
 import { useMonthlyCardPreference } from "@features/statistics/preferences/MonthlyCardPreference";
@@ -24,6 +25,7 @@ import { usePipesStackReturn } from "@features/app/PipesNavigationProvider/Pipes
 export function PipesScreen({ openPipeId, onPipeOpened, onOpenCurrentReport }: { openPipeId?: string; onPipeOpened?: () => void; onOpenCurrentReport?: () => void } = {}) {
   const navigation = useNavigation();
   const [treeMode, setTreeMode] = useState(false);
+  const treeCollapse = useTreeCollapse();
   const [latestExpanded, setLatestExpanded] = useState(true);
   const { selectedName, selectedPipePath, selectPipe, deselectPipe } = usePipeSelection();
   const returnToIndex = useCallback(() => navigation.dispatch(StackActions.popTo("index")), [navigation]);
@@ -116,6 +118,7 @@ export function PipesScreen({ openPipeId, onPipeOpened, onOpenCurrentReport }: {
       <View className="flex-1 px-2">
         {treeMode ? (
           <PipeTreeView
+            collapse={treeCollapse}
             onSelectPipe={(path) => {
               selectPipe(path);
               setTreeMode(false);

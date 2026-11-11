@@ -13,9 +13,10 @@ type Props = {
   className?: string;
   style?: StyleProp<ViewStyle>;
   accessibilityLabel?: string;
+  selectionAppearance?: "neutral" | "content";
 };
 
-export function OptionRow({ children, onPress, disabled, selected = false, multiple = false, variant = "separator", className = "px-2 py-2", style, accessibilityLabel }: Props) {
+export function OptionRow({ children, onPress, disabled, selected = false, multiple = false, variant = "separator", className = "px-2", style, accessibilityLabel, selectionAppearance = "neutral" }: Props) {
   return <Pressable
     {...(multiple ? choiceKeyboardProps : {})}
     accessibilityRole={multiple ? "checkbox" : "button"}
@@ -26,6 +27,6 @@ export function OptionRow({ children, onPress, disabled, selected = false, multi
     disabled={disabled}
     onPress={onPress}
     className={cn("active:opacity-70", variant === "card" ? "rounded-lg border" : "border-b border-border/30 last:border-b-0", className)}
-    style={[style, selected ? { backgroundColor: `${colors.muted}1A`, borderRadius: 8 } : undefined]}
+    style={[style, selected && selectionAppearance === "neutral" ? { backgroundColor: `${colors.muted}1A`, borderRadius: 8 } : undefined]}
   >{children}</Pressable>;
 }

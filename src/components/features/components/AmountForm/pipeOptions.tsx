@@ -1,15 +1,15 @@
-import { Text, View } from "react-native";
 import { colors } from "@/lib/styles";
 import { formatAmount } from "@/lib/format";
-import { Icon, safeIconName } from "@ui/Icon";
+import { buildPipeTree, PipeTreeItem } from "@features/pipes/PipeTree";
+import type { TreeItemState } from "@ui/TreeList";
 import type { PipeModel } from "@features/pipes/data/pipes";
 
 export function getTransactionPipeColor(pipe?: Pick<PipeModel, "spent" | "fed">) {
   return !pipe ? colors.muted : pipe.spent >= pipe.fed ? colors.error : colors.text;
 }
 
-export function transactionPipeItems(
-  items: readonly { id: string; name: string; icon: string }[],
+export function transactionPipeItems<Item extends { id: string; name: string; icon: string; parentId?: string }>(
+  items: readonly Item[],
   pipesById: Readonly<Record<string, PipeModel>>,
   showSummary = false,
 ) {
@@ -25,13 +25,27 @@ export function transactionPipeItems(
 
 type Item = ReturnType<typeof transactionPipeItems>[number];
 
-export function renderTransactionPipe(item: Item) {
-  return <View className="flex-row items-center gap-2">
-    <Icon name={safeIconName(item.icon)} size={22} color={item.color} />
-    <Text className="flex-1 text-text" numberOfLines={1}>{item.name}{item.summary}</Text>
-  </View>;
+function renderTransactionPipe(item: Item, state?: TreeItemState) {
+  return <PipeTreeItem pipe={item} state={state} iconColor={item.color} summary={item.summary} />;
 }
 
-export function transactionPipeStyle(item: Item) {
+function transactionPipeStyle(item: Item) {
   return { borderColor: item.color };
+}
+
+/** Pairs ranked pipe-tree options with their rendering and styling; callers own eligibility. */
+export function transactionPipePicker(
+  candidates: readonly { id: string; name: string; icon: string }[],
+  pipesById: Readonly<Record<string, PipeModel>>,
+  { showSummary = false, preferredPipeId }: { showSummary?: boolean; preferredPipeId?: string } = {},
+) {
+  const specialItems = transactionPipeItems(candidates.filter(item => !pipesById[item.id]), pipesById);
+  const relevant = buildPipeTree(transactionPipeItems(Object.values(pipesById), pipesById, showSummary),
+    candidates.map(item => item.id), { preferredPipeId });
+  return {
+    items: [...specialItems, ...relevant.items],
+    tree: [...specialItems.map(item => ({ id: item.id, label: item.name, selectable: true })), ...relevant.tree],
+    renderItem: renderTransactionPipe,
+    itemStyle: transactionPipeStyle,
+  };
 }

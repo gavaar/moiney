@@ -22,7 +22,6 @@ import {
 } from "./helpers";
 import type { AmountFormDraft, AmountFormProps } from "./types";
 import type { PipeModel } from "@features/pipes/data/pipes";
-import { groupPipesByRoot } from "./pipeGroups";
 import { transactionEditPreview } from "./transactionEditPreview";
 
 type SpendMode = "spend" | "transfer";
@@ -158,16 +157,6 @@ export function useAmountFormController(props: AmountFormProps) {
     () => pipeId ? buildPaidFromPipeItems(allPipes, pipeId, isNegative) : [],
     [allPipes, isNegative, pipeId],
   );
-  const paidFromGroups = useMemo(() => isNegative
-    ? groupPipesByRoot(
-      paidFromPipeItems.flatMap(item => {
-        const pipe = pipesById[item.id];
-        return pipe ? [pipe] : [];
-      }),
-      allPipes ?? [],
-      { preferredPipeId: paidFromPipeId ?? undefined, expandFirst: true },
-    )
-    : [], [allPipes, isNegative, paidFromPipeId, paidFromPipeItems, pipesById]);
 
   const invalidPreviousPipeIds = useMemo(() => {
     if (intent !== "edit" || !initialStructure || !allPipes) return [];
@@ -364,7 +353,6 @@ export function useAmountFormController(props: AmountFormProps) {
         isNegative,
         mode: spendMode,
         paidFromPipeItems,
-        paidFromGroups,
         pipeItems,
         setShowPaidFrom,
         showPaidFrom,
@@ -378,7 +366,6 @@ export function useAmountFormController(props: AmountFormProps) {
             intent === "edit" && initialStructure?.type === "payByTransfer"
               ? {
                 items: paidFromPipeItems,
-                groups: paidFromGroups,
                 label: isNegative ? "Paid from" : "Refunded to",
               }
               : null,

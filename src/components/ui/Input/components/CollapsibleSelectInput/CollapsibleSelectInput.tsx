@@ -109,7 +109,7 @@ export function CollapsibleSelectInput({
                   selected={value === row.item.id}
                    accessibilityLabel={row.item.title}
                   disabled={disabled || isItemDisabled?.(row.item)}
-                  className="p-1 my-1 border-secondary/20"
+                   className="p-1 border-secondary/20"
                   style={isItemDisabled?.(row.item) ? { opacity: 0.4 } : undefined}
                   onPress={() => {
                     if (disabled || isItemDisabled?.(row.item)) return;

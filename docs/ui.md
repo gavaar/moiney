@@ -70,6 +70,11 @@ decisions.
 
 ## Shared Primitives
 
+- Lists own inter-item spacing through their content container's `gap`, rather
+  than item margins, unless the layout cannot express the spacing with `gap`.
+  Modal, collapsible, autocomplete, and icon choices share `OptionList`'s default
+  row gap; grids use the same gap between columns. Variants retain their content
+  layout and control padding for usable tap targets, not per-item spacing margins.
 - Application code uses `src/components/ui/Input/Input.tsx`, not its variant
   components directly. Preserve the dispatcher contract unless an approved
   refactor replaces it.
@@ -112,9 +117,36 @@ decisions.
   content in that same region. Content owns overflow scrolling; do not wrap forms
   or virtualized lists in another shell-level ScrollView.
 - Mandatory [app updates](app-updates.md) use a screen-level gate, not a modal.
-- Pipe list minimization is an account-scoped, device-local display preference.
+- Bar-view pipe list minimization is an account-scoped, device-local display preference.
   It survives sign-out and app restarts, is not synchronized through Convex,
   and removes saved IDs only after a complete pipe catalog load.
+
+## Pipe Trees
+
+Pipe pickers, History filters, deletion previews, and full-tree navigation share
+the virtualized `TreeList`. The pipe feature builds relevant trees from the catalog
+and caller-owned eligible IDs, retaining necessary ancestors and supplied sibling
+ranking without changing eligibility. An explicit subtree scope omits outside
+ancestors; otherwise ancestry reaches the actual roots. Ineligible terminal
+branches disappear. Roots are unindented and semibold; descendants use `TreeBranch`
+connectors. Screen-specific financial content and special options remain supported.
+
+In pickers, structural-only parents are muted and their row toggles expansion.
+Selectable rows select only that ID; a separate chevron toggles their descendants.
+Tree rows share one minimum touch height regardless of selection eligibility or
+children. Selection and disclosure controls fill that height; disclosure padding
+must not make parent rows taller than leaves.
+Multi-selected names use primary text without a selection background. Single
+selection retains the standard neutral background. Navigation rows still navigate;
+read-only preview rows do not become selectable or muted merely because they are
+not pickers. Collapsing a deletion preview never changes its exhaustive deletion
+scope, count, or warning.
+
+Trees initially expand every relevant branch. Up/down chevrons animate by rotation.
+Collapsed branches retain selected descendants and expose their selected count.
+Collapse state is independent per surface and lives with its containing screen or
+input, surviving picker reopen and Bar/Tree switches but not owner unmount. It is
+not the persisted Bar-view minimization preference above.
 
 ## Pipe Forms
 

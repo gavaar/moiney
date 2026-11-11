@@ -1,7 +1,6 @@
 import type { Id } from "@convex/_generated/dataModel";
 import type { TransactionStructure } from "@domain/transactions";
 import type { PipeModel } from "@features/pipes/data/pipes";
-import type { InputProps } from "@ui/Input";
 import type { OnDismissStateChange } from "@ui/Form/use-form-dismissal";
 
 export type AmountFormDraft = {
@@ -17,7 +16,7 @@ export type AmountFormDraft = {
 
 export type SourcePicker = {
   pipes: readonly PipeModel[];
-  groups?: NonNullable<Extract<InputProps, { type: "select" }>["groups"]>;
+  preferredPipeId?: string;
   loading: boolean;
   navigationStart: number;
   onSelect: (id: Id<"pipes">) => void;

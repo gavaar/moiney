@@ -1,5 +1,6 @@
 import type { InputProps } from "@ui/Input";
 import type { BoundSelectItem, FormValue, InputConfiguration } from "./form.types";
+import type { TreeItemState } from "@ui/TreeList";
 
 type Uncontrolled<Props> = Props extends unknown ? Omit<Props, "value" | "onChange" | "onError"> : never;
 
@@ -17,10 +18,10 @@ export function prepareInput<Item extends { id: string }>(
     ...configuration,
     items: items.map(item => ({
       id: item.id,
-      content: () => renderItem(item),
+      content: (state?: TreeItemState) => renderItem(item, state),
       style: itemStyle ? () => itemStyle(item) : undefined,
     })),
-    renderItem: (item: BoundSelectItem) => item.content(),
+    renderItem: (item: BoundSelectItem, state?: TreeItemState) => item.content(state),
     itemStyle: itemStyle ? (item: BoundSelectItem) => item.style?.() : undefined,
   };
 }
