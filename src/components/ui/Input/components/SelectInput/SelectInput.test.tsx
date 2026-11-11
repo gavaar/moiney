@@ -59,7 +59,7 @@ describe("SelectInput", () => {
     expect(screen.getByRole("checkbox", { name: "Rent" })).toBeTruthy();
   });
 
-  it("branches available tree choices in their supplied order without changing accessible names", async () => {
+  it("keeps available tree choices in their supplied order without changing accessible names", async () => {
     const onChange = vi.fn();
     render(<SelectInput label="Source" value={null} onChange={onChange} items={[{ id: "bank", name: "Bank" }, ...items]}
       tree={[
@@ -70,8 +70,6 @@ describe("SelectInput", () => {
       ]}
       renderItem={item => <>{item.name}</>} />);
     await userEvent.click(screen.getByRole("button", { name: "Source" }));
-    expect(screen.getByText("├──").getAttribute("aria-hidden")).toBe("true");
-    expect(screen.getByText("└──").getAttribute("aria-hidden")).toBe("true");
     expect(screen.getAllByRole("button", { name: /^(Salary|Groceries)$/ }).map(row => row.textContent)).toEqual(["Salary", "Groceries"]);
     expect(onChange).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole("button", { name: "Salary" }));

@@ -61,7 +61,7 @@ export function TreeList<Item extends { id: string }>({ items, tree, renderItem,
       const count = countLabel && <Text className="self-center text-muted text-xs" nativeID={countId} accessibilityLabel={countLabel}>{selectedInside} selected</Text>;
 
       return <View className="min-h-6 flex-row items-center">
-        <TreeBranch path={branch} />
+        <TreeBranch path={branch} expanded={hasChildren && expanded} />
         {structural
           ? <Pressable className="flex-1 self-stretch flex-row items-center gap-2 px-2" disabled={disabled}
               accessibilityRole="button" accessibilityLabel={disclosureLabel}

@@ -71,7 +71,8 @@ decisions.
 ## Shared Primitives
 
 - Lists own inter-item spacing through their content container's `gap`, rather
-  than item margins, unless the layout cannot express the spacing with `gap`.
+  than item margins, unless the layout cannot express the spacing with `gap`
+  (such as connected trees below).
   Modal, collapsible, autocomplete, and icon choices share `OptionList`'s default
   row gap; grids use the same gap between columns. Variants retain their content
   layout and control padding for usable tap targets, not per-item spacing margins.
@@ -130,6 +131,10 @@ ranking without changing eligibility. An explicit subtree scope omits outside
 ancestors; otherwise ancestry reaches the actual roots. Ineligible terminal
 branches disappear. Roots are unindented and semibold; descendants use `TreeBranch`
 connectors. Screen-specific financial content and special options remain supported.
+Connectors run continuously from expanded parents through their displayed children,
+ending at the last sibling and never joining separate roots. Connected rows,
+including expanded History groups and archives, keep spacing inside their cells
+so variable-height content does not break the lines.
 
 In pickers, structural-only parents are muted and their row toggles expansion.
 Selectable rows select only that ID; a separate chevron toggles their descendants.
