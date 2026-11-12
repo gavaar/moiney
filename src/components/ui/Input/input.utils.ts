@@ -3,7 +3,7 @@ export function clampNumber(value: number, min: number, max: number) {
 }
 
 export function sanitizeDecimal(input: string): string {
-  const cleaned = input.replace(/-/g, "").replace(/[^0-9.]/g, "");
+  const cleaned = input.replace(/,/g, ".").replace(/-/g, "").replace(/[^0-9.]/g, "");
   const parts = cleaned.split(".");
   return parts[0] + (parts.length > 1 ? "." + parts.slice(1).join("") : "");
 }

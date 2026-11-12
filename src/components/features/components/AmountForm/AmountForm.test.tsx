@@ -111,7 +111,7 @@ vi.mock("@features/transactions/cache/EventHistoryCacheContext", () => ({
 }));
 
 vi.mock("@ui/Input", () => ({
-  Input: ({ label, type, value, onChange, disabled, placeholder, allowNegative, error, supportingText, maxLength, items, options, renderItem }: any) => {
+  Input: ({ label, type, value, onChange, disabled, placeholder, allowNegative, error, supportingText, maxLength, items, tree, options, renderItem }: any) => {
     if (type === "toggle") {
       return <div data-testid="input-transaction-mode">
         <span>{options[value ? 1 : 0].label}</span>
@@ -145,7 +145,7 @@ vi.mock("@ui/Input", () => ({
               : placeholder ?? "Select..."}
           </span>
           <div data-testid={`select-items-${label}`}>
-            {items?.map((item: any) => (
+            {items?.filter((item: any) => tree?.find((node: any) => node.id === item.id)?.selectable !== false).map((item: any) => (
               <button
                 key={item.id}
                 data-testid={`select-item-${item.id}`}

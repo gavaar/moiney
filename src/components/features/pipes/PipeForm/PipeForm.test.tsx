@@ -30,6 +30,25 @@ describe("unified pipe creation", () => {
   beforeEach(() => { vi.clearAllMocks(); allPipes = [root]; });
   afterEach(() => vi.useRealTimers());
 
+  it("shares hierarchy between owner and restricted contingency pickers without making structural parents selectable", () => {
+    const reserve = { ...root, id: "reserve" as Id<"pipes">, parentId: rootId, name: "Reserve" };
+    const other = { ...root, id: "other" as Id<"pipes">, name: "Other feed" };
+    allPipes = [root, reserve, other];
+    create(rootId); choose("Manual"); choose("Owner pipe");
+    choose("Collapse Wallet");
+    expect(screen.queryByRole("button", { name: "Reserve" })).toBeNull();
+    choose("Expand Wallet");
+    expect(screen.getByRole("button", { name: "Reserve" })).toBeTruthy();
+    choose("Wallet");
+    choose("Next step"); choose("Contingency");
+    expect(screen.getByRole("button", { name: "Collapse Wallet" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Wallet" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Other feed" })).toBeNull();
+    expect(screen.getByRole("button", { name: "No contingency" })).toBeTruthy();
+    choose("Reserve");
+    expect(screen.getByRole("button", { name: "Contingency" }).textContent).toContain("Reserve");
+  });
+
   it("offers seven grouped types and creates a boiler from its single-page fields", async () => {
     create();
     for (const name of ["Basic feed", "Boiler", "Manual", "Instant", "Overflow", "Timed", "Self-destruct"]) {

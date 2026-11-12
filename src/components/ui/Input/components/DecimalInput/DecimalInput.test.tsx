@@ -1,16 +1,17 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { Input, type InputProps } from "../../Input";
 import { useState } from "react";
 
 const DecimalInput = (props: Omit<Extract<InputProps, { type: "decimal" }>, "type">) => <Input type="decimal" {...props} />;
 
-function renderControlledDecimalInput() {
+function renderControlledDecimalInput(initialValue = "-") {
   const onChange = vi.fn();
 
   function ControlledDecimalInput() {
-    const [value, setValue] = useState("-");
+    const [value, setValue] = useState(initialValue);
 
     return (
       <DecimalInput
@@ -60,6 +61,47 @@ describe("DecimalInput", () => {
     const input = screen.getByDisplayValue("");
     fireEvent.change(input, { target: { value: "100.53" } });
     expect(onChange).toHaveBeenCalledWith("100.53");
+  });
+
+  it.each(["", "-"])("treats a typed comma as a dot with initial sign '%s'", async (sign) => {
+    const user = userEvent.setup();
+    const onChange = renderControlledDecimalInput(sign);
+    const input = screen.getByRole("textbox", { name: "Amount" });
+
+    await user.type(input, "12,");
+
+    expect(onChange).toHaveBeenLastCalledWith(`${sign}12.`);
+    expect(screen.getByDisplayValue("12.")).toBeTruthy();
+
+    await user.type(input, "34");
+
+    expect(onChange).toHaveBeenLastCalledWith(`${sign}12.34`);
+    expect(screen.getByDisplayValue("12.34")).toBeTruthy();
+  });
+
+  it.each([
+    [",", "."],
+    ["12,34", "12.34"],
+    ["1,2,3", "1.23"],
+    ["1,234.56", "1.23456"],
+    ["1.234,56", "1.23456"],
+  ])("normalizes pasted separators in '%s' to '%s'", async (text, expected) => {
+    const user = userEvent.setup();
+    const onChange = renderControlledDecimalInput("");
+
+    await user.click(screen.getByRole("textbox", { name: "Amount" }));
+    await user.paste(text);
+
+    expect(onChange).toHaveBeenCalledExactlyOnceWith(expected);
+    expect(screen.getByDisplayValue(expected)).toBeTruthy();
+  });
+
+  it("displays commas in a supplied value as dots without emitting a change", () => {
+    const onChange = vi.fn();
+    render(<DecimalInput label="Amount" value="12,34" onChange={onChange} />);
+
+    expect(screen.getByDisplayValue("12.34")).toBeTruthy();
+    expect(onChange).not.toHaveBeenCalled();
   });
 
   it("allows trailing decimal point", () => {

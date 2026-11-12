@@ -37,24 +37,31 @@ export function HistoryList({ entries, deletedPipes: catalog, filters, isLoading
     });
   }, []);
   const showEditHistory = useCallback((id: Id<"events">, title: string) => setSelected({ id, title }), []);
-  const list = <FlatList data={rows} keyExtractor={row => row.key} className="flex-1 px-4" contentContainerClassName="gap-1 pb-4"
+  const list = <FlatList data={rows} keyExtractor={row => row.key} className="flex-1 px-4" contentContainerClassName="pb-4"
     onRefresh={refresh} refreshing={isRefreshing}
     onEndReached={() => { if (hasMore && !isLoading && !error) loadMore(); }} onEndReachedThreshold={0.5}
     ListHeaderComponent={error ? <Text accessibilityRole="alert" className="text-error text-center py-2">{error}</Text> : undefined}
     ListEmptyComponent={!isLoading && !error ? <Text className="text-muted text-center pt-16">No history yet</Text> : undefined}
     ListFooterComponent={isLoading ? <ActivityIndicator accessibilityLabel="Loading history" color={colors.primary} /> : undefined}
-    renderItem={({ item }) => {
-      const row = <HistoryRow item={item} expanded={expanded.has(item.key)} pipesById={pipesById}
-        childrenByParent={childrenByParent} deletedPipeIcons={deletedPipeIcons} onToggle={toggle}
-        onShowEditHistory={showEditHistory} onShowSettlement={setSelectedSettlement} />;
-      return item.branch.length > 0
-        ? <View className="flex-row items-center">
-            <TreeBranch path={item.branch} />
-            <View className="flex-1">
-              {row}
-            </View>
-          </View>
-        : row;
+    renderItem={({ item, index }) => {
+      const next = rows[index + 1];
+      const hasVisibleChildren = next !== undefined && next.branch.length > item.branch.length;
+
+      return <View className="flex-row items-center">
+        <TreeBranch path={item.branch} expanded={hasVisibleChildren} />
+        <View className="flex-1 py-0.5">
+          <HistoryRow
+            item={item}
+            expanded={expanded.has(item.key)}
+            pipesById={pipesById}
+            childrenByParent={childrenByParent}
+            deletedPipeIcons={deletedPipeIcons}
+            onToggle={toggle}
+            onShowEditHistory={showEditHistory}
+            onShowSettlement={setSelectedSettlement}
+          />
+        </View>
+      </View>;
     }} />;
   return <View className="flex-1">
     {list}

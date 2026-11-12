@@ -37,6 +37,7 @@ vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
       pipe_child_1: { id: pId("pipe_child_1"), name: "Child 1", icon: "cafe", parentId: pId("pipe_root"), priority: 0, capacity: 0, fed: 0, spent: 0 },
       pipe_child_2: { id: pId("pipe_child_2"), name: "Child 2", icon: "car-sport-outline", parentId: pId("pipe_root"), priority: 0, capacity: 0, fed: 0, spent: 0 },
       pipe_gc_1: { id: pId("pipe_gc_1"), name: "Grandchild 1", icon: "game-controller-outline", parentId: pId("pipe_child_1"), priority: 0, capacity: 0, fed: 0, spent: 0 },
+      ...Object.fromEntries(extraChildren.map(pipe => [pipe.id, pipe])),
     },
     childrenByParent: new Map([
       [
@@ -74,6 +75,30 @@ describe("DeletePipeConfirmation", () => {
     expect(screen.getByText("Child 1")).toBeTruthy();
     expect(screen.getByText("Child 2")).toBeTruthy();
     expect(screen.getByText("Grandchild 1")).toBeTruthy();
+  });
+
+  it("retains collapse on reopen without changing the exhaustive deletion count or command", async () => {
+    const props = { pipeId: pId("pipe_root"), onClose: vi.fn(), onDeleted: vi.fn() };
+    const { rerender } = render(<DeletePipeConfirmation {...props} visible />);
+    fireEvent.click(screen.getByRole("button", { name: "Collapse Root Pipe" }));
+    expect(screen.queryByText("Grandchild 1")).toBeNull();
+    expect(screen.getByRole("button", { name: "Delete 4 pipes" })).toBeTruthy();
+    expect(screen.getByText(/delete this pipe and all its child pipes/)).toBeTruthy();
+    rerender(<DeletePipeConfirmation {...props} visible={false} />);
+    rerender(<DeletePipeConfirmation {...props} visible />);
+    expect(screen.queryByText("Grandchild 1")).toBeNull();
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Delete 4 pipes" })); });
+    expect(mockStartPipeDeletion).toHaveBeenCalledWith({ pipeId: props.pipeId, deleteTransactions: false });
+  });
+
+  it("scopes an inner-pipe preview to that subtree, without selectable rows or outside ancestors", () => {
+    render(<DeletePipeConfirmation visible pipeId={pId("pipe_child_1")} onClose={vi.fn()} onDeleted={vi.fn()} />);
+    expect(screen.queryByText("Root Pipe")).toBeNull();
+    expect(screen.queryByText("Child 2")).toBeNull();
+    expect(screen.getByText("Grandchild 1")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Collapse Child 1" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Grandchild 1" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Delete 2 pipes" })).toBeTruthy();
   });
 
   it("keeps a large subtree confirmation bounded without changing the deletion count", () => {

@@ -9,8 +9,8 @@ import type { HistoryEntry } from "@features/transactions/history/events/event-g
 vi.mock("react-native", async importOriginal => ({
   ...await importOriginal<typeof import("react-native")>(),
   FlatList: <Item,>({ data, keyExtractor, renderItem }: {
-    data: Item[]; keyExtractor: (item: Item) => string; renderItem: (info: { item: Item }) => ReactNode;
-  }) => <div>{data.map(item => <div key={keyExtractor(item)}>{renderItem({ item })}</div>)}</div>,
+    data: Item[]; keyExtractor: (item: Item) => string; renderItem: (info: { item: Item; index: number }) => ReactNode;
+  }) => <div>{data.map((item, index) => <div key={keyExtractor(item)}>{renderItem({ item, index })}</div>)}</div>,
 }));
 const noop = () => undefined;
 vi.mock("convex/react", () => ({ useConvex: () => ({ query: noop }), useMutation: () => noop }));

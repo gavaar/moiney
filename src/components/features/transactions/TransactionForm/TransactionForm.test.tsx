@@ -8,7 +8,8 @@ import { TransactionForm } from "./TransactionForm";
 import type { HistoryEntry } from "../history/events/event-groups";
 
 const root: PipeModel = { id: "root" as Id<"pipes">, name: "Budget", icon: "pipe", fed: 10000, spent: 0, capacity: 0, priority: 0 };
-const source: PipeModel = { ...root, id: "source" as Id<"pipes">, parentId: root.id, name: "Food", fed: 1000, spent: 1000, capacity: 2000 };
+const branch: PipeModel = { ...root, id: "branch" as Id<"pipes">, parentId: root.id, name: "Daily spending" };
+const source: PipeModel = { ...root, id: "source" as Id<"pipes">, parentId: branch.id, name: "Food", fed: 1000, spent: 1000, capacity: 2000 };
 const other: PipeModel = { ...root, id: "other" as Id<"pipes">, name: "Wallet", fed: 2000, spent: 500, capacity: 2000 };
 const investment: PipeModel = { ...root, id: "investment" as Id<"pipes">, name: "Investment" };
 const investmentLeaf: PipeModel = { ...investment, id: "investment-leaf" as Id<"pipes">, parentId: investment.id, name: "Savings" };
@@ -22,10 +23,10 @@ vi.mock("@ui/Alert", () => ({ useAlert: () => ({ error: vi.fn() }) }));
 vi.mock("@features/transactions/cache/EventHistoryCacheContext", () => ({ useOptionalEventHistoryCache: () => null }));
 vi.mock("@features/pipes/context/PipeCatalogContext", () => ({
   usePipeCatalog: () => ({
-    allPipes: [root, source, other, investment, investmentLeaf],
-    childrenByParent: new Map([[root.id, [source]], [investment.id, [investmentLeaf]]]),
+    allPipes: [root, branch, source, other, investment, investmentLeaf],
+    childrenByParent: new Map([[root.id, [branch]], [branch.id, [source]], [investment.id, [investmentLeaf]]]),
     isLoading: false,
-    pipesById: { [root.id]: root, [source.id]: source, [other.id]: other, [investment.id]: investment, [investmentLeaf.id]: investmentLeaf },
+    pipesById: { [root.id]: root, [branch.id]: branch, [source.id]: source, [other.id]: other, [investment.id]: investment, [investmentLeaf.id]: investmentLeaf },
   })
 }));
 
@@ -50,8 +51,8 @@ describe("transaction forms", () => {
     ];
     render(<TransactionForm />);
     fireEvent.click(screen.getByRole("button", { name: "Transaction pipe" }));
-    expect(screen.getByRole("button", { name: "Collapse Wallet" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Expand Budget" })).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: /^(Wallet|Collapse Budget)$/ }).map(row => row.getAttribute("aria-label")))
+      .toEqual(["Wallet", "Collapse Budget"]);
   });
 
   it("starts repeat with its source and payer visible, and clears an incompatible payer when changing source", async () => {
@@ -64,8 +65,7 @@ describe("transaction forms", () => {
     expect(screen.getByRole("button", { name: "Transaction pipe" }).textContent).toContain("Food");
     fireEvent.click(screen.getByRole("button", { name: "Transaction pipe" }));
     expect(screen.getByRole("button", { name: "Collapse Budget" })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: /^Wallet/ })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Expand Wallet" }));
+    expect(screen.getByRole("button", { name: "Collapse Daily spending" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /^Wallet/ }));
     expect(screen.getByRole("button", { name: "Transaction pipe" }).textContent).toContain("Wallet");
     expect(screen.getByDisplayValue("Lunch")).toBeTruthy();
@@ -81,7 +81,6 @@ describe("transaction forms", () => {
     expect(screen.getByText("edit")).toBeTruthy();
     fireEvent.change(screen.getByPlaceholderText("What was this for?"), { target: { value: "Dinner" } });
     fireEvent.click(screen.getByRole("button", { name: "Transaction pipe" }));
-    fireEvent.click(screen.getByRole("button", { name: "Expand Wallet" }));
     fireEvent.click(screen.getByRole("button", { name: /^Wallet/ }));
     expect(screen.getByDisplayValue("Dinner")).toBeTruthy();
     expect(screen.getByText(/Food: spent/)).toBeTruthy();
@@ -93,9 +92,8 @@ describe("transaction forms", () => {
     render(<TransactionForm pipeId={undefined} initState={{ ...initial, intent: "edit", pipeName: "Deleted", structure: { type: "expense", from: "deleted" as Id<"pipes"> } }} />);
     expect(screen.getByRole("heading", { name: "Select pipe" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Transaction pipe" }));
-    expect(screen.getByRole("button", { name: "Expand Budget" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Expand Wallet" })).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Expand Budget" }));
+    expect(screen.getByRole("button", { name: "Collapse Budget" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Wallet" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /Food/ }));
     expect(screen.getByText(/replacement/)).toBeTruthy();
     expect(screen.getByText(/no accounting update/)).toBeTruthy();
@@ -106,28 +104,30 @@ describe("transaction forms", () => {
   it("shows the accounting effect on a replacement pipe when toggled on", () => {
     render(<TransactionForm pipeId={undefined} initState={{ ...initial, intent: "edit", structure: { type: "expense", from: "deleted" as Id<"pipes"> } }} />);
     fireEvent.click(screen.getByRole("button", { name: "Transaction pipe" }));
-    fireEvent.click(screen.getByRole("button", { name: "Expand Budget" }));
     fireEvent.click(screen.getByRole("button", { name: /Food/ }));
     fireEvent.click(screen.getByRole("switch", { name: "Apply accounting to replacement pipes" }));
     expect(screen.getByText(/Food: spent \+5.00/)).toBeTruthy();
     expect(screen.getByText(/Replacement pipes receive the transaction effect/)).toBeTruthy();
   });
 
-  it("expands the highest ranked root on create while leaving others collapsed", () => {
+  it("starts every relevant branch expanded and keeps intermediate parents structural", () => {
     render(<TransactionForm />);
     fireEvent.click(screen.getByRole("button", { name: "Transaction pipe" }));
     expect(screen.getByRole("button", { name: "Collapse Budget" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Expand Wallet" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Collapse Daily spending" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Collapse Investment" })).toBeTruthy();
     expect(screen.getByRole("button", { name: /Food/ })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: /^Wallet/ })).toBeNull();
+    expect(screen.getByRole("button", { name: "Wallet" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Collapse Daily spending" }));
+    expect(screen.queryByRole("button", { name: /Food/ })).toBeNull();
+    expect(screen.getByRole("button", { name: "Transaction pipe" }).getAttribute("aria-expanded")).toBe("true");
   });
 
   it("groups eligible leaf payers while leaving refund destinations flat", () => {
     const { unmount } = render(<TransactionForm pipeId={source.id} initState={{ ...initial, intent: "repeat" }} />);
     fireEvent.click(screen.getByRole("button", { name: "Paid from" }));
-    expect(screen.getByRole("button", { name: "Collapse Wallet" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Expand Investment" })).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Expand Investment" }));
+    expect(screen.getByRole("button", { name: "Wallet" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Collapse Investment" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /Savings/ }));
     expect(screen.getByRole("button", { name: "Paid from" }).textContent).toContain("Savings");
     unmount();

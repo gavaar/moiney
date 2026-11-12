@@ -14,32 +14,84 @@ const items = [
 ] as const;
 
 describe("SelectInput", () => {
-  it("branches available group choices in their ranked order without changing their accessible names", async () => {
+  it("keeps tree selection independent from collapse and remembers hidden selections on reopen", async () => {
     const onChange = vi.fn();
-    render(<SelectInput label="Source" value={null} onChange={onChange} items={items}
-      groups={[{ id: "bank", name: "Bank", itemIds: ["2", "1", "missing"], initiallyExpanded: true }]}
+    const treeItems = [
+      { id: "root", name: "Budget" },
+      { id: "parent", name: "Bills" },
+      { id: "leaf", name: "Rent" },
+    ];
+    function Controlled() {
+      const [value, setValue] = useState<string[]>([]);
+      return <SelectMultipleInput label="Tree pipes" value={value}
+        onChange={next => { onChange(next); setValue(next); }} items={treeItems}
+        tree={[
+          { id: "root", label: "Budget", selectable: false },
+          { id: "parent", label: "Bills", parentId: "root", selectable: true },
+          { id: "leaf", label: "Rent", parentId: "parent", selectable: true },
+        ]}
+        renderItem={item => <>{item.name}</>} />;
+    }
+    const rendered = render(<Controlled />);
+    await userEvent.click(screen.getByRole("button", { name: "Tree pipes" }));
+    expect(screen.queryByRole("checkbox", { name: "Budget" })).toBeNull();
+    expect(screen.getByRole("checkbox", { name: "Rent" })).toBeTruthy();
+    await userEvent.click(screen.getByRole("checkbox", { name: "Bills" }));
+    expect(onChange).toHaveBeenLastCalledWith(["parent"]);
+    expect(screen.getByRole("checkbox", { name: "Rent" }).getAttribute("aria-checked")).toBe("false");
+    await userEvent.click(screen.getByRole("checkbox", { name: "Rent" }));
+    await userEvent.click(screen.getByRole("button", { name: "Collapse Bills" }));
+    expect(screen.queryByRole("checkbox", { name: "Rent" })).toBeNull();
+    expect(screen.getByLabelText("1 selected inside")).toBeTruthy();
+    expect(onChange).toHaveBeenCalledTimes(2);
+    await userEvent.click(screen.getByTestId("modal-backdrop"));
+    await userEvent.click(screen.getByRole("button", { name: "Tree pipes" }));
+    expect(screen.queryByRole("checkbox", { name: "Rent" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Expand Bills" }));
+    expect(screen.getByRole("checkbox", { name: "Rent" }).getAttribute("aria-checked")).toBe("true");
+    await userEvent.click(screen.getByRole("button", { name: "Collapse Budget" }));
+    expect(screen.queryByRole("checkbox", { name: "Bills" })).toBeNull();
+    expect(screen.getByLabelText("2 selected inside")).toBeTruthy();
+    expect(onChange).toHaveBeenCalledTimes(2);
+    rendered.unmount();
+    render(<Controlled />);
+    await userEvent.click(screen.getByRole("button", { name: "Tree pipes" }));
+    expect(screen.getByRole("checkbox", { name: "Rent" })).toBeTruthy();
+  });
+
+  it("keeps available tree choices in their supplied order without changing accessible names", async () => {
+    const onChange = vi.fn();
+    render(<SelectInput label="Source" value={null} onChange={onChange} items={[{ id: "bank", name: "Bank" }, ...items]}
+      tree={[
+        { id: "bank", label: "Bank", selectable: false },
+        { id: "2", label: "Salary", parentId: "bank", selectable: true },
+        { id: "1", label: "Groceries", parentId: "bank", selectable: true },
+        { id: "missing", label: "Missing", parentId: "bank", selectable: true },
+      ]}
       renderItem={item => <>{item.name}</>} />);
     await userEvent.click(screen.getByRole("button", { name: "Source" }));
-    expect(screen.getByText("├──").getAttribute("aria-hidden")).toBe("true");
-    expect(screen.getByText("└──").getAttribute("aria-hidden")).toBe("true");
     expect(screen.getAllByRole("button", { name: /^(Salary|Groceries)$/ }).map(row => row.textContent)).toEqual(["Salary", "Groceries"]);
     expect(onChange).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole("button", { name: "Salary" }));
     expect(onChange).toHaveBeenCalledWith("2");
   });
 
-  it("groups options with independently collapsible accessible headers", async () => {
+  it("collapses independent roots while keeping standalone options available", async () => {
     const onChange = vi.fn();
     render(<SelectInput label="Source" value={null} onChange={onChange}
-      items={[{ id: "none", name: "None" }, ...items]}
-      groups={[
-        { id: "bank", name: "Bank", itemIds: ["1"], initiallyExpanded: true },
-        { id: "wallet", name: "Wallet", itemIds: ["2"] },
+      items={[{ id: "none", name: "None" }, { id: "bank", name: "Bank" }, { id: "wallet", name: "Wallet" }, ...items]}
+      tree={[
+        { id: "none", label: "None", selectable: true },
+        { id: "bank", label: "Bank", selectable: false },
+        { id: "1", label: "Groceries", parentId: "bank", selectable: true },
+        { id: "wallet", label: "Wallet", selectable: false },
+        { id: "2", label: "Salary", parentId: "wallet", selectable: true },
       ]}
       renderItem={item => <>{item.name}</>} />);
     await userEvent.click(screen.getByRole("button", { name: "Source" }));
     expect(screen.getByRole("button", { name: "None" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Collapse Bank" }).getAttribute("aria-expanded")).toBe("true");
+    await userEvent.click(screen.getByRole("button", { name: "Collapse Wallet" }));
     expect(screen.queryByRole("button", { name: "Salary" })).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Expand Wallet" }));
     expect(screen.getByRole("button", { name: "Salary" })).toBeTruthy();
@@ -50,15 +102,20 @@ describe("SelectInput", () => {
     expect(onChange).toHaveBeenCalledWith("2");
   });
 
-  it("expands modal groups and keeps the selected label in the trigger", async () => {
+  it("keeps a selected tree item's label in the trigger", async () => {
     function Controlled() {
       const [value, setValue] = useState<string | null>(null);
-      return <SelectInput label="Payer" value={value} onChange={setValue} items={items}
-        groups={[{ id: "bank", name: "Bank", itemIds: ["1"] }, { id: "wallet", name: "Wallet", itemIds: ["2"], initiallyExpanded: true }]}
+      return <SelectInput label="Payer" value={value} onChange={setValue} items={[{ id: "bank", name: "Bank" }, ...items]}
+        tree={[
+          { id: "bank", label: "Bank", selectable: false },
+          { id: "1", label: "Groceries", parentId: "bank", selectable: true },
+          { id: "2", label: "Salary", selectable: true },
+        ]}
         renderItem={item => <>{item.name}</>} />;
     }
     render(<Controlled />);
     await userEvent.click(screen.getByRole("button", { name: "Payer" }));
+    await userEvent.click(screen.getByRole("button", { name: "Collapse Bank" }));
     expect(screen.queryByRole("button", { name: "Groceries" })).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Expand Bank" }));
     await userEvent.click(screen.getByRole("button", { name: "Groceries" }));

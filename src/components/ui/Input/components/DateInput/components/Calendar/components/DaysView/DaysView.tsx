@@ -4,7 +4,7 @@ import { cn } from "@/lib/styles";
 import { MONTH_LABELS, WEEKDAY_LABELS, getMonthGrid, monthLabel, type Cursor } from "../../../../calendar";
 
 const CELL = "h-9 w-9 items-center justify-center rounded-full";
-const COLUMN = "items-center";
+const COLUMN = "items-center gap-2";
 const COLUMN_STYLE = { flexGrow: 1, flexShrink: 1, flexBasis: 0, minWidth: 0 };
 
 type Today = { year: number; month: number; day: number };
@@ -62,10 +62,10 @@ export function DaysView({ cursor, value, today, onSelectDay }: Props) {
     <View accessibilityRole="radiogroup" accessibilityLabel={monthLabel(cursor.year, cursor.month)} className="w-full flex-row">
       {WEEKDAY_LABELS.map((weekday, index) => (
         <View key={index} className={COLUMN} style={COLUMN_STYLE}>
-          <View className="h-9 mb-1 items-center justify-center">
+          <View className="h-9 items-center justify-center">
             <Text className="text-primary font-bold text-xs">{weekday}</Text>
           </View>
-          <View className="gap-1 items-center">
+          <View className="gap-2 items-center">
             {Array.from({ length: 6 }, (_, week) => {
               const idx = week * 7 + index;
               const cell = grid[idx];

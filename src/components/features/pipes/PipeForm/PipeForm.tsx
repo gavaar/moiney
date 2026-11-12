@@ -143,6 +143,7 @@ export function PipeForm(props: PipeFormProps) {
   const pages: FormPage<PipeFormValues>[] = [
     ...buildPipeForm({
       pipes,
+      catalog: all,
       disabled: busy,
       loading: isLoading,
       draft,

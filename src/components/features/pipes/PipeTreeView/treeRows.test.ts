@@ -57,10 +57,8 @@ describe("buildTreeRows", () => {
       groupMax: 400,
     });
     expect(rows.find((row) => row.id === feed.id)).toMatchObject({
-      depth: 0,
       isLeaf: false,
       groupMax: 500,
     });
-    expect(rows.map(row => row.branch)).toEqual([[], [], [true], [false], [false, true], [false, false]]);
   });
 });

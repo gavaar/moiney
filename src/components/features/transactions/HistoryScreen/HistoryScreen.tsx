@@ -13,6 +13,7 @@ import type { HistoryFilters } from "@features/transactions/history/data/history
 import { Button } from "@ui/Button";
 import { Input } from "@ui/Input";
 import { useUtcMonthStart } from "@/lib/useUtcMonthStart";
+import { buildPipeTree, PipeTreeItem } from "@features/pipes/PipeTree";
 
 type FilterDraft = {
   fromDate: Date | null;
@@ -134,8 +135,8 @@ function HistoryFilterControls({
           <Input
             type="select-multiple"
             accessibilityLabel="Pipes"
-            items={allPipes ?? []}
-            renderItem={(pipe) => <Text className="text-text">{pipe.name}</Text>}
+            {...buildPipeTree(allPipes ?? [])}
+            renderItem={(pipe, state) => <PipeTreeItem pipe={pipe} state={state} />}
             value={draft.pipeIds}
             onChange={(pipeIds) =>
               setDraft((current) => ({ ...current, pipeIds: pipeIds as Id<"pipes">[] }))

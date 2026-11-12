@@ -2,13 +2,14 @@ import type { JSX, ReactNode } from "react";
 import type { IconName } from "@ui/Icon";
 import type { InputProps } from "@ui/Input";
 import type { StyleProp, ViewStyle } from "react-native";
+import type { TreeItemState } from "@ui/TreeList";
 
 export type FormValue = InputProps["value"];
 
 // Each field can retain its own domain item type behind bound presentation.
 export type BoundSelectItem = {
   id: string;
-  content: () => ReactNode;
+  content: (state?: TreeItemState) => ReactNode;
   style?: () => StyleProp<ViewStyle>;
 };
 

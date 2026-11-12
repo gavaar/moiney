@@ -8,9 +8,6 @@ const mocks = vi.hoisted(() => ({
   renderHistoryFeed: vi.fn(),
 }));
 
-vi.mock("react-native-safe-area-context", () => ({
-  SafeAreaView: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-}));
 vi.mock("expo-router/react-navigation", () => ({ useIsFocused: () => true }));
 vi.mock("@features/app/AppScreenHeader", () => ({
   AppScreenHeader: ({ title }: { title: string }) => <h1>{title}</h1>,
@@ -24,7 +21,7 @@ vi.mock("@features/transactions/history/MixedHistoryFeed/MixedHistoryFeed", () =
 vi.mock("@features/pipes/context/PipeCatalogContext", () => {
   const allPipes = [
     { id: "parent", name: "Household", icon: "home" },
-    { id: "groceries", name: "Groceries", icon: "cart" },
+    { id: "groceries", name: "Groceries", icon: "cart", parentId: "parent" },
     { id: "coffee", name: "Coffee", icon: "coffee" },
   ];
   return {
@@ -35,7 +32,9 @@ vi.mock("@features/pipes/context/PipeCatalogContext", () => {
     }),
   };
 });
-vi.mock("@ui/Input", () => ({
+vi.mock("@ui/Input", async importOriginal => {
+  const actual = await importOriginal<typeof import("@ui/Input")>();
+  return {
   Input: (props: any) => {
     const label = props.accessibilityLabel ?? props.label;
     if (props.type === "text") {
@@ -60,17 +59,10 @@ vi.mock("@ui/Input", () => ({
         />
       );
     }
-    return (
-      <div>
-        {props.items.map((item: any) => (
-          <button key={item.id} onClick={() => props.onChange([...props.value, item.id])}>
-            {item.name}
-          </button>
-        ))}
-      </div>
-    );
+    return <actual.Input {...props} />;
   },
-}));
+};
+});
 vi.mock("@ui/Button", () => ({
   Button: ({ title, accessibilityLabel, onPress }: any) => (
     <button aria-label={accessibilityLabel} onClick={onPress}>
@@ -88,11 +80,13 @@ describe("HistoryScreen filters", () => {
     const user = userEvent.setup();
     render(<HistoryScreen />);
 
-    expect(screen.getByRole("button", { name: "Household" })).toBeTruthy();
     await user.type(screen.getByRole("textbox", { name: "Title contains" }), " Coffee ");
     await user.click(screen.getByRole("button", { name: "From date" }));
     await user.click(screen.getByRole("button", { name: "To date" }));
-    await user.click(screen.getByRole("button", { name: "Groceries" }));
+    await user.click(screen.getByRole("button", { name: "Pipes" }));
+    expect(screen.getByRole("checkbox", { name: "Household" })).toBeTruthy();
+    await user.click(screen.getByRole("checkbox", { name: "Groceries" }));
+    await user.click(screen.getByTestId("modal-backdrop"));
 
     const now = new Date();
     expect(mocks.renderHistoryFeed.mock.calls.at(-1)?.[0]).toEqual({
@@ -108,6 +102,20 @@ describe("HistoryScreen filters", () => {
 
     await user.click(screen.getByRole("button", { name: "Clear filters" }));
     expect(mocks.renderHistoryFeed.mock.calls.at(-1)?.[0]).toEqual({});
+  });
+
+  it("retains exact parent and child filter selections when their branch is collapsed", async () => {
+    render(<HistoryScreen />);
+    await userEvent.click(screen.getByRole("button", { name: "Pipes" }));
+    await userEvent.click(screen.getByRole("checkbox", { name: "Household" }));
+    expect(screen.getByRole("checkbox", { name: "Groceries" }).getAttribute("aria-checked")).toBe("false");
+    await userEvent.click(screen.getByRole("checkbox", { name: "Groceries" }));
+    await userEvent.click(screen.getByRole("button", { name: "Collapse Household" }));
+    expect(screen.queryByRole("checkbox", { name: "Groceries" })).toBeNull();
+    expect(screen.getByLabelText("1 selected inside")).toBeTruthy();
+    await userEvent.click(screen.getByTestId("modal-backdrop"));
+    await userEvent.click(screen.getByRole("button", { name: "Apply filters" }));
+    expect(mocks.renderHistoryFeed.mock.calls.at(-1)?.[0].pipeIds).toEqual(["parent", "groceries"]);
   });
 
   it("starts at the current month and keeps Clear empty when applying again", async () => {

@@ -1,9 +1,8 @@
-import { Text, View } from "react-native";
 import { parseMoney } from "@domain/money";
-import { colors } from "@/lib/styles";
-import { Icon, safeIconName } from "@ui/Icon";
 import { formBuilder, type FormPage } from "@ui/Form";
 import type { PipeModel } from "@features/pipes/data/pipes";
+import { buildPipeTree, PipeTreeItem } from "@features/pipes/PipeTree";
+import type { TreeItemState } from "@ui/TreeList";
 import { buildRuleRows } from "@features/pipes/rules/rule-form";
 import { pipeRuleDraft, type PipeDraft } from "./pipe-draft";
 import { isFeedKind, PIPE_KINDS } from "@features/pipes/rules/config";
@@ -11,15 +10,12 @@ import { validateOpeningMoney, validatePipeCapacity, validatePipeName, type Pipe
 
 export type PipeFormValues = Omit<PipeDraft, "kind"> & { kind: string | null; warningsAcknowledged: boolean };
 
-function pipeOption(item: { name: string; icon: string }) {
-  return <View className="flex-row items-center gap-2">
-    <Icon name={safeIconName(item.icon)} size={22} color={colors.muted} />
-    <Text className="flex-1 text-text" numberOfLines={1}>{item.name}</Text>
-  </View>;
+function pipeOption(item: { name: string; icon: string }, state?: TreeItemState) {
+  return <PipeTreeItem pipe={item} state={state} />;
 }
 
-export function buildPipeForm({ pipes, disabled, loading, draft, now, policy, typePickerInitiallyExpanded }: {
-  pipes: readonly PipeModel[]; disabled: boolean; loading: boolean; draft: PipeDraft; now: number;
+export function buildPipeForm({ pipes, catalog, disabled, loading, draft, now, policy, typePickerInitiallyExpanded }: {
+  pipes: readonly PipeModel[]; catalog: readonly PipeModel[]; disabled: boolean; loading: boolean; draft: PipeDraft; now: number;
   policy: PipeFormPolicy;
   typePickerInitiallyExpanded: boolean;
 }): readonly FormPage<PipeFormValues>[] {
@@ -30,6 +26,7 @@ export function buildPipeForm({ pipes, disabled, loading, draft, now, policy, ty
   const allChoices = Object.values(PIPE_KINDS);
   const choices = allChoices.filter(item => !editing || !isFeedKind(item.id));
   const owner = pipes.find(pipe => pipe.id === draft.ownerId);
+  const contingency = buildPipeTree(catalog, contingencyOptions.map(pipe => pipe.id));
 
   const capacity = draft.capacity && !validatePipeCapacity(draft.capacity) ? parseMoney(draft.capacity) : 0;
   const ruleRows = buildRuleRows(pipeRuleDraft(draft), { capacity, disabled, now });
@@ -90,7 +87,7 @@ Independe of current funds. Leave blank to set to zero.`,
       {
         type: "select",
         label: "Owner pipe",
-        items: pipes,
+        ...buildPipeTree(catalog, pipes.map(pipe => pipe.id)),
         loading,
         disabled: disabled || editing,
         validator: value => pipes.some(pipe => pipe.id === value) ? undefined : "Select an owner pipe",
@@ -115,8 +112,9 @@ Independe of current funds. Leave blank to set to zero.`,
         label: "Contingency",
         items: [
           { id: "none", name: "No contingency", icon: "shield" },
-          ...contingencyOptions,
+          ...contingency.items,
         ],
+        tree: [{ id: "none", label: "No contingency", selectable: true }, ...contingency.tree],
         renderItem: pipeOption,
       },
       {

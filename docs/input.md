@@ -22,6 +22,13 @@ field props. Private interaction callbacks are added only to implementation
 props, not subtracted from the public interface. Text inputs do not expose
 `defaultValue` or `onChangeText`.
 
+Decimal inputs treat commas as aliases for dots when typing, pasting, or displaying
+supplied values. Displayed magnitudes and emitted edits use dots. Both separators
+follow the existing rule: keep the first decimal separator and join subsequent
+fractional segments (`1,2,3` becomes `1.23`). Separators are never interpreted as
+thousands grouping (`1,234.56` becomes `1.23456`); precision validation stays with
+the caller.
+
 | `type` | Component folder under `src/components/ui/Input/components/` |
 | --- | --- |
 | `text` | `TextInput/` |
@@ -101,15 +108,23 @@ segment uses the shared primary background.
 `type="select"` controls one ID (`string | null`); `type="select-multiple"`
 controls a readonly ID array and emits mutable ID arrays. The public interface
 has no `multiple` flag; both types share a picker implementation internally.
-Select inputs accept `renderItem(item)` for custom option content. These two variants
+Select inputs accept `renderItem(item, treeState?)` for custom option content. These two variants
 open a bounded, virtualized picker from the shared field; there is no inline
 presentation. Pickers fit their contents up to the available modal height, then
 scroll; short lists remain compact. Multiple selections expose checkbox semantics. Optional `loading`
 displays a loading indicator in the trigger and prevents selection while loading.
 Empty lists display an empty state inside the picker.
-Optional `itemStyle(item)` styles option rows; the
-standard selected background remains owned by `OptionRow`. Domain-specific colors belong in
-feature renderers and style callbacks, not in Select.
+Optional `tree` supplies presentation relationships (`id`, `label`, optional
+`parentId`, and `selectable`) for the supplied items. Tree state tells renderers
+whether a row is a root, structural-only, selected, or multiple-select; it is absent
+for the trigger and flat options. Tree selection and collapse follow the shared
+[pipe-tree interaction contract](ui.md#pipe-trees). Select owns expansion above
+its modal so closing/reopening does not reset it. Items and relationships must
+describe the same relevant tree; features own catalog access and eligibility.
+Optional `itemStyle(item)` styles selectable option rows. `OptionRow` owns the
+standard selected background, omitted for multiple-select tree rows so feature
+renderers can use primary text instead. Domain-specific colors belong in feature
+renderers and style callbacks, not in Select.
 
 `type="collapsible-select"` controls one ID (`string | null`) and emits a selected
 ID. It starts collapsed by default; optional `initiallyExpanded` sets its initial

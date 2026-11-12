@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { it, expect } from "vitest";
 import type { Id } from "@convex/_generated/dataModel";
 import type { PipeModel } from "../data/pipes";
-import { TreeRow } from "../PipeTreeView/TreeRow";
+import { PipeTreeItem } from "../PipeTree";
 import { PipeBox } from "./PipeBox";
 import { MiniChildBox } from "./PipeBox/components/MiniChildBox";
 import { MinimizedPipe } from "./PipesList/MinimizedPipe";
@@ -19,7 +19,7 @@ const pipe: PipeModel = {
 };
 
 it.each([
-  { name: "tree row", content: <TreeRow row={{ id: pipe.id, depth: 0, branch: [], pipe, groupMax: 100, path: [pipe.id], isLeaf: true }} onPress={() => {}} /> },
+  { name: "tree row", content: <PipeTreeItem pipe={pipe} /> },
   { name: "pipe card", content: <PipeBox {...pipe} showPriority={false} /> },
   { name: "child snapshot", content: <MiniChildBox {...pipe} /> },
   { name: "minimized tile", content: <MinimizedPipe pipe={pipe} onPress={() => {}} onLongPress={() => {}} /> },

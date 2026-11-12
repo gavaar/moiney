@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { type Id } from "@convex/_generated/dataModel";
 import { PipeTreeView } from "./PipeTreeView";
@@ -8,10 +8,6 @@ import { PipeTreeView } from "./PipeTreeView";
 vi.mock("@ui/Icon", async (importOriginal) => ({
   ...await importOriginal<typeof import("@ui/Icon")>(),
   Icon: ({ name }: any) => <span data-testid="icon" data-icon-name={name} />,
-}));
-
-vi.mock("@/lib/styles", () => ({
-  colors: { error: "#C05959", success: "#46AE82" },
 }));
 
 vi.mock("@features/pipes/context/PipeCatalogContext", () => {
@@ -40,6 +36,23 @@ vi.mock("@features/pipes/context/PipeCatalogContext", () => {
 });
 
 describe("PipeTreeView", () => {
+  it("collapses branches independently without navigating and restores the full navigation path", async () => {
+    const onSelectPipe = vi.fn();
+    render(<PipeTreeView onSelectPipe={onSelectPipe} />);
+    await userEvent.click(screen.getByRole("button", { name: "Collapse Rent" }));
+    expect(screen.queryByText("Electricity")).toBeNull();
+    expect(screen.getByText("Food")).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Collapse Salary" }));
+    expect(screen.queryByText("Rent")).toBeNull();
+    expect(screen.getByText("Gifts")).toBeTruthy();
+    expect(onSelectPipe).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "Expand Salary" }));
+    expect(screen.queryByText("Electricity")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Expand Rent" }));
+    await userEvent.click(screen.getByText("Electricity"));
+    expect(onSelectPipe).toHaveBeenCalledWith(["feed-1", "child-1-1", "gc-1-1-1"]);
+  });
+
   it("renders all pipes by name", () => {
     render(<PipeTreeView onSelectPipe={vi.fn()} />);
     expect(screen.getByText("Salary")).toBeDefined();
@@ -52,7 +65,15 @@ describe("PipeTreeView", () => {
 
   it("renders an icon for each pipe", () => {
     render(<PipeTreeView onSelectPipe={vi.fn()} />);
-    expect(screen.getAllByTestId("icon")).toHaveLength(6);
+    expect(screen.getAllByTestId("icon").filter(icon => icon.getAttribute("data-icon-name") !== "chevron-up")).toHaveLength(6);
+  });
+
+  it("keeps financial accessibility labels and leaf bars in the shared rows", () => {
+    render(<PipeTreeView onSelectPipe={vi.fn()} />);
+    const leaf = screen.getByRole("button", { name: "Electricity. Fed 1.50. Spent 1.00. Capacity 2.00." });
+    expect(within(leaf).getByTestId("mini-bar-capacity")).toBeTruthy();
+    const parent = screen.getByRole("button", { name: "Rent. Fed 5.00. Spent 5.00. Capacity 6.00." });
+    expect(within(parent).queryByTestId("mini-bar-capacity")).toBeNull();
   });
 
   it("passes the correct icon name to each pipe", () => {
