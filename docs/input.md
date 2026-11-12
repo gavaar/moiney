@@ -22,6 +22,13 @@ field props. Private interaction callbacks are added only to implementation
 props, not subtracted from the public interface. Text inputs do not expose
 `defaultValue` or `onChangeText`.
 
+Decimal inputs treat commas as aliases for dots when typing, pasting, or displaying
+supplied values. Displayed magnitudes and emitted edits use dots. Both separators
+follow the existing rule: keep the first decimal separator and join subsequent
+fractional segments (`1,2,3` becomes `1.23`). Separators are never interpreted as
+thousands grouping (`1,234.56` becomes `1.23456`); precision validation stays with
+the caller.
+
 | `type` | Component folder under `src/components/ui/Input/components/` |
 | --- | --- |
 | `text` | `TextInput/` |
